@@ -1,0 +1,23 @@
+{
+  "name": "arcade-agents",
+  "description": "Complete connected-app work through one Arcade MCP Gateway. App sign-in happens in the browser; no API keys.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Arcade.dev",
+    "url": "https://arcade.dev"
+  },
+  "homepage": "https://arcade.dev",
+  "license": "Apache-2.0",
+  "keywords": [
+    "arcade",
+    "mcp",
+    "agent-skills",
+    "connected-apps"
+  ],
+  "skills": "skills",
+  "agents": "agents",
+  "commands": "commands",
+  "rules": "clients/cursor/rules",
+  "hooks": "clients/cursor/hooks/hooks.json",
+  "mcpServers": "clients/cursor/mcp.json"
+}

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "arcade": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@0.1.38",
+        "https://api.bosslevel.dev/mcp/all-optimized"
+      ]
+    }
+  }
+}

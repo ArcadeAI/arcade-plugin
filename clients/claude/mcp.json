@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "arcade": {
+      "type": "http",
+      "url": "https://api.bosslevel.dev/mcp/all-optimized"
+    }
+  }
+}

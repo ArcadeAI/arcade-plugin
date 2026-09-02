@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "arcade-agents",
+  "version": "0.1.0",
+  "description": "Complete connected-app work through one Arcade MCP Gateway. App sign-in happens in the browser; no API keys.",
+  "author": {
+    "name": "Arcade.dev",
+    "url": "https://arcade.dev"
+  },
+  "homepage": "https://arcade.dev",
+  "repository": "https://github.com/ArcadeAI/arcade-plugin",
+  "license": "Apache-2.0",
+  "keywords": [
+    "arcade",
+    "mcp",
+    "agent-skills",
+    "connected-apps"
+  ]
+}
