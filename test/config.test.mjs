@@ -50,6 +50,7 @@ test("CI toolchain versions are pinned in package.json", async () => {
     packageJson.devDependencies?.["@anthropic-ai/claude-code"],
     CLAUDE_CODE_CLI_VERSION,
   );
+  assert.equal(packageJson.engines?.node, CI_NODE_VERSION);
   assert.equal(packageJson.scripts?.["verify:discover"], "plugins discover .");
   assert.equal(
     packageJson.scripts?.["verify:claude"],

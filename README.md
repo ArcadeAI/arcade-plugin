@@ -11,7 +11,6 @@ once in the browser — without ever handing your agent a key.
 
 [Endpoint](https://api.bosslevel.dev/mcp/all-optimized) ·
 [Agent Plugins 1.0.0](https://agent-plugins.org) ·
-[v0.1.0](CHANGELOG.md) ·
 [MIT](LICENSE)
 
 ---

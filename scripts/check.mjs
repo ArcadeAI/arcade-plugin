@@ -230,6 +230,12 @@ for (const [name, version] of Object.entries(ciPins)) {
   }
 }
 
+if (packageJson.engines?.node !== CI_NODE_VERSION) {
+  fail(
+    `package.json engines.node must be exact "${CI_NODE_VERSION}", got "${packageJson.engines?.node ?? "missing"}"`,
+  );
+}
+
 for (const [schemaUrl, localPath] of Object.entries(VENDORED_SCHEMAS)) {
   if (!existsSync(join(ROOT, localPath))) {
     fail(`missing vendored schema for ${schemaUrl}: ${localPath}`);
