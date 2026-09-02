@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Arcade Agents are documented here.
+All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 

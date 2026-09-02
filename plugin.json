@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "arcade-agents",
+  "name": "arcade",
   "version": "0.1.0",
   "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Browser sign-in, no API keys.",
   "author": {

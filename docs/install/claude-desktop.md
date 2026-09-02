@@ -10,7 +10,7 @@ connector.
 ## One click: the `.mcpb` extension (recommended)
 
 1. Download
-   [`arcade-agents.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade-agents.mcpb).
+   [`arcade.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade.mcpb).
 2. Double-click it (or drag it into the Claude Desktop window).
 3. Click **Install**, then sign in with Arcade when prompted.
 

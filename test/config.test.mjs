@@ -9,7 +9,7 @@ import {
 import { readRepoFile, readRepoJson } from "./helpers.mjs";
 
 test("Cursor rule includes shared routing markers", async () => {
-  const rule = await readRepoFile("clients/cursor/rules/arcade-agents.mdc");
+  const rule = await readRepoFile("clients/cursor/rules/arcade.mdc");
   for (const marker of ROUTING_MARKERS) {
     assert.match(rule, new RegExp(marker));
   }

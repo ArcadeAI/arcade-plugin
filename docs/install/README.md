@@ -1,4 +1,4 @@
-# Install Arcade Agents
+# Install Arcade
 
 > **Staging preview.** Every install path below connects to
 > `api.bosslevel.dev`. Use your **staging** Arcade account
@@ -48,7 +48,7 @@ https://api.bosslevel.dev/mcp/all-optimized
 ```
 
 **Claude Desktop:** download
-[`arcade-agents.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade-agents.mcpb)
+[`arcade.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade.mcpb)
 (double-click to install) or use the connector URL above.
 
 Cursor and VS Code also have one-click MCP install links in the

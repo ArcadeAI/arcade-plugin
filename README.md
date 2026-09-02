@@ -1,4 +1,4 @@
-# Arcade Agents (staging preview)
+# Arcade (staging preview)
 
 > **Internal staging preview.** This plugin connects to Arcade's staging
 > gateway (`api.bosslevel.dev`). Sign in with your **staging** account on
@@ -31,7 +31,7 @@ install to one client. See [install guides](docs/install/) for details.
 
 ### Claude Desktop
 
-[Download `arcade-agents.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade-agents.mcpb)
+[Download `arcade.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade.mcpb)
 and double-click to install — or add the gateway as a connector.
 [Guide →](docs/install/claude-desktop.md)
 
@@ -112,7 +112,7 @@ tests, `npx plugins discover`, and Claude plugin validation.
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
 
-Tagged releases (`v*`) build and attach `arcade-agents.mcpb` for Claude
+Tagged releases (`v*`) build and attach `arcade.mcpb` for Claude
 Desktop (`.github/workflows/release.yml`). Build locally with `npm run build:mcpb`.
 
 ## License

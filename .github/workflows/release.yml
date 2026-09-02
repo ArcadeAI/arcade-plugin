@@ -49,11 +49,11 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           gh release create "${GITHUB_REF_NAME}" \
-            --title "Arcade Agents ${GITHUB_REF_NAME}" \
+            --title "Arcade ${GITHUB_REF_NAME}" \
             --notes "$(cat <<EOF
           - Endpoint: \`https://api.bosslevel.dev/mcp/all-optimized\`
           - Install (most agents): \`npx plugins add ArcadeAI/arcade-plugin\`
-          - Claude Desktop: download \`arcade-agents.mcpb\` below
+          - Claude Desktop: download \`arcade.mcpb\` below
           EOF
           )" \
-            clients/claude-desktop/arcade-agents.mcpb
+            clients/claude-desktop/arcade.mcpb

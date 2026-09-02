@@ -214,10 +214,10 @@ if (!mcpbEntry.includes("mcp_config") || !mcpbEntry.includes("process.exit(0)"))
   );
 }
 
-const cursorRule = read("clients/cursor/rules/arcade-agents.mdc");
+const cursorRule = read("clients/cursor/rules/arcade.mdc");
 for (const marker of ROUTING_MARKERS) {
   if (!cursorRule.includes(marker)) {
-    fail(`clients/cursor/rules/arcade-agents.mdc: missing routing marker "${marker}"`);
+    fail(`clients/cursor/rules/arcade.mdc: missing routing marker "${marker}"`);
   }
 }
 
