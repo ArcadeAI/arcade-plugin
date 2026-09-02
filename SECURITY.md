@@ -13,8 +13,7 @@ rules, commands, hooks, and MCP wiring — not a runtime service.
   not make network calls or write files.
 
 Security issues in the hosted gateway, OAuth flows, or connected third-party
-apps are **out of scope** for this repository. Report those through Arcade
-platform security channels.
+apps are **out of scope** for this repository.
 
 ## Supported Versions
 
@@ -27,17 +26,8 @@ platform security channels.
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Report privately via one of:
-
-- **GitHub Private Vulnerability Reporting** (preferred):
-  https://github.com/ArcadeAI/arcade-plugin/security/advisories/new
-- **Email:** security@arcade.dev
-
-Include the affected version or commit SHA, a description of the issue, steps
-to reproduce, and the potential impact.
-
-We aim to acknowledge reports within **3 business days** and follow up with an
-initial assessment shortly after.
+Report vulnerabilities through Arcade's
+[Security Research Program](https://docs.arcade.dev/en/resources/security-research-program).
 
 ## In Scope for This Repo
 
