@@ -3,8 +3,8 @@
   "name": "arcade-agents",
   "display_name": "Arcade Agents",
   "version": "0.1.0",
-  "description": "Let Claude use Arcade — one connection to every app you've connected.",
-  "long_description": "Connects Claude Desktop to the Arcade Agents gateway (https://api.bosslevel.dev/mcp/all-optimized). Ask for what you want; Arcade finds and runs the right tool, with one-time app sign-ins handled in the browser — no API keys. Requires Node.js (uses the pinned mcp-remote proxy to bridge Claude Desktop's stdio transport to the hosted server).",
+  "description": "Ask for what you want — your agent works across every connected app.",
+  "long_description": "Turn Claude into a connected-app operator. Ask in plain English for email, calendar, issues, chat, or docs — Arcade finds and runs the right tool across every app you've signed into. One gateway, browser sign-in, no API keys. Requires Node.js (uses a pinned mcp-remote proxy to bridge Claude Desktop to the hosted gateway at https://api.bosslevel.dev/mcp/all-optimized).",
   "author": {
     "name": "Arcade.dev",
     "email": "support@arcade.dev",

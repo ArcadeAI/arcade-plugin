@@ -5,8 +5,9 @@
 > `cloud.bosslevel.dev`. It is not a production release — do not distribute
 > it as one.
 
-Ask for what you want. The right Arcade tool runs across every app you've
-connected. App sign-in happens in the browser. No API keys.
+Ask for what you want — email, calendar, Slack, issues, docs, and more.
+Your agent picks the right tool across every app you've connected. Sign in
+once in the browser. No API keys.
 
 [Endpoint](https://api.bosslevel.dev/mcp/all-optimized) ·
 [Agent Plugins 1.0.0](https://agent-plugins.org) ·
