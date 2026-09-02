@@ -7,6 +7,9 @@ gateway as an MCP server:
 https://api.bosslevel.dev/mcp/all-optimized
 ```
 
+This is the **staging** gateway (`api.bosslevel.dev`). A production endpoint
+will replace it at public launch.
+
 That gives you Arcade tools only.
 
 ## Sign in

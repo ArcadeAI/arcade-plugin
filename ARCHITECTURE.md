@@ -34,7 +34,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │
 ├── README.md                           customer-facing overview
 ├── ARCHITECTURE.md                     this file
-├── LICENSE                             Apache-2.0
+├── LICENSE                             MIT
 ├── CHANGELOG.md
 ├── docs/
 │   ├── support-matrix.md               what each client loads

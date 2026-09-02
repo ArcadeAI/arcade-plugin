@@ -17,7 +17,7 @@
     "type": "git",
     "url": "https://github.com/ArcadeAI/arcade-plugin"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "keywords": [
     "arcade",
     "agent",

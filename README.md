@@ -12,7 +12,7 @@ once in the browser — without ever handing your agent a key.
 [Endpoint](https://api.bosslevel.dev/mcp/all-optimized) ·
 [Agent Plugins 1.0.0](https://agent-plugins.org) ·
 [v0.1.0](CHANGELOG.md) ·
-[Apache-2.0](LICENSE)
+[MIT](LICENSE)
 
 ---
 
@@ -111,4 +111,4 @@ Desktop (`.github/workflows/release.yml`). Build locally with `npm run build:mcp
 
 ## License
 
-[Apache-2.0](LICENSE). Copyright (c) 2024–Present Arcade AI.
+[MIT](LICENSE). Copyright (c) 2024–Present Arcade AI.
