@@ -256,6 +256,7 @@ const devDependencies = packageJson.devDependencies ?? {};
 const ciPins = {
   plugins: PLUGINS_CLI_VERSION,
   "@anthropic-ai/claude-code": CLAUDE_CODE_CLI_VERSION,
+  "@anthropic-ai/mcpb": MCPB_CLI_VERSION,
 };
 for (const [name, version] of Object.entries(ciPins)) {
   if (devDependencies[name] !== version) {

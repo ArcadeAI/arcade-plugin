@@ -19,6 +19,7 @@ export const ORG_DASHBOARD_URL =
 export const CI_NODE_VERSION = "22.23.2";
 export const PLUGINS_CLI_VERSION = "1.3.4";
 export const CLAUDE_CODE_CLI_VERSION = "2.1.258";
+export const MCPB_CLI_VERSION = "2.1.2";
 
 export const VENDORED_SCHEMAS = {
   [PLUGIN_SCHEMA]: "schemas/agent-plugins/1.0.0/plugin.schema.json",
