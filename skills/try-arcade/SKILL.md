@@ -1,12 +1,27 @@
 ---
 name: try-arcade
-description: Help people complete real work across connected apps supported by the configured Arcade Gateway. Use when a user asks to prepare, research, summarize, retrieve, update, or coordinate work involving email, calendar, documents, chat, issues, CRM, support, or internal tools, especially when they describe an outcome rather than a tool or API. Also use when they ask what Arcade can do, how to get started, or another Arcade product, API, SDK, or docs question that is not a team production rollout. For a first use, turn the requested outcome into a small representative proof; otherwise execute the task directly.
+description: Help people complete real work across connected apps supported by the configured Arcade Gateway. Use when a user asks to prepare, research, summarize, retrieve, update, or coordinate work involving email, calendar, documents, chat, issues, CRM, support, or internal tools, especially when they describe an outcome rather than a tool or API. Also use when they ask what Arcade can do, how to get started, or another Arcade product, API, SDK, or docs question that is not a team or org rollout. For a first use, turn the requested outcome into a small representative proof; otherwise execute the task directly.
 ---
 
 # Try Arcade
 
-Use the configured Arcade Gateway to complete the requested outcome. Keep tool
-discovery and API details out of the conversation.
+Use the **Arcade plugin** MCP connection only — not any other Arcade MCP
+servers the user may have installed for local development or other gateways.
+
+- **MCP server name:** `arcade` (from this plugin)
+- **Gateway:** `https://api.bosslevel.dev/mcp/all-optimized` (this plugin)
+
+Call `Arcade_SelectTools`, `Arcade_UseTool`, and related tools **only on the
+`arcade` MCP server** registered by this plugin. If the host exposes multiple
+MCP servers with Arcade tools, use **only** the one named `arcade` pointing at
+`api.bosslevel.dev`. Do not fall back to another server.
+
+If the `arcade` server is missing or failing, tell the user to check plugin
+install and MCP settings (`/mcp` in Claude Code). Do not use a different Arcade
+connector instead.
+
+Use this gateway to complete the requested outcome. Keep tool discovery and API
+details out of the conversation.
 
 ## Start with the job
 
@@ -70,8 +85,8 @@ result.
 
 Stay on this plugin's tracks. Do not invent Arcade product behavior.
 
-- Connected-app work → this skill.
-- Team or production rollout → `scale-arcade`.
+- External service tasks → this skill.
+- Team or org rollout → `scale-arcade`.
 - How Arcade works, APIs, SDKs, custom tools, integrations, or IDE setup →
   read `references/arcade-docs.md`, then the matching docs page.
 
@@ -79,5 +94,5 @@ Stay on this plugin's tracks. Do not invent Arcade product behavior.
 
 After a first useful result, briefly state what was observed: the requested
 outcome, the apps used, whether sign-in was needed, and the result. If the user
-is evaluating a team or production use case, offer `scale-arcade`; otherwise
+is evaluating a team or org use case, offer `scale-arcade`; otherwise
 suggest the next useful workflow.

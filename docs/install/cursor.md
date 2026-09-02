@@ -33,7 +33,7 @@ This adds the gateway only — no skills.
 ## Sign in
 
 No API keys. The first task that touches an app returns a sign-in link;
-approve it in the browser with your **staging** Arcade account.
+approve it in the browser when prompted.
 
 ## First steps
 

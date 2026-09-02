@@ -3,8 +3,8 @@ name: arcade-connect
 description: Connect an app to Arcade (Google, GitHub, Slack, Notion, …) with a one-time sign-in.
 ---
 
-Help the user connect the app they name. Follow `try-arcade` sign-in
-etiquette.
+Help the user connect the app they name through the **`arcade` MCP server
+only** (plugin gateway). Follow `try-arcade` sign-in etiquette.
 
 1. Discover whether the app is already connected. If it is, say so (with
    the account) and stop.

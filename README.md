@@ -1,13 +1,13 @@
-# Arcade (staging preview)
+# Arcade
 
-> **Internal staging preview.** This plugin connects to Arcade's staging
-> gateway (`api.bosslevel.dev`). Sign in with your **staging** account on
-> `cloud.bosslevel.dev`. It is not a production release — do not distribute
-> it as one.
+> **Try Arcade in your agent.** This plugin is for personal trials and getting
+> started — connect apps, run tasks, and explore what Arcade can do. For
+> org-wide rollout (Okta, tool allowlists, project gateways), use the
+> `scale-arcade` skill and the [Arcade dashboard](https://app.arcade.dev).
 
 Ask for what you want — email, calendar, Slack, issues, docs, and more.
 Your agent picks the right tool across every app you've connected. Sign in
-Sign in once in the browser — without ever handing your agent a key.
+once in the browser — without ever handing your agent a key.
 
 [Endpoint](https://api.bosslevel.dev/mcp/all-optimized) ·
 [Agent Plugins 1.0.0](https://agent-plugins.org) ·
@@ -45,10 +45,6 @@ https://api.bosslevel.dev/mcp/all-optimized
 
 Cursor and VS Code also offer one-click MCP links (gateway only, no skills) in
 the [install guides](docs/install/).
-
-> **Staging deployment.** The gateway currently runs against Arcade staging,
-> so sign in with your **staging** Arcade account (the sign-in page is served
-> by `cloud.bosslevel.dev`, not `arcade.dev`).
 
 ## What each client gets
 
@@ -91,11 +87,8 @@ anything is sent, created, or deleted.
 - [Client support matrix](docs/support-matrix.md) — what each install gets
 - [Arcade docs](https://docs.arcade.dev/en/home) — product, APIs, SDKs, and
   setup. Agents can start from [llms.txt](https://docs.arcade.dev/llms.txt).
-- [Arcade staging dashboard](https://cloud.bosslevel.dev) — manage staging
-  projects and gateways for this plugin.
-- [Arcade production dashboard](https://app.arcade.dev) — configure
-  production gateways when you graduate a proven workflow (see
-  `scale-arcade`).
+- [Arcade dashboard](https://app.arcade.dev) — org rollout, project gateways,
+  identity, and tool policy (see `scale-arcade`).
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
 - Privacy: tasks run through Arcade's hosted gateway and the apps you
   connect — [privacy policy](https://www.arcade.dev/privacy-policy).
@@ -108,7 +101,8 @@ npm run verify
 ```
 
 `verify` runs structural checks, JSON Schema validation, hook/manifest
-tests, `npx plugins discover`, and Claude plugin validation.
+tests, `plugins discover`, and `claude plugin validate` (pinned in
+`package.json` devDependencies; CI uses Node 22.23.2).
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
 

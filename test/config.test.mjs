@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ROUTING_MARKERS } from "../hooks/routing-guidance.mjs";
 import {
+  CLAUDE_CODE_CLI_VERSION,
+  CI_NODE_VERSION,
   ENDPOINT,
   MCP_REMOTE_PACKAGE,
   MCPB_DOCUMENTATION_URL,
+  PLUGINS_CLI_VERSION,
 } from "../scripts/constants.mjs";
 import { readRepoFile, readRepoJson } from "./helpers.mjs";
 
@@ -49,8 +52,26 @@ test("adapter manifest versions match VERSION", async () => {
   }
 });
 
-test("README labels the package as staging preview", async () => {
+test("README describes personal trial use", async () => {
   const readme = await readRepoFile("README.md");
-  assert.match(readme, /staging preview/i);
-  assert.match(readme, /cloud\.bosslevel\.dev/);
+  assert.match(readme, /personal trial/i);
+});
+
+test("CI toolchain versions are pinned in package.json", async () => {
+  const packageJson = await readRepoJson("package.json");
+  assert.equal(packageJson.devDependencies?.plugins, PLUGINS_CLI_VERSION);
+  assert.equal(
+    packageJson.devDependencies?.["@anthropic-ai/claude-code"],
+    CLAUDE_CODE_CLI_VERSION,
+  );
+  assert.equal(packageJson.scripts?.["verify:discover"], "plugins discover .");
+  assert.equal(
+    packageJson.scripts?.["verify:claude"],
+    "claude plugin validate .",
+  );
+
+  for (const workflow of [".github/workflows/check.yml", ".github/workflows/release.yml"]) {
+    const content = await readRepoFile(workflow);
+    assert.match(content, new RegExp(`node-version: "${CI_NODE_VERSION}"`));
+  }
 });

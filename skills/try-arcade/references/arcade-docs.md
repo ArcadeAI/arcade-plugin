@@ -1,7 +1,7 @@
 # Arcade docs entry points
 
-When the question is about Arcade but is not a connected-app job and not a
-production-rollout decision, read Arcade docs. Do not invent product behavior.
+When the question is about Arcade but is not an external service task and not a
+org-rollout decision, read Arcade docs. Do not invent product behavior.
 
 Docs pages return markdown to agents (known agent User-Agent, or
 `Accept: text/markdown`). Start from the index, then open only the matching

@@ -8,12 +8,17 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ROUTING_MARKERS } from "../hooks/routing-guidance.mjs";
 import {
+  CLAUDE_CODE_CLI_VERSION,
+  CI_NODE_VERSION,
   ENDPOINT,
   INSTALL_SLUG,
   MCP_REMOTE_PACKAGE,
   MCP_SCHEMA,
+  MCP_SERVER_NAME,
   MCPB_DOCUMENTATION_URL,
+  PLUGINS_CLI_VERSION,
   PLUGIN_SCHEMA,
+  VENDORED_SCHEMAS,
 } from "./constants.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -141,6 +146,23 @@ for (const file of ["mcp.json", "clients/cursor/mcp.json", "clients/claude/mcp.j
   if (!json[file]?.mcpServers?.arcade) {
     fail(`${file}: mcpServers must define the "arcade" server key`);
   }
+  if (json[file]?.mcpServers?.[MCP_SERVER_NAME]?.url !== ENDPOINT) {
+    fail(`${file}: mcpServers.${MCP_SERVER_NAME}.url must be ${ENDPOINT}`);
+  }
+}
+
+for (const routingFile of [
+  "skills/try-arcade/SKILL.md",
+  "agents/arcade-operator.agent.md",
+  "clients/cursor/rules/arcade.mdc",
+]) {
+  const content = read(routingFile);
+  if (!content.includes(MCP_SERVER_NAME)) {
+    fail(`${routingFile}: must reference MCP server name "${MCP_SERVER_NAME}"`);
+  }
+  if (!content.includes("api.bosslevel.dev")) {
+    fail(`${routingFile}: must reference plugin gateway api.bosslevel.dev`);
+  }
 }
 
 const cursorHooks = read("clients/cursor/hooks/hooks.json");
@@ -221,12 +243,49 @@ for (const marker of ROUTING_MARKERS) {
   }
 }
 
-if (!read("README.md").includes("staging preview")) {
-  fail("README.md: must label the package as a staging preview");
+if (!read("README.md").includes("personal trial")) {
+  fail("README.md: must describe the package as for personal trial use");
 }
 
 if (!read("README.md").includes(`npx plugins add ${INSTALL_SLUG}`)) {
   fail(`README.md: must document npx plugins add ${INSTALL_SLUG}`);
+}
+
+const packageJson = JSON.parse(read("package.json"));
+const devDependencies = packageJson.devDependencies ?? {};
+const ciPins = {
+  plugins: PLUGINS_CLI_VERSION,
+  "@anthropic-ai/claude-code": CLAUDE_CODE_CLI_VERSION,
+};
+for (const [name, version] of Object.entries(ciPins)) {
+  if (devDependencies[name] !== version) {
+    fail(
+      `package.json devDependencies.${name} must be exact "${version}", got "${devDependencies[name] ?? "missing"}"`,
+    );
+  }
+}
+
+for (const [schemaUrl, localPath] of Object.entries(VENDORED_SCHEMAS)) {
+  if (!existsSync(join(ROOT, localPath))) {
+    fail(`missing vendored schema for ${schemaUrl}: ${localPath}`);
+  }
+}
+
+const verifyScripts = {
+  "verify:discover": "plugins discover .",
+  "verify:claude": "claude plugin validate .",
+};
+for (const [scriptName, expected] of Object.entries(verifyScripts)) {
+  if (packageJson.scripts?.[scriptName] !== expected) {
+    fail(`package.json scripts.${scriptName} must be "${expected}"`);
+  }
+}
+
+for (const workflow of [".github/workflows/check.yml", ".github/workflows/release.yml"]) {
+  const content = read(workflow);
+  if (!content.includes(`node-version: "${CI_NODE_VERSION}"`)) {
+    fail(`${workflow}: must pin node-version to "${CI_NODE_VERSION}"`);
+  }
 }
 
 const installIndex = read("docs/install/README.md");

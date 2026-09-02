@@ -42,10 +42,10 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │
 ├── skills/                             from outcome, or invoked by name
 │   ├── try-arcade/
-│   │   ├── SKILL.md                    connected-app work
+│   │   ├── SKILL.md                    external service tasks
 │   │   └── references/arcade-docs.md   other Arcade product questions
 │   └── scale-arcade/
-│       ├── SKILL.md                    production rollout guidance
+│       ├── SKILL.md                    org rollout guidance
 │       └── references/arcade-docs.md   same docs entry points
 │
 └── agents/                             one copy, read by Cursor + Claude + Copilot CLI
@@ -77,8 +77,8 @@ it follows the same Arcade discovery and execution loop itself.
 │  parent agent                                                │
 │  user conversation · clarification · sign-in · confirmation  │
 │                                                              │
-│   connected-app work ──────────► try-arcade                  │
-│   production rollout ──────────► scale-arcade                │
+│   external service tasks ──────► try-arcade                  │
+│   team or org rollout ──────────► scale-arcade                │
 │   other Arcade product/docs ───► docs.arcade.dev/llms.txt    │
 └───────────────┬──────────────────────────────┬───────────────┘
                 │                              │

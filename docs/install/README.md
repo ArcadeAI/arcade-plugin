@@ -1,9 +1,8 @@
 # Install Arcade
 
-> **Staging preview.** Every install path below connects to
-> `api.bosslevel.dev`. Use your **staging** Arcade account
-> (`cloud.bosslevel.dev`). This package is for internal evaluation — not a
-> production marketplace release.
+> **Personal trial.** This plugin is for trying Arcade in your agent — personal
+> use and evaluation. For org rollout (Okta, project gateways, tool policy),
+> use the `scale-arcade` skill and the [Arcade dashboard](https://app.arcade.dev).
 
 ## Quick install (recommended)
 
@@ -36,8 +35,8 @@ Dry run (see what would install, without writing files):
 npx plugins discover ArcadeAI/arcade-plugin
 ```
 
-After install, reload your agent if needed. The first connected-app task
-returns a browser sign-in link — use your **staging** Arcade account.
+After install, reload your agent if needed. The first external service task
+returns a browser sign-in link — approve it when prompted.
 
 ## Tools only
 

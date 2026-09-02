@@ -4,8 +4,7 @@ Claude Desktop Chat does not load this directory as an Agent Plugin. Use the
 `.mcpb` extension for the full tool experience, or add the gateway as a remote
 connector.
 
-> **Staging deployment.** The gateway runs against Arcade staging. Sign in
-> with your **staging** Arcade account (`cloud.bosslevel.dev`, not `arcade.dev`).
+> **Personal trial.** Sign in with Arcade when prompted in the browser.
 
 ## One click: the `.mcpb` extension (recommended)
 
@@ -50,7 +49,7 @@ node scripts/build-claude-desktop-mcpb.mjs
 ## Sign in
 
 No API keys. The first task that touches an app returns a sign-in link;
-approve it in the browser with your **staging** Arcade account.
+approve it in the browser when prompted.
 
 ## First steps
 

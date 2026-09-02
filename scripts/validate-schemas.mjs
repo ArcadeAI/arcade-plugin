@@ -3,23 +3,20 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { VENDORED_SCHEMAS } from "./constants.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMA_FILES = ["plugin.json", "mcp.json"];
-const schemaCache = new Map();
 
 const readJson = async (relativePath) =>
   JSON.parse(await readFile(path.join(ROOT, relativePath), "utf8"));
 
 const loadSchema = async (schemaUrl) => {
-  if (schemaCache.has(schemaUrl)) return schemaCache.get(schemaUrl);
-  const response = await fetch(schemaUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch schema ${schemaUrl}: ${response.status}`);
+  const localPath = VENDORED_SCHEMAS[schemaUrl];
+  if (!localPath) {
+    throw new Error(`No vendored schema for ${schemaUrl}`);
   }
-  const schema = await response.json();
-  schemaCache.set(schemaUrl, schema);
-  return schema;
+  return readJson(localPath);
 };
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
