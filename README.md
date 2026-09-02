@@ -7,7 +7,7 @@
 
 Ask for what you want — email, calendar, Slack, issues, docs, and more.
 Your agent picks the right tool across every app you've connected. Sign in
-once in the browser. No API keys.
+Sign in once in the browser — without ever handing your agent a key.
 
 [Endpoint](https://api.bosslevel.dev/mcp/all-optimized) ·
 [Agent Plugins 1.0.0](https://agent-plugins.org) ·

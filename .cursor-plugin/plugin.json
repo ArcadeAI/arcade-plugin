@@ -1,6 +1,6 @@
 {
   "name": "arcade",
-  "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Browser sign-in, no API keys.",
+  "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key.",
   "version": "0.1.0",
   "author": {
     "name": "Arcade.dev",
