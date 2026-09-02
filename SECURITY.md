@@ -7,8 +7,8 @@ Code, VS Code, and others). It contains configuration and instructions — skill
 rules, commands, hooks, and MCP wiring — not a runtime service.
 
 - The repo does **not** store customer data, credentials, or API keys.
-- At runtime, connected-app work flows through Arcade's **hosted MCP gateway**
-  (`https://api.bosslevel.dev/mcp/all-optimized` during staging).
+- At runtime, external service tasks flow through Arcade's **hosted MCP gateway**
+  (`https://api.bosslevel.dev/mcp/all-optimized`).
 - Hooks are small local Node scripts that inject static guidance text; they do
   not make network calls or write files.
 
@@ -20,7 +20,7 @@ platform security channels.
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x   | Yes (staging preview) |
+| 0.1.x   | Yes (personal trial) |
 | < 0.1   | No |
 
 ## Reporting a Vulnerability
