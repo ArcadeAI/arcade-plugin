@@ -31,8 +31,7 @@ install to one client. See [install guides](docs/install/) for details.
 
 ### Claude Desktop
 
-[Download `arcade.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade.mcpb)
-and double-click to install — or add the gateway as a connector.
+Add the gateway as a connector or merge the sample config.
 [Guide →](docs/install/claude-desktop.md)
 
 ### Tools only
@@ -105,9 +104,6 @@ tests, `plugins discover`, and `claude plugin validate` (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
-
-Tagged releases (`v*`) build and attach `arcade.mcpb` for Claude
-Desktop (`.github/workflows/release.yml`). Build locally with `npm run build:mcpb`.
 
 ## License
 

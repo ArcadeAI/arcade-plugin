@@ -15,8 +15,6 @@ import {
   MCP_REMOTE_PACKAGE,
   MCP_SCHEMA,
   MCP_SERVER_NAME,
-  MCPB_CLI_VERSION,
-  MCPB_DOCUMENTATION_URL,
   PLUGINS_CLI_VERSION,
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
@@ -135,7 +133,6 @@ for (const file of [
   "clients/cursor/mcp.json",
   "clients/claude/mcp.json",
   "clients/claude-desktop/claude_desktop_config.json",
-  "clients/claude-desktop/mcpb/manifest.json",
   "README.md",
 ]) {
   if (!read(file).includes(ENDPOINT)) {
@@ -187,16 +184,11 @@ for (const hooksFile of ["hooks/hooks.json"]) {
   }
 }
 
-if (!existsSync(join(ROOT, "clients/claude-desktop/mcpb/manifest.json"))) {
-  fail("missing clients/claude-desktop/mcpb/manifest.json");
-}
-
 const version = read("VERSION").trim();
 const versionedManifests = [
   "plugin.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
-  "clients/claude-desktop/mcpb/manifest.json",
 ];
 for (const manifestPath of versionedManifests) {
   const manifestVersion = json[manifestPath]?.version;
@@ -205,36 +197,8 @@ for (const manifestPath of versionedManifests) {
   }
 }
 
-const mcpRemoteSurfaces = [
-  "clients/claude-desktop/claude_desktop_config.json",
-  "clients/claude-desktop/mcpb/manifest.json",
-];
-for (const surface of mcpRemoteSurfaces) {
-  if (!read(surface).includes(MCP_REMOTE_PACKAGE)) {
-    fail(`${surface}: must pin ${MCP_REMOTE_PACKAGE}`);
-  }
-}
-
-const buildScript = read("scripts/build-claude-desktop-mcpb.mjs");
-if (
-  !buildScript.includes('from "./constants.mjs"') ||
-  !buildScript.includes("MCP_REMOTE_PACKAGE")
-) {
-  fail("scripts/build-claude-desktop-mcpb.mjs: must import MCP_REMOTE_PACKAGE from constants.mjs");
-}
-
-const mcpbManifest = json["clients/claude-desktop/mcpb/manifest.json"];
-if (mcpbManifest?.documentation !== MCPB_DOCUMENTATION_URL) {
-  fail(
-    `clients/claude-desktop/mcpb/manifest.json: documentation must be ${MCPB_DOCUMENTATION_URL}`,
-  );
-}
-
-const mcpbEntry = read("clients/claude-desktop/mcpb/server/index.js");
-if (!mcpbEntry.includes("mcp_config") || !mcpbEntry.includes("process.exit(0)")) {
-  fail(
-    "clients/claude-desktop/mcpb/server/index.js: must document mcp_config bridge and exit safely",
-  );
+if (!read("clients/claude-desktop/claude_desktop_config.json").includes(MCP_REMOTE_PACKAGE)) {
+  fail(`clients/claude-desktop/claude_desktop_config.json: must pin ${MCP_REMOTE_PACKAGE}`);
 }
 
 const cursorRule = read("clients/cursor/rules/arcade.mdc");
@@ -257,7 +221,6 @@ const devDependencies = packageJson.devDependencies ?? {};
 const ciPins = {
   plugins: PLUGINS_CLI_VERSION,
   "@anthropic-ai/claude-code": CLAUDE_CODE_CLI_VERSION,
-  "@anthropic-ai/mcpb": MCPB_CLI_VERSION,
 };
 for (const [name, version] of Object.entries(ciPins)) {
   if (devDependencies[name] !== version) {
@@ -283,11 +246,9 @@ for (const [scriptName, expected] of Object.entries(verifyScripts)) {
   }
 }
 
-for (const workflow of [".github/workflows/check.yml", ".github/workflows/release.yml"]) {
-  const content = read(workflow);
-  if (!content.includes(`node-version: "${CI_NODE_VERSION}"`)) {
-    fail(`${workflow}: must pin node-version to "${CI_NODE_VERSION}"`);
-  }
+const workflow = read(".github/workflows/check.yml");
+if (!workflow.includes(`node-version: "${CI_NODE_VERSION}"`)) {
+  fail(`.github/workflows/check.yml: must pin node-version to "${CI_NODE_VERSION}"`);
 }
 
 const installIndex = read("docs/install/README.md");

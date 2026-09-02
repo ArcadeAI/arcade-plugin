@@ -8,12 +8,10 @@
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "verify:discover": "plugins discover .",
     "verify:claude": "claude plugin validate .",
-    "build:mcpb": "node scripts/build-claude-desktop-mcpb.mjs",
-    "verify": "npm run check && npm run validate:schemas && npm test && npm run verify:discover && npm run verify:claude && npm run build:mcpb"
+    "verify": "npm run check && npm run validate:schemas && npm test && npm run verify:discover && npm run verify:claude"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.258",
-    "@anthropic-ai/mcpb": "2.1.2",
     "ajv": "8.20.0",
     "plugins": "1.3.4"
   },

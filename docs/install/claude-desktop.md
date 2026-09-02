@@ -1,27 +1,11 @@
 # Install in Claude Desktop
 
-Claude Desktop Chat does not load this directory as an Agent Plugin. Use the
-`.mcpb` extension for the full tool experience, or add the gateway as a remote
-connector.
+Claude Desktop Chat does not load this directory as an Agent Plugin. Add the
+gateway as a remote connector or merge the sample config below.
 
 > **Personal trial.** Sign in with Arcade when prompted in the browser.
 
-## One click: the `.mcpb` extension (recommended)
-
-1. Download
-   [`arcade.mcpb`](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade.mcpb).
-2. Double-click it (or drag it into the Claude Desktop window).
-3. Click **Install**, then sign in with Arcade when prompted.
-
-Requires Node.js (the bundle bridges Claude Desktop to the hosted server via
-a pinned `mcp-remote` proxy).
-
-The extension carries the MCP server and its instructions, so plain-language
-requests like "what's on my calendar tomorrow?" work out of the box. Skills,
-commands, and the operator subagent are Claude Code / Cowork plugin features
-— see [claude-code.md](claude-code.md).
-
-## Alternative: custom connector (paid plans)
+## Custom connector (recommended)
 
 **Settings → Connectors → Add custom connector** → paste:
 
@@ -29,22 +13,22 @@ commands, and the operator subagent are Claude Code / Cowork plugin features
 https://api.bosslevel.dev/mcp/all-optimized
 ```
 
-Tools only; no extension needed.
+This is the **staging** gateway (`api.bosslevel.dev`). A production endpoint
+will replace it at public launch.
 
-## Alternative: config file
+Tools only — no skills, commands, or operator subagent. For those, use the
+[Claude Code plugin](claude-code.md) in Cowork or Code.
+
+## Config file
 
 Merge
 [`clients/claude-desktop/claude_desktop_config.json`](../../clients/claude-desktop/claude_desktop_config.json)
-into your `claude_desktop_config.json` and restart Claude Desktop fully.
+into your `claude_desktop_config.json` and restart Claude Desktop fully. The
+sample uses a pinned `mcp-remote` proxy to bridge Claude Desktop to the hosted
+gateway.
 
-Extensions and connectors apply to Claude Desktop **Chat**. For Cowork and
-Code in the desktop app, use the [Claude Code plugin](claude-code.md) instead.
-
-## Rebuilding the bundle (maintainers)
-
-```bash
-node scripts/build-claude-desktop-mcpb.mjs
-```
+Connectors and config apply to Claude Desktop **Chat**. For Cowork and Code in
+the desktop app, use the [Claude Code plugin](claude-code.md) instead.
 
 ## Sign in
 

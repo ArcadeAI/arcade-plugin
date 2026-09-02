@@ -33,6 +33,3 @@ jobs:
 
       - name: Claude plugin validation
         run: npm run verify:claude
-
-      - name: Build Claude Desktop extension
-        run: node scripts/build-claude-desktop-mcpb.mjs

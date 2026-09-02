@@ -38,7 +38,7 @@ already read:
 | MCP server | `mcp.json` | Agent Plugins clients (VS Code, Copilot CLI, Codex) |
 | MCP server | `clients/cursor/mcp.json` | Cursor (via `.cursor-plugin/`) |
 | MCP server | `clients/claude/mcp.json` | Claude Code (via `.claude-plugin/`) |
-| Desktop extension | `clients/claude-desktop/mcpb/` | Claude Desktop Chat (`.mcpb` release) |
+| Desktop config | `clients/claude-desktop/claude_desktop_config.json` | Claude Desktop Chat (manual merge) |
 | Subagent | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Copilot CLI |
 | Commands | `commands/` | Cursor, Claude Code |
 | Hooks | `hooks/hooks.json` | Claude Code |
@@ -58,7 +58,7 @@ Copilot CLI does not load `hooks/hooks.json` — that file targets Claude
 Code's hook format (`SessionStart`, `UserPromptSubmit`). Copilot's native
 hook schema differs; skills provide routing guidance on that client.
 
-Claude Desktop installs via the `.mcpb` extension (see
+Claude Desktop connects via a custom connector or the sample config (see
 [claude-desktop.md](install/claude-desktop.md)), not `npx plugins add`.
 
 ## Agent Plugins clients

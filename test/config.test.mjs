@@ -6,7 +6,6 @@ import {
   CI_NODE_VERSION,
   ENDPOINT,
   MCP_REMOTE_PACKAGE,
-  MCPB_DOCUMENTATION_URL,
   PLUGINS_CLI_VERSION,
 } from "../scripts/constants.mjs";
 import { readRepoFile, readRepoJson } from "./helpers.mjs";
@@ -18,23 +17,11 @@ test("Cursor rule includes shared routing markers", async () => {
   }
 });
 
-test("MCPB manifest documents the monorepo install guide", async () => {
-  const manifest = await readRepoJson("clients/claude-desktop/mcpb/manifest.json");
-  assert.equal(manifest.documentation, MCPB_DOCUMENTATION_URL);
-});
-
-test("mcp-remote pin is consistent across Claude Desktop surfaces", async () => {
+test("mcp-remote pin is consistent across Claude Desktop config", async () => {
   const config = await readRepoFile("clients/claude-desktop/claude_desktop_config.json");
-  const manifest = await readRepoFile("clients/claude-desktop/mcpb/manifest.json");
-  const buildScript = await readRepoFile("scripts/build-claude-desktop-mcpb.mjs");
 
-  for (const surface of [config, manifest]) {
-    assert.match(surface, new RegExp(MCP_REMOTE_PACKAGE.replace(".", "\\.")));
-    assert.match(surface, new RegExp(ENDPOINT.replace(/\./g, "\\.")));
-  }
-
-  assert.match(buildScript, /MCP_REMOTE_PACKAGE/);
-  assert.match(buildScript, /from "\.\/constants\.mjs"/);
+  assert.match(config, new RegExp(MCP_REMOTE_PACKAGE.replace(".", "\\.")));
+  assert.match(config, new RegExp(ENDPOINT.replace(/\./g, "\\.")));
 });
 
 test("adapter manifest versions match VERSION", async () => {
@@ -43,7 +30,6 @@ test("adapter manifest versions match VERSION", async () => {
     "plugin.json",
     ".cursor-plugin/plugin.json",
     ".claude-plugin/plugin.json",
-    "clients/claude-desktop/mcpb/manifest.json",
   ];
 
   for (const path of manifests) {
@@ -70,8 +56,6 @@ test("CI toolchain versions are pinned in package.json", async () => {
     "claude plugin validate .",
   );
 
-  for (const workflow of [".github/workflows/check.yml", ".github/workflows/release.yml"]) {
-    const content = await readRepoFile(workflow);
-    assert.match(content, new RegExp(`node-version: "${CI_NODE_VERSION}"`));
-  }
+  const workflow = await readRepoFile(".github/workflows/check.yml");
+  assert.match(workflow, new RegExp(`node-version: "${CI_NODE_VERSION}"`));
 });

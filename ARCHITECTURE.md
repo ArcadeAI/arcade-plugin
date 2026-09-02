@@ -26,7 +26,6 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │   │   └── rules/arcade.mdc              always-apply: try Arcade first
 │   └── claude/mcp.json                 Claude needs type: http
 │   └── claude-desktop/
-│       ├── mcpb/                       Claude Desktop .mcpb source
 │       └── claude_desktop_config.json  manual config merge
 │
 ├── commands/                           arcade-apps, arcade-connect, arcade-status

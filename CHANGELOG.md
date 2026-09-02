@@ -21,7 +21,5 @@ Initial portable Agent Plugin.
 ### Trial hardening (unreleased)
 
 - Frame README and install docs for personal trial use.
-- Fix Claude Desktop MCPB documentation URL for the monorepo layout.
-- Clarify org rollout via Arcade dashboard in `scale-arcade`.
 - Centralize routing guidance, endpoint constants, and drift checks in CI.
 - Improve Claude per-turn hook continuation heuristics and expand test coverage.
