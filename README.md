@@ -1,15 +1,15 @@
 # Arcade
 
-> **Try Arcade in your agent.** This plugin is for personal trials and getting
-> started — connect apps, run tasks, and explore what Arcade can do. For
-> org-wide rollout (Okta, tool allowlists, project gateways), use the
+> **Try Arcade in your agent.** This plugin is for calling tools and getting
+> started with Arcade — connect apps, call tools, and explore what Arcade can do.
+> For team-wide rollouts (custom tool allowlists, fine-tuned governance, connecting your IDP, etc.), use the
 > `scale-arcade` skill and the [Arcade dashboard](https://app.arcade.dev).
 
-Ask for what you want — email, calendar, Slack, issues, docs, and more.
+Ask for what you want: email, calendar, Slack, issues, docs, and more.
 Your agent picks the right tool across every app you've connected. Sign in
-once in the browser — without ever handing your agent a key.
+once in the browser without ever handing your agent a key.
 
-[Endpoint](https://api.bosslevel.dev/mcp/all-optimized) ·
+[MCP Server](https://api.bosslevel.dev/mcp/all-optimized) ·
 [Agent Plugins 1.0.0](https://agent-plugins.org) ·
 [MIT](LICENSE)
 
@@ -19,7 +19,7 @@ once in the browser — without ever handing your agent a key.
 
 ### Full plugin
 
-**Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT**
+#### Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT
 
 ```bash
 npx plugins add ArcadeAI/arcade-plugin
@@ -47,7 +47,7 @@ the [install guides](docs/install/).
 ## What each client gets
 
 | | Tools | Skills | Subagent | Commands | Rule | Hooks |
-|---|:--:|:--:|:--:|:--:|:--:|:--:|
+| --- | --- | :--: | :--: | :--: | :--: | :--: | :--: |
 | **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
 | **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
 | **Claude Cowork / desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
@@ -70,7 +70,7 @@ Claude Code gets session and per-turn hooks. Full detail is in the
 - "Summarize unread email from this week."
 - "Draft a reply to that thread, then wait for me to send it."
 - "What can Arcade do?"
-- "We want this workflow on a team gateway — what should we set up?"
+- "We want this workflow on a team gateway. What should we set up?"
 - `/try-arcade` or `/scale-arcade`
 - `/arcade-status` — check the gateway, sign-in, and connected apps
 - `/arcade-connect google` — connect an app ahead of time
