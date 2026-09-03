@@ -2,7 +2,7 @@
 
 > **Try Arcade in your agent.** This plugin is for calling tools and getting
 > started with Arcade — connect apps, call tools, and explore what Arcade can do.
-> For team-wide rollouts (custom tool allowlists, fine-tuned governance, connecting your IDP, etc.), use the
+> For team-wide features (custom tool allowlists, fine-tuned governance, connecting your IDP, etc.), use the
 > `scale-arcade` skill and the [Arcade dashboard](https://app.arcade.dev).
 
 Ask for what you want: email, calendar, Slack, issues, docs, and more.
