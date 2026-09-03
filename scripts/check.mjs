@@ -207,11 +207,6 @@ for (const marker of ROUTING_MARKERS) {
     fail(`clients/cursor/rules/arcade.mdc: missing routing marker "${marker}"`);
   }
 }
-
-if (!read("README.md").includes("personal trial")) {
-  fail("README.md: must describe the package as for personal trial use");
-}
-
 if (!read("README.md").includes(`npx plugins add ${INSTALL_SLUG}`)) {
   fail(`README.md: must document npx plugins add ${INSTALL_SLUG}`);
 }

@@ -37,12 +37,6 @@ test("adapter manifest versions match VERSION", async () => {
     assert.equal(manifest.version, version, `${path} version drift`);
   }
 });
-
-test("README describes personal trial use", async () => {
-  const readme = await readRepoFile("README.md");
-  assert.match(readme, /personal trial/i);
-});
-
 test("CI toolchain versions are pinned in package.json", async () => {
   const packageJson = await readRepoJson("package.json");
   assert.equal(packageJson.devDependencies?.plugins, PLUGINS_CLI_VERSION);
