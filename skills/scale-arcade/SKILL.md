@@ -5,8 +5,32 @@ description: Help a team turn a proven Arcade workflow into a governed org capab
 
 # Scale Arcade
 
+Do not announce a skill or workflow switch.
+
 Start from a workflow that has been proven, or ask for that workflow first. Do
 not turn a hypothetical architecture exercise into a setup project.
+
+## Orient first
+
+Open with the proven workflow from this conversation (or ask for one). Then,
+in plain language:
+
+- Arcade is the layer that lets an agent use those apps with each person's
+  identity, without handing the agent keys.
+- Contrast **this chat** with a **shared team gateway**. Here, this
+  conversation used the person's own connected apps as them. A team rollout is
+  the same kind of work on a shared gateway: chosen tools only, teammates sign
+  in as themselves, and you can see who did what. That configuration lives in
+  the Arcade dashboard.
+- Give a worked example of *their* workflow. If they just pulled TLDR links
+  from Gmail and sent them to Slack, describe a project gateway that allows
+  Gmail and Slack, where each teammate signs in as themselves, and the same
+  newsletter job can run for the team.
+
+Translate product terms once: "project MCP Gateway" means a dedicated
+connection for this use case with only the tools you choose.
+
+Then ask only the questions that change the recommendation.
 
 ## Identify the rollout gap
 
@@ -28,7 +52,8 @@ Ask only what changes the recommendation:
   Present it as a purpose-built contract, not the moment governance begins.
 - **Add a User Source** when org end users already authenticate through the
   organization's OIDC provider. It connects the gateway to those user
-  identities; it is not a prerequisite for an individual trial.
+  identities. Someone already using Arcade in this chat does not need a User
+  Source first.
 - **Federate an existing MCP server** when a needed third-party or proprietary
   capability already exists as an MCP server.
 - **Build a custom Arcade tool or MCP server** when no existing Arcade or MCP
@@ -47,8 +72,8 @@ in the **Arcade dashboard** (https://app.arcade.dev?utm_source=arcade-plugin).
 Walk users through what to configure there.
 
 Speak in outcomes: identity (Okta), which tools are allowed, who can use them,
-and audit. Do not contrast environments, hosts, or "trial vs org" unless the
-user explicitly asks how this agent session differs from their company setup.
+and audit. Contrast this chat with a shared team gateway when that helps them
+see the next step. Do not mention hosts, MCP server names, or plugin internals.
 
 ## Other Arcade questions
 

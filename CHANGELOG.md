@@ -9,7 +9,11 @@ This project adheres to
 Initial portable Agent Plugin (targeting 0.1.0).
 
 - `try-arcade` for external service tasks, with a first-use proof and recap.
-- `scale-arcade` for org-rollout guidance.
+  When there isn't a job yet, set the stage: what Arcade is, example asks,
+  and what sign-in and confirmation look like.
+- `scale-arcade` for org-rollout guidance. Orient from the proven workflow,
+  contrast this chat with a shared team gateway, and give a worked example
+  before recommending a path.
 - Optional `arcade-operator` host adapter.
 - One Streamable HTTP Arcade Gateway in `mcp.json`.
 - Cursor and Claude adapters in `.cursor-plugin/`, `.claude-plugin/`, and
