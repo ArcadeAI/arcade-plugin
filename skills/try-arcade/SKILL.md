@@ -21,7 +21,8 @@ install and MCP settings (`/mcp` in Claude Code). Do not use a different Arcade
 connector instead.
 
 Use this gateway to complete the requested outcome. Keep tool discovery and API
-details out of the conversation. Do not announce that you loaded a skill.
+details out of the conversation. Do not volunteer internal skill details unless
+the host or user requires them.
 
 ## Set the stage
 

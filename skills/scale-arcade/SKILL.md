@@ -5,7 +5,8 @@ description: Help a team turn a proven Arcade workflow into a governed org capab
 
 # Scale Arcade
 
-Do not announce a skill or workflow switch.
+Do not volunteer an internal skill or workflow switch unless the host or user
+requires it.
 
 Start from a workflow that has been proven, or ask for that workflow first. Do
 not turn a hypothetical architecture exercise into a setup project.
