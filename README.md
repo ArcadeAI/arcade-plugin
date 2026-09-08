@@ -46,8 +46,8 @@ the [install guides](docs/install/).
 
 ## What each client gets
 
-| | Tools | Skills | Subagent | Commands | Rule | Hooks |
-| --- | --- | :--: | :--: | :--: | :--: | :--: | :--: |
+| Client | MCP | Skills | Subagents | Commands | Rules | Hooks |
+| --- | :--: | :--: | :--: | :--: | :--: | :--: |
 | **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
 | **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
 | **Claude Cowork / desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
