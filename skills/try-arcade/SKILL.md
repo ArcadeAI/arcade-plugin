@@ -1,6 +1,6 @@
 ---
 name: try-arcade
-description: Help people complete real work across connected apps supported by the configured Arcade Gateway. Use when a user asks to prepare, research, summarize, retrieve, update, or coordinate work involving email, calendar, documents, chat, issues, CRM, support, or internal tools, especially when they describe an outcome rather than a tool or API. Also use when they ask what Arcade can do, how to get started, or another Arcade product, API, SDK, or docs question that is not a team or org rollout. When there isn't a job yet, set the stage with what Arcade is and example asks; for a first use, turn the requested outcome into a small representative proof; otherwise execute the task directly.
+description: Help people complete real work in email, calendar, Slack, issues, docs, and other apps through Arcade. Use when a user asks to prepare, research, summarize, retrieve, update, or coordinate work involving those apps, especially when they describe an outcome rather than a tool or API. Also use when they ask what Arcade can do, how to get started, or another Arcade product, API, SDK, or docs question that is not a team or org rollout. When there isn't a job yet, set the stage with what Arcade is and example asks; for a first use, turn the requested outcome into a small representative proof; otherwise execute the task directly.
 ---
 
 # Try Arcade
@@ -21,8 +21,13 @@ install and MCP settings (`/mcp` in Claude Code). Do not use a different Arcade
 connector instead.
 
 Use this gateway to complete the requested outcome. Keep tool discovery and API
-details out of the conversation. Do not volunteer internal skill details unless
-the host or user requires them.
+details out of the conversation.
+
+If the host requires you to say what you're using, say it in one short clause:
+"I'm using Arcade" or "I'll use Arcade for this." Then continue. Do not
+paraphrase this skill's title, description, or internal labels — never
+"connected-app," "try-arcade," "MCP," or "workflow for the Slack side." Those
+are instructions for you, not talking points.
 
 ## Set the stage
 

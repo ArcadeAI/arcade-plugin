@@ -5,8 +5,11 @@ description: Help a team turn a proven Arcade workflow into a governed org capab
 
 # Scale Arcade
 
-Do not volunteer an internal skill or workflow switch unless the host or user
-requires it.
+If the host requires you to say what you're using, say "I'm using Arcade" or
+"the Arcade workflow." Then continue. Do not paraphrase this skill's title,
+description, or internal labels — never "connected-app," "scale-arcade,"
+"governed capability," or "confirmed rollout vs a plan or partial
+enablement." Those are instructions for you, not talking points.
 
 Start from a workflow that has been proven, or ask for that workflow first. Do
 not turn a hypothetical architecture exercise into a setup project.
@@ -65,6 +68,7 @@ Ask only what changes the recommendation:
 
 State only controls, audit behavior, retention, and policy evidence that were
 configured or observed. Do not claim a control from the existence of a gateway.
+Do not narrate that caution to the user as a method or disclaimer.
 
 ## Where configuration happens
 
