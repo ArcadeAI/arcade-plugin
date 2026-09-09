@@ -15,7 +15,7 @@ browser. The rows differ in how much of this plugin the client can load.
 | **VS Code** | ✅ | 2 | — | — | — | — | [guide](install/vscode.md) |
 | **Codex / ChatGPT** | ✅ | 2 | — | — | — | — | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
-| **Claude Desktop** | ✅ | — | — | — | — | — | [guide](install/claude-desktop.md) |
+| **Claude Desktop** | ✅ | 2 | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
@@ -38,7 +38,8 @@ already read:
 | MCP server | `mcp.json` | Agent Plugins clients (VS Code, Copilot CLI, Codex) |
 | MCP server | `clients/cursor/mcp.json` | Cursor (via `.cursor-plugin/`) |
 | MCP server | `clients/claude/mcp.json` | Claude Code (via `.claude-plugin/`) |
-| Desktop config | `clients/claude-desktop/claude_desktop_config.json` | Claude Desktop Chat (manual merge) |
+| Marketplace catalog | `.claude-plugin/marketplace.json` | Claude Desktop, Cowork, Claude Code |
+| Desktop config | `clients/claude-desktop/claude_desktop_config.json` | Claude Desktop Chat (tools-only fallback) |
 | Subagent | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Copilot CLI |
 | Commands | `commands/` | Cursor, Claude Code |
 | Hooks | `hooks/hooks.json` | Claude Code |
@@ -58,8 +59,11 @@ Copilot CLI does not load `hooks/hooks.json` — that file targets Claude
 Code's hook format (`SessionStart`, `UserPromptSubmit`). Copilot's native
 hook schema differs; skills provide routing guidance on that client.
 
-Claude Desktop connects via a custom connector or the sample config (see
-[claude-desktop.md](install/claude-desktop.md)), not `npx plugins add`.
+Claude Desktop installs this repo as a plugin marketplace (see
+[claude-desktop.md](install/claude-desktop.md)): add
+`ArcadeAI/arcade-plugin`, then install `arcade@arcade`. Chat gets tools
+and skills. A custom connector or the sample config remains the
+tools-only fallback. There is no `.mcpb` Desktop Extension.
 
 ## Agent Plugins clients
 
@@ -78,4 +82,4 @@ Skills and the operator require installing this directory as a plugin.
 
 - [Cursor](https://cursor.com/install-mcp?name=arcade&config=eyJ1cmwiOiJodHRwczovL2FwaS5ib3NzbGV2ZWwuZGV2L21jcC9hbGwtb3B0aW1pemVkIn0=)
 - [VS Code](https://vscode.dev/redirect/mcp/install?name=arcade&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fapi.bosslevel.dev%2Fmcp%2Fall-optimized%22%7D)
-- OpenCode, Claude Desktop, any MCP client: `https://api.bosslevel.dev/mcp/all-optimized`
+- OpenCode, Claude Desktop (connector fallback), any MCP client: `https://api.bosslevel.dev/mcp/all-optimized`

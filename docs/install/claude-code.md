@@ -17,7 +17,8 @@ come from the default `skills/` and `agents/` folders. The gateway comes
 from `clients/claude/mcp.json` (`type: "http"`).
 
 The same folder works in Claude Cowork / Claude Code desktop once the plugin
-is enabled there.
+is enabled there. In Claude Desktop Chat, add this GitHub repo as a
+marketplace instead — see [claude-desktop.md](claude-desktop.md).
 
 ## Multiple Arcade MCP servers
 

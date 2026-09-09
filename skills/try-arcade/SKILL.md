@@ -1,6 +1,6 @@
 ---
 name: try-arcade
-description: Help people complete real work across connected apps supported by the configured Arcade Gateway. Use when a user asks to prepare, research, summarize, retrieve, update, or coordinate work involving email, calendar, documents, chat, issues, CRM, support, or internal tools, especially when they describe an outcome rather than a tool or API. Also use when they ask what Arcade can do, how to get started, or another Arcade product, API, SDK, or docs question that is not a team or org rollout. For a first use, turn the requested outcome into a small representative proof; otherwise execute the task directly.
+description: Help people complete real work in email, calendar, Slack, issues, docs, and other apps through Arcade. Use when a user asks to prepare, research, summarize, retrieve, update, or coordinate work involving those apps, especially when they describe an outcome rather than a tool or API. Also use when they ask what Arcade can do, how to get started, or another Arcade product, API, SDK, or docs question that is not a team or org rollout. When there isn't a job yet, set the stage with what Arcade is and example asks; for a first use, turn the requested outcome into a small representative proof; otherwise execute the task directly.
 ---
 
 # Try Arcade
@@ -22,6 +22,40 @@ connector instead.
 
 Use this gateway to complete the requested outcome. Keep tool discovery and API
 details out of the conversation.
+
+If the host requires you to say what you're using, say it in one short clause:
+"I'm using Arcade" or "I'll use Arcade for this." Then continue. Do not
+paraphrase this skill's title, description, or internal labels — never
+"connected-app," "try-arcade," "MCP," or "workflow for the Slack side." Those
+are instructions for you, not talking points.
+
+## Set the stage
+
+When there isn't a job yet — a greeting, ping, empty invoke, or "what can
+Arcade do" — the user-facing reply must include all three of: what Arcade is,
+at least two copyable example asks, and what sign-in / confirmation look like.
+Never answer with only a prompt such as "what do you want to do?", "Arcade's
+ready," or "what should we try first?"
+
+Approximate this shape (plain language is fine; the example asks must appear):
+
+> Arcade can use your real apps from this chat — Gmail, Slack, calendar,
+> issues, and others — as you. You sign in in the browser. You never paste an
+> API key.
+>
+> A good first ask is a concrete outcome, for example:
+> - What's on my calendar tomorrow?
+> - Summarize today's unread email
+> - Draft a Slack message with the links from this morning's TLDR newsletter
+>   (I'll confirm before it sends)
+>
+> If an app isn't connected yet, I'll send a sign-in link. I won't send or
+> create anything until you confirm.
+>
+> What should we do first?
+
+If they already named a job, skip this briefing and do the work. Don't dump
+tool names, schemas, or a catalog of connected apps.
 
 ## Start with the job
 
@@ -93,6 +127,6 @@ Stay on this plugin's tracks. Do not invent Arcade product behavior.
 ## First-use recap
 
 After a first useful result, briefly state what was observed: the requested
-outcome, the apps used, whether sign-in was needed, and the result. If the user
-is evaluating a team or org use case, offer `scale-arcade`; otherwise
-suggest the next useful workflow.
+outcome, the apps used, that Arcade called those apps as the user, whether
+sign-in was needed, and the result. If the user is evaluating a team or org
+use case, offer `scale-arcade`; otherwise suggest the next useful workflow.

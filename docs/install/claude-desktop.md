@@ -1,11 +1,38 @@
 # Install in Claude Desktop
 
-Claude Desktop Chat does not load this directory as an Agent Plugin. Add the
-gateway as a remote connector or merge the sample config below.
+Add this repository as a plugin marketplace, then install Arcade. Claude
+Desktop looks for `.claude-plugin/marketplace.json` — not a `.mcpb`
+Desktop Extension, and not a one-click deeplink.
 
 > **Personal trial.** Sign in with Arcade when prompted in the browser.
 
-## Custom connector (recommended)
+## Plugin (recommended)
+
+**Customize → Plugins → Add marketplace → Add from a repository** → paste:
+
+```text
+ArcadeAI/arcade-plugin
+```
+
+Then install **Arcade** (`arcade@arcade`).
+
+From Claude Code in the desktop app, or a terminal:
+
+```bash
+claude plugin marketplace add ArcadeAI/arcade-plugin
+claude plugin install arcade@arcade
+```
+
+Chat gets tools and skills. Cowork and Code also get the operator,
+commands, and hooks. There is no documented `claude://` link that adds a
+marketplace; the steps above are the install.
+
+This is the **staging** gateway (`api.bosslevel.dev`). A production endpoint
+will replace it at public launch.
+
+## Tools only
+
+If you only want the gateway, skip the marketplace:
 
 **Settings → Connectors → Add custom connector** → paste:
 
@@ -13,22 +40,11 @@ gateway as a remote connector or merge the sample config below.
 https://api.bosslevel.dev/mcp/all-optimized
 ```
 
-This is the **staging** gateway (`api.bosslevel.dev`). A production endpoint
-will replace it at public launch.
-
-Tools only — no skills, commands, or operator subagent. For those, use the
-[Claude Code plugin](claude-code.md) in Cowork or Code.
-
-## Config file
-
-Merge
+Or merge
 [`clients/claude-desktop/claude_desktop_config.json`](../../clients/claude-desktop/claude_desktop_config.json)
-into your `claude_desktop_config.json` and restart Claude Desktop fully. The
-sample uses a pinned `mcp-remote` proxy to bridge Claude Desktop to the hosted
+into your `claude_desktop_config.json` and restart Claude Desktop fully.
+The sample uses a pinned `mcp-remote` proxy to bridge to the hosted
 gateway.
-
-Connectors and config apply to Claude Desktop **Chat**. For Cowork and Code in
-the desktop app, use the [Claude Code plugin](claude-code.md) instead.
 
 ## Sign in
 
@@ -38,4 +54,5 @@ approve it in the browser when prompted.
 ## First steps
 
 - "What's on my calendar tomorrow?"
+- `/try-arcade`
 - "What apps can Arcade use?"

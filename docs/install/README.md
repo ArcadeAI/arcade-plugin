@@ -46,8 +46,9 @@ Need just the MCP gateway, without skills or the operator?
 https://api.bosslevel.dev/mcp/all-optimized
 ```
 
-**Claude Desktop:** add the gateway URL as a custom connector (see
-[claude-desktop.md](claude-desktop.md)) or merge the sample config.
+**Claude Desktop:** add `ArcadeAI/arcade-plugin` as a plugin marketplace
+(see [claude-desktop.md](claude-desktop.md)). A custom connector or the
+sample config is the tools-only fallback.
 
 Cursor and VS Code also have one-click MCP install links in the
 [README](../README.md).

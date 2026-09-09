@@ -56,6 +56,7 @@ for (const required of [
   "hooks/hooks.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
+  ".claude-plugin/marketplace.json",
 ]) {
   if (!existsSync(join(ROOT, required))) {
     fail(`missing required path: ${required}`);
@@ -189,12 +190,33 @@ const versionedManifests = [
   "plugin.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
+  ".claude-plugin/marketplace.json",
 ];
 for (const manifestPath of versionedManifests) {
   const manifestVersion = json[manifestPath]?.version;
   if (manifestVersion && manifestVersion !== version) {
     fail(`${manifestPath} version ${manifestVersion} != VERSION ${version}`);
   }
+}
+
+const marketplace = json[".claude-plugin/marketplace.json"];
+if (marketplace) {
+  if (marketplace.name !== "arcade") {
+    fail('.claude-plugin/marketplace.json: name must be "arcade"');
+  }
+  const listed = marketplace.plugins?.[0];
+  if (!listed || listed.name !== "arcade" || listed.source !== "./") {
+    fail('.claude-plugin/marketplace.json: must list plugin "arcade" at source "./"');
+  }
+  if (listed.version && listed.version !== version) {
+    fail(
+      `.claude-plugin/marketplace.json plugins[0].version ${listed.version} != VERSION ${version}`,
+    );
+  }
+}
+
+if (!read("docs/install/claude-desktop.md").includes(`claude plugin marketplace add ${INSTALL_SLUG}`)) {
+  fail(`docs/install/claude-desktop.md: must document claude plugin marketplace add ${INSTALL_SLUG}`);
 }
 
 if (!read("clients/claude-desktop/claude_desktop_config.json").includes(MCP_REMOTE_PACKAGE)) {

@@ -63,6 +63,14 @@ test("skill directories include SKILL.md", async () => {
   }
 });
 
+test("Claude marketplace lists this plugin at the repo root", async () => {
+  const marketplace = await readRepoJson(".claude-plugin/marketplace.json");
+  assert.equal(marketplace.name, "arcade");
+  assert.equal(marketplace.plugins?.length, 1);
+  assert.equal(marketplace.plugins[0].name, "arcade");
+  assert.equal(marketplace.plugins[0].source, "./");
+});
+
 test("commands use arcade-* names", async () => {
   const commands = ["apps.md", "connect.md", "status.md"];
   for (const file of commands) {
