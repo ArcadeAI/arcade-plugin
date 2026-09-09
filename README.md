@@ -30,7 +30,7 @@ install to one client. See [install guides](docs/install/) for details.
 
 ### Claude Desktop
 
-Add the gateway as a connector or merge the sample config.
+Add this repository as a plugin marketplace, then install Arcade.
 [Guide →](docs/install/claude-desktop.md)
 
 ### Tools only
@@ -55,14 +55,15 @@ the [install guides](docs/install/).
 | **VS Code** | ✅ | ✅ 2 | — | — | — | — |
 | **Codex / ChatGPT** | ✅ | ✅ 2 | — | — | — | — |
 | **OpenCode** | ✅ | — | — | — | — | — |
-| **Claude Desktop** | ✅ | — | — | — | — | — |
+| **Claude Desktop** | ✅ | ✅ 2 | — | — | — | — |
 | **Any MCP client** | ✅ | — | — | — | — | — |
 
 Skills are `try-arcade` and `scale-arcade`. The operator is
 `arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
 `/arcade-status`. Cursor also gets an always-on rule and a session hook;
-Claude Code gets session and per-turn hooks. Full detail is in the
-[support matrix](docs/support-matrix.md).
+Claude Code and Cowork get session and per-turn hooks. Claude Desktop
+Chat loads tools and skills from the plugin marketplace. Full detail is
+in the [support matrix](docs/support-matrix.md).
 
 ## Try it
 

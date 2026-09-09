@@ -19,6 +19,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 ├── mcp.json                            portable Streamable HTTP gateway
 ├── .cursor-plugin/plugin.json          Cursor Plugin (skills + operator)
 ├── .claude-plugin/plugin.json          Claude plugin (skills + operator)
+├── .claude-plugin/marketplace.json     Claude Desktop / Code marketplace catalog
 ├── clients/
 │   ├── cursor/
 │   │   ├── mcp.json                    Cursor infers transport from url
@@ -26,7 +27,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │   │   └── rules/arcade.mdc              always-apply: try Arcade first
 │   └── claude/mcp.json                 Claude needs type: http
 │   └── claude-desktop/
-│       └── claude_desktop_config.json  manual config merge
+│       └── claude_desktop_config.json  tools-only fallback
 │
 ├── commands/                           arcade-apps, arcade-connect, arcade-status
 ├── hooks/                              Claude Code session + per-turn hooks
@@ -54,8 +55,10 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 Agent Plugins clients load `plugin.json`, `mcp.json`, and `skills/`. Cursor
 resolves `.cursor-plugin/plugin.json` first and also registers `agents/`.
 Claude Code resolves `.claude-plugin/plugin.json` and discovers `skills/` and
-`agents/` from the default folders. Every client can still run the workflow
-directly through MCP without the operator.
+`agents/` from the default folders. Claude Desktop adds this repository as a
+plugin marketplace via `.claude-plugin/marketplace.json` (`source: "./"`).
+Every client can still run the workflow directly through MCP without the
+operator.
 
 ## Execution model
 

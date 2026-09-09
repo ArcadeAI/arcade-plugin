@@ -25,3 +25,5 @@ Initial portable Agent Plugin (targeting 0.1.0).
 - Frame README and install docs for personal trial use.
 - Centralize routing guidance, endpoint constants, and drift checks in CI.
 - Improve Claude per-turn hook continuation heuristics and expand test coverage.
+- Ship a Claude plugin marketplace catalog so Desktop installs from
+  `ArcadeAI/arcade-plugin` instead of a `.mcpb` Desktop Extension.

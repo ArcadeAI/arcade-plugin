@@ -30,6 +30,7 @@ test("adapter manifest versions match VERSION", async () => {
     "plugin.json",
     ".cursor-plugin/plugin.json",
     ".claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
   ];
 
   for (const path of manifests) {

@@ -18,3 +18,10 @@ test("README documents the plugins CLI install path", async () => {
   const readme = await readRepoFile("README.md");
   assert.match(readme, /npx plugins add/);
 });
+
+test("Claude Desktop guide documents the marketplace install", async () => {
+  const guide = await readRepoFile("docs/install/claude-desktop.md");
+  assert.match(guide, /claude plugin marketplace add ArcadeAI\/arcade-plugin/);
+  assert.match(guide, /claude plugin install arcade@arcade/);
+  assert.doesNotMatch(guide, /arcade\.mcpb/);
+});
