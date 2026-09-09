@@ -103,7 +103,7 @@ npm run verify
 tests, `plugins discover`, and `claude plugin validate` (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 
-CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
+CI runs the same steps on push and pull request; see `.github/workflows/check.yml`.
 
 ## License
 
