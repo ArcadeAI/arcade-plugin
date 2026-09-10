@@ -11,6 +11,7 @@ import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
   ENDPOINT,
+  GATEWAY_HOST,
   INSTALL_SLUG,
   MCP_REMOTE_PACKAGE,
   MCP_SCHEMA,
@@ -159,8 +160,8 @@ for (const routingFile of [
   if (!content.includes(MCP_SERVER_NAME)) {
     fail(`${routingFile}: must reference MCP server name "${MCP_SERVER_NAME}"`);
   }
-  if (!content.includes("api.bosslevel.dev")) {
-    fail(`${routingFile}: must reference plugin gateway api.bosslevel.dev`);
+  if (!content.includes(GATEWAY_HOST)) {
+    fail(`${routingFile}: must reference plugin gateway ${GATEWAY_HOST}`);
   }
 }
 

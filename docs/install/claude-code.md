@@ -22,7 +22,7 @@ marketplace instead — see [claude-desktop.md](claude-desktop.md).
 
 ## Multiple Arcade MCP servers
 
-This plugin registers one MCP server named **`arcade`** → `api.bosslevel.dev`.
+This plugin registers one MCP server named **`arcade`** → `api.arcade.dev`.
 If your host has other Arcade MCP connectors too, Claude may pick the wrong one
 (same tool names, different gateway). In `/mcp`, confirm **`arcade`** is
 connected and prefer disabling other Arcade connectors while testing this

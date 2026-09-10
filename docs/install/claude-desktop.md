@@ -27,9 +27,6 @@ Chat gets tools and skills. Cowork and Code also get the operator,
 commands, and hooks. There is no documented `claude://` link that adds a
 marketplace; the steps above are the install.
 
-This is the **staging** gateway (`api.bosslevel.dev`). A production endpoint
-will replace it at public launch.
-
 ## Tools only
 
 If you only want the gateway, skip the marketplace:
@@ -37,7 +34,7 @@ If you only want the gateway, skip the marketplace:
 **Settings → Connectors → Add custom connector** → paste:
 
 ```text
-https://api.bosslevel.dev/mcp/all-optimized
+https://api.arcade.dev/mcp/arcade
 ```
 
 Or merge

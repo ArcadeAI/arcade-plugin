@@ -4,9 +4,9 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-09-10
 
-Initial portable Agent Plugin (targeting 0.1.0).
+Initial public release of the Arcade Agent Plugin.
 
 - `try-arcade` for external service tasks, with a first-use proof and recap.
   When there isn't a job yet, set the stage: what Arcade is, example asks,
@@ -16,7 +16,8 @@ Initial portable Agent Plugin (targeting 0.1.0).
   contrast this chat with a shared team gateway, and give a worked example
   before recommending a path.
 - Optional `arcade-operator` host adapter.
-- One Streamable HTTP Arcade Gateway in `mcp.json`.
+- One Streamable HTTP Arcade Gateway in `mcp.json`
+  (`https://api.arcade.dev/mcp/arcade`).
 - Cursor and Claude adapters in `.cursor-plugin/`, `.claude-plugin/`, and
   `clients/`.
 - Commands (`arcade-apps`, `arcade-connect`, `arcade-status`), session hooks,

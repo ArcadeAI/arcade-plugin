@@ -43,7 +43,7 @@ returns a browser sign-in link — approve it when prompted.
 Need just the MCP gateway, without skills or the operator?
 
 ```text
-https://api.bosslevel.dev/mcp/all-optimized
+https://api.arcade.dev/mcp/arcade
 ```
 
 **Claude Desktop:** add `ArcadeAI/arcade-plugin` as a plugin marketplace

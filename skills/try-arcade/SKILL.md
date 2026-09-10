@@ -9,12 +9,12 @@ Use the **Arcade plugin** MCP connection only — not any other Arcade MCP
 servers the user may have installed for local development or other gateways.
 
 - **MCP server name:** `arcade` (from this plugin)
-- **Gateway:** `https://api.bosslevel.dev/mcp/all-optimized` (this plugin)
+- **Gateway:** `https://api.arcade.dev/mcp/arcade` (this plugin)
 
 Call `Arcade_SelectTools`, `Arcade_UseTool`, and related tools **only on the
 `arcade` MCP server** registered by this plugin. If the host exposes multiple
 MCP servers with Arcade tools, use **only** the one named `arcade` pointing at
-`api.bosslevel.dev`. Do not fall back to another server.
+`api.arcade.dev`. Do not fall back to another server.
 
 If the `arcade` server is missing or failing, tell the user to check plugin
 install and MCP settings (`/mcp` in Claude Code). Do not use a different Arcade

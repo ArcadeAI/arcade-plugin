@@ -26,7 +26,7 @@ Plugins core.
 
 ## Tools only (one click)
 
-[![Install in Cursor](https://img.shields.io/badge/Cursor-one--click-000000)](https://cursor.com/install-mcp?name=arcade&config=eyJ1cmwiOiJodHRwczovL2FwaS5ib3NzbGV2ZWwuZGV2L21jcC9hbGwtb3B0aW1pemVkIn0=)
+[![Install in Cursor](https://img.shields.io/badge/Cursor-one--click-000000)](https://cursor.com/install-mcp?name=arcade&config=eyJ1cmwiOiJodHRwczovL2FwaS5hcmNhZGUuZGV2L21jcC9hcmNhZGUifQ==)
 
 This adds the gateway only — no skills.
 
