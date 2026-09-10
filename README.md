@@ -105,6 +105,18 @@ tests, `plugins discover`, and `claude plugin validate` (pinned in
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
 
+## Release
+
+Bump the plugin version (writes `VERSION` and every adapter manifest):
+
+```bash
+npm run bump-version 0.2.0
+```
+
+Edit `CHANGELOG.md`, run `npm run verify`, and merge to `main`. When `VERSION`
+changes on `main`, `.github/workflows/release-tag.yml` creates annotated tag
+`v{VERSION}` if that tag does not exist yet.
+
 ## License
 
 [MIT](LICENSE). Copyright (c) 2024–Present Arcade AI.
