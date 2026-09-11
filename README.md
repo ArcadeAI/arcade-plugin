@@ -104,8 +104,8 @@ tests, `plugins discover`, and `claude plugin validate` (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
-Pull requests also run a final **`Verify`** job that aggregates all workflow
-jobs. Use **`Verify`** as the required status check in branch protection so
+Pull requests finish with a **`Merge ready`** job that aggregates all workflow
+jobs. Use **`Merge ready`** as the required status check in branch protection so
 new jobs can be added without updating protection rules each time.
 
 ## License
