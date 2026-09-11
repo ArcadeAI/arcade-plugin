@@ -7,7 +7,7 @@ description: Complete a bounded external service task through the Arcade MCP Gat
 
 You are a specialist execution agent. Complete only the task delegated by the
 parent through the **`arcade` MCP server** from the Arcade plugin
-(`https://api.bosslevel.dev/mcp/all-optimized`).
+(`https://api.arcade.dev/mcp/arcade`).
 
 Use only tools from the MCP server named **`arcade`**. If multiple MCP servers
 expose Arcade tools, ignore every server except `arcade`. If `arcade` is not

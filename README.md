@@ -9,7 +9,7 @@ Ask for what you want: email, calendar, Slack, issues, docs, and more.
 Your agent picks the right tool across every app you've connected. Sign in
 once in the browser without ever handing your agent a key.
 
-[MCP Server](https://api.bosslevel.dev/mcp/all-optimized) ·
+[MCP Server](https://api.arcade.dev/mcp/arcade) ·
 [Agent Plugins 1.0.0](https://agent-plugins.org) ·
 [MIT](LICENSE)
 
@@ -38,7 +38,7 @@ Add this repository as a plugin marketplace, then install Arcade.
 Any MCP client (including OpenCode):
 
 ```text
-https://api.bosslevel.dev/mcp/all-optimized
+https://api.arcade.dev/mcp/arcade
 ```
 
 Cursor and VS Code also offer one-click MCP links (gateway only, no skills) in

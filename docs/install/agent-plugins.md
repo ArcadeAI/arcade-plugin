@@ -3,7 +3,7 @@
 Any client that can call a Streamable HTTP MCP server can use Arcade tools:
 
 ```text
-https://api.bosslevel.dev/mcp/all-optimized
+https://api.arcade.dev/mcp/arcade
 ```
 
 That path is tools only.

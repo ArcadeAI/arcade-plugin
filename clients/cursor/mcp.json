@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "arcade": {
-      "url": "https://api.bosslevel.dev/mcp/all-optimized"
+      "url": "https://api.arcade.dev/mcp/arcade"
     }
   }
 }

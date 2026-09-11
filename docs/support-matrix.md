@@ -1,7 +1,7 @@
 # Client support matrix
 
 Every install below connects to the same gateway,
-`https://api.bosslevel.dev/mcp/all-optimized`. Sign-in happens in the
+`https://api.arcade.dev/mcp/arcade`. Sign-in happens in the
 browser. The rows differ in how much of this plugin the client can load.
 
 ## Everything at a glance
@@ -80,6 +80,6 @@ These read root `plugin.json` and load the portable component types.
 A one-click MCP deeplink (or pasting the gateway URL) connects tools only.
 Skills and the operator require installing this directory as a plugin.
 
-- [Cursor](https://cursor.com/install-mcp?name=arcade&config=eyJ1cmwiOiJodHRwczovL2FwaS5ib3NzbGV2ZWwuZGV2L21jcC9hbGwtb3B0aW1pemVkIn0=)
-- [VS Code](https://vscode.dev/redirect/mcp/install?name=arcade&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fapi.bosslevel.dev%2Fmcp%2Fall-optimized%22%7D)
-- OpenCode, Claude Desktop (connector fallback), any MCP client: `https://api.bosslevel.dev/mcp/all-optimized`
+- [Cursor](https://cursor.com/install-mcp?name=arcade&config=eyJ1cmwiOiJodHRwczovL2FwaS5hcmNhZGUuZGV2L21jcC9hcmNhZGUifQ==)
+- [VS Code](https://vscode.dev/redirect/mcp/install?name=arcade&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fapi.arcade.dev%2Fmcp%2Farcade%22%7D)
+- OpenCode, Claude Desktop (connector fallback), any MCP client: `https://api.arcade.dev/mcp/arcade`

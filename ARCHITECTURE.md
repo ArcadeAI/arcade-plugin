@@ -97,7 +97,7 @@ it follows the same Arcade discovery and execution loop itself.
                 ▼
 ┌──────────────────────────────────────────────────────────────┐
 │  mcp.json  →  Streamable HTTP Gateway                        │
-│  https://api.bosslevel.dev/mcp/all-optimized                 │
+│  https://api.arcade.dev/mcp/arcade                           │
 │                                                              │
 │  only external capability boundary                           │
 │  canonical telemetry lives here, not in the plugin           │

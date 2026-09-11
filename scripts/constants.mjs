@@ -1,6 +1,7 @@
 /** Shared plugin constants — single source for endpoint, pins, and doc URLs. */
 
-export const ENDPOINT = "https://api.bosslevel.dev/mcp/all-optimized";
+export const ENDPOINT = "https://api.arcade.dev/mcp/arcade";
+export const GATEWAY_HOST = "api.arcade.dev";
 export const MCP_SERVER_NAME = "arcade";
 export const MCP_REMOTE_VERSION = "0.1.38";
 export const MCP_REMOTE_PACKAGE = `mcp-remote@${MCP_REMOTE_VERSION}`;
@@ -9,7 +10,7 @@ export const PLUGIN_SCHEMA =
   "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
 export const MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
 export const TRIAL_DASHBOARD_URL =
-  "https://cloud.bosslevel.dev?utm_source=arcade-plugin";
+  "https://app.arcade.dev?utm_source=arcade-plugin";
 export const ORG_DASHBOARD_URL =
   "https://app.arcade.dev?utm_source=arcade-plugin";
 

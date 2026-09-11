@@ -4,11 +4,8 @@ OpenCode does not load Agent Plugins skills from this directory. Add the
 gateway as an MCP server:
 
 ```text
-https://api.bosslevel.dev/mcp/all-optimized
+https://api.arcade.dev/mcp/arcade
 ```
-
-This is the **staging** gateway (`api.bosslevel.dev`). A production endpoint
-will replace it at public launch.
 
 That gives you Arcade tools only.
 
