@@ -6,8 +6,13 @@ This project adheres to
 
 ## [0.1.1] - 2026-09-11
 
-Maintainer release: version bump script, auto-tag workflow on `main`, and
-centralized version sync checks.
+Release tooling only. No user-facing plugin changes.
+
+- Add `npm run bump-version` to sync `VERSION` and every adapter manifest.
+- Add `release-tag.yml` to create annotated tag `v{VERSION}` on `main` when
+  `VERSION` changes.
+- Centralize version drift checks in `scripts/version.mjs`.
+- Document the release workflow in README.
 
 ## [0.1.0] - 2026-09-10
 
