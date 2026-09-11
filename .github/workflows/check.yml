@@ -1,12 +1,22 @@
-name: check
+name: CI
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 on:
   push:
     branches: [main, master]
   pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +46,10 @@ jobs:
 
   # ── Merge gate: single pass/fail for branch protection ──
   # The branch ruleset only requires this one check. New CI jobs are added
-  # to `needs:` here; the ruleset never changes.
+  # to `needs:` here; the ruleset never changes. `allowed-skips` enumerates
+  # jobs that may be skipped by `if:` conditions — a skipped job not listed
+  # here will fail this gate (intentional, prevents silently dropping required
+  # checks).
   merge-ready:
     name: Merge ready
     needs:

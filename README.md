@@ -105,7 +105,8 @@ tests, `plugins discover`, and `claude plugin validate` (pinned in
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
 Pull requests finish with a **`Merge ready`** job that aggregates all workflow
-jobs. Use **`Merge ready`** as the required status check in branch protection so
+jobs, matching [ArcadeAI/www](https://github.com/ArcadeAI/www/blob/main/.github/workflows/web-ci.yml).
+Use **`Merge ready`** as the required status check in branch protection so
 new jobs can be added without updating protection rules each time.
 
 ## License
