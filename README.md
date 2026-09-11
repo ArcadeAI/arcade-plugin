@@ -104,6 +104,17 @@ tests, `plugins discover`, and `claude plugin validate` (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
+Pull requests also run a final **`Verify`** job that aggregates all workflow
+jobs. Use **`Verify`** as the required status check in branch protection so
+new jobs can be added without updating protection rules each time.
+
+### Bugbot
+
+[Cursor Bugbot](https://cursor.com/docs/bugbot) reviews pull requests through
+the Cursor GitHub App, not a workflow in this repo. Enable it for
+`ArcadeAI/arcade-plugin` in
+[Bugbot Automations](https://cursor.com/automations/from-cursor/bugbot), then
+optionally require the **`Cursor Bugbot`** status check in branch protection.
 
 ## License
 
