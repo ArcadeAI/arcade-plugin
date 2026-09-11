@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   check:
@@ -46,7 +47,7 @@ jobs:
         run: exit 1
 
       - name: Require Cursor Bugbot on pull requests
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
