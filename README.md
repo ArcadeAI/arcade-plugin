@@ -104,10 +104,10 @@ tests, `plugins discover`, and `claude plugin validate` (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
-Pull requests finish with a **`complete`** job that aggregates all workflow jobs,
-matching [evantahler/botholomew](https://github.com/evantahler/botholomew/blob/main/.github/workflows/ci.yml).
-Use **`complete`** as the required status check in branch protection so new
-jobs can be added without updating protection rules each time.
+Pull requests finish with a **`complete`** job that aggregates workflow jobs and
+waits for **`Cursor Bugbot`**, matching the aggregate pattern in
+[evantahler/botholomew](https://github.com/evantahler/botholomew/blob/main/.github/workflows/ci.yml).
+Use **`complete`** as the only required status check in branch protection.
 
 ## License
 
