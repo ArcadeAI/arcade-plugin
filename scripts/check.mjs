@@ -20,6 +20,7 @@ import {
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
+import { VERSIONED_MANIFESTS } from "./version.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -187,13 +188,7 @@ for (const hooksFile of ["hooks/hooks.json"]) {
 }
 
 const version = read("VERSION").trim();
-const versionedManifests = [
-  "plugin.json",
-  ".cursor-plugin/plugin.json",
-  ".claude-plugin/plugin.json",
-  ".claude-plugin/marketplace.json",
-];
-for (const manifestPath of versionedManifests) {
+for (const manifestPath of VERSIONED_MANIFESTS) {
   const manifestVersion = json[manifestPath]?.version;
   if (manifestVersion && manifestVersion !== version) {
     fail(`${manifestPath} version ${manifestVersion} != VERSION ${version}`);

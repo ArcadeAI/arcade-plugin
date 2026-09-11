@@ -8,7 +8,8 @@ import {
   MCP_REMOTE_PACKAGE,
   PLUGINS_CLI_VERSION,
 } from "../scripts/constants.mjs";
-import { readRepoFile, readRepoJson } from "./helpers.mjs";
+import { VERSIONED_MANIFESTS, readVersion } from "../scripts/version.mjs";
+import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
 
 test("Cursor rule includes shared routing markers", async () => {
   const rule = await readRepoFile("clients/cursor/rules/arcade.mdc");
@@ -25,18 +26,34 @@ test("mcp-remote pin is consistent across Claude Desktop config", async () => {
 });
 
 test("adapter manifest versions match VERSION", async () => {
-  const version = (await readRepoFile("VERSION")).trim();
-  const manifests = [
-    "plugin.json",
-    ".cursor-plugin/plugin.json",
-    ".claude-plugin/plugin.json",
-    ".claude-plugin/marketplace.json",
-  ];
+  const version = readVersion(ROOT);
 
-  for (const path of manifests) {
+  for (const path of VERSIONED_MANIFESTS) {
     const manifest = await readRepoJson(path);
     assert.equal(manifest.version, version, `${path} version drift`);
   }
+
+  const marketplace = await readRepoJson(".claude-plugin/marketplace.json");
+  assert.equal(
+    marketplace.plugins?.[0]?.version,
+    version,
+    ".claude-plugin/marketplace.json plugins[0] version drift",
+  );
+});
+
+test("release-please config syncs every VERSIONed manifest", async () => {
+  const config = await readRepoJson("release-please-config.json");
+  const pkg = config.packages?.["."];
+  const extraPaths = new Set((pkg?.["extra-files"] ?? []).map((entry) => entry.path));
+
+  assert.equal(pkg?.["version-file"], "VERSION");
+
+  for (const path of VERSIONED_MANIFESTS) {
+    assert.ok(extraPaths.has(path), `release-please-config.json must list ${path}`);
+  }
+
+  const workflow = await readRepoFile(".github/workflows/release-please.yml");
+  assert.match(workflow, /release-please-action@v4/);
 });
 test("CI toolchain versions are pinned in package.json", async () => {
   const packageJson = await readRepoJson("package.json");

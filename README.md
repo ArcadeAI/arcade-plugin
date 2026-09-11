@@ -105,6 +105,15 @@ tests, `plugins discover`, and `claude plugin validate` (pinned in
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
 
+## Release
+
+Release Please opens a release PR on `main` with version bumps across `VERSION`,
+adapter manifests, and `CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and
+create the GitHub release.
+
+Configure paths in `release-please-config.json`. The workflow lives at
+`.github/workflows/release-please.yml`.
+
 ## License
 
 [MIT](LICENSE). Copyright (c) 2024–Present Arcade AI.
