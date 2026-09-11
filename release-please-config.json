@@ -3,12 +3,9 @@
   "packages": {
     ".": {
       "release-type": "simple",
+      "version-file": "VERSION",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        {
-          "type": "generic",
-          "path": "VERSION"
-        },
         {
           "type": "json",
           "path": "plugin.json",

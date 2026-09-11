@@ -43,14 +43,14 @@ test("adapter manifest versions match VERSION", async () => {
 
 test("release-please config syncs every VERSIONed manifest", async () => {
   const config = await readRepoJson("release-please-config.json");
-  const extraPaths = new Set(
-    (config.packages?.["."]?.["extra-files"] ?? []).map((entry) => entry.path),
-  );
+  const pkg = config.packages?.["."];
+  const extraPaths = new Set((pkg?.["extra-files"] ?? []).map((entry) => entry.path));
+
+  assert.equal(pkg?.["version-file"], "VERSION");
 
   for (const path of VERSIONED_MANIFESTS) {
     assert.ok(extraPaths.has(path), `release-please-config.json must list ${path}`);
   }
-  assert.ok(extraPaths.has("VERSION"), "release-please-config.json must list VERSION");
 
   const workflow = await readRepoFile(".github/workflows/release-please.yml");
   assert.match(workflow, /release-please-action@v4/);
