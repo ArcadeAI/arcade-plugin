@@ -76,9 +76,13 @@ jobs:
             fi
 
             case "${conclusion}" in
-              success|neutral)
-                echo "Cursor Bugbot: ${conclusion}"
+              success)
+                echo "Cursor Bugbot passed"
                 exit 0
+                ;;
+              neutral)
+                echo "Cursor Bugbot returned neutral (findings or incomplete review)"
+                exit 1
                 ;;
               failure|cancelled|timed_out|action_required)
                 echo "Cursor Bugbot failed: ${conclusion}"
