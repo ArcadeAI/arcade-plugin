@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bump-version": "node scripts/bump-version.mjs",
     "check": "node scripts/check.mjs",
     "test": "node --test",
     "validate:schemas": "node scripts/validate-schemas.mjs",

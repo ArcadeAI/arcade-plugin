@@ -4,16 +4,6 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - 2026-09-11
-
-Release tooling only. No user-facing plugin changes.
-
-- Add `npm run bump-version` to sync `VERSION` and every adapter manifest.
-- Add `release-tag.yml` to create annotated tag `v{VERSION}` on `main` when
-  `VERSION` changes.
-- Centralize version drift checks in `scripts/version.mjs`.
-- Document the release workflow in README.
-
 ## [0.1.0] - 2026-09-10
 
 Initial public release of the Arcade Agent Plugin.

@@ -1,6 +1,6 @@
-/** Shared version file paths and sync helpers for check + bump scripts. */
+/** Shared version file paths and read helpers for check + tests. */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const VERSION_FILE = "VERSION";
@@ -35,20 +35,4 @@ export function applyVersionToJson(manifestPath, manifest, version) {
     }
   }
   return manifest;
-}
-
-export function syncVersionToManifests(root, version) {
-  const parsed = parseVersion(version);
-  writeFileSync(join(root, VERSION_FILE), `${parsed}\n`, "utf8");
-
-  const written = [VERSION_FILE];
-  for (const manifestPath of VERSIONED_MANIFESTS) {
-    const abs = join(root, manifestPath);
-    const manifest = JSON.parse(readFileSync(abs, "utf8"));
-    applyVersionToJson(manifestPath, manifest, parsed);
-    writeFileSync(abs, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-    written.push(manifestPath);
-  }
-
-  return written;
 }

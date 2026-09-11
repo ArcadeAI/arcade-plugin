@@ -41,12 +41,19 @@ test("adapter manifest versions match VERSION", async () => {
   );
 });
 
-test("bump-version script is wired in package.json", async () => {
-  const packageJson = await readRepoJson("package.json");
-  assert.equal(
-    packageJson.scripts?.["bump-version"],
-    "node scripts/bump-version.mjs",
+test("release-please config syncs every VERSIONed manifest", async () => {
+  const config = await readRepoJson("release-please-config.json");
+  const extraPaths = new Set(
+    (config.packages?.["."]?.["extra-files"] ?? []).map((entry) => entry.path),
   );
+
+  for (const path of VERSIONED_MANIFESTS) {
+    assert.ok(extraPaths.has(path), `release-please-config.json must list ${path}`);
+  }
+  assert.ok(extraPaths.has("VERSION"), "release-please-config.json must list VERSION");
+
+  const workflow = await readRepoFile(".github/workflows/release-please.yml");
+  assert.match(workflow, /release-please-action@v4/);
 });
 test("CI toolchain versions are pinned in package.json", async () => {
   const packageJson = await readRepoJson("package.json");

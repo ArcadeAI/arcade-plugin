@@ -107,15 +107,12 @@ CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
 
 ## Release
 
-Bump the plugin version (writes `VERSION` and every adapter manifest):
+Release Please opens a release PR on `main` with version bumps across `VERSION`,
+adapter manifests, and `CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and
+create the GitHub release.
 
-```bash
-npm run bump-version 0.2.0
-```
-
-Edit `CHANGELOG.md`, run `npm run verify`, and merge to `main`. When `VERSION`
-changes on `main`, `.github/workflows/release-tag.yml` creates annotated tag
-`v{VERSION}` if that tag does not exist yet.
+Configure paths in `release-please-config.json`. The workflow lives at
+`.github/workflows/release-please.yml`.
 
 ## License
 
