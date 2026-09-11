@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "arcade",
   "description": "Install Arcade in Claude Desktop, Cowork, and Claude Code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "owner": {
     "name": "Arcade.dev",
     "url": "https://arcade.dev"
@@ -13,7 +13,7 @@
       "displayName": "Arcade",
       "source": "./",
       "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "Arcade.dev",
         "url": "https://arcade.dev"

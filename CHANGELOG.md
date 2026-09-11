@@ -4,6 +4,11 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-11
+
+Maintainer release: version bump script, auto-tag workflow on `main`, and
+centralized version sync checks.
+
 ## [0.1.0] - 2026-09-10
 
 Initial public release of the Arcade Agent Plugin.
