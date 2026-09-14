@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   check:
@@ -33,3 +34,74 @@ jobs:
 
       - name: Claude plugin validation
         run: npm run verify:claude
+
+  complete:
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    needs: [check]
+    permissions:
+      checks: read
+      pull-requests: read
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+
+      - name: Require Cursor Bugbot on pull requests
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          sha="${{ github.event.pull_request.head.sha }}"
+          repo="${{ github.repository }}"
+          deadline=$(( $(date +%s) + 900 ))
+
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            mapfile -t bugbot < <(gh api "repos/${repo}/commits/${sha}/check-runs" --paginate \
+              --jq '[.check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last | (.status // ""), (.conclusion // "")')
+            status="${bugbot[0]:-}"
+            conclusion="${bugbot[1]:-}"
+
+            if [ -z "${status}" ]; then
+              echo "Waiting for Cursor Bugbot check to appear..."
+              sleep 15
+              continue
+            fi
+
+            if [ "${status}" != "completed" ]; then
+              echo "Cursor Bugbot status: ${status}"
+              sleep 15
+              continue
+            fi
+
+            case "${conclusion}" in
+              success)
+                echo "Cursor Bugbot passed"
+                exit 0
+                ;;
+              neutral)
+                echo "Cursor Bugbot returned neutral (findings or incomplete review)"
+                exit 1
+                ;;
+              failure|cancelled|timed_out|action_required)
+                echo "Cursor Bugbot failed: ${conclusion}"
+                exit 1
+                ;;
+              skipped)
+                echo "Cursor Bugbot was skipped"
+                exit 1
+                ;;
+              *)
+                echo "Cursor Bugbot returned unexpected conclusion: ${conclusion}"
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for Cursor Bugbot"
+          exit 1
+
+      - run: echo "All checks passed"
