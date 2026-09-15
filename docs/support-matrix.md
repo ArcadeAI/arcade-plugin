@@ -13,7 +13,7 @@ browser. The rows differ in how much of this plugin the client can load.
 | **Claude Cowork / desktop** | ✅ | 2 | ✅ | 3 | — | 2 | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | 2 | ✅ | — | — | — | [guide](install/copilot.md) |
 | **VS Code** | ✅ | 2 | — | — | — | — | [guide](install/vscode.md) |
-| **Codex / ChatGPT** | ✅ | 2 | — | — | — | — | [guide](install/codex.md) |
+| **Codex / ChatGPT local runtime** | ✅ | 2 | — | — | — | ✅ 3 | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | 2 | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
@@ -44,6 +44,9 @@ already read:
 | Commands | `commands/` | Cursor, Claude Code |
 | Hooks | `hooks/hooks.json` | Claude Code |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
+| Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT local runtime |
+| OpenAI extension | `plugin.json` → `extensions.com.openai` | Codex / ChatGPT local runtime |
+| Codex fallback | `.codex-plugin/plugin.json` | Older Codex plugin loaders |
 | Rule | `clients/cursor/rules/` | Cursor |
 
 The subagent filename ends in `.agent.md` so Copilot CLI can discover it.
@@ -55,9 +58,12 @@ portable core when it sees a root `plugin.json` with the Agent Plugins
 Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
-Copilot CLI does not load `hooks/hooks.json` — that file targets Claude
-Code's hook format (`SessionStart`, `UserPromptSubmit`). Copilot's native
-hook schema differs; skills provide routing guidance on that client.
+Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
+`SessionStart` and `UserPromptSubmit` from that file. Codex runs all three
+lifecycle hooks from `com.openai/hooks/hooks.json`, selected by the portable
+manifest's OpenAI extension.
+Copilot's native hook schema differs; skills provide routing guidance on
+that client.
 
 Claude Desktop installs this repo as a plugin marketplace (see
 [claude-desktop.md](install/claude-desktop.md)): add
@@ -69,11 +75,11 @@ tools-only fallback. There is no `.mcpb` Desktop Extension.
 
 These read root `plugin.json` and load the portable component types.
 
-| | Cursor | VS Code | Copilot CLI | Codex / ChatGPT |
+| | Cursor | VS Code | Copilot CLI | Codex / ChatGPT local runtime |
 |---|---|---|---|---|
 | **MCP tools** | ✅ | ✅ | ✅ | ✅ |
 | **Skills (2)** | ✅ | ✅ | ✅ | ✅ |
-| **Operator** | ✅ (`.cursor-plugin`) | — | ✅ (`agents/*.agent.md`) | — | — |
+| **Operator** | ✅ (`.cursor-plugin`) | — | ✅ (`agents/*.agent.md`) | — (use `try-arcade`) | — |
 
 ## Tools-only installs
 

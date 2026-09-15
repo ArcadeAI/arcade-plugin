@@ -6,7 +6,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ROUTING_MARKERS } from "../hooks/routing-guidance.mjs";
+import {
+  PROMPT_REMINDER,
+  ROUTING_MARKERS,
+  SESSION_CONTEXT,
+  SUBAGENT_CONTEXT,
+} from "../hooks/routing-guidance.mjs";
 import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
@@ -17,10 +22,10 @@ import {
   MCP_SCHEMA,
   MCP_SERVER_NAME,
   PLUGINS_CLI_VERSION,
+  PLUGIN_DISPLAY_NAME,
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
-import { VERSIONED_MANIFESTS } from "./version.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -59,6 +64,7 @@ for (const required of [
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
+  ".codex-plugin/plugin.json",
 ]) {
   if (!existsSync(join(ROOT, required))) {
     fail(`missing required path: ${required}`);
@@ -78,6 +84,14 @@ if (portable) {
   }
   if (portable.repository !== "https://github.com/ArcadeAI/arcade-plugin") {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
+  }
+  if (
+    portable.extensions?.["com.openai"]?.hooks !==
+    "./com.openai/hooks/hooks.json"
+  ) {
+    fail(
+      'plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"',
+    );
   }
 }
 
@@ -124,6 +138,11 @@ if (cursorManifest) {
     if (!existsSync(join(ROOT, target))) {
       fail(`.cursor-plugin/plugin.json: ${key} path does not exist: ${value}`);
     }
+  }
+  if (cursorManifest.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `.cursor-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
   }
 }
 
@@ -174,24 +193,65 @@ if (cursorHooks.includes("node ./hooks/")) {
   fail("clients/cursor/hooks/hooks.json: must not use project-relative ./hooks/ paths");
 }
 
-for (const hooksFile of ["hooks/hooks.json"]) {
-  const content = read(hooksFile);
-  if (!content.includes("${CLAUDE_PLUGIN_ROOT}")) {
-    fail(`${hooksFile}: must use ${"${CLAUDE_PLUGIN_ROOT}"}`);
-  }
-  if (!content.includes("hooks/session-start.mjs")) {
-    fail(`${hooksFile}: must reference hooks/session-start.mjs`);
-  }
-  if (!content.includes("hooks/user-prompt-submit.mjs")) {
-    fail(`${hooksFile}: must reference hooks/user-prompt-submit.mjs`);
-  }
+const claudeHooks = read("hooks/hooks.json");
+if (!claudeHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
+  fail('hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}');
+}
+if (!claudeHooks.includes("hooks/session-start.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/session-start.mjs");
+}
+if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
+}
+if (!claudeHooks.includes('"matcher": "startup|resume|clear"')) {
+  fail('hooks/hooks.json: SessionStart must match startup, resume, and clear');
+}
+if (claudeHooks.includes("SubagentStart")) {
+  fail(
+    "hooks/hooks.json: Arcade wires SubagentStart only in com.openai/hooks/hooks.json",
+  );
 }
 
-const version = read("VERSION").trim();
-for (const manifestPath of VERSIONED_MANIFESTS) {
-  const manifestVersion = json[manifestPath]?.version;
-  if (manifestVersion && manifestVersion !== version) {
-    fail(`${manifestPath} version ${manifestVersion} != VERSION ${version}`);
+const codexHooks = read("com.openai/hooks/hooks.json");
+if (!codexHooks.includes("${PLUGIN_ROOT}")) {
+  fail("com.openai/hooks/hooks.json: must use ${PLUGIN_ROOT}");
+}
+for (const script of [
+  "hooks/session-start.mjs",
+  "hooks/user-prompt-submit.mjs",
+  "hooks/subagent-start.mjs",
+]) {
+  if (!codexHooks.includes(script)) {
+    fail(`com.openai/hooks/hooks.json: must reference ${script}`);
+  }
+}
+for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
+  if (codexHooks.includes(forbiddenRoot)) {
+    fail(`com.openai/hooks/hooks.json: must not use ${forbiddenRoot}`);
+  }
+}
+if (!codexHooks.includes('"matcher": "*"')) {
+  fail('com.openai/hooks/hooks.json: SubagentStart must use matcher "*"');
+}
+
+const codexManifest = json[".codex-plugin/plugin.json"];
+if (codexManifest) {
+  if (codexManifest.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
+  }
+  if (codexManifest.hooks !== "./com.openai/hooks/hooks.json") {
+    fail(
+      '.codex-plugin/plugin.json: hooks must be "./com.openai/hooks/hooks.json"',
+    );
+  }
+  for (const portableComponent of ["skills", "mcpServers"]) {
+    if (portableComponent in codexManifest) {
+      fail(
+        `.codex-plugin/plugin.json: ${portableComponent} comes from the portable root manifest`,
+      );
+    }
   }
 }
 
@@ -204,9 +264,9 @@ if (marketplace) {
   if (!listed || listed.name !== "arcade" || listed.source !== "./") {
     fail('.claude-plugin/marketplace.json: must list plugin "arcade" at source "./"');
   }
-  if (listed.version && listed.version !== version) {
+  if (listed.displayName !== PLUGIN_DISPLAY_NAME) {
     fail(
-      `.claude-plugin/marketplace.json plugins[0].version ${listed.version} != VERSION ${version}`,
+      `.claude-plugin/marketplace.json: plugin displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
 }
@@ -223,6 +283,18 @@ const cursorRule = read("clients/cursor/rules/arcade.mdc");
 for (const marker of ROUTING_MARKERS) {
   if (!cursorRule.includes(marker)) {
     fail(`clients/cursor/rules/arcade.mdc: missing routing marker "${marker}"`);
+  }
+}
+
+for (const [label, surface] of [
+  ["SESSION_CONTEXT", SESSION_CONTEXT],
+  ["PROMPT_REMINDER", PROMPT_REMINDER],
+  ["SUBAGENT_CONTEXT", SUBAGENT_CONTEXT],
+]) {
+  for (const marker of ROUTING_MARKERS) {
+    if (!surface.includes(marker)) {
+      fail(`routing-guidance.mjs ${label}: missing routing marker "${marker}"`);
+    }
   }
 }
 if (!read("README.md").includes(`npx plugins add ${INSTALL_SLUG}`)) {

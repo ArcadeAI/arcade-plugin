@@ -1,8 +1,16 @@
-# Install in Codex or ChatGPT
+# Install in Codex or the ChatGPT local runtime
 
-Codex and ChatGPT share one plugin directory, so a single install shows up on
-both surfaces. You get the Arcade gateway and both skills. Codex does not
-load `arcade-operator`.
+Codex and the ChatGPT local runtime share one plugin directory, so a single
+local install shows up on both surfaces. You get the Arcade gateway, both
+skills, and lifecycle hooks. Installing the plugin on the web does not deploy
+hook scripts.
+
+Codex does not load `arcade-operator` from the plugin. OpenAI plugins can ship
+skills, MCP, and hooks, but not custom agent roles yet
+([codex#36855](https://github.com/openai/codex/issues/36855)). Use `/try-arcade`
+or ask Codex to follow the try-arcade skill for the same workflow. If you spawn
+a built-in subagent (`worker`, `explorer`, etc.), `SubagentStart` still injects
+Arcade routing guidance.
 
 ## Install
 
@@ -16,25 +24,28 @@ From a local checkout:
 npx plugins add /path/to/arcade-plugin --target codex
 ```
 
-You can also point Codex at this folder via a marketplace entry in
-`~/.agents/plugins/marketplace.json` (or `.agents/plugins/marketplace.json`
-in a repo):
-
-```json
-{
-  "plugins": [
-    {
-      "name": "arcade-plugin",
-      "source": "./path/to/arcade-plugin"
-    }
-  ]
-}
-```
-
 ## Verify
 
 `try-arcade` and `scale-arcade` should appear as skills, and the `arcade`
 MCP server should be connected.
+
+### Trust plugin hooks
+
+Codex does not run plugin-bundled hooks until you review and trust them.
+After install, open `/hooks` in Codex and trust the Arcade plugin hooks.
+Codex prints a startup warning when hooks still need review.
+
+The plugin ships three hooks in `com.openai/hooks/hooks.json`. Root
+`plugin.json` selects that adapter through `extensions.com.openai.hooks`; the
+`.codex-plugin/plugin.json` file carries the same path only as a compatibility
+fallback. Every Codex command uses `${PLUGIN_ROOT}` so local installs continue
+to resolve after vendor-specific packaging.
+
+| Event | Purpose |
+| --- | --- |
+| `SessionStart` | Session routing guidance |
+| `UserPromptSubmit` | Per-turn Arcade reminder |
+| `SubagentStart` | Subagent routing guidance |
 
 ## Sign in
 

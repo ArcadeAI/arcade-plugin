@@ -15,10 +15,5 @@
   ],
   "version": "0.1.0",
   "displayName": "Arcade",
-  "skills": "skills",
-  "agents": "agents",
-  "commands": "commands",
-  "rules": "clients/cursor/rules",
-  "hooks": "clients/cursor/hooks/hooks.json",
-  "mcpServers": "clients/cursor/mcp.json"
+  "hooks": "./com.openai/hooks/hooks.json"
 }

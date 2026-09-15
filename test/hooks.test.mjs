@@ -77,3 +77,25 @@ test("user-prompt-submit suppresses one-word acknowledgements", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim(), "");
 });
+
+test("subagent-start emits Codex shape with shared guidance", () => {
+  const result = runHook(
+    "subagent-start.mjs",
+    '{"hook_event_name":"SubagentStart","agent_type":"review"}',
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const out = JSON.parse(result.stdout.trim());
+  assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
+  for (const phrase of CONTEXT_PHRASES) {
+    assert.match(out.hookSpecificOutput.additionalContext, new RegExp(phrase));
+  }
+});
+
+test("subagent-start emits safe default when stdin is invalid", () => {
+  const result = runHook("subagent-start.mjs", "not-json");
+  assert.equal(result.status, 0, result.stderr);
+  const out = JSON.parse(result.stdout.trim());
+  assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
+  assert.match(out.hookSpecificOutput.additionalContext, /try-arcade/);
+});
+

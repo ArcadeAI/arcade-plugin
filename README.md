@@ -19,7 +19,7 @@ once in the browser without ever handing your agent a key.
 
 ### Full plugin
 
-#### Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT
+#### Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT local runtime
 
 ```bash
 npx plugins add ArcadeAI/arcade-plugin
@@ -53,7 +53,7 @@ the [install guides](docs/install/).
 | **Claude Cowork / desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
 | **GitHub Copilot CLI** | ✅ | ✅ 2 | ✅ | — | — | — |
 | **VS Code** | ✅ | ✅ 2 | — | — | — | — |
-| **Codex / ChatGPT** | ✅ | ✅ 2 | — | — | — | — |
+| **Codex / ChatGPT local runtime** | ✅ | ✅ 2 | — | — | — | ✅ 3 |
 | **OpenCode** | ✅ | — | — | — | — | — |
 | **Claude Desktop** | ✅ | ✅ 2 | — | — | — | — |
 | **Any MCP client** | ✅ | — | — | — | — | — |
@@ -61,8 +61,10 @@ the [install guides](docs/install/).
 Skills are `try-arcade` and `scale-arcade`. The operator is
 `arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
 `/arcade-status`. Cursor also gets an always-on rule and a session hook;
-Claude Code and Cowork get session and per-turn hooks. Claude Desktop
-Chat loads tools and skills from the plugin marketplace. Full detail is
+Claude Code and Cowork get session and per-turn hooks. Codex and the ChatGPT
+local runtime get those hooks plus a subagent lifecycle hook (trust via
+`/hooks`). Web installation does not deploy hook scripts. Claude Desktop Chat
+loads tools and skills from the plugin marketplace. Full detail is
 in the [support matrix](docs/support-matrix.md).
 
 ## Try it
@@ -93,6 +95,9 @@ anything is sent, created, or deleted.
   connect — [privacy policy](https://www.arcade.dev/privacy-policy).
 
 ## Develop
+
+Agents editing this repo should read [AGENTS.md](AGENTS.md) for hook adapter
+rules. [ARCHITECTURE.md](ARCHITECTURE.md) covers the full contract and layout.
 
 ```bash
 npm ci

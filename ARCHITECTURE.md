@@ -6,6 +6,46 @@ adapters live in `.cursor-plugin/`, `.claude-plugin/`, and `clients/`.
 Commands, hooks, and the Cursor rule are host adapters, not portable
 Agent Plugins components. The package still ships no credentials.
 
+## Portable contract → generate → validate
+
+The standard Agent Plugins files—`plugin.json`, `mcp.json`, and `skills/`—are
+the portable source of truth. `scripts/generate-manifests.mjs` reads the two
+portable manifests and `VERSION`, then writes only the host projections:
+client MCP adapters plus `.cursor-plugin/`, `.claude-plugin/`, and the optional
+`.codex-plugin/` compatibility manifest.
+
+Hook manifests stay hand-authored because each host has its own event schema:
+`hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
+and `com.openai/hooks/hooks.json` for Codex. Structural and behavioral tests
+validate the split directly; no generated hash inventory sits between the
+manifests and the runtime checks.
+
+```text
+plugin.json + mcp.json + VERSION
+        │
+        ▼
+scripts/generate-manifests.mjs
+        │
+        ├── clients/*/mcp.json
+        ├── .cursor-plugin/plugin.json
+        ├── .claude-plugin/plugin.json, marketplace.json
+        └── .codex-plugin/plugin.json
+        │
+        ▼
+npm run generate:check  (in verify)  +  scripts/check.mjs
+```
+
+After a version bump, run `node scripts/version.mjs <semver>` or
+`npm run generate` so host projections stay in sync. Release Please updates
+every version-bearing manifest, and CI simulates that update before accepting
+the release configuration.
+
+Hook scripts live in `hooks/*.mjs`. Hook manifests are per client:
+`hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
+and `com.openai/hooks/hooks.json` for all Codex lifecycle hooks.
+`scripts/check.mjs` enforces that split. Maintainer-facing agent guidance lives
+in [AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
+
 The customer-facing overview lives in [README.md](README.md). Interaction
 rules live in the skills; the optional operator and observability boundary
 are documented below.
@@ -20,17 +60,20 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 ├── .cursor-plugin/plugin.json          Cursor Plugin (skills + operator)
 ├── .claude-plugin/plugin.json          Claude plugin (skills + operator)
 ├── .claude-plugin/marketplace.json     Claude Desktop / Code marketplace catalog
+├── .codex-plugin/plugin.json           Codex compatibility fallback
 ├── clients/
 │   ├── cursor/
 │   │   ├── mcp.json                    Cursor infers transport from url
 │   │   ├── hooks/hooks.json            Cursor sessionStart
 │   │   └── rules/arcade.mdc              always-apply: try Arcade first
-│   └── claude/mcp.json                 Claude needs type: http
-│   └── claude-desktop/
-│       └── claude_desktop_config.json  tools-only fallback
+│   ├── claude/mcp.json                 Claude needs type: http
+│   ├── claude-desktop/
+│   │   └── claude_desktop_config.json  tools-only fallback
+│   └── codex/                          (reserved)
 │
+├── com.openai/hooks/hooks.json         Codex lifecycle hook adapter
 ├── commands/                           arcade-apps, arcade-connect, arcade-status
-├── hooks/                              Claude Code session + per-turn hooks
+├── hooks/                              shared hook scripts + Claude hook manifest
 │
 ├── README.md                           customer-facing overview
 ├── ARCHITECTURE.md                     this file
