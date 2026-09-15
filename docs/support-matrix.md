@@ -78,7 +78,7 @@ These read root `plugin.json` and load the portable component types.
 |---|---|---|---|---|
 | **MCP tools** | ✅ | ✅ | ✅ | ✅ |
 | **Skills (2)** | ✅ | ✅ | ✅ | ✅ |
-| **Operator** | ✅ (`.cursor-plugin`) | — | ✅ (`agents/*.agent.md`) | — | — |
+| **Operator** | ✅ (`.cursor-plugin`) | — | ✅ (`agents/*.agent.md`) | — (use `try-arcade`) | — |
 
 ## Tools-only installs
 

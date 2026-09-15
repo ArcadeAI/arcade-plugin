@@ -2,7 +2,13 @@
 
 Codex and ChatGPT share one plugin directory, so a single install shows up on
 both surfaces. You get the Arcade gateway, both skills, and lifecycle hooks.
-Codex does not load `arcade-operator`.
+
+Codex does not load `arcade-operator` from the plugin. OpenAI plugins can ship
+skills, MCP, and hooks, but not custom agent roles yet
+([codex#36855](https://github.com/openai/codex/issues/36855)). Use `/try-arcade`
+or ask Codex to follow the try-arcade skill for the same workflow. If you spawn
+a built-in subagent (`worker`, `explorer`, etc.), `SubagentStart` still injects
+Arcade routing guidance.
 
 ## Install
 
