@@ -86,7 +86,16 @@ test("subagent-start emits Codex shape with shared guidance", () => {
   assert.equal(result.status, 0, result.stderr);
   const out = JSON.parse(result.stdout.trim());
   assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
+  for (const phrase of CONTEXT_PHRASES) {
+    assert.match(out.hookSpecificOutput.additionalContext, new RegExp(phrase));
+  }
+});
+
+test("subagent-start emits safe default when stdin is invalid", () => {
+  const result = runHook("subagent-start.mjs", "not-json");
+  assert.equal(result.status, 0, result.stderr);
+  const out = JSON.parse(result.stdout.trim());
+  assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
   assert.match(out.hookSpecificOutput.additionalContext, /try-arcade/);
-  assert.match(out.hookSpecificOutput.additionalContext, /arcade/);
 });
 

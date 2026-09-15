@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ROUTING_MARKERS } from "../hooks/routing-guidance.mjs";
+import {
+  PROMPT_REMINDER,
+  ROUTING_MARKERS,
+  SESSION_CONTEXT,
+  SUBAGENT_CONTEXT,
+} from "../hooks/routing-guidance.mjs";
 import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
@@ -15,6 +20,14 @@ test("Cursor rule includes shared routing markers", async () => {
   const rule = await readRepoFile("clients/cursor/rules/arcade.mdc");
   for (const marker of ROUTING_MARKERS) {
     assert.match(rule, new RegExp(marker));
+  }
+});
+
+test("hook guidance strings include shared routing markers", () => {
+  for (const surface of [SESSION_CONTEXT, PROMPT_REMINDER, SUBAGENT_CONTEXT]) {
+    for (const marker of ROUTING_MARKERS) {
+      assert.match(surface, new RegExp(marker));
+    }
   }
 });
 

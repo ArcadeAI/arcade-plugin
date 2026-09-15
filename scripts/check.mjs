@@ -6,7 +6,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ROUTING_MARKERS } from "../hooks/routing-guidance.mjs";
+import {
+  PROMPT_REMINDER,
+  ROUTING_MARKERS,
+  SESSION_CONTEXT,
+  SUBAGENT_CONTEXT,
+} from "../hooks/routing-guidance.mjs";
 import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
@@ -239,6 +244,18 @@ const cursorRule = read("clients/cursor/rules/arcade.mdc");
 for (const marker of ROUTING_MARKERS) {
   if (!cursorRule.includes(marker)) {
     fail(`clients/cursor/rules/arcade.mdc: missing routing marker "${marker}"`);
+  }
+}
+
+for (const [label, surface] of [
+  ["SESSION_CONTEXT", SESSION_CONTEXT],
+  ["PROMPT_REMINDER", PROMPT_REMINDER],
+  ["SUBAGENT_CONTEXT", SUBAGENT_CONTEXT],
+]) {
+  for (const marker of ROUTING_MARKERS) {
+    if (!surface.includes(marker)) {
+      fail(`routing-guidance.mjs ${label}: missing routing marker "${marker}"`);
+    }
   }
 }
 if (!read("README.md").includes(`npx plugins add ${INSTALL_SLUG}`)) {

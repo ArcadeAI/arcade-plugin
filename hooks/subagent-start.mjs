@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Subagent routing reminder for Codex-format clients. Always exit 0.
+// Subagent routing reminder for Claude/Codex-format clients. Always exit 0.
 
 import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 
@@ -9,13 +9,12 @@ const readStdin = async () => {
   try {
     for await (const chunk of process.stdin) data += chunk;
   } catch {
-    // Stay silent.
+    // No stdin — still inject routing guidance.
   }
   return data;
 };
 
-try {
-  await readStdin();
+const emitResponse = () => {
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
@@ -24,8 +23,19 @@ try {
       },
     }),
   );
+};
+
+try {
+  const raw = await readStdin();
+  try {
+    JSON.parse(raw);
+  } catch {
+    // Unparseable input: still inject — subagent starts need routing context.
+  }
+  emitResponse();
 } catch {
   // A hook must never block subagent startup.
+  emitResponse();
 }
 
 process.exit(0);
