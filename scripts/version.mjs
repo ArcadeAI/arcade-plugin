@@ -1,9 +1,10 @@
-/** Version helpers, bump CLI, and manifest regeneration entry point. */
+/** Version helpers, bump CLI, and host-manifest regeneration entry point. */
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export const VERSION_FILE = "VERSION";
@@ -32,19 +33,13 @@ export function readVersion(root) {
 
 export function writeVersion(root, version) {
   const parsed = parseVersion(version);
-  writeFileSync(join(root, VERSION_FILE), `${parsed}\n`, "utf8");
-  return parsed;
-}
+  const pluginPath = join(root, "plugin.json");
+  const plugin = JSON.parse(readFileSync(pluginPath, "utf8"));
+  plugin.version = parsed;
 
-export function applyVersionToJson(manifestPath, manifest, version) {
-  manifest.version = version;
-  if (manifestPath === ".claude-plugin/marketplace.json") {
-    const listed = manifest.plugins?.[0];
-    if (listed) {
-      listed.version = version;
-    }
-  }
-  return manifest;
+  writeFileSync(join(root, VERSION_FILE), `${parsed}\n`, "utf8");
+  writeFileSync(pluginPath, `${JSON.stringify(plugin, null, 2)}\n`, "utf8");
+  return parsed;
 }
 
 export function regenerateManifests(root = ROOT) {
@@ -60,7 +55,8 @@ export function bumpVersion(root, nextVersion) {
   return version;
 }
 
-const isCli = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isCli =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isCli) {
   const nextVersion = process.argv[2];

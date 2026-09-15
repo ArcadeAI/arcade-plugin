@@ -30,4 +30,6 @@ test("Codex guide documents hook trust", async () => {
   const guide = await readRepoFile("docs/install/codex.md");
   assert.match(guide, /\/hooks/);
   assert.match(guide, /SubagentStart/);
+  assert.match(guide, /extensions\.com\.openai/);
+  assert.match(guide, /local runtime/);
 });

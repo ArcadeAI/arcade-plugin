@@ -1,4 +1,13 @@
 import assert from "node:assert/strict";
+import {
+  copyFileSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import {
   PROMPT_REMINDER,
@@ -13,6 +22,7 @@ import {
   MCP_REMOTE_PACKAGE,
   PLUGINS_CLI_VERSION,
 } from "../scripts/constants.mjs";
+import { generateManifests } from "../scripts/generate-manifests.mjs";
 import { VERSIONED_MANIFESTS, readVersion } from "../scripts/version.mjs";
 import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
 
@@ -54,16 +64,66 @@ test("adapter manifest versions match VERSION", async () => {
   );
 });
 
-test("release-please config bumps VERSION only; manifests come from generate", async () => {
+const releaseExtraFiles = [
+  ["plugin.json", "$.version"],
+  [".cursor-plugin/plugin.json", "$.version"],
+  [".claude-plugin/plugin.json", "$.version"],
+  [".claude-plugin/marketplace.json", "$.version"],
+  [".claude-plugin/marketplace.json", "$.plugins[0].version"],
+  [".codex-plugin/plugin.json", "$.version"],
+];
+
+const setJsonPath = (document, jsonPath, value) => {
+  const segments = jsonPath
+    .replace(/^\$\./, "")
+    .replace(/\[(\d+)\]/g, ".$1")
+    .split(".");
+  const property = segments.pop();
+  let target = document;
+  for (const segment of segments) target = target[segment];
+  target[property] = value;
+};
+
+test("release-please config bumps every version-bearing manifest", async () => {
   const config = await readRepoJson("release-please-config.json");
   const pkg = config.packages?.["."];
 
   assert.equal(pkg?.["version-file"], "VERSION");
-  assert.equal(pkg?.["extra-files"], undefined);
+  assert.deepEqual(
+    pkg?.["extra-files"]?.map(({ path, jsonpath }) => [path, jsonpath]),
+    releaseExtraFiles,
+  );
 
   const workflow = await readRepoFile(".github/workflows/release-please.yml");
   assert.match(workflow, /release-please-action@v4/);
 });
+
+test("a release-style version bump leaves generated manifests in sync", async () => {
+  const root = mkdtempSync(join(tmpdir(), "arcade-release-"));
+  const config = await readRepoJson("release-please-config.json");
+  const extraFiles = config.packages["."]["extra-files"];
+
+  try {
+    for (const file of ["VERSION", "plugin.json", "mcp.json"]) {
+      copyFileSync(join(ROOT, file), join(root, file));
+    }
+    generateManifests({ root });
+
+    const nextVersion = "9.9.9";
+    writeFileSync(join(root, "VERSION"), `${nextVersion}\n`);
+    for (const { path, jsonpath } of extraFiles) {
+      const target = join(root, path);
+      const document = JSON.parse(readFileSync(target, "utf8"));
+      setJsonPath(document, jsonpath, nextVersion);
+      writeFileSync(target, `${JSON.stringify(document, null, 2)}\n`);
+    }
+
+    generateManifests({ check: true, root });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("CI toolchain versions are pinned in package.json", async () => {
   const packageJson = await readRepoJson("package.json");
   assert.equal(packageJson.devDependencies?.plugins, PLUGINS_CLI_VERSION);

@@ -1,19 +1,13 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readVersion } from "./version.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const CONTRACT_PATH = "contract/plugin.contract.json";
-const IDENTITY_PATH = "contract/identity.json";
-const INVENTORY_PATH = "contract/inventory.json";
 
 export const GENERATED_MANIFESTS = [
-  "plugin.json",
-  "mcp.json",
   "clients/cursor/mcp.json",
   "clients/claude/mcp.json",
   ".cursor-plugin/plugin.json",
@@ -22,105 +16,86 @@ export const GENERATED_MANIFESTS = [
   ".codex-plugin/plugin.json",
 ];
 
-/** Hand-authored hook manifests — hashed in inventory.json, not generated. */
-export const HOOK_MANIFESTS = [
-  "hooks/hooks.json",
-  "clients/cursor/hooks/hooks.json",
-  "com.openai/hooks/hooks.json",
-];
-
-const readJson = (relativePath) =>
-  JSON.parse(readFileSync(join(ROOT, relativePath), "utf8"));
+const readJson = (root, relativePath) =>
+  JSON.parse(readFileSync(join(root, relativePath), "utf8"));
 
 const serialize = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
-const sha256 = (content) => createHash("sha256").update(content).digest("hex");
-
-const identityFields = (contract) => {
-  const { name, description, author, homepage, license, keywords } = contract.identity;
+const identityFields = (portablePlugin) => {
+  const {
+    name,
+    description,
+    author,
+    homepage,
+    license,
+    keywords,
+  } = portablePlugin;
   return { name, description, author, homepage, license, keywords };
 };
 
-const buildManifests = (contract, version) => {
-  const { identity, gateway, hosts, marketplace, schemas } = contract;
-  const shared = { ...identityFields(contract), version };
+export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
+  if (portablePlugin.version !== version) {
+    throw new Error(
+      `plugin.json version ${portablePlugin.version} does not match VERSION ${version}`,
+    );
+  }
 
-  const portablePlugin = {
-    $schema: schemas.plugin,
-    ...identityFields(contract),
-    version,
-    repository: identity.repository,
-  };
+  const gateway = portableMcp.mcpServers?.arcade;
+  if (!gateway?.url) {
+    throw new Error('mcp.json must define mcpServers.arcade.url');
+  }
 
-  const portableMcp = {
-    $schema: schemas.mcp,
-    mcpServers: {
-      [gateway.serverName]: {
-        type: gateway.transports.portable,
-        url: gateway.url,
-      },
-    },
-  };
-
+  const shared = { ...identityFields(portablePlugin), version };
   const cursorMcp = {
     mcpServers: {
-      [gateway.serverName]: {
-        url: gateway.url,
-      },
+      arcade: { url: gateway.url },
     },
   };
-
   const claudeMcp = {
     mcpServers: {
-      [gateway.serverName]: {
-        type: gateway.transports.claude,
-        url: gateway.url,
-      },
+      arcade: { type: "http", url: gateway.url },
     },
   };
-
   const cursorPlugin = {
     ...shared,
-    ...hosts.cursor,
+    skills: "skills",
+    agents: "agents",
+    commands: "commands",
+    rules: "clients/cursor/rules",
+    hooks: "clients/cursor/hooks/hooks.json",
+    mcpServers: "clients/cursor/mcp.json",
   };
-
   const claudePlugin = {
     ...shared,
-    mcpServers: hosts.claude.mcpServers,
+    mcpServers: "./clients/claude/mcp.json",
   };
-
   const codexPlugin = {
     ...shared,
-    skills: hosts.codex.skills,
-    hooks: hosts.codex.hooks,
-    mcpServers: hosts.codex.mcpServers,
+    hooks: "./com.openai/hooks/hooks.json",
   };
-
   const marketplaceManifest = {
-    $schema: schemas.marketplace,
-    name: identity.name,
-    description: marketplace.description,
+    $schema: "https://json.schemastore.org/claude-code-marketplace.json",
+    name: portablePlugin.name,
+    description: "Install Arcade in Claude Desktop, Cowork, and Claude Code.",
     version,
-    owner: marketplace.owner,
+    owner: portablePlugin.author,
     plugins: [
       {
-        name: identity.name,
-        displayName: marketplace.displayName,
+        name: portablePlugin.name,
+        displayName: "Arcade",
         source: "./",
-        description: identity.description,
+        description: portablePlugin.description,
         version,
-        author: identity.author,
-        homepage: identity.homepage,
-        repository: identity.repository,
-        license: identity.license,
-        keywords: identity.keywords,
+        author: portablePlugin.author,
+        homepage: portablePlugin.homepage,
+        repository: portablePlugin.repository,
+        license: portablePlugin.license,
+        keywords: portablePlugin.keywords,
       },
     ],
   };
 
   return new Map([
-    ["plugin.json", portablePlugin],
-    ["mcp.json", portableMcp],
     ["clients/cursor/mcp.json", cursorMcp],
     ["clients/claude/mcp.json", claudeMcp],
     [".cursor-plugin/plugin.json", cursorPlugin],
@@ -130,53 +105,8 @@ const buildManifests = (contract, version) => {
   ]);
 };
 
-const collectComponentPaths = (contract) => {
-  const paths = new Set();
-  const add = (value) => {
-    if (typeof value === "string") {
-      paths.add(value.replace(/^\.\//, ""));
-      return;
-    }
-    if (Array.isArray(value)) {
-      for (const entry of value) add(entry);
-    }
-  };
-
-  for (const host of Object.values(contract.hosts)) {
-    for (const value of Object.values(host)) add(value);
-  }
-
-  return [...paths].sort();
-};
-
-const buildHookManifestEntries = () =>
-  HOOK_MANIFESTS.map((path) => {
-    const content = readFileSync(join(ROOT, path), "utf8");
-    return { path, sha256: sha256(content) };
-  });
-
-const buildInventory = (manifestContents) => {
-  const manifests = GENERATED_MANIFESTS.map((path) => ({
-    path,
-    sha256: sha256(manifestContents.get(path)),
-  }));
-
-  return {
-    schema_version: 1,
-    manifests,
-    hook_manifests: buildHookManifestEntries(),
-    components: collectComponentPaths(readJson(CONTRACT_PATH)),
-  };
-};
-
-const buildIdentity = (version, inventoryContent) => ({
-  schema_version: 1,
-  plugin_version: version,
-  inventory_sha256: sha256(inventoryContent),
-});
-
-const writeIfChanged = (relativePath, content, checkOnly) => {
-  const absolutePath = join(ROOT, relativePath);
+const writeIfChanged = (root, relativePath, content, checkOnly) => {
+  const absolutePath = join(root, relativePath);
   mkdirSync(dirname(absolutePath), { recursive: true });
 
   if (checkOnly) {
@@ -190,35 +120,23 @@ const writeIfChanged = (relativePath, content, checkOnly) => {
   writeFileSync(absolutePath, content, "utf8");
 };
 
-export function generateManifests({ check = false } = {}) {
-  const contract = readJson(CONTRACT_PATH);
-  const version = readVersion(ROOT);
-  const manifests = buildManifests(contract, version);
-  const manifestContents = new Map(
-    [...manifests.entries()].map(([path, value]) => [path, serialize(value)]),
-  );
+export function generateManifests({ check = false, root = ROOT } = {}) {
+  const version = readVersion(root);
+  const manifests = buildManifests({
+    portablePlugin: readJson(root, "plugin.json"),
+    portableMcp: readJson(root, "mcp.json"),
+    version,
+  });
 
-  for (const [path, content] of manifestContents) {
-    writeIfChanged(path, content, check);
+  for (const [path, value] of manifests) {
+    writeIfChanged(root, path, serialize(value), check);
   }
 
-  const inventory = buildInventory(manifestContents);
-  const inventoryContent = serialize(inventory);
-  writeIfChanged(INVENTORY_PATH, inventoryContent, check);
-
-  const identity = buildIdentity(version, inventoryContent);
-  const identityContent = serialize(identity);
-  writeIfChanged(IDENTITY_PATH, identityContent, check);
-
-  return {
-    version,
-    manifestCount: manifests.size,
-    hookManifestCount: inventory.hook_manifests.length,
-    componentCount: inventory.components.length,
-  };
+  return { version, manifestCount: manifests.size };
 }
 
-const isCli = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isCli =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isCli) {
   const check = process.argv.includes("--check");
@@ -226,7 +144,7 @@ if (isCli) {
     const result = generateManifests({ check });
     const mode = check ? "check" : "generate";
     console.log(
-      `${mode}: ${result.manifestCount} manifests, ${result.hookManifestCount} hook manifests, ${result.componentCount} component paths (v${result.version})`,
+      `${mode}: ${result.manifestCount} host manifests from portable plugin (v${result.version})`,
     );
   } catch (error) {
     console.error(error.message);

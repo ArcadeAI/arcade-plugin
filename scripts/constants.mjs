@@ -1,22 +1,25 @@
-/** Shared plugin constants — gateway and schema URLs derived from contract. */
+/** Shared plugin constants derived from the portable Agent Plugins manifests. */
 
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const contract = JSON.parse(
-  readFileSync(join(ROOT, "contract/plugin.contract.json"), "utf8"),
+const portablePlugin = JSON.parse(
+  readFileSync(join(ROOT, "plugin.json"), "utf8"),
+);
+const portableMcp = JSON.parse(
+  readFileSync(join(ROOT, "mcp.json"), "utf8"),
 );
 
-export const ENDPOINT = contract.gateway.url;
-export const GATEWAY_HOST = new URL(contract.gateway.url).host;
-export const MCP_SERVER_NAME = contract.gateway.serverName;
+export const MCP_SERVER_NAME = "arcade";
+export const ENDPOINT = portableMcp.mcpServers[MCP_SERVER_NAME].url;
+export const GATEWAY_HOST = new URL(ENDPOINT).host;
 export const MCP_REMOTE_VERSION = "0.1.38";
 export const MCP_REMOTE_PACKAGE = `mcp-remote@${MCP_REMOTE_VERSION}`;
 export const INSTALL_SLUG = "ArcadeAI/arcade-plugin";
-export const PLUGIN_SCHEMA = contract.schemas.plugin;
-export const MCP_SCHEMA = contract.schemas.mcp;
+export const PLUGIN_SCHEMA = portablePlugin.$schema;
+export const MCP_SCHEMA = portableMcp.$schema;
 export const TRIAL_DASHBOARD_URL =
   "https://app.arcade.dev?utm_source=arcade-plugin";
 export const ORG_DASHBOARD_URL =

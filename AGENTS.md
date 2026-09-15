@@ -12,13 +12,14 @@ are per-host adapters, same as MCP configs and Cursor rules.
 | --- | --- | --- |
 | Claude Code | `hooks/hooks.json` | default discovery |
 | Cursor | `clients/cursor/hooks/hooks.json` | `.cursor-plugin/plugin.json` |
-| Codex / ChatGPT | `hooks/hooks.json` + `com.openai/hooks/hooks.json` | `.codex-plugin/plugin.json` (array) |
+| Codex / ChatGPT local runtime | `com.openai/hooks/hooks.json` | `plugin.json` → `extensions.com.openai.hooks` |
 
-Do not add client-specific hook events to `hooks/hooks.json`. Codex-only events
-such as `SubagentStart` belong in `com.openai/hooks/hooks.json` and must use
-`${PLUGIN_ROOT}`.
+Do not add Arcade's client-specific hook wiring to `hooks/hooks.json`.
+`SubagentStart` is intentionally wired only for Codex because Codex cannot load
+the custom `arcade-operator`; it belongs in `com.openai/hooks/hooks.json` and
+must use `${PLUGIN_ROOT}`.
 
-`scripts/check.mjs` and `contract/inventory.json` enforce this split. After
-editing hook manifests, run `npm run generate` so inventory digests stay current.
+`scripts/check.mjs` enforces this split. Run `npm run verify` after editing a
+hook manifest.
 
-More context: [ARCHITECTURE.md](ARCHITECTURE.md#contract--generate--validate).
+More context: [ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate).

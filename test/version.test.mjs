@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
-  applyVersionToJson,
   parseVersion,
   VERSIONED_MANIFESTS,
   writeVersion,
@@ -20,19 +24,7 @@ test("parseVersion rejects invalid semver", () => {
   assert.throws(() => parseVersion("not-a-version"), /invalid semver/);
 });
 
-test("applyVersionToJson updates marketplace plugin entry", () => {
-  const manifest = {
-    version: "0.1.0",
-    plugins: [{ name: "arcade", version: "0.1.0" }],
-  };
-
-  applyVersionToJson(".claude-plugin/marketplace.json", manifest, "0.2.0");
-
-  assert.equal(manifest.version, "0.2.0");
-  assert.equal(manifest.plugins[0].version, "0.2.0");
-});
-
-test("VERSIONED_MANIFESTS covers every checked adapter manifest", () => {
+test("VERSIONED_MANIFESTS covers every generated plugin manifest", () => {
   assert.deepEqual(VERSIONED_MANIFESTS, [
     "plugin.json",
     ".cursor-plugin/plugin.json",
@@ -42,14 +34,21 @@ test("VERSIONED_MANIFESTS covers every checked adapter manifest", () => {
   ]);
 });
 
-test("writeVersion persists semver to VERSION file", () => {
-  const tempRoot = mkdtempSync(join(tmpdir(), "arcade-version-"));
+test("writeVersion updates VERSION and the portable manifest", () => {
+  const root = mkdtempSync(join(tmpdir(), "arcade-version-"));
+  writeFileSync(
+    join(root, "plugin.json"),
+    `${JSON.stringify({ name: "arcade", version: "0.1.0" }, null, 2)}\n`,
+  );
 
   try {
-    const version = writeVersion(tempRoot, "0.2.0");
+    const version = writeVersion(root, "0.2.0");
+    const plugin = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8"));
+
     assert.equal(version, "0.2.0");
-    assert.equal(readFileSync(join(tempRoot, "VERSION"), "utf8"), "0.2.0\n");
+    assert.equal(readFileSync(join(root, "VERSION"), "utf8"), "0.2.0\n");
+    assert.equal(plugin.version, "0.2.0");
   } finally {
-    rmSync(tempRoot, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
   }
 });

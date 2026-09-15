@@ -1,99 +1,84 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
   GENERATED_MANIFESTS,
-  HOOK_MANIFESTS,
   generateManifests,
 } from "../scripts/generate-manifests.mjs";
 import { readVersion } from "../scripts/version.mjs";
-import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
+import { readRepoJson, ROOT } from "./helpers.mjs";
 
-const sha256 = (content) => createHash("sha256").update(content).digest("hex");
+const writeJson = (root, relativePath, value) => {
+  const target = join(root, relativePath);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`);
+};
 
-test("generateManifests matches committed golden manifests", async () => {
+const createFixture = async () => {
+  const root = mkdtempSync(join(tmpdir(), "arcade-manifests-"));
   const version = readVersion(ROOT);
-  const contract = await readRepoJson("contract/plugin.contract.json");
+  writeFileSync(join(root, "VERSION"), `${version}\n`);
+  writeJson(root, "plugin.json", await readRepoJson("plugin.json"));
+  writeJson(root, "mcp.json", await readRepoJson("mcp.json"));
+  return root;
+};
+
+test("generateManifests matches committed host manifests", async () => {
+  const version = readVersion(ROOT);
   const result = generateManifests({ check: true });
 
   assert.equal(result.version, version);
   assert.equal(result.manifestCount, GENERATED_MANIFESTS.length);
 
   const portable = await readRepoJson("plugin.json");
-  assert.equal(portable.$schema, contract.schemas.plugin);
-  assert.equal(portable.name, contract.identity.name);
   assert.equal(portable.version, version);
-  assert.equal(portable.repository, contract.identity.repository);
+  assert.equal(
+    portable.extensions?.["com.openai"]?.hooks,
+    "./com.openai/hooks/hooks.json",
+  );
 
   const mcp = await readRepoJson("mcp.json");
-  assert.equal(
-    mcp.mcpServers[contract.gateway.serverName].type,
-    contract.gateway.transports.portable,
-  );
-  assert.equal(mcp.mcpServers[contract.gateway.serverName].url, contract.gateway.url);
+  assert.equal(mcp.mcpServers.arcade.type, "streamable-http");
 
   const cursorMcp = await readRepoJson("clients/cursor/mcp.json");
-  assert.equal(
-    cursorMcp.mcpServers[contract.gateway.serverName].url,
-    contract.gateway.url,
-  );
-  assert.equal(cursorMcp.mcpServers[contract.gateway.serverName].type, undefined);
+  assert.equal(cursorMcp.mcpServers.arcade.url, mcp.mcpServers.arcade.url);
+  assert.equal(cursorMcp.mcpServers.arcade.type, undefined);
 
   const claudeMcp = await readRepoJson("clients/claude/mcp.json");
-  assert.equal(
-    claudeMcp.mcpServers[contract.gateway.serverName].type,
-    contract.gateway.transports.claude,
-  );
-
-  const cursorPlugin = await readRepoJson(".cursor-plugin/plugin.json");
-  for (const key of ["skills", "agents", "commands", "rules", "hooks", "mcpServers"]) {
-    assert.equal(cursorPlugin[key], contract.hosts.cursor[key]);
-  }
+  assert.equal(claudeMcp.mcpServers.arcade.type, "http");
+  assert.equal(claudeMcp.mcpServers.arcade.url, mcp.mcpServers.arcade.url);
 
   const codexPlugin = await readRepoJson(".codex-plugin/plugin.json");
-  assert.deepEqual(codexPlugin.hooks, contract.hosts.codex.hooks);
-  assert.equal(codexPlugin.skills, contract.hosts.codex.skills);
-  assert.equal(codexPlugin.mcpServers, contract.hosts.codex.mcpServers);
+  assert.equal(codexPlugin.hooks, "./com.openai/hooks/hooks.json");
+  assert.equal(codexPlugin.skills, undefined);
+  assert.equal(codexPlugin.mcpServers, undefined);
 });
 
-test("inventory records manifest digests and declared component paths", async () => {
-  const inventory = await readRepoJson("contract/inventory.json");
-  const identity = await readRepoJson("contract/identity.json");
-  const inventoryRaw = await readRepoFile("contract/inventory.json");
-
-  assert.equal(identity.inventory_sha256, sha256(inventoryRaw));
-  assert.equal(inventory.manifests.length, GENERATED_MANIFESTS.length);
-
-  for (const entry of inventory.manifests) {
-    const content = await readRepoFile(entry.path);
-    assert.equal(entry.sha256, sha256(content), `${entry.path} digest drift`);
-  }
-
-  assert.ok(inventory.components.includes("skills"));
-  assert.ok(inventory.components.includes("hooks/hooks.json"));
-  assert.ok(inventory.components.includes("com.openai/hooks/hooks.json"));
-
-  assert.equal(inventory.hook_manifests.length, HOOK_MANIFESTS.length);
-  for (const entry of inventory.hook_manifests) {
-    const content = await readRepoFile(entry.path);
-    assert.equal(entry.sha256, sha256(content), `${entry.path} hook digest drift`);
-  }
-});
-
-test("generateManifests --check fails when a manifest is stale", async () => {
-  const plugin = await readRepoJson("plugin.json");
-  const stale = { ...plugin, description: `${plugin.description} stale` };
-  const original = await readRepoFile("plugin.json");
-  const { writeFile } = await import("node:fs/promises");
-  const path = await import("node:path");
-
-  await writeFile(path.join(ROOT, "plugin.json"), `${JSON.stringify(stale, null, 2)}\n`);
+test("generateManifests checks a temporary installed-artifact fixture", async () => {
+  const root = await createFixture();
 
   try {
-    assert.throws(() => generateManifests({ check: true }), /out of date/);
+    generateManifests({ root });
+    generateManifests({ check: true, root });
+
+    const stalePath = join(root, ".codex-plugin/plugin.json");
+    const stale = JSON.parse(readFileSync(stalePath, "utf8"));
+    stale.description = `${stale.description} stale`;
+    writeJson(root, ".codex-plugin/plugin.json", stale);
+
+    assert.throws(
+      () => generateManifests({ check: true, root }),
+      /.codex-plugin\/plugin.json is out of date/,
+    );
   } finally {
-    await writeFile(path.join(ROOT, "plugin.json"), original);
-    generateManifests({ check: true });
+    rmSync(root, { recursive: true, force: true });
   }
 });

@@ -14,10 +14,5 @@
     "connected-apps"
   ],
   "version": "0.1.0",
-  "skills": "./skills",
-  "hooks": [
-    "./hooks/hooks.json",
-    "./com.openai/hooks/hooks.json"
-  ],
-  "mcpServers": "./mcp.json"
+  "hooks": "./com.openai/hooks/hooks.json"
 }

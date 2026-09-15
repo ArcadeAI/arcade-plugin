@@ -15,5 +15,10 @@
     "connected-apps"
   ],
   "version": "0.1.0",
-  "repository": "https://github.com/ArcadeAI/arcade-plugin"
+  "repository": "https://github.com/ArcadeAI/arcade-plugin",
+  "extensions": {
+    "com.openai": {
+      "hooks": "./com.openai/hooks/hooks.json"
+    }
+  }
 }

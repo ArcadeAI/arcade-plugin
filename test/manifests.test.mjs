@@ -42,26 +42,37 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
   assert.equal(hooks.hooks.SubagentStart, undefined);
 });
 
-test("Codex extension hook manifest wires SubagentStart only", async () => {
+test("Codex extension hook manifest owns all Codex lifecycle events", async () => {
   const hooks = await readRepoJson("com.openai/hooks/hooks.json");
-  assert.deepEqual(Object.keys(hooks.hooks).sort(), ["SubagentStart"]);
-  assert.equal(hooks.hooks.SubagentStart[0].matcher, ".*");
-  const command = hooks.hooks.SubagentStart[0].hooks[0].command;
-  assert.match(command, /\$\{PLUGIN_ROOT\}/);
-  const hookPath = resolvePluginPath(command, "PLUGIN_ROOT");
-  assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+  assert.deepEqual(Object.keys(hooks.hooks).sort(), [
+    "SessionStart",
+    "SubagentStart",
+    "UserPromptSubmit",
+  ]);
+  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear|compact");
+  assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
+
+  for (const event of ["SessionStart", "SubagentStart", "UserPromptSubmit"]) {
+    const command = hooks.hooks[event][0].hooks[0].command;
+    assert.match(command, /\$\{PLUGIN_ROOT\}/);
+    assert.doesNotMatch(command, /\$\{(?:CLAUDE|CODEX)_PLUGIN_ROOT\}/);
+    const hookPath = resolvePluginPath(command, "PLUGIN_ROOT");
+    assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+  }
 });
 
-test("Codex manifest wires skills, hooks, and MCP adapter paths", async () => {
-  const manifest = await readRepoJson(".codex-plugin/plugin.json");
-  assert.equal(manifest.skills, "./skills");
-  assert.deepEqual(manifest.hooks, [
-    "./hooks/hooks.json",
+test("portable manifest selects the Codex adapter", async () => {
+  const portable = await readRepoJson("plugin.json");
+  const fallback = await readRepoJson(".codex-plugin/plugin.json");
+
+  assert.equal(
+    portable.extensions?.["com.openai"]?.hooks,
     "./com.openai/hooks/hooks.json",
-  ]);
-  assert.equal(manifest.mcpServers, "./mcp.json");
+  );
+  assert.equal(fallback.hooks, "./com.openai/hooks/hooks.json");
+  assert.equal(fallback.skills, undefined);
+  assert.equal(fallback.mcpServers, undefined);
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
-  assert.equal(await pathExists("hooks/hooks.json"), true);
   assert.equal(await pathExists("mcp.json"), true);
 });
 

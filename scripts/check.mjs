@@ -2,7 +2,6 @@
 // Repo-wide structural checks. No runtime dependencies beyond Node.
 // Run with: node scripts/check.mjs
 
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -26,14 +25,12 @@ import {
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
-import { readVersion } from "./version.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const errors = [];
 const fail = (message) => errors.push(message);
 const read = (path) => readFileSync(join(ROOT, path), "utf8");
-const sha256 = (content) => createHash("sha256").update(content).digest("hex");
 
 const jsonFiles = [];
 const walk = (dir) => {
@@ -57,9 +54,6 @@ for (const file of jsonFiles) {
 }
 
 for (const required of [
-  "contract/plugin.contract.json",
-  "contract/identity.json",
-  "contract/inventory.json",
   "plugin.json",
   "mcp.json",
   "skills",
@@ -89,6 +83,14 @@ if (portable) {
   }
   if (portable.repository !== "https://github.com/ArcadeAI/arcade-plugin") {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
+  }
+  if (
+    portable.extensions?.["com.openai"]?.hooks !==
+    "./com.openai/hooks/hooks.json"
+  ) {
+    fail(
+      'plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"',
+    );
   }
 }
 
@@ -200,7 +202,7 @@ if (!claudeHooks.includes('"matcher": "startup|resume|clear"')) {
 }
 if (claudeHooks.includes("SubagentStart")) {
   fail(
-    "hooks/hooks.json: SubagentStart is Codex-only — use com.openai/hooks/hooks.json",
+    "hooks/hooks.json: Arcade wires SubagentStart only in com.openai/hooks/hooks.json",
   );
 }
 
@@ -208,73 +210,36 @@ const codexHooks = read("com.openai/hooks/hooks.json");
 if (!codexHooks.includes("${PLUGIN_ROOT}")) {
   fail("com.openai/hooks/hooks.json: must use ${PLUGIN_ROOT}");
 }
-if (!codexHooks.includes("hooks/subagent-start.mjs")) {
-  fail("com.openai/hooks/hooks.json: must reference hooks/subagent-start.mjs");
+for (const script of [
+  "hooks/session-start.mjs",
+  "hooks/user-prompt-submit.mjs",
+  "hooks/subagent-start.mjs",
+]) {
+  if (!codexHooks.includes(script)) {
+    fail(`com.openai/hooks/hooks.json: must reference ${script}`);
+  }
 }
-if (!codexHooks.includes('"matcher": ".*"')) {
-  fail('com.openai/hooks/hooks.json: SubagentStart must use matcher ".*"');
+for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
+  if (codexHooks.includes(forbiddenRoot)) {
+    fail(`com.openai/hooks/hooks.json: must not use ${forbiddenRoot}`);
+  }
+}
+if (!codexHooks.includes('"matcher": "*"')) {
+  fail('com.openai/hooks/hooks.json: SubagentStart must use matcher "*"');
 }
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
-  const hooksPaths = codexManifest.hooks;
-  const expectedHooks = ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"];
-  if (
-    !Array.isArray(hooksPaths) ||
-    hooksPaths.length !== expectedHooks.length ||
-    !expectedHooks.every((path, index) => hooksPaths[index] === path)
-  ) {
+  if (codexManifest.hooks !== "./com.openai/hooks/hooks.json") {
     fail(
-      `.codex-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
+      '.codex-plugin/plugin.json: hooks must be "./com.openai/hooks/hooks.json"',
     );
   }
-  const skillsPath = codexManifest.skills?.replace(/^\.\//, "").replace(/\/$/, "");
-  if (skillsPath !== "skills") {
-    fail('.codex-plugin/plugin.json: skills must point at "./skills"');
-  }
-  const mcpPath = codexManifest.mcpServers?.replace(/^\.\//, "");
-  if (mcpPath !== "mcp.json") {
-    fail('.codex-plugin/plugin.json: mcpServers must point at "./mcp.json"');
-  }
-}
-
-const version = readVersion(ROOT);
-const inventoryPath = "contract/inventory.json";
-const identityPath = "contract/identity.json";
-if (!existsSync(join(ROOT, inventoryPath))) {
-  fail(`missing required path: ${inventoryPath}`);
-}
-if (!existsSync(join(ROOT, identityPath))) {
-  fail(`missing required path: ${identityPath}`);
-}
-
-const inventoryRaw = read(inventoryPath);
-const inventory = json[inventoryPath];
-const identity = json[identityPath];
-if (inventory && identity) {
-  if (identity.plugin_version !== version) {
-    fail(`contract/identity.json plugin_version ${identity.plugin_version} != VERSION ${version}`);
-  }
-  if (identity.inventory_sha256 !== sha256(inventoryRaw)) {
-    fail("contract/identity.json inventory_sha256 does not match contract/inventory.json");
-  }
-  for (const entry of inventory.manifests ?? []) {
-    const current = read(entry.path);
-    const digest = sha256(current);
-    if (entry.sha256 !== digest) {
-      fail(`${entry.path}: inventory sha256 ${entry.sha256} != ${digest}`);
-    }
-  }
-  for (const entry of inventory.hook_manifests ?? []) {
-    const current = read(entry.path);
-    const digest = sha256(current);
-    if (entry.sha256 !== digest) {
-      fail(`${entry.path}: hook manifest sha256 ${entry.sha256} != ${digest}`);
-    }
-  }
-  for (const componentPath of inventory.components ?? []) {
-    if (!existsSync(join(ROOT, componentPath))) {
-      fail(`contract/inventory.json component path does not exist: ${componentPath}`);
+  for (const portableComponent of ["skills", "mcpServers"]) {
+    if (portableComponent in codexManifest) {
+      fail(
+        `.codex-plugin/plugin.json: ${portableComponent} comes from the portable root manifest`,
+      );
     }
   }
 }
