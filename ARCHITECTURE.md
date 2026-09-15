@@ -162,6 +162,23 @@ success or narrating tool internals.
 
 The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
-model to self-report tokens, turns, or success, and it ships no telemetry hook.
-If a host-specific hook later adds supplemental signals, it must be explicit,
-opt-in, and documented as non-portable.
+model to self-report tokens, turns, or success.
+
+Hook-capable hosts (Cursor and Claude Code today) may emit **supplemental**
+funnel telemetry from `hooks/telemetry.mjs`. That path is explicit,
+non-portable, and separate from gateway truth.
+
+| Layer | What it records | Identity |
+| --- | --- | --- |
+| Gateway MCP | Session start, tool calls, auth | Arcade `principalId` / `user_id` |
+| Plugin hooks | Host session start, prompt submit | Hashed host session + `install_id` |
+
+Hook telemetry sends anonymized events to PostHog via `https://p.arcade.dev`.
+Payloads never include prompt text or tool arguments. Opt out with
+`ARCADE_PLUGIN_TELEMETRY=0`. Override the project key with
+`ARCADE_PLUGIN_POSTHOG_KEY` or the ingest host with `ARCADE_PLUGIN_POSTHOG_HOST`.
+
+Each machine gets a stable `install_id` in `~/.arcade-plugin/install-id` (or
+`ARCADE_PLUGIN_INSTALL_ID`) so hook events can later be joined to gateway MCP
+events on the same install. Gateway correlation is a follow-up on the Engine
+side.

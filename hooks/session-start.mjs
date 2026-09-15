@@ -3,6 +3,7 @@
 // shapes; emit the one the caller understands. Always exit 0.
 
 import { SESSION_CONTEXT } from "./routing-guidance.mjs";
+import { detectHost, recordTelemetry, TELEMETRY_EVENTS } from "./telemetry.mjs";
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -15,20 +16,12 @@ const readStdin = async () => {
   return data;
 };
 
-const detectPlatform = (rawInput) => {
+const parseInput = (rawInput) => {
   try {
-    const input = JSON.parse(rawInput);
-    if (
-      "conversation_id" in input ||
-      "workspace_roots" in input ||
-      "cursor_version" in input
-    ) {
-      return "cursor";
-    }
+    return JSON.parse(rawInput);
   } catch {
-    // Default to Claude's shape.
+    return {};
   }
-  return "claude";
 };
 
 const emitResponse = (platform) => {
@@ -45,7 +38,18 @@ const emitResponse = (platform) => {
 };
 
 try {
-  const platform = detectPlatform(await readStdin());
+  const hookInput = parseInput(await readStdin());
+  const platform = detectHost(hookInput);
+  recordTelemetry({
+    event: TELEMETRY_EVENTS.SESSION_STARTED,
+    hookInput,
+    props: {
+      hook: platform === "cursor" ? "sessionStart" : "SessionStart",
+      source: hookInput.source ?? hookInput.session_source ?? "startup",
+      composer_mode: hookInput.composer_mode,
+      is_background_agent: hookInput.is_background_agent,
+    },
+  });
   emitResponse(platform);
 } catch {
   // A hook must never block session startup — emit Claude-safe default.
