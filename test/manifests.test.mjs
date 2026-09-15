@@ -40,12 +40,19 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
   }
 });
 
-test("Codex manifest wires hooks and MCP adapter paths", async () => {
+test("Codex manifest wires skills, hooks, and MCP adapter paths", async () => {
   const manifest = await readRepoJson(".codex-plugin/plugin.json");
+  assert.equal(manifest.skills, "./skills");
   assert.equal(manifest.hooks, "./hooks/hooks.json");
   assert.equal(manifest.mcpServers, "./mcp.json");
+  assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
   assert.equal(await pathExists("hooks/hooks.json"), true);
   assert.equal(await pathExists("mcp.json"), true);
+});
+
+test("SubagentStart hook matches all agent types", async () => {
+  const hooks = await readRepoJson("hooks/hooks.json");
+  assert.equal(hooks.hooks.SubagentStart[0].matcher, ".*");
 });
 
 test(".cursor-plugin manifest paths exist", async () => {

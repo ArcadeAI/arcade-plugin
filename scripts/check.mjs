@@ -202,6 +202,10 @@ if (codexManifest) {
   if (hooksPath !== "hooks/hooks.json") {
     fail('.codex-plugin/plugin.json: hooks must point at "./hooks/hooks.json"');
   }
+  const skillsPath = codexManifest.skills?.replace(/^\.\//, "").replace(/\/$/, "");
+  if (skillsPath !== "skills") {
+    fail('.codex-plugin/plugin.json: skills must point at "./skills"');
+  }
   const mcpPath = codexManifest.mcpServers?.replace(/^\.\//, "");
   if (mcpPath !== "mcp.json") {
     fail('.codex-plugin/plugin.json: mcpServers must point at "./mcp.json"');

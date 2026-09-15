@@ -25,3 +25,9 @@ test("Claude Desktop guide documents the marketplace install", async () => {
   assert.match(guide, /claude plugin install arcade@arcade/);
   assert.doesNotMatch(guide, /arcade\.mcpb/);
 });
+
+test("Codex guide documents hook trust", async () => {
+  const guide = await readRepoFile("docs/install/codex.md");
+  assert.match(guide, /\/hooks/);
+  assert.match(guide, /SubagentStart/);
+});

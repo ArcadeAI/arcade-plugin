@@ -56,9 +56,10 @@ portable core when it sees a root `plugin.json` with the Agent Plugins
 Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
-Copilot CLI does not load `hooks/hooks.json` — that file targets Claude
-Code's hook format (`SessionStart`, `UserPromptSubmit`). Copilot's native
-hook schema differs; skills provide routing guidance on that client.
+Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
+`SessionStart` and `UserPromptSubmit` from that file. Codex also runs
+`SubagentStart` from the same manifest. Copilot's native hook schema
+differs; skills provide routing guidance on that client.
 
 Claude Desktop installs this repo as a plugin marketplace (see
 [claude-desktop.md](install/claude-desktop.md)): add
