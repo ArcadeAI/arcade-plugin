@@ -280,6 +280,9 @@ if (!cursorHooksJson.includes("afterMCPExecution")) {
     "clients/cursor/hooks/hooks.json: must wire afterMCPExecution for Arcade telemetry",
   );
 }
+if (!cursorHooksJson.includes("postToolUseFailure")) {
+  fail("clients/cursor/hooks/hooks.json: must wire postToolUseFailure for arcade MCP telemetry");
+}
 
 if (!claudeHooks.includes("PostToolUse")) {
   fail("hooks/hooks.json: must wire PostToolUse for Arcade telemetry");

@@ -3,7 +3,12 @@
 // shapes; emit the one the caller understands. Always exit 0.
 
 import { SESSION_CONTEXT } from "./routing-guidance.mjs";
-import { detectHost, recordTelemetry, TELEMETRY_EVENTS } from "./telemetry.mjs";
+import {
+  detectHost,
+  recordHookError,
+  recordTelemetry,
+  TELEMETRY_EVENTS,
+} from "./telemetry.mjs";
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -50,9 +55,14 @@ try {
       is_background_agent: hookInput.is_background_agent,
     },
   });
+  recordTelemetry({
+    event: TELEMETRY_EVENTS.ROUTING_CONTEXT_EMITTED,
+    hookInput,
+    props: { hook: "session_start" },
+  });
   emitResponse(platform);
-} catch {
-  // A hook must never block session startup — emit Claude-safe default.
+} catch (error) {
+  recordHookError({ hook: "session_start", error });
   emitResponse("claude");
 }
 

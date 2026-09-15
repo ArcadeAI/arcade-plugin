@@ -170,14 +170,18 @@ explicit, non-portable, and separate from gateway truth.
 | Layer | What it records | Identity |
 | --- | --- | --- |
 | Gateway MCP | Session start, tool calls, auth | Arcade `principalId` / `user_id` |
-| Plugin hooks | Session start, prompt submit, subagent start | Hashed host session + `install_id` |
+| Plugin hooks | Delivery friction, routing, Arcade MCP tool invocation | Hashed host session + `install_id` |
+
+Plugin hook telemetry measures **delivery and friction** (session start, prompt
+submit, routing context injection, bare-continuation skips, hook errors) and
+**Arcade MCP tool invocation** (tool name and success/failure only). It does not
+replace gateway truth for auth, request outcomes, or tool payloads.
 
 Hook telemetry sends anonymized events to PostHog via `https://p.arcade.dev`.
-Payloads never include prompt text or tool arguments. Opt out with
-`ARCADE_PLUGIN_TELEMETRY=0`. Override the project key with
+Payloads never include prompt text, tool arguments, or tool responses. Opt out
+with `ARCADE_PLUGIN_TELEMETRY=0`. Override the project key with
 `ARCADE_PLUGIN_POSTHOG_KEY` or the ingest host with `ARCADE_PLUGIN_POSTHOG_HOST`.
 
 Each machine gets a stable `install_id` in `~/.arcade-plugin/install-id` (or
-`ARCADE_PLUGIN_INSTALL_ID`) so hook events can later be joined to gateway MCP
-events on the same install. Gateway correlation is a follow-up on the Engine
-side.
+`ARCADE_PLUGIN_INSTALL_ID`) for PostHog deduplication across hook events on that
+install. It is not a join key to gateway MCP sessions.

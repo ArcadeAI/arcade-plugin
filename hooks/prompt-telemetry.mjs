@@ -2,7 +2,12 @@
 // Cursor beforeSubmitPrompt telemetry. Observe only; never block. Always exit 0.
 
 import { isBareContinuation } from "./prompt-continuation.mjs";
-import { bucketPromptLength, recordTelemetry, TELEMETRY_EVENTS } from "./telemetry.mjs";
+import {
+  bucketPromptLength,
+  recordHookError,
+  recordTelemetry,
+  TELEMETRY_EVENTS,
+} from "./telemetry.mjs";
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -39,9 +44,16 @@ try {
         is_continuation: continuation,
       },
     });
+    if (continuation) {
+      recordTelemetry({
+        event: TELEMETRY_EVENTS.ROUTING_SKIPPED_BARE_CONTINUATION,
+        hookInput,
+        props: { hook: "prompt_submit" },
+      });
+    }
   }
-} catch {
-  // A hook must never break a prompt.
+} catch (error) {
+  recordHookError({ hook: "prompt_submit", error });
 }
 
 process.exit(0);
