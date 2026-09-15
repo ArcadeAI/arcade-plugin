@@ -42,11 +42,12 @@ After a version bump, run `node scripts/version.mjs <semver>` or
 every version-bearing manifest, and CI simulates that update before accepting
 the release configuration.
 
-Hook scripts live in `hooks/*.mjs`. Hook manifests are per client:
-`hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-and `com.openai/hooks/hooks.json` for all Codex lifecycle hooks.
-`scripts/check.mjs` enforces that split. Maintainer-facing agent guidance lives
-in [AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
+Hook scripts live in `hooks/*.mjs`. Hook manifests are per client (`hooks/hooks.json`
+for Claude and Codex session hooks, `clients/claude/hooks/hooks.json` for Claude
+post-tool telemetry, `clients/cursor/hooks/hooks.json`,
+`com.openai/hooks/hooks.json` for Codex `SubagentStart`). `scripts/check.mjs`
+enforces that split. Maintainer-facing agent guidance lives in
+[AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
 
 The customer-facing overview lives in [README.md](README.md). Interaction
 rules live in the skills; the optional operator and observability boundary
