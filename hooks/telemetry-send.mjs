@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Detached PostHog capture worker. Invoked by telemetry.mjs; never from hooks directly.
 
-import { POSTHOG_INGEST_HOST } from "../scripts/constants.mjs";
+import { resolvePosthogIngestHost } from "../scripts/constants.mjs";
 
 const TIMEOUT_MS = 2_000;
 
 const send = async (payload) => {
-  const endpoint = `${POSTHOG_INGEST_HOST.replace(/\/$/, "")}/capture/`;
+  const endpoint = `${resolvePosthogIngestHost().replace(/\/$/, "")}/capture/`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
