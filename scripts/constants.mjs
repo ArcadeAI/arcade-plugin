@@ -26,6 +26,18 @@ export const TRIAL_DASHBOARD_URL =
 export const ORG_DASHBOARD_URL =
   "https://app.arcade.dev?utm_source=arcade-plugin";
 
+/** Client-safe PostHog project key (same pattern as arcade.dev / identity-ui). */
+export const POSTHOG_PROJECT_KEY =
+  "phc_g7OuFqZEAVwIgRdtnZkjvBpy9weQ1f9VJW6YP1SzQRF";
+export const POSTHOG_INGEST_HOST = "https://p.arcade.dev";
+export const TELEMETRY_LIB = "arcade-plugin-hooks";
+
+/** @param {NodeJS.ProcessEnv} [env] */
+export const resolvePosthogIngestHost = (env = process.env) => {
+  const override = env.ARCADE_PLUGIN_POSTHOG_HOST?.trim();
+  return override || POSTHOG_INGEST_HOST;
+};
+
 /** Pinned CI toolchain — keep in sync with package.json devDependencies and workflows. */
 export const CI_NODE_VERSION = "22.23.2";
 export const PLUGINS_CLI_VERSION = "1.3.4";

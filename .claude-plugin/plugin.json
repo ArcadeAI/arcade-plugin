@@ -14,5 +14,9 @@
     "connected-apps"
   ],
   "version": "0.1.0",
-  "mcpServers": "./clients/claude/mcp.json"
+  "mcpServers": "./clients/claude/mcp.json",
+  "hooks": [
+    "./hooks/hooks.json",
+    "./clients/claude/hooks/hooks.json"
+  ]
 }

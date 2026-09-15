@@ -15,10 +15,12 @@ client MCP adapters plus `.cursor-plugin/`, `.claude-plugin/`, and the optional
 `.codex-plugin/` compatibility manifest.
 
 Hook manifests stay hand-authored because each host has its own event schema:
-`hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-and `com.openai/hooks/hooks.json` for Codex. Structural and behavioral tests
-validate the split directly; no generated hash inventory sits between the
-manifests and the runtime checks.
+`hooks/hooks.json` for shared Claude/Codex events,
+`clients/claude/hooks/hooks.json` for Claude-only events,
+`clients/cursor/hooks/hooks.json` for Cursor, and
+`com.openai/hooks/hooks.json` for Codex-only events. Structural and behavioral
+tests validate the split directly; no generated hash inventory sits between
+the manifests and the runtime checks.
 
 ```text
 plugin.json + mcp.json + VERSION
@@ -40,11 +42,12 @@ After a version bump, run `node scripts/version.mjs <semver>` or
 every version-bearing manifest, and CI simulates that update before accepting
 the release configuration.
 
-Hook scripts live in `hooks/*.mjs`. Hook manifests are per client:
-`hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-and `com.openai/hooks/hooks.json` for all Codex lifecycle hooks.
-`scripts/check.mjs` enforces that split. Maintainer-facing agent guidance lives
-in [AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
+Hook scripts live in `hooks/*.mjs`. Hook manifests are per client (`hooks/hooks.json`
+for Claude and Codex session hooks, `clients/claude/hooks/hooks.json` for Claude
+post-tool telemetry, `clients/cursor/hooks/hooks.json`,
+`com.openai/hooks/hooks.json` for Codex `SubagentStart`). `scripts/check.mjs`
+enforces that split. Maintainer-facing agent guidance lives in
+[AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
 
 The customer-facing overview lives in [README.md](README.md). Interaction
 rules live in the skills; the optional operator and observability boundary
@@ -102,6 +105,41 @@ Claude Code resolves `.claude-plugin/plugin.json` and discovers `skills/` and
 plugin marketplace via `.claude-plugin/marketplace.json` (`source: "./"`).
 Every client can still run the workflow directly through MCP without the
 operator.
+
+## Host manifest wiring
+
+[Agent Plugins](https://agent-plugins.org) reserves `extensions.{reverse-domain}`
+in root `plugin.json` for client-specific manifest data. Only the clients that
+implement a namespace actually consume it at runtime. This package keeps
+generated sidecars for Cursor and Claude because those hosts still require
+them.
+
+| Host | Reads root `extensions.*`? | Runtime wiring | Verified |
+| --- | --- | --- | --- |
+| Codex / ChatGPT local | Yes — `extensions.com.openai` | Root extension selects `com.openai/hooks/hooks.json`; `.codex-plugin/plugin.json` is a compatibility fallback only | [OpenAI plugin docs](https://developers.openai.com/plugins/build/plugins); Codex install cache preserves root `extensions` without a sidecar |
+| Cursor | No documented namespace | `.cursor-plugin/plugin.json` component paths, or default `hooks/hooks.json` discovery for Agent Plugins roots | [Cursor plugins reference](https://cursor.com/docs/reference/plugins); local probe via `cursor agent --plugin-dir` (sidecar path loads; root `extensions.dev.cursor` does not) |
+| Claude Code | No — field ignored | `.claude-plugin/plugin.json`; default discovery for `skills/`, `hooks/hooks.json`, and related folders | [Claude plugins reference](https://code.claude.com/docs/en/plugins-reference); `claude plugin validate plugin.json` warns that `extensions` is ignored at load time |
+
+Decisions for maintainers:
+
+- Keep generating `.cursor-plugin/` and `.claude-plugin/` until those hosts read
+  an official extension namespace natively.
+- Keep `extensions.com.openai` as the Codex primary selector; do not drop
+  `.codex-plugin/plugin.json` yet.
+- Do not invent `extensions.dev.cursor`, `extensions.com.cursor`, or
+  `extensions.com.anthropic` — no host docs define them, and probes showed
+  Cursor does not load hooks from those keys.
+- Treat `npx plugins discover` as install-tooling introspection, not host
+  runtime behavior. It ignores root `extensions` for hooks and only checks
+  `hooks/hooks.json` at the plugin root plus sidecar manifests.
+
+Optional follow-up (not required for correctness): move Codex listing fields such
+as `displayName` into `extensions.com.openai.interface` in root `plugin.json` and
+let the generator trim duplicated fields from `.codex-plugin/plugin.json`.
+
+Open question: whether Codex executes plugin hooks selected only through root
+`extensions.com.openai` was not proven in non-interactive `codex exec` runs;
+install layout matches the documented extensions-first model.
 
 ## Execution model
 
@@ -161,6 +199,30 @@ success or narrating tool internals.
 
 The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
-model to self-report tokens, turns, or success, and it ships no telemetry hook.
-If a host-specific hook later adds supplemental signals, it must be explicit,
-opt-in, and documented as non-portable.
+model to self-report tokens, turns, or success.
+
+Hook-capable hosts (Cursor, Claude Code, and Codex / ChatGPT) may emit
+**supplemental** funnel telemetry from `hooks/telemetry.mjs`. That path is
+explicit, non-portable, and separate from gateway truth.
+
+| Layer | What it records | Identity |
+| --- | --- | --- |
+| Gateway MCP | Session start, tool calls, auth | Arcade `principalId` / `user_id` |
+| Plugin hooks | Delivery friction, routing, Arcade MCP tool invocation | Hashed host session |
+
+Plugin hook telemetry measures **delivery and friction** (session start, prompt
+submit, routing context injection, bare-continuation skips, hook errors) and
+**Arcade MCP tool invocation** (tool name and success/failure only). It does not
+replace gateway truth for auth, request outcomes, or tool payloads.
+
+Hook telemetry is off by default. Set `ARCADE_PLUGIN_TELEMETRY=1` to send events
+to PostHog via `https://p.arcade.dev`. Every capture includes `plugin_version`
+(from `VERSION`) and `host`, plus an event-specific property allowlist. Payloads
+never include prompt text, tool arguments, tool responses, paths, or error
+messages. Session IDs are hashed before capture, and events disable PostHog
+person profiles. The plugin does not create a persistent machine identifier or
+write telemetry reports to disk.
+
+Override the project key with `ARCADE_PLUGIN_POSTHOG_KEY` or the ingest host
+with `ARCADE_PLUGIN_POSTHOG_HOST`. The detached sender has a two-second timeout,
+and telemetry failures never change hook output or exit status.

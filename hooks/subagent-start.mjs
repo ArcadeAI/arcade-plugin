@@ -2,17 +2,8 @@
 // Subagent routing reminder for Codex-format clients. Always exit 0.
 
 import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
-
-const readStdin = async () => {
-  if (process.stdin.isTTY) return;
-  try {
-    for await (const chunk of process.stdin) {
-      // Drain hook input so the host can close stdin cleanly.
-    }
-  } catch {
-    // No stdin — still inject routing guidance.
-  }
-};
+import { readHookInput } from "./hook-input.mjs";
+import { recordHookError, recordTelemetry, TELEMETRY_EVENTS } from "./telemetry.mjs";
 
 const emitResponse = () => {
   process.stdout.write(
@@ -26,10 +17,18 @@ const emitResponse = () => {
 };
 
 try {
-  await readStdin();
+  const hookInput = await readHookInput();
+  recordTelemetry({
+    event: TELEMETRY_EVENTS.SUBAGENT_STARTED,
+    hookInput,
+    props: {
+      hook: "SubagentStart",
+      agent_type: hookInput.agent_type,
+    },
+  });
   emitResponse();
-} catch {
-  // A hook must never block subagent startup.
+} catch (error) {
+  recordHookError({ hook: "SubagentStart", error });
   emitResponse();
 }
 

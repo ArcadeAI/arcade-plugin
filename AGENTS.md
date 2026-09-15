@@ -10,16 +10,30 @@ are per-host adapters, same as MCP configs and Cursor rules.
 
 | Host | Manifest | Declared in |
 | --- | --- | --- |
-| Claude Code | `hooks/hooks.json` | default discovery |
+| Claude Code | `hooks/hooks.json` + `clients/claude/hooks/hooks.json` | `.claude-plugin/plugin.json` (array) |
 | Cursor | `clients/cursor/hooks/hooks.json` | `.cursor-plugin/plugin.json` |
-| Codex / ChatGPT local runtime | `com.openai/hooks/hooks.json` | `plugin.json` → `extensions.com.openai.hooks` |
+| Codex / ChatGPT | `hooks/hooks.json` + `com.openai/hooks/hooks.json` | `plugin.json` extension + `.codex-plugin/plugin.json` fallback |
 
-Do not add Arcade's client-specific hook wiring to `hooks/hooks.json`.
-`SubagentStart` is intentionally wired only for Codex because Codex cannot load
-the custom `arcade-operator`; it belongs in `com.openai/hooks/hooks.json` and
-must use `${PLUGIN_ROOT}`.
+`hooks/hooks.json` is shared by Claude Code and Codex for **session and prompt**
+hooks only.
 
-`scripts/check.mjs` enforces this split. Run `npm run verify` after editing a
-hook manifest.
+- Claude-only events (for example `PostToolUse`) go in
+  `clients/claude/hooks/hooks.json`.
+- Codex-only events (for example `SubagentStart`) go in
+  `com.openai/hooks/hooks.json` and must use `${PLUGIN_ROOT}`.
 
-More context: [ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate).
+`scripts/check.mjs` enforces this split. After editing hook manifests, run
+`npm run verify`.
+
+## Manifest extensions
+
+Root `plugin.json` may declare `extensions.com.openai` for Codex. Do **not** move
+Cursor or Claude wiring into root `extensions.*` — those hosts ignore unknown
+extension namespaces at runtime and still need generated sidecars
+(`.cursor-plugin/`, `.claude-plugin/`). Do not invent `extensions.dev.cursor`
+or `extensions.com.anthropic`.
+
+More context:
+[ARCHITECTURE.md](ARCHITECTURE.md#host-manifest-wiring) (verified host behavior),
+[ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate) (generate
+and check flow).

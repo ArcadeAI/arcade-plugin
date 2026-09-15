@@ -1,35 +1,15 @@
 #!/usr/bin/env node
-// Shared session-start hook. Cursor and Claude send different stdin
+// Shared session-start hook. Hosts send different stdin
 // shapes; emit the one the caller understands. Always exit 0.
 
+import { readHookInput } from "./hook-input.mjs";
 import { SESSION_CONTEXT } from "./routing-guidance.mjs";
-
-const readStdin = async () => {
-  if (process.stdin.isTTY) return "";
-  let data = "";
-  try {
-    for await (const chunk of process.stdin) data += chunk;
-  } catch {
-    // No stdin — default platform below.
-  }
-  return data;
-};
-
-const detectPlatform = (rawInput) => {
-  try {
-    const input = JSON.parse(rawInput);
-    if (
-      "conversation_id" in input ||
-      "workspace_roots" in input ||
-      "cursor_version" in input
-    ) {
-      return "cursor";
-    }
-  } catch {
-    // Default to Claude's shape.
-  }
-  return "claude";
-};
+import {
+  detectHost,
+  recordHookError,
+  recordTelemetry,
+  TELEMETRY_EVENTS,
+} from "./telemetry.mjs";
 
 const emitResponse = (platform) => {
   const response =
@@ -45,10 +25,26 @@ const emitResponse = (platform) => {
 };
 
 try {
-  const platform = detectPlatform(await readStdin());
+  const hookInput = await readHookInput();
+  const platform = detectHost(hookInput);
+  recordTelemetry({
+    event: TELEMETRY_EVENTS.SESSION_STARTED,
+    hookInput,
+    props: {
+      hook: platform === "cursor" ? "sessionStart" : "SessionStart",
+      source: hookInput.source ?? hookInput.session_source ?? "startup",
+      composer_mode: hookInput.composer_mode,
+      is_background_agent: hookInput.is_background_agent,
+    },
+  });
+  recordTelemetry({
+    event: TELEMETRY_EVENTS.ROUTING_CONTEXT_EMITTED,
+    hookInput,
+    props: { hook: "session_start" },
+  });
   emitResponse(platform);
-} catch {
-  // A hook must never block session startup — emit Claude-safe default.
+} catch (error) {
+  recordHookError({ hook: "session_start", error });
   emitResponse("claude");
 }
 
