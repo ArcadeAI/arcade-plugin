@@ -93,3 +93,13 @@ test("session-start still emits cursor shape when telemetry is enabled", () => {
   const out = JSON.parse(result.stdout.trim());
   assert.ok(out.additional_context);
 });
+
+test("subagent-start still emits guidance when telemetry is enabled", () => {
+  const result = runHook(
+    "subagent-start.mjs",
+    '{"session_id":"s1","turn_id":"t1","agent_type":"review","agent_id":"a1"}',
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const out = JSON.parse(result.stdout.trim());
+  assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
+});
