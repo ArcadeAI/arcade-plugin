@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Per-turn reminder for Claude and Cursor. Always exit 0.
+// Per-turn reminder for Claude-format clients. Cursor uses an always-apply
+// rule instead. Always exit 0.
 
 import { PROMPT_REMINDER } from "./routing-guidance.mjs";
 
@@ -61,35 +62,6 @@ const readStdin = async () => {
   return data;
 };
 
-const detectPlatform = (rawInput) => {
-  try {
-    const input = JSON.parse(rawInput);
-    if (
-      "conversation_id" in input ||
-      "workspace_roots" in input ||
-      "cursor_version" in input
-    ) {
-      return "cursor";
-    }
-  } catch {
-    // Default to Claude's shape.
-  }
-  return "claude";
-};
-
-const emitResponse = (platform) => {
-  const response =
-    platform === "cursor"
-      ? { additional_context: PROMPT_REMINDER }
-      : {
-          hookSpecificOutput: {
-            hookEventName: "UserPromptSubmit",
-            additionalContext: PROMPT_REMINDER,
-          },
-        };
-  process.stdout.write(JSON.stringify(response));
-};
-
 try {
   const raw = await readStdin();
   let prompt = "";
@@ -99,7 +71,14 @@ try {
     // Unparseable input: stay silent.
   }
   if (typeof prompt === "string" && prompt.trim() && !isBareContinuation(prompt)) {
-    emitResponse(detectPlatform(raw));
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "UserPromptSubmit",
+          additionalContext: PROMPT_REMINDER,
+        },
+      }),
+    );
   }
 } catch {
   // A hook must never break a prompt.

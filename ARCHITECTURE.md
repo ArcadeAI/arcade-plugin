@@ -64,7 +64,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 ├── clients/
 │   ├── cursor/
 │   │   ├── mcp.json                    Cursor infers transport from url
-│   │   ├── hooks/hooks.json            Cursor sessionStart + beforeSubmitPrompt
+│   │   ├── hooks/hooks.json            Cursor sessionStart
 │   │   └── rules/arcade.mdc              always-apply: try Arcade first
 │   ├── claude/mcp.json                 Claude needs type: http
 │   ├── claude-desktop/

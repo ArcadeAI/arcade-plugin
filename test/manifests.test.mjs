@@ -19,17 +19,14 @@ const resolvePluginPath = (command, token) => {
   return match[1].replace(/^\//, "");
 };
 
-test("Cursor hook commands use CURSOR_PLUGIN_ROOT and resolve to real files", async () => {
+test("Cursor hook command uses CURSOR_PLUGIN_ROOT and resolves to a real file", async () => {
   const hooks = await readRepoJson("clients/cursor/hooks/hooks.json");
+  const command = hooks.hooks.sessionStart[0].command;
+  assert.match(command, /\$\{CURSOR_PLUGIN_ROOT\}/);
+  assert.doesNotMatch(command, /node \.\/hooks\//);
 
-  for (const event of ["sessionStart", "beforeSubmitPrompt"]) {
-    const command = hooks.hooks[event][0].command;
-    assert.match(command, /\$\{CURSOR_PLUGIN_ROOT\}/);
-    assert.doesNotMatch(command, /node \.\/hooks\//);
-
-    const hookPath = resolvePluginPath(command, "CURSOR_PLUGIN_ROOT");
-    assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
-  }
+  const hookPath = resolvePluginPath(command, "CURSOR_PLUGIN_ROOT");
+  assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
 });
 
 test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
