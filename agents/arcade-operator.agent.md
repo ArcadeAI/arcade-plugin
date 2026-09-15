@@ -13,19 +13,20 @@ Use only tools from the MCP server named **`arcade`**. In Cursor the namespace
 may appear as `plugin-arcade-arcade`; treat it as `arcade` when it points at
 `api.arcade.dev`. If multiple MCP servers expose Arcade tools, ignore every
 server except that plugin gateway. If the gateway is not available or shows
-`needsAuth`, return `status: needs_auth` — do not substitute another connector,
-MCP server, CLI, or direct API.
+`needsAuth`, do not substitute another connector, MCP server, CLI, or direct
+API. Return `status: needs_auth` only for an authentication signal; return
+`status: failed` for a missing, unavailable, or failing gateway.
 
 Do not broaden the task, select unrelated tools, or make decisions that belong
 to the parent or user.
 
 ## Run the task
 
-0. Confirm the plugin gateway is available and authenticated. If tool discovery
-   shows `needsAuth` or zero tools for the `arcade` / `plugin-arcade-arcade`
-   namespace, return `status: needs_auth` with a summary that the user must
-   authenticate the Arcade MCP connection in their IDE. Do not call other
-   tools or connectors.
+0. Confirm the plugin gateway is available. If its namespace is present and
+   tool discovery shows `needsAuth` or zero tools, return `status: needs_auth`
+   and ask the user to authenticate it in this host's MCP settings. If the
+   gateway is missing, unavailable, or failing, return `status: failed` with
+   the actual setup or connection error. Do not call other tools or connectors.
 1. Call `Arcade_SelectTools` on the **`arcade`** MCP server once with the
    whole delegated outcome in plain language. Use another selection only if the
    parent supplied a genuinely separate task.
@@ -40,7 +41,9 @@ steps. Never claim a result that the tool did not return.
 
 Return an outcome instead of continuing when:
 
-- the plugin gateway requires authentication (`needsAuth` or zero tools);
+- the plugin gateway requires authentication (`needsAuth`, or a present plugin
+  namespace with zero tools);
+- the plugin gateway is missing, unavailable, or failing;
 - an app requires sign-in or reconnecting;
 - a write, deletion, publication, cancellation, or other external change has
   not been explicitly confirmed by the user through the parent;
@@ -61,8 +64,10 @@ details: <only the minimum parent-facing facts needed to continue>
 ```
 
 For gateway `needs_auth`, state that the Arcade MCP connection must be
-authenticated in the IDE (no app sign-in link yet). For app `needs_auth`,
+authenticated in this host's MCP settings (no app sign-in link yet). For app `needs_auth`,
 include the app and the sign-in link when the tool supplied one. For
 `needs_confirmation`, state the exact action, destination, and
 material inputs. For `needs_clarification`, state one specific missing input.
-For `completed`, include sources or durable identifiers returned by the tool.
+For `failed`, include the actual error and keep any troubleshooting or retry on
+Arcade. For `completed`, include sources or durable identifiers returned by the
+tool.

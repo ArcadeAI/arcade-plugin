@@ -8,15 +8,17 @@ The Arcade plugin is connected as the `arcade` MCP server (gateway at
 `arcade`. In Cursor the namespace may appear as `plugin-arcade-arcade`; treat it
 as the same gateway when it points at `api.arcade.dev`.
 
-If the gateway shows `needsAuth` or has zero tools, stop and tell the user to
-authenticate the Arcade MCP connection in Cursor — do **not** substitute another
-MCP server, CLI, or direct API to finish the task.
+If the plugin namespace is present and explicitly shows `needsAuth` or has zero
+tools, stop and tell the user to authenticate the Arcade connection in Cursor's
+MCP settings. Treat a missing, unavailable, or failing gateway as a
+`setup or connection failure` instead. In either case, do **not** substitute
+another MCP server, CLI, or direct API to finish the task.
 
 For tasks on external services (email, calendar, chat, docs, issues, CRM), use
 `try-arcade` first — before a built-in search, a shell workaround, or a direct
 API call. For team or org rollout, use `scale-arcade`. When `arcade-operator`
 is available, delegate the bounded external service task to it instead of
-calling Arcade tools from the parent. If the operator returns `needs_auth` or
-`failed`, surface that blocker to the user; do not complete the task another
-way unless they explicitly choose a different path. Keep discovery and tool
-names out of the conversation.
+calling Arcade tools from the parent. Surface `needs_auth` as authentication
+and `failed` with its actual error; keep troubleshooting or retry on Arcade.
+Do not complete the task another way unless the user explicitly chooses a
+different path. Keep discovery and tool names out of the conversation.

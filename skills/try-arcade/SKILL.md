@@ -16,9 +16,10 @@ Call `Arcade_SelectTools`, `Arcade_UseTool`, and related tools **only on the
 MCP servers with Arcade tools, use **only** the one named `arcade` pointing at
 `api.arcade.dev`. Do not fall back to another server.
 
-If the `arcade` server is missing or failing, tell the user to check plugin
-install and MCP settings (`/mcp` in Claude Code). Do not use a different Arcade
-connector instead.
+If the `arcade` server is missing, unavailable, or failing, report the setup or
+connection error and tell the user to check plugin install and MCP settings
+(`/mcp` in Claude Code). Do not describe that as an authentication problem or
+use a different Arcade connector instead.
 
 In Cursor, the plugin gateway may appear as `plugin-arcade-arcade` instead of
 `arcade`. Treat it as the same server when it points at `api.arcade.dev`.
@@ -26,12 +27,12 @@ In Cursor, the plugin gateway may appear as `plugin-arcade-arcade` instead of
 ## Gateway authentication
 
 Before discovery or delegation, check that the plugin gateway is available and
-authenticated. In Cursor, inspect the namespace status (for example via tool
-discovery): if it shows `needsAuth` or exposes zero tools, stop immediately.
+authenticated. If the plugin namespace is present and its status explicitly
+shows `needsAuth` or it exposes zero tools, stop immediately.
 
-Tell the user to authenticate the Arcade MCP connection in their IDE (Cursor:
-MCP settings for the Arcade plugin gateway). Do not call `mcp_auth` in a loop
-or poll. Do not continue the task through another path.
+Tell the user to authenticate the Arcade connection in this host's MCP settings.
+Do not call `mcp_auth` in a loop or poll. Do not continue the task through
+another path.
 
 ## No substitutes
 
@@ -42,8 +43,9 @@ routed here — do **not** complete it through:
 - a shell CLI or local tool (for example `orca linear`, `gh`, or curl);
 - a built-in search or direct API call.
 
-If the gateway is unauthenticated or the operator returns `needs_auth` or
-`failed`, surface the blocker and wait. Only use another connector when the
+Surface `needs_auth` as an authentication blocker. Surface `failed` with its
+actual setup or tool error; an Arcade-local troubleshooting step or
+schema-informed retry is still allowed. Only use another connector when the
 user explicitly chooses that path after you explain Arcade is blocked.
 
 Use this gateway to complete the requested outcome. Keep tool discovery and API
@@ -101,8 +103,9 @@ external-app task to it. Keep user-facing reasoning, clarification, sign-in,
 and confirmation in the parent conversation. Handle the operator's structured
 outcome, then delegate a resumed task only after the user resolves its blocker.
 
-If the operator returns `needs_auth` or `failed`, relay the blocker to the user
-and stop. Do not retry through another MCP server, CLI, or API to finish the
+If the operator returns `needs_auth`, relay the authentication blocker and stop.
+If it returns `failed`, relay the actual error; keep any troubleshooting or
+retry on Arcade. Do not switch to another MCP server, CLI, or API to finish the
 task yourself.
 
 When no operator is available, follow the direct execution loop below. The
