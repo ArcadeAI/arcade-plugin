@@ -14,6 +14,7 @@ import {
   generateManifests,
 } from "../scripts/generate-manifests.mjs";
 import { readVersion } from "../scripts/version.mjs";
+import { PLUGIN_DISPLAY_NAME } from "../scripts/constants.mjs";
 import { readRepoJson, ROOT } from "./helpers.mjs";
 
 const writeJson = (root, relativePath, value) => {
@@ -56,7 +57,11 @@ test("generateManifests matches committed host manifests", async () => {
   assert.equal(claudeMcp.mcpServers.arcade.type, "http");
   assert.equal(claudeMcp.mcpServers.arcade.url, mcp.mcpServers.arcade.url);
 
+  const cursorPlugin = await readRepoJson(".cursor-plugin/plugin.json");
+  assert.equal(cursorPlugin.displayName, PLUGIN_DISPLAY_NAME);
+
   const codexPlugin = await readRepoJson(".codex-plugin/plugin.json");
+  assert.equal(codexPlugin.displayName, PLUGIN_DISPLAY_NAME);
   assert.equal(codexPlugin.hooks, "./com.openai/hooks/hooks.json");
   assert.equal(codexPlugin.skills, undefined);
   assert.equal(codexPlugin.mcpServers, undefined);

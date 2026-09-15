@@ -22,6 +22,7 @@ import {
   MCP_SCHEMA,
   MCP_SERVER_NAME,
   PLUGINS_CLI_VERSION,
+  PLUGIN_DISPLAY_NAME,
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
@@ -138,6 +139,11 @@ if (cursorManifest) {
       fail(`.cursor-plugin/plugin.json: ${key} path does not exist: ${value}`);
     }
   }
+  if (cursorManifest.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `.cursor-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
+  }
 }
 
 if (json["clients/claude/mcp.json"]?.mcpServers?.arcade?.type !== "http") {
@@ -230,6 +236,11 @@ if (!codexHooks.includes('"matcher": "*"')) {
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
+  if (codexManifest.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
+  }
   if (codexManifest.hooks !== "./com.openai/hooks/hooks.json") {
     fail(
       '.codex-plugin/plugin.json: hooks must be "./com.openai/hooks/hooks.json"',
@@ -252,6 +263,11 @@ if (marketplace) {
   const listed = marketplace.plugins?.[0];
   if (!listed || listed.name !== "arcade" || listed.source !== "./") {
     fail('.claude-plugin/marketplace.json: must list plugin "arcade" at source "./"');
+  }
+  if (listed.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `.claude-plugin/marketplace.json: plugin displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
   }
 }
 

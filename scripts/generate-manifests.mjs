@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readVersion } from "./version.mjs";
+import { PLUGIN_DISPLAY_NAME } from "./constants.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -33,6 +34,8 @@ const identityFields = (portablePlugin) => {
   return { name, description, author, homepage, license, keywords };
 };
 
+const listingFields = () => ({ displayName: PLUGIN_DISPLAY_NAME });
+
 export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   if (portablePlugin.version !== version) {
     throw new Error(
@@ -58,6 +61,7 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   };
   const cursorPlugin = {
     ...shared,
+    ...listingFields(),
     skills: "skills",
     agents: "agents",
     commands: "commands",
@@ -71,6 +75,7 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   };
   const codexPlugin = {
     ...shared,
+    ...listingFields(),
     hooks: "./com.openai/hooks/hooks.json",
   };
   const marketplaceManifest = {
@@ -82,7 +87,7 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
     plugins: [
       {
         name: portablePlugin.name,
-        displayName: "Arcade",
+        displayName: PLUGIN_DISPLAY_NAME,
         source: "./",
         description: portablePlugin.description,
         version,
