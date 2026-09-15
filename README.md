@@ -95,9 +95,10 @@ anything is sent, created, or deleted.
   connect — [privacy policy](https://www.arcade.dev/privacy-policy).
 - **Optional telemetry (hooks only):** Set `ARCADE_PLUGIN_TELEMETRY=1` to send
   limited funnel events (session start, prompt length bucket, subagent start,
-  and Arcade tool outcome) to Arcade's PostHog project. It is off by default,
-  includes no prompt text, tool arguments, or tool responses, and writes no
-  telemetry identity or reports to disk. See
+  and Arcade tool outcome) to Arcade's PostHog project. Each event includes
+  `plugin_version` for release correlation. It is off by default, includes no
+  prompt text, tool arguments, or tool responses, and writes no telemetry
+  identity or reports to disk. See
   [Architecture](ARCHITECTURE.md#observability-boundary).
 
 ## Develop

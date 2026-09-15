@@ -23,6 +23,6 @@ hooks only.
   `com.openai/hooks/hooks.json` and must use `${PLUGIN_ROOT}`.
 
 `scripts/check.mjs` enforces this split. After editing hook manifests, run
-`npm run generate` and `npm run verify`.
+`npm run verify`.
 
 More context: [ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate).

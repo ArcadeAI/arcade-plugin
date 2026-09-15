@@ -181,11 +181,12 @@ submit, routing context injection, bare-continuation skips, hook errors) and
 replace gateway truth for auth, request outcomes, or tool payloads.
 
 Hook telemetry is off by default. Set `ARCADE_PLUGIN_TELEMETRY=1` to send events
-to PostHog via `https://p.arcade.dev`. Payloads use an event-specific property
-allowlist and never include prompt text, tool arguments, tool responses, paths,
-or error messages. Session IDs are hashed before capture, and events disable
-PostHog person profiles. The plugin does not create a persistent machine
-identifier or write telemetry reports to disk.
+to PostHog via `https://p.arcade.dev`. Every capture includes `plugin_version`
+(from `VERSION`) and `host`, plus an event-specific property allowlist. Payloads
+never include prompt text, tool arguments, tool responses, paths, or error
+messages. Session IDs are hashed before capture, and events disable PostHog
+person profiles. The plugin does not create a persistent machine identifier or
+write telemetry reports to disk.
 
 Override the project key with `ARCADE_PLUGIN_POSTHOG_KEY` or the ingest host
 with `ARCADE_PLUGIN_POSTHOG_HOST`. The detached sender has a two-second timeout,

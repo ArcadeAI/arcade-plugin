@@ -42,9 +42,10 @@ already read:
 | Desktop config | `clients/claude-desktop/claude_desktop_config.json` | Claude Desktop Chat (tools-only fallback) |
 | Subagent | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Copilot CLI |
 | Commands | `commands/` | Cursor, Claude Code |
-| Hooks | `hooks/hooks.json` | Claude Code |
+| Hooks | `hooks/hooks.json` | Claude Code, Codex (session and prompt) |
+| Hooks | `clients/claude/hooks/hooks.json` | Claude Code (post-tool telemetry) |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
-| Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT local runtime |
+| Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT local runtime (`SubagentStart`) |
 | OpenAI extension | `plugin.json` → `extensions.com.openai` | Codex / ChatGPT local runtime |
 | Codex fallback | `.codex-plugin/plugin.json` | Older Codex plugin loaders |
 | Rule | `clients/cursor/rules/` | Cursor |
@@ -58,10 +59,11 @@ portable core when it sees a root `plugin.json` with the Agent Plugins
 Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
-Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
-`SessionStart` and `UserPromptSubmit` from that file. Codex runs all three
-lifecycle hooks from `com.openai/hooks/hooks.json`, selected by the portable
-manifest's OpenAI extension.
+Copilot CLI does not load `hooks/hooks.json`. Claude Code and Codex run
+`SessionStart` and `UserPromptSubmit` from that shared file. Codex adds
+`SubagentStart` from `com.openai/hooks/hooks.json`, selected by the portable
+manifest's OpenAI extension. Claude Code adds post-tool telemetry from
+`clients/claude/hooks/hooks.json`.
 Copilot's native hook schema differs; skills provide routing guidance on
 that client.
 
