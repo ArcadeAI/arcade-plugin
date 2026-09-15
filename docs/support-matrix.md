@@ -42,8 +42,9 @@ already read:
 | Desktop config | `clients/claude-desktop/claude_desktop_config.json` | Claude Desktop Chat (tools-only fallback) |
 | Subagent | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Copilot CLI |
 | Commands | `commands/` | Cursor, Claude Code |
-| Hooks | `hooks/hooks.json` | Claude Code, Codex / ChatGPT |
+| Hooks | `hooks/hooks.json` | Claude Code |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
+| Hooks | `clients/codex/hooks/hooks.json` | Codex / ChatGPT (`SubagentStart`) |
 | Codex adapter | `.codex-plugin/plugin.json` | Codex / ChatGPT |
 | Rule | `clients/cursor/rules/` | Cursor |
 
@@ -57,9 +58,10 @@ Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
 Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
-`SessionStart` and `UserPromptSubmit` from that file. Codex also runs
-`SubagentStart` from the same manifest. Copilot's native hook schema
-differs; skills provide routing guidance on that client.
+`SessionStart` and `UserPromptSubmit` from that file. Codex loads the
+shared manifest plus `clients/codex/hooks/hooks.json` for `SubagentStart`.
+Copilot's native hook schema differs; skills provide routing guidance on
+that client.
 
 Claude Desktop installs this repo as a plugin marketplace (see
 [claude-desktop.md](install/claude-desktop.md)): add

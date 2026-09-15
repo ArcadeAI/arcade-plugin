@@ -1,0 +1,18 @@
+---
+description: Hook manifests are per-client adapters; shared scripts only live under hooks/
+alwaysApply: true
+---
+
+# Hook adapter discipline
+
+Hook **scripts** are shared under `hooks/*.mjs`. Hook **manifests** (`hooks.json`) are per-client adapters, same as MCP and rules.
+
+| Client | Manifest | Declared in |
+|---|---|---|
+| Claude Code | `hooks/hooks.json` | default discovery |
+| Cursor | `clients/cursor/hooks/hooks.json` | `.cursor-plugin/plugin.json` |
+| Codex / ChatGPT | `hooks/hooks.json` + `clients/codex/hooks/hooks.json` | `.codex-plugin/plugin.json` (array) |
+
+Do not add client-specific hook events to `hooks/hooks.json`. That file is the Claude adapter. Codex-only events such as `SubagentStart` belong in `clients/codex/hooks/hooks.json`.
+
+`scripts/check.mjs` enforces this. If you add a new client hook surface, add a `clients/<host>/hooks/hooks.json` and wire it from that host's adapter manifest.

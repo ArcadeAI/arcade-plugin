@@ -42,7 +42,8 @@ Codex does not run plugin-bundled hooks until you review and trust them.
 After install, open `/hooks` in Codex and trust the Arcade plugin hooks.
 Codex prints a startup warning when hooks still need review.
 
-The plugin ships three hooks from `hooks/hooks.json`:
+The plugin ships three hooks. Codex loads the shared Claude manifest
+(`hooks/hooks.json`) plus the Codex adapter (`clients/codex/hooks/hooks.json`):
 
 | Event | Purpose |
 | --- | --- |

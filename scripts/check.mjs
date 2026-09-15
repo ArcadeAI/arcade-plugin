@@ -180,27 +180,45 @@ if (cursorHooks.includes("node ./hooks/")) {
   fail("clients/cursor/hooks/hooks.json: must not use project-relative ./hooks/ paths");
 }
 
-for (const hooksFile of ["hooks/hooks.json"]) {
-  const content = read(hooksFile);
-  if (!content.includes("${CLAUDE_PLUGIN_ROOT}")) {
-    fail(`${hooksFile}: must use ${"${CLAUDE_PLUGIN_ROOT}"}`);
-  }
-  if (!content.includes("hooks/session-start.mjs")) {
-    fail(`${hooksFile}: must reference hooks/session-start.mjs`);
-  }
-  if (!content.includes("hooks/user-prompt-submit.mjs")) {
-    fail(`${hooksFile}: must reference hooks/user-prompt-submit.mjs`);
-  }
-  if (!content.includes("hooks/subagent-start.mjs")) {
-    fail(`${hooksFile}: must reference hooks/subagent-start.mjs`);
-  }
+const claudeHooks = read("hooks/hooks.json");
+if (!claudeHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
+  fail('hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}');
+}
+if (!claudeHooks.includes("hooks/session-start.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/session-start.mjs");
+}
+if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
+}
+if (claudeHooks.includes("SubagentStart")) {
+  fail(
+    "hooks/hooks.json: SubagentStart is Codex-only — use clients/codex/hooks/hooks.json",
+  );
+}
+
+const codexHooks = read("clients/codex/hooks/hooks.json");
+if (!codexHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
+  fail("clients/codex/hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}");
+}
+if (!codexHooks.includes("hooks/subagent-start.mjs")) {
+  fail("clients/codex/hooks/hooks.json: must reference hooks/subagent-start.mjs");
+}
+if (!codexHooks.includes('"matcher": ".*"')) {
+  fail('clients/codex/hooks/hooks.json: SubagentStart must use matcher ".*"');
 }
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
-  const hooksPath = codexManifest.hooks?.replace(/^\.\//, "");
-  if (hooksPath !== "hooks/hooks.json") {
-    fail('.codex-plugin/plugin.json: hooks must point at "./hooks/hooks.json"');
+  const hooksPaths = codexManifest.hooks;
+  const expectedHooks = ["./hooks/hooks.json", "./clients/codex/hooks/hooks.json"];
+  if (
+    !Array.isArray(hooksPaths) ||
+    hooksPaths.length !== expectedHooks.length ||
+    !expectedHooks.every((path, index) => hooksPaths[index] === path)
+  ) {
+    fail(
+      `.codex-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
+    );
   }
   const skillsPath = codexManifest.skills?.replace(/^\.\//, "").replace(/\/$/, "");
   if (skillsPath !== "skills") {
