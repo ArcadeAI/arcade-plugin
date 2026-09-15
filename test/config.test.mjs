@@ -54,16 +54,12 @@ test("adapter manifest versions match VERSION", async () => {
   );
 });
 
-test("release-please config syncs every VERSIONed manifest", async () => {
+test("release-please config bumps VERSION only; manifests come from generate", async () => {
   const config = await readRepoJson("release-please-config.json");
   const pkg = config.packages?.["."];
-  const extraPaths = new Set((pkg?.["extra-files"] ?? []).map((entry) => entry.path));
 
   assert.equal(pkg?.["version-file"], "VERSION");
-
-  for (const path of VERSIONED_MANIFESTS) {
-    assert.ok(extraPaths.has(path), `release-please-config.json must list ${path}`);
-  }
+  assert.equal(pkg?.["extra-files"], undefined);
 
   const workflow = await readRepoFile(".github/workflows/release-please.yml");
   assert.match(workflow, /release-please-action@v4/);
@@ -76,11 +72,17 @@ test("CI toolchain versions are pinned in package.json", async () => {
     CLAUDE_CODE_CLI_VERSION,
   );
   assert.equal(packageJson.engines?.node, CI_NODE_VERSION);
+  assert.equal(packageJson.scripts?.generate, "node scripts/generate-manifests.mjs");
+  assert.equal(
+    packageJson.scripts?.["generate:check"],
+    "node scripts/generate-manifests.mjs --check",
+  );
   assert.equal(packageJson.scripts?.["verify:discover"], "plugins discover .");
   assert.equal(
     packageJson.scripts?.["verify:claude"],
     "claude plugin validate .",
   );
+  assert.match(packageJson.scripts?.verify, /generate:check/);
 
   const workflow = await readRepoFile(".github/workflows/check.yml");
   assert.match(workflow, new RegExp(`node-version: "${CI_NODE_VERSION}"`));

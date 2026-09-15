@@ -1,14 +1,22 @@
-/** Shared plugin constants — single source for endpoint, pins, and doc URLs. */
+/** Shared plugin constants — gateway and schema URLs derived from contract. */
 
-export const ENDPOINT = "https://api.arcade.dev/mcp/arcade";
-export const GATEWAY_HOST = "api.arcade.dev";
-export const MCP_SERVER_NAME = "arcade";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const contract = JSON.parse(
+  readFileSync(join(ROOT, "contract/plugin.contract.json"), "utf8"),
+);
+
+export const ENDPOINT = contract.gateway.url;
+export const GATEWAY_HOST = new URL(contract.gateway.url).host;
+export const MCP_SERVER_NAME = contract.gateway.serverName;
 export const MCP_REMOTE_VERSION = "0.1.38";
 export const MCP_REMOTE_PACKAGE = `mcp-remote@${MCP_REMOTE_VERSION}`;
 export const INSTALL_SLUG = "ArcadeAI/arcade-plugin";
-export const PLUGIN_SCHEMA =
-  "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
-export const MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
+export const PLUGIN_SCHEMA = contract.schemas.plugin;
+export const MCP_SCHEMA = contract.schemas.mcp;
 export const TRIAL_DASHBOARD_URL =
   "https://app.arcade.dev?utm_source=arcade-plugin";
 export const ORG_DASHBOARD_URL =

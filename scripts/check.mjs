@@ -2,6 +2,7 @@
 // Repo-wide structural checks. No runtime dependencies beyond Node.
 // Run with: node scripts/check.mjs
 
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -25,13 +26,14 @@ import {
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
-import { VERSIONED_MANIFESTS } from "./version.mjs";
+import { readVersion } from "./version.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const errors = [];
 const fail = (message) => errors.push(message);
 const read = (path) => readFileSync(join(ROOT, path), "utf8");
+const sha256 = (content) => createHash("sha256").update(content).digest("hex");
 
 const jsonFiles = [];
 const walk = (dir) => {
@@ -55,6 +57,9 @@ for (const file of jsonFiles) {
 }
 
 for (const required of [
+  "contract/plugin.contract.json",
+  "contract/identity.json",
+  "contract/inventory.json",
   "plugin.json",
   "mcp.json",
   "skills",
@@ -233,11 +238,37 @@ if (codexManifest) {
   }
 }
 
-const version = read("VERSION").trim();
-for (const manifestPath of VERSIONED_MANIFESTS) {
-  const manifestVersion = json[manifestPath]?.version;
-  if (manifestVersion && manifestVersion !== version) {
-    fail(`${manifestPath} version ${manifestVersion} != VERSION ${version}`);
+const version = readVersion(ROOT);
+const inventoryPath = "contract/inventory.json";
+const identityPath = "contract/identity.json";
+if (!existsSync(join(ROOT, inventoryPath))) {
+  fail(`missing required path: ${inventoryPath}`);
+}
+if (!existsSync(join(ROOT, identityPath))) {
+  fail(`missing required path: ${identityPath}`);
+}
+
+const inventoryRaw = read(inventoryPath);
+const inventory = json[inventoryPath];
+const identity = json[identityPath];
+if (inventory && identity) {
+  if (identity.plugin_version !== version) {
+    fail(`contract/identity.json plugin_version ${identity.plugin_version} != VERSION ${version}`);
+  }
+  if (identity.inventory_sha256 !== sha256(inventoryRaw)) {
+    fail("contract/identity.json inventory_sha256 does not match contract/inventory.json");
+  }
+  for (const entry of inventory.manifests ?? []) {
+    const current = read(entry.path);
+    const digest = sha256(current);
+    if (entry.sha256 !== digest) {
+      fail(`${entry.path}: inventory sha256 ${entry.sha256} != ${digest}`);
+    }
+  }
+  for (const componentPath of inventory.components ?? []) {
+    if (!existsSync(join(ROOT, componentPath))) {
+      fail(`contract/inventory.json component path does not exist: ${componentPath}`);
+    }
   }
 }
 
@@ -249,11 +280,6 @@ if (marketplace) {
   const listed = marketplace.plugins?.[0];
   if (!listed || listed.name !== "arcade" || listed.source !== "./") {
     fail('.claude-plugin/marketplace.json: must list plugin "arcade" at source "./"');
-  }
-  if (listed.version && listed.version !== version) {
-    fail(
-      `.claude-plugin/marketplace.json plugins[0].version ${listed.version} != VERSION ${version}`,
-    );
   }
 }
 

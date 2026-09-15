@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "manifests": [
+    {
+      "path": "plugin.json",
+      "sha256": "0cc625b262dbbbb90e0ef57530b88029690751020833cb59da3debd60e8530cd"
+    },
+    {
+      "path": "mcp.json",
+      "sha256": "f54f1dd618acbc4a9ecd4571e3d1fd5284e5943880876c80d2abe3f454951397"
+    },
+    {
+      "path": "clients/cursor/mcp.json",
+      "sha256": "bba19f6b7a2d30bb2f6ec1b68302b6b689fad758fb588da78573f7c9d1fec5d6"
+    },
+    {
+      "path": "clients/claude/mcp.json",
+      "sha256": "4d2e4113915330651eec5fb4741240881f8d5af8d62b782bd0d3d21a29b6454f"
+    },
+    {
+      "path": ".cursor-plugin/plugin.json",
+      "sha256": "6fe5ff7c28d05f249f5b33ee92160d244cd015fde4421c29482d5660e5ce0527"
+    },
+    {
+      "path": ".claude-plugin/plugin.json",
+      "sha256": "3ba5891df654db4401d2e4e8dc72a1010d7b3f47d431031338c0d6c7d4d2663a"
+    },
+    {
+      "path": ".claude-plugin/marketplace.json",
+      "sha256": "0839350b0ff8c659d861c93f9775c78b4ea4e94a40671d357a1c0865e782fe78"
+    },
+    {
+      "path": ".codex-plugin/plugin.json",
+      "sha256": "3a4a3d6ec315b0183f6cf0a809b97957c4eb47ec61acbf06e63fb24deaa6587e"
+    }
+  ],
+  "components": [
+    "agents",
+    "clients/claude/mcp.json",
+    "clients/cursor/hooks/hooks.json",
+    "clients/cursor/mcp.json",
+    "clients/cursor/rules",
+    "com.openai/hooks/hooks.json",
+    "commands",
+    "hooks/hooks.json",
+    "mcp.json",
+    "skills"
+  ]
+}

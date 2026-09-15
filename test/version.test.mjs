@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import {
   applyVersionToJson,
   parseVersion,
   VERSIONED_MANIFESTS,
+  writeVersion,
 } from "../scripts/version.mjs";
 
 test("parseVersion accepts release semver", () => {
@@ -36,4 +40,16 @@ test("VERSIONED_MANIFESTS covers every checked adapter manifest", () => {
     ".claude-plugin/marketplace.json",
     ".codex-plugin/plugin.json",
   ]);
+});
+
+test("writeVersion persists semver to VERSION file", () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), "arcade-version-"));
+
+  try {
+    const version = writeVersion(tempRoot, "0.2.0");
+    assert.equal(version, "0.2.0");
+    assert.equal(readFileSync(join(tempRoot, "VERSION"), "utf8"), "0.2.0\n");
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
 });

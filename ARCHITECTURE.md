@@ -6,6 +6,41 @@ adapters live in `.cursor-plugin/`, `.claude-plugin/`, and `clients/`.
 Commands, hooks, and the Cursor rule are host adapters, not portable
 Agent Plugins components. The package still ships no credentials.
 
+## Contract → generate → validate
+
+`contract/plugin.contract.json` is the single source of truth for plugin
+identity, gateway wiring, host component paths, and marketplace metadata.
+`scripts/generate-manifests.mjs` reads the contract and `VERSION`, then writes
+every host manifest (`plugin.json`, `mcp.json`, client MCP adapters, and
+`.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/` plugin manifests). It
+also writes `contract/inventory.json` (SHA256 of each generated manifest plus
+declared component paths) and `contract/identity.json` (plugin version and
+inventory digest).
+
+Hook manifest JSON files stay hand-authored (`hooks/hooks.json`,
+`clients/cursor/hooks/hooks.json`, `com.openai/hooks/hooks.json`). The
+contract only declares where hosts load them.
+
+```text
+contract/plugin.contract.json
+        │
+        ▼
+scripts/generate-manifests.mjs  ← VERSION
+        │
+        ├── plugin.json, mcp.json, clients/*/mcp.json
+        ├── .cursor-plugin/plugin.json
+        ├── .claude-plugin/plugin.json, marketplace.json
+        ├── .codex-plugin/plugin.json
+        └── contract/identity.json, contract/inventory.json
+        │
+        ▼
+npm run generate:check  (in verify)  +  scripts/check.mjs
+```
+
+After a version bump, run `node scripts/version.mjs <semver>` or
+`npm run generate` so manifests and contract artifacts stay in sync. CI fails
+when generated output drifts.
+
 Hook scripts live in `hooks/*.mjs`. Hook manifests are per client (`hooks/hooks.json`
 for Claude and Codex session hooks, `clients/cursor/hooks/hooks.json`,
 `com.openai/hooks/hooks.json` for Codex `SubagentStart`). `scripts/check.mjs`

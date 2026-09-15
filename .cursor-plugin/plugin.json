@@ -1,7 +1,6 @@
 {
   "name": "arcade",
   "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key.",
-  "version": "0.1.0",
   "author": {
     "name": "Arcade.dev",
     "url": "https://arcade.dev"
@@ -14,6 +13,7 @@
     "agent-skills",
     "connected-apps"
   ],
+  "version": "0.1.0",
   "skills": "skills",
   "agents": "agents",
   "commands": "commands",
