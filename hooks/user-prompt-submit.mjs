@@ -4,7 +4,12 @@
 
 import { PROMPT_REMINDER } from "./routing-guidance.mjs";
 import { isBareContinuation } from "./prompt-continuation.mjs";
-import { bucketPromptLength, recordTelemetry, TELEMETRY_EVENTS } from "./telemetry.mjs";
+import {
+  bucketPromptLength,
+  recordHookError,
+  recordTelemetry,
+  TELEMETRY_EVENTS,
+} from "./telemetry.mjs";
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -40,8 +45,20 @@ try {
         is_continuation: continuation,
       },
     });
+    if (continuation) {
+      recordTelemetry({
+        event: TELEMETRY_EVENTS.ROUTING_SKIPPED_BARE_CONTINUATION,
+        hookInput,
+        props: { hook: "prompt_submit" },
+      });
+    }
   }
   if (trimmed && !continuation) {
+    recordTelemetry({
+      event: TELEMETRY_EVENTS.ROUTING_CONTEXT_EMITTED,
+      hookInput,
+      props: { hook: "prompt_submit" },
+    });
     process.stdout.write(
       JSON.stringify({
         hookSpecificOutput: {
@@ -51,8 +68,8 @@ try {
       }),
     );
   }
-} catch {
-  // A hook must never break a prompt.
+} catch (error) {
+  recordHookError({ hook: "prompt_submit", error });
 }
 
 process.exit(0);

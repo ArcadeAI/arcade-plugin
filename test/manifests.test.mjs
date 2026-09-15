@@ -22,26 +22,44 @@ const resolvePluginPath = (command, token) => {
 test("Cursor hook commands use CURSOR_PLUGIN_ROOT and resolve to real files", async () => {
   const hooks = await readRepoJson("clients/cursor/hooks/hooks.json");
 
-  for (const event of ["sessionStart", "beforeSubmitPrompt"]) {
+  for (const event of [
+    "sessionStart",
+    "beforeSubmitPrompt",
+    "afterMCPExecution",
+    "postToolUseFailure",
+  ]) {
     const command = hooks.hooks[event][0].command;
     assert.match(command, /\$\{CURSOR_PLUGIN_ROOT\}/);
     assert.doesNotMatch(command, /node \.\/hooks\//);
     const hookPath = resolvePluginPath(command, "CURSOR_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
+  assert.match(hooks.hooks.afterMCPExecution[0].matcher, /arcade/);
+  assert.match(
+    hooks.hooks.postToolUseFailure[0].matcher,
+    /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
+  );
 });
 
 test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
 
-  for (const event of ["SessionStart", "UserPromptSubmit"]) {
+  for (const event of ["SessionStart", "UserPromptSubmit", "PostToolUse", "PostToolUseFailure"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
+  for (const event of ["PostToolUse", "PostToolUseFailure"]) {
+    const command = hooks.hooks[event][0].hooks[0].command;
+    assert.match(command, /post-arcade-tool\.mjs/);
+  }
   assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear");
   assert.equal(hooks.hooks.SubagentStart, undefined);
+  assert.match(
+    hooks.hooks.PostToolUse[0].matcher,
+    /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
+  );
 });
 
 test("Codex extension hook manifest wires SubagentStart only", async () => {

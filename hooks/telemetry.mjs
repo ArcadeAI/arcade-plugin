@@ -21,6 +21,40 @@ export const TELEMETRY_EVENTS = {
   SESSION_STARTED: "Plugin session started",
   PROMPT_SUBMITTED: "Plugin prompt submitted",
   SUBAGENT_STARTED: "Plugin subagent started",
+  ROUTING_CONTEXT_EMITTED: "Plugin routing context emitted",
+  ROUTING_SKIPPED_BARE_CONTINUATION: "Plugin routing skipped bare continuation",
+  HOOK_ERROR: "Plugin hook error",
+  ARCADE_TOOL_CALLED: "Plugin arcade tool called",
+  ARCADE_TOOL_FAILED: "Plugin arcade tool failed",
+};
+
+const ARCADE_TOOL_PREFIX_RE = /^mcp__(?:plugin_arcade_arcade|arcade)__(.+)$/;
+
+/** Extract bare Arcade tool name from MCP-qualified identifiers. */
+export const normalizeArcadeToolName = (rawName) => {
+  if (typeof rawName !== "string" || !rawName) return undefined;
+  const prefixed = rawName.match(ARCADE_TOOL_PREFIX_RE);
+  if (prefixed) return prefixed[1];
+  if (rawName.startsWith("Arcade_")) return rawName;
+  return undefined;
+};
+
+export const errorClassFrom = (error) => {
+  if (error instanceof Error) return error.name || "Error";
+  if (typeof error === "string") return "Error";
+  return "UnknownError";
+};
+
+/** @param {{ hookInput?: object, hook: string, error: unknown }} input */
+export const recordHookError = ({ hookInput = {}, hook, error }) => {
+  recordTelemetry({
+    event: TELEMETRY_EVENTS.HOOK_ERROR,
+    hookInput,
+    props: {
+      hook,
+      error_class: errorClassFrom(error),
+    },
+  });
 };
 
 export const PLUGIN_VERSION = readFileSync(join(ROOT, "VERSION"), "utf8").trim();
