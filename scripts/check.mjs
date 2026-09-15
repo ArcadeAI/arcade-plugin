@@ -255,6 +255,42 @@ if (codexManifest) {
   }
 }
 
+for (const telemetryFile of [
+  "hooks/telemetry.mjs",
+  "hooks/telemetry-send.mjs",
+  "hooks/install-id.mjs",
+  "hooks/prompt-telemetry.mjs",
+  "hooks/prompt-continuation.mjs",
+  "hooks/post-arcade-tool.mjs",
+]) {
+  if (!existsSync(join(ROOT, telemetryFile))) {
+    fail(`missing telemetry file: ${telemetryFile}`);
+  }
+}
+
+const cursorHooksJson = read("clients/cursor/hooks/hooks.json");
+if (!cursorHooksJson.includes("hooks/prompt-telemetry.mjs")) {
+  fail("clients/cursor/hooks/hooks.json: must reference hooks/prompt-telemetry.mjs");
+}
+if (!cursorHooksJson.includes("hooks/post-arcade-tool.mjs")) {
+  fail("clients/cursor/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+}
+if (!cursorHooksJson.includes("afterMCPExecution")) {
+  fail(
+    "clients/cursor/hooks/hooks.json: must wire afterMCPExecution for Arcade telemetry",
+  );
+}
+
+if (!claudeHooks.includes("PostToolUse")) {
+  fail("hooks/hooks.json: must wire PostToolUse for Arcade telemetry");
+}
+if (!claudeHooks.includes("PostToolUseFailure")) {
+  fail("hooks/hooks.json: must wire PostToolUseFailure for Arcade telemetry");
+}
+if (!claudeHooks.includes("hooks/post-arcade-tool.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+}
+
 const marketplace = json[".claude-plugin/marketplace.json"];
 if (marketplace) {
   if (marketplace.name !== "arcade") {
