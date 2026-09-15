@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
   GENERATED_MANIFESTS,
+  HOOK_MANIFESTS,
   generateManifests,
 } from "../scripts/generate-manifests.mjs";
 import { readVersion } from "../scripts/version.mjs";
@@ -72,6 +73,12 @@ test("inventory records manifest digests and declared component paths", async ()
   assert.ok(inventory.components.includes("skills"));
   assert.ok(inventory.components.includes("hooks/hooks.json"));
   assert.ok(inventory.components.includes("com.openai/hooks/hooks.json"));
+
+  assert.equal(inventory.hook_manifests.length, HOOK_MANIFESTS.length);
+  for (const entry of inventory.hook_manifests) {
+    const content = await readRepoFile(entry.path);
+    assert.equal(entry.sha256, sha256(content), `${entry.path} hook digest drift`);
+  }
 });
 
 test("generateManifests --check fails when a manifest is stale", async () => {

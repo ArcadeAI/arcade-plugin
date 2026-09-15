@@ -22,6 +22,13 @@ export const GENERATED_MANIFESTS = [
   ".codex-plugin/plugin.json",
 ];
 
+/** Hand-authored hook manifests — hashed in inventory.json, not generated. */
+export const HOOK_MANIFESTS = [
+  "hooks/hooks.json",
+  "clients/cursor/hooks/hooks.json",
+  "com.openai/hooks/hooks.json",
+];
+
 const readJson = (relativePath) =>
   JSON.parse(readFileSync(join(ROOT, relativePath), "utf8"));
 
@@ -142,6 +149,12 @@ const collectComponentPaths = (contract) => {
   return [...paths].sort();
 };
 
+const buildHookManifestEntries = () =>
+  HOOK_MANIFESTS.map((path) => {
+    const content = readFileSync(join(ROOT, path), "utf8");
+    return { path, sha256: sha256(content) };
+  });
+
 const buildInventory = (manifestContents) => {
   const manifests = GENERATED_MANIFESTS.map((path) => ({
     path,
@@ -151,6 +164,7 @@ const buildInventory = (manifestContents) => {
   return {
     schema_version: 1,
     manifests,
+    hook_manifests: buildHookManifestEntries(),
     components: collectComponentPaths(readJson(CONTRACT_PATH)),
   };
 };
@@ -199,6 +213,7 @@ export function generateManifests({ check = false } = {}) {
   return {
     version,
     manifestCount: manifests.size,
+    hookManifestCount: inventory.hook_manifests.length,
     componentCount: inventory.components.length,
   };
 }
@@ -211,7 +226,7 @@ if (isCli) {
     const result = generateManifests({ check });
     const mode = check ? "check" : "generate";
     console.log(
-      `${mode}: ${result.manifestCount} manifests, ${result.componentCount} component paths (v${result.version})`,
+      `${mode}: ${result.manifestCount} manifests, ${result.hookManifestCount} hook manifests, ${result.componentCount} component paths (v${result.version})`,
     );
   } catch (error) {
     console.error(error.message);

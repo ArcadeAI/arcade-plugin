@@ -19,7 +19,8 @@ inventory digest).
 
 Hook manifest JSON files stay hand-authored (`hooks/hooks.json`,
 `clients/cursor/hooks/hooks.json`, `com.openai/hooks/hooks.json`). The
-contract only declares where hosts load them.
+contract declares where hosts load them; `contract/inventory.json` records a
+SHA256 digest per hook manifest so `npm run generate:check` catches drift.
 
 ```text
 contract/plugin.contract.json

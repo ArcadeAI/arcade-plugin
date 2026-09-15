@@ -265,6 +265,13 @@ if (inventory && identity) {
       fail(`${entry.path}: inventory sha256 ${entry.sha256} != ${digest}`);
     }
   }
+  for (const entry of inventory.hook_manifests ?? []) {
+    const current = read(entry.path);
+    const digest = sha256(current);
+    if (entry.sha256 !== digest) {
+      fail(`${entry.path}: hook manifest sha256 ${entry.sha256} != ${digest}`);
+    }
+  }
   for (const componentPath of inventory.components ?? []) {
     if (!existsSync(join(ROOT, componentPath))) {
       fail(`contract/inventory.json component path does not exist: ${componentPath}`);

@@ -34,6 +34,20 @@
       "sha256": "3a4a3d6ec315b0183f6cf0a809b97957c4eb47ec61acbf06e63fb24deaa6587e"
     }
   ],
+  "hook_manifests": [
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "afc80dcfe57827008e386bfa0723e2247600ba37f6988d3a8fca32ecd0038e31"
+    },
+    {
+      "path": "clients/cursor/hooks/hooks.json",
+      "sha256": "cea9d91910b88e9fec0ea01d442321a7ca800e30c5eb3926953453b6e45f3ef2"
+    },
+    {
+      "path": "com.openai/hooks/hooks.json",
+      "sha256": "cc5960efd3641b72d5894302f22bc1f8b797f7af8f266308d2d94e72590fe190"
+    }
+  ],
   "components": [
     "agents",
     "clients/claude/mcp.json",
