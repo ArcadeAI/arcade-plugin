@@ -190,35 +190,30 @@ if (!claudeHooks.includes("hooks/session-start.mjs")) {
 if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
   fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
 }
+if (!claudeHooks.includes('"matcher": "startup|resume|clear"')) {
+  fail('hooks/hooks.json: SessionStart must match startup, resume, and clear');
+}
 if (claudeHooks.includes("SubagentStart")) {
   fail(
-    "hooks/hooks.json: SubagentStart is Codex-only — use clients/codex/hooks/hooks.json",
+    "hooks/hooks.json: SubagentStart is Codex-only — use com.openai/hooks/hooks.json",
   );
 }
 
-const codexHooks = read("clients/codex/hooks/hooks.json");
-if (!codexHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
-  fail("clients/codex/hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}");
+const codexHooks = read("com.openai/hooks/hooks.json");
+if (!codexHooks.includes("${PLUGIN_ROOT}")) {
+  fail("com.openai/hooks/hooks.json: must use ${PLUGIN_ROOT}");
 }
 if (!codexHooks.includes("hooks/subagent-start.mjs")) {
-  fail("clients/codex/hooks/hooks.json: must reference hooks/subagent-start.mjs");
+  fail("com.openai/hooks/hooks.json: must reference hooks/subagent-start.mjs");
 }
 if (!codexHooks.includes('"matcher": ".*"')) {
-  fail('clients/codex/hooks/hooks.json: SubagentStart must use matcher ".*"');
+  fail('com.openai/hooks/hooks.json: SubagentStart must use matcher ".*"');
 }
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
-  const hooksPaths = codexManifest.hooks;
-  const expectedHooks = ["./hooks/hooks.json", "./clients/codex/hooks/hooks.json"];
-  if (
-    !Array.isArray(hooksPaths) ||
-    hooksPaths.length !== expectedHooks.length ||
-    !expectedHooks.every((path, index) => hooksPaths[index] === path)
-  ) {
-    fail(
-      `.codex-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
-    );
+  if (codexManifest.hooks !== "./hooks/hooks.json") {
+    fail('.codex-plugin/plugin.json: hooks must be "./hooks/hooks.json"');
   }
   const skillsPath = codexManifest.skills?.replace(/^\.\//, "").replace(/\/$/, "");
   if (skillsPath !== "skills") {

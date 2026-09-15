@@ -15,6 +15,6 @@
     "connected-apps"
   ],
   "skills": "./skills",
-  "hooks": ["./hooks/hooks.json", "./clients/codex/hooks/hooks.json"],
+  "hooks": "./hooks/hooks.json",
   "mcpServers": "./mcp.json"
 }

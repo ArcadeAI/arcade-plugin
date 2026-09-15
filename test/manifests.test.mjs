@@ -38,30 +38,27 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
+  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear");
   assert.equal(hooks.hooks.SubagentStart, undefined);
 });
 
-test("Codex hook manifest wires SubagentStart only", async () => {
-  const hooks = await readRepoJson("clients/codex/hooks/hooks.json");
+test("Codex extension hook manifest wires SubagentStart only", async () => {
+  const hooks = await readRepoJson("com.openai/hooks/hooks.json");
   assert.deepEqual(Object.keys(hooks.hooks).sort(), ["SubagentStart"]);
   assert.equal(hooks.hooks.SubagentStart[0].matcher, ".*");
   const command = hooks.hooks.SubagentStart[0].hooks[0].command;
-  assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
-  const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
+  assert.match(command, /\$\{PLUGIN_ROOT\}/);
+  const hookPath = resolvePluginPath(command, "PLUGIN_ROOT");
   assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
 });
 
 test("Codex manifest wires skills, hooks, and MCP adapter paths", async () => {
   const manifest = await readRepoJson(".codex-plugin/plugin.json");
   assert.equal(manifest.skills, "./skills");
-  assert.deepEqual(manifest.hooks, [
-    "./hooks/hooks.json",
-    "./clients/codex/hooks/hooks.json",
-  ]);
+  assert.equal(manifest.hooks, "./hooks/hooks.json");
   assert.equal(manifest.mcpServers, "./mcp.json");
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
   assert.equal(await pathExists("hooks/hooks.json"), true);
-  assert.equal(await pathExists("clients/codex/hooks/hooks.json"), true);
   assert.equal(await pathExists("mcp.json"), true);
 });
 

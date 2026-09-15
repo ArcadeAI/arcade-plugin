@@ -44,7 +44,7 @@ already read:
 | Commands | `commands/` | Cursor, Claude Code |
 | Hooks | `hooks/hooks.json` | Claude Code |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
-| Hooks | `clients/codex/hooks/hooks.json` | Codex / ChatGPT (`SubagentStart`) |
+| Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT (`SubagentStart`) |
 | Codex adapter | `.codex-plugin/plugin.json` | Codex / ChatGPT |
 | Rule | `clients/cursor/rules/` | Cursor |
 
@@ -59,7 +59,8 @@ infers transport from `url` in `clients/cursor/mcp.json`.
 
 Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
 `SessionStart` and `UserPromptSubmit` from that file. Codex loads the
-shared manifest plus `clients/codex/hooks/hooks.json` for `SubagentStart`.
+`hooks/hooks.json` for session and prompt hooks plus
+`com.openai/hooks/hooks.json` for `SubagentStart`.
 Copilot's native hook schema differs; skills provide routing guidance on
 that client.
 

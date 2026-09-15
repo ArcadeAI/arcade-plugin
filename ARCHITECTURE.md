@@ -7,8 +7,8 @@ Commands, hooks, and the Cursor rule are host adapters, not portable
 Agent Plugins components. The package still ships no credentials.
 
 Hook scripts live in `hooks/*.mjs`. Hook manifests are per client (`hooks/hooks.json`
-for Claude, `clients/cursor/hooks/hooks.json`, `clients/codex/hooks/hooks.json`).
-Do not put client-specific events in the Claude manifest. `scripts/check.mjs`
+for Claude and Codex session hooks, `clients/cursor/hooks/hooks.json`,
+`com.openai/hooks/hooks.json` for Codex `SubagentStart`). `scripts/check.mjs`
 enforces that split.
 
 The customer-facing overview lives in [README.md](README.md). Interaction
@@ -34,9 +34,9 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │   ├── claude/mcp.json                 Claude needs type: http
 │   ├── claude-desktop/
 │   │   └── claude_desktop_config.json  tools-only fallback
-│   └── codex/
-│       └── hooks/hooks.json            Codex-only SubagentStart
+│   └── codex/                          (reserved)
 │
+├── com.openai/hooks/hooks.json         Codex SubagentStart extension
 ├── commands/                           arcade-apps, arcade-connect, arcade-status
 ├── hooks/                              shared hook scripts + Claude hook manifest
 │
