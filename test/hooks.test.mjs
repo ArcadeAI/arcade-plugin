@@ -7,6 +7,7 @@ const CONTEXT_PHRASES = [
   "scale-arcade",
   "arcade-operator",
   "arcade",
+  "needsAuth",
 ];
 
 test("session-start emits Cursor shape with shared guidance", () => {
@@ -37,7 +38,7 @@ test("session-start emits safe default when stdin is invalid", () => {
   assert.match(out.hookSpecificOutput.additionalContext, /try-arcade/);
 });
 
-test("user-prompt-submit injects guidance for substantive prompts", () => {
+test("user-prompt-submit emits Claude shape with shared guidance", () => {
   const result = runHook(
     "user-prompt-submit.mjs",
     '{"prompt":"What is on my calendar tomorrow?"}',
@@ -45,7 +46,22 @@ test("user-prompt-submit injects guidance for substantive prompts", () => {
   assert.equal(result.status, 0, result.stderr);
   const out = JSON.parse(result.stdout.trim());
   assert.equal(out.hookSpecificOutput.hookEventName, "UserPromptSubmit");
-  assert.match(out.hookSpecificOutput.additionalContext, /try-arcade/);
+  for (const phrase of CONTEXT_PHRASES) {
+    assert.match(out.hookSpecificOutput.additionalContext, new RegExp(phrase));
+  }
+});
+
+test("user-prompt-submit emits Cursor shape with shared guidance", () => {
+  const result = runHook(
+    "user-prompt-submit.mjs",
+    '{"prompt":"What is on my calendar tomorrow?","cursor_version":"1.0"}',
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const out = JSON.parse(result.stdout.trim());
+  assert.ok(out.additional_context);
+  for (const phrase of CONTEXT_PHRASES) {
+    assert.match(out.additional_context, new RegExp(phrase));
+  }
 });
 
 test("user-prompt-submit injects guidance for short action follow-ups", () => {

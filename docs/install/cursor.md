@@ -7,7 +7,8 @@ npx plugins add ArcadeAI/arcade-plugin --target cursor
 ```
 
 Reload the window if needed. Open **Customize** and confirm 2 skills, the
-`arcade-operator` agent, and the `arcade` MCP server.
+`arcade-operator` agent, the `arcade` MCP server, and 2 hooks (session start
+and per-turn routing guidance).
 
 ### Advanced: local checkout
 

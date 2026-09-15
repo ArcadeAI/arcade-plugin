@@ -8,7 +8,7 @@ browser. The rows differ in how much of this plugin the client can load.
 
 | Client | Tools | Skills | Subagent | Commands | Rule | Hooks | Install |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
-| **Cursor** | ✅ | 2 | ✅ | 3 | ✅ | ✅ | [guide](install/cursor.md) |
+| **Cursor** | ✅ | 2 | ✅ | 3 | ✅ | 2 | [guide](install/cursor.md) |
 | **Claude Code** | ✅ | 2 | ✅ | 3 | — | 2 | [guide](install/claude-code.md) |
 | **Claude Cowork / desktop** | ✅ | 2 | ✅ | 3 | — | 2 | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | 2 | ✅ | — | — | — | [guide](install/copilot.md) |

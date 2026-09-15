@@ -20,6 +20,32 @@ If the `arcade` server is missing or failing, tell the user to check plugin
 install and MCP settings (`/mcp` in Claude Code). Do not use a different Arcade
 connector instead.
 
+In Cursor, the plugin gateway may appear as `plugin-arcade-arcade` instead of
+`arcade`. Treat it as the same server when it points at `api.arcade.dev`.
+
+## Gateway authentication
+
+Before discovery or delegation, check that the plugin gateway is available and
+authenticated. In Cursor, inspect the namespace status (for example via tool
+discovery): if it shows `needsAuth` or exposes zero tools, stop immediately.
+
+Tell the user to authenticate the Arcade MCP connection in their IDE (Cursor:
+MCP settings for the Arcade plugin gateway). Do not call `mcp_auth` in a loop
+or poll. Do not continue the task through another path.
+
+## No substitutes
+
+When the user asked to use Arcade — or the task is an external-service outcome
+routed here — do **not** complete it through:
+
+- another MCP server (Linear, Slack, Gmail, or a different Arcade gateway);
+- a shell CLI or local tool (for example `orca linear`, `gh`, or curl);
+- a built-in search or direct API call.
+
+If the gateway is unauthenticated or the operator returns `needs_auth` or
+`failed`, surface the blocker and wait. Only use another connector when the
+user explicitly chooses that path after you explain Arcade is blocked.
+
 Use this gateway to complete the requested outcome. Keep tool discovery and API
 details out of the conversation.
 
@@ -74,6 +100,10 @@ When the host provides an `arcade-operator` subagent, delegate the bounded
 external-app task to it. Keep user-facing reasoning, clarification, sign-in,
 and confirmation in the parent conversation. Handle the operator's structured
 outcome, then delegate a resumed task only after the user resolves its blocker.
+
+If the operator returns `needs_auth` or `failed`, relay the blocker to the user
+and stop. Do not retry through another MCP server, CLI, or API to finish the
+task yourself.
 
 When no operator is available, follow the direct execution loop below. The
 result and safety behavior must be the same in either mode.
