@@ -20,6 +20,7 @@ export { POSTHOG_INGEST_HOST, POSTHOG_PROJECT_KEY };
 export const TELEMETRY_EVENTS = {
   SESSION_STARTED: "Plugin session started",
   PROMPT_SUBMITTED: "Plugin prompt submitted",
+  SUBAGENT_STARTED: "Plugin subagent started",
 };
 
 export const PLUGIN_VERSION = readFileSync(join(ROOT, "VERSION"), "utf8").trim();

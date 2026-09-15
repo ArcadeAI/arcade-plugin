@@ -164,14 +164,14 @@ The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
 model to self-report tokens, turns, or success.
 
-Hook-capable hosts (Cursor and Claude Code today) may emit **supplemental**
-funnel telemetry from `hooks/telemetry.mjs`. That path is explicit,
-non-portable, and separate from gateway truth.
+Hook-capable hosts (Cursor, Claude Code, and Codex / ChatGPT) may emit
+**supplemental** funnel telemetry from `hooks/telemetry.mjs`. That path is
+explicit, non-portable, and separate from gateway truth.
 
 | Layer | What it records | Identity |
 | --- | --- | --- |
 | Gateway MCP | Session start, tool calls, auth | Arcade `principalId` / `user_id` |
-| Plugin hooks | Host session start, prompt submit | Hashed host session + `install_id` |
+| Plugin hooks | Session start, prompt submit, subagent start | Hashed host session + `install_id` |
 
 Hook telemetry sends anonymized events to PostHog via `https://p.arcade.dev`.
 Payloads never include prompt text or tool arguments. Opt out with
