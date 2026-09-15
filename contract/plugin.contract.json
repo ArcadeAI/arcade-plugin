@@ -54,7 +54,7 @@
   "marketplace": {
     "description": "Install Arcade in Claude Desktop, Cowork, and Claude Code.",
     "displayName": "Arcade",
-    "logo": "assets/logo.svg",
+    "logo": "assets/logo.png",
     "owner": {
       "name": "Arcade.dev",
       "url": "https://arcade.dev"

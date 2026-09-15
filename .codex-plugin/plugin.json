@@ -15,7 +15,7 @@
   ],
   "version": "0.1.0",
   "displayName": "Arcade",
-  "logo": "assets/logo.svg",
+  "logo": "assets/logo.png",
   "skills": "./skills",
   "hooks": [
     "./hooks/hooks.json",
