@@ -11,7 +11,20 @@ import {
   TELEMETRY_EVENTS,
 } from "../hooks/telemetry.mjs";
 import { isBareContinuation } from "../hooks/prompt-continuation.mjs";
+import { resolvePosthogIngestHost } from "../scripts/constants.mjs";
 import { runHook } from "./helpers.mjs";
+
+test("resolvePosthogIngestHost defaults to production and respects override", () => {
+  assert.equal(resolvePosthogIngestHost({}), "https://p.arcade.dev");
+  assert.equal(
+    resolvePosthogIngestHost({ ARCADE_PLUGIN_POSTHOG_HOST: "https://staging.example/" }),
+    "https://staging.example/",
+  );
+  assert.equal(
+    resolvePosthogIngestHost({ ARCADE_PLUGIN_POSTHOG_HOST: "  " }),
+    "https://p.arcade.dev",
+  );
+});
 
 test("isTelemetryEnabled defaults on and respects opt-out", () => {
   const previous = process.env.ARCADE_PLUGIN_TELEMETRY;
