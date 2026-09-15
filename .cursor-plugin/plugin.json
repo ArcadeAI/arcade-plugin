@@ -14,6 +14,8 @@
     "connected-apps"
   ],
   "version": "0.1.0",
+  "displayName": "Arcade",
+  "logo": "assets/logo.svg",
   "skills": "skills",
   "agents": "agents",
   "commands": "commands",
