@@ -42,9 +42,9 @@ Codex does not run plugin-bundled hooks until you review and trust them.
 After install, open `/hooks` in Codex and trust the Arcade plugin hooks.
 Codex prints a startup warning when hooks still need review.
 
-The plugin ships three hooks. Codex auto-discovers `hooks/hooks.json` for
-`SessionStart` and `UserPromptSubmit`, and loads `SubagentStart` from the
-Agent Plugins `com.openai/hooks/hooks.json` extension namespace.
+The plugin ships three hooks. Codex loads `hooks/hooks.json` for
+`SessionStart` and `UserPromptSubmit`, and `com.openai/hooks/hooks.json`
+for `SubagentStart`. Both paths are declared in `.codex-plugin/plugin.json`.
 
 | Event | Purpose |
 | --- | --- |

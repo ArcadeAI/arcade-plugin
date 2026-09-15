@@ -55,7 +55,10 @@ test("Codex extension hook manifest wires SubagentStart only", async () => {
 test("Codex manifest wires skills, hooks, and MCP adapter paths", async () => {
   const manifest = await readRepoJson(".codex-plugin/plugin.json");
   assert.equal(manifest.skills, "./skills");
-  assert.equal(manifest.hooks, "./hooks/hooks.json");
+  assert.deepEqual(manifest.hooks, [
+    "./hooks/hooks.json",
+    "./com.openai/hooks/hooks.json",
+  ]);
   assert.equal(manifest.mcpServers, "./mcp.json");
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
   assert.equal(await pathExists("hooks/hooks.json"), true);

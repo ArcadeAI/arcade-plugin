@@ -212,8 +212,16 @@ if (!codexHooks.includes('"matcher": ".*"')) {
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
-  if (codexManifest.hooks !== "./hooks/hooks.json") {
-    fail('.codex-plugin/plugin.json: hooks must be "./hooks/hooks.json"');
+  const hooksPaths = codexManifest.hooks;
+  const expectedHooks = ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"];
+  if (
+    !Array.isArray(hooksPaths) ||
+    hooksPaths.length !== expectedHooks.length ||
+    !expectedHooks.every((path, index) => hooksPaths[index] === path)
+  ) {
+    fail(
+      `.codex-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
+    );
   }
   const skillsPath = codexManifest.skills?.replace(/^\.\//, "").replace(/\/$/, "");
   if (skillsPath !== "skills") {

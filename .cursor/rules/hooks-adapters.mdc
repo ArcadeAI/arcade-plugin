@@ -11,7 +11,7 @@ Hook **scripts** are shared under `hooks/*.mjs`. Hook **manifests** (`hooks.json
 |---|---|---|
 | Claude Code | `hooks/hooks.json` | default discovery |
 | Cursor | `clients/cursor/hooks/hooks.json` | `.cursor-plugin/plugin.json` |
-| Codex / ChatGPT | `hooks/hooks.json` + `com.openai/hooks/hooks.json` | auto-discovery + Agent Plugins `com.openai` extension |
+| Codex / ChatGPT | `hooks/hooks.json` + `com.openai/hooks/hooks.json` | `.codex-plugin/plugin.json` (array) |
 
 Do not add client-specific hook events to `hooks/hooks.json`. Codex-only events such as `SubagentStart` belong in `com.openai/hooks/hooks.json` and must use `${PLUGIN_ROOT}`.
 
