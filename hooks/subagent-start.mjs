@@ -2,7 +2,7 @@
 // Subagent routing reminder for Codex-format clients. Always exit 0.
 
 import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
-import { recordTelemetry, TELEMETRY_EVENTS } from "./telemetry.mjs";
+import { recordHookError, recordTelemetry, TELEMETRY_EVENTS } from "./telemetry.mjs";
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -44,8 +44,8 @@ try {
     },
   });
   emitResponse();
-} catch {
-  // A hook must never block subagent startup.
+} catch (error) {
+  recordHookError({ hook: "SubagentStart", error });
   emitResponse();
 }
 

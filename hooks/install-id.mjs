@@ -1,4 +1,4 @@
-/** Stable per-machine install id for correlating hook events with gateway telemetry. */
+/** Stable per-machine install id for PostHog deduplication across hook events. */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
