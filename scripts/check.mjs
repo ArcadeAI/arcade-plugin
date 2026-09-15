@@ -118,6 +118,13 @@ for (const key of ["skills", "agents", "commands", "hooks"]) {
 
 const cursorManifest = json[".cursor-plugin/plugin.json"];
 if (cursorManifest) {
+  if (cursorManifest.displayName !== "Arcade") {
+    fail('.cursor-plugin/plugin.json: displayName must be "Arcade"');
+  }
+  const logoPath = cursorManifest.logo?.replace(/^\.\//, "");
+  if (!logoPath || !existsSync(join(ROOT, logoPath))) {
+    fail(".cursor-plugin/plugin.json: logo must point at a committed asset");
+  }
   for (const key of [
     "skills",
     "agents",
@@ -324,6 +331,13 @@ if (marketplace) {
   const listed = marketplace.plugins?.[0];
   if (!listed || listed.name !== "arcade" || listed.source !== "./") {
     fail('.claude-plugin/marketplace.json: must list plugin "arcade" at source "./"');
+  }
+  if (listed.displayName !== "Arcade") {
+    fail('.claude-plugin/marketplace.json: plugin displayName must be "Arcade"');
+  }
+  const logoPath = listed.logo?.replace(/^\.\//, "");
+  if (!logoPath || !existsSync(join(ROOT, logoPath))) {
+    fail(".claude-plugin/marketplace.json: plugin logo must point at a committed asset");
   }
 }
 

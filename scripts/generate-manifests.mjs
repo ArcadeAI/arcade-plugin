@@ -41,6 +41,13 @@ const identityFields = (contract) => {
   return { name, description, author, homepage, license, keywords };
 };
 
+const listingFields = (contract) => {
+  const { displayName, logo } = contract.marketplace;
+  const fields = { displayName };
+  if (logo) fields.logo = logo;
+  return fields;
+};
+
 const buildManifests = (contract, version) => {
   const { identity, gateway, hosts, marketplace, schemas } = contract;
   const shared = { ...identityFields(contract), version };
@@ -81,6 +88,7 @@ const buildManifests = (contract, version) => {
 
   const cursorPlugin = {
     ...shared,
+    ...listingFields(contract),
     ...hosts.cursor,
   };
 
@@ -91,6 +99,7 @@ const buildManifests = (contract, version) => {
 
   const codexPlugin = {
     ...shared,
+    ...listingFields(contract),
     skills: hosts.codex.skills,
     hooks: hosts.codex.hooks,
     mcpServers: hosts.codex.mcpServers,
@@ -105,7 +114,7 @@ const buildManifests = (contract, version) => {
     plugins: [
       {
         name: identity.name,
-        displayName: marketplace.displayName,
+        ...listingFields(contract),
         source: "./",
         description: identity.description,
         version,
@@ -145,6 +154,7 @@ const collectComponentPaths = (contract) => {
   for (const host of Object.values(contract.hosts)) {
     for (const value of Object.values(host)) add(value);
   }
+  add(contract.marketplace?.logo);
 
   return [...paths].sort();
 };

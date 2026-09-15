@@ -47,11 +47,19 @@ test("generateManifests matches committed golden manifests", async () => {
   );
 
   const cursorPlugin = await readRepoJson(".cursor-plugin/plugin.json");
+  assert.equal(cursorPlugin.displayName, contract.marketplace.displayName);
+  assert.equal(cursorPlugin.logo, contract.marketplace.logo);
   for (const key of ["skills", "agents", "commands", "rules", "hooks", "mcpServers"]) {
     assert.equal(cursorPlugin[key], contract.hosts.cursor[key]);
   }
 
+  const marketplace = await readRepoJson(".claude-plugin/marketplace.json");
+  assert.equal(marketplace.plugins[0].displayName, contract.marketplace.displayName);
+  assert.equal(marketplace.plugins[0].logo, contract.marketplace.logo);
+
   const codexPlugin = await readRepoJson(".codex-plugin/plugin.json");
+  assert.equal(codexPlugin.displayName, contract.marketplace.displayName);
+  assert.equal(codexPlugin.logo, contract.marketplace.logo);
   assert.deepEqual(codexPlugin.hooks, contract.hosts.codex.hooks);
   assert.equal(codexPlugin.skills, contract.hosts.codex.skills);
   assert.equal(codexPlugin.mcpServers, contract.hosts.codex.mcpServers);
