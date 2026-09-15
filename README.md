@@ -95,6 +95,9 @@ anything is sent, created, or deleted.
 
 ## Develop
 
+Agents editing this repo should read [AGENTS.md](AGENTS.md) for hook adapter
+rules. [ARCHITECTURE.md](ARCHITECTURE.md) covers the full contract and layout.
+
 ```bash
 npm ci
 npm run verify

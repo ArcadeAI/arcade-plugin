@@ -45,7 +45,8 @@ when generated output drifts.
 Hook scripts live in `hooks/*.mjs`. Hook manifests are per client (`hooks/hooks.json`
 for Claude and Codex session hooks, `clients/cursor/hooks/hooks.json`,
 `com.openai/hooks/hooks.json` for Codex `SubagentStart`). `scripts/check.mjs`
-enforces that split.
+enforces that split. Maintainer-facing agent guidance lives in
+[AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
 
 The customer-facing overview lives in [README.md](README.md). Interaction
 rules live in the skills; the optional operator and observability boundary
