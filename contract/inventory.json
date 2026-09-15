@@ -37,11 +37,11 @@
   "hook_manifests": [
     {
       "path": "hooks/hooks.json",
-      "sha256": "afc80dcfe57827008e386bfa0723e2247600ba37f6988d3a8fca32ecd0038e31"
+      "sha256": "ea4a0e61fc78bba6332329ce486354f0e1f8bdee3bdc7e8f4fc76b1850037d5f"
     },
     {
       "path": "clients/cursor/hooks/hooks.json",
-      "sha256": "cea9d91910b88e9fec0ea01d442321a7ca800e30c5eb3926953453b6e45f3ef2"
+      "sha256": "a01fa9d2fe1ec4961e2488f4fecc1700cc349282bf15841abbfa653663973ff3"
     },
     {
       "path": "com.openai/hooks/hooks.json",
