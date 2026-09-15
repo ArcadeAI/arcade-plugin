@@ -96,7 +96,9 @@ anything is sent, created, or deleted.
 - **Telemetry (hooks only):** Cursor, Claude Code, and Codex / ChatGPT may
   send anonymized funnel events (session start, prompt length bucket,
   subagent start) to Arcade's PostHog project. No prompt text is included.
-  Set `ARCADE_PLUGIN_TELEMETRY=0` to disable. See
+  Set `ARCADE_PLUGIN_TELEMETRY=0` to disable. Hook failures also append
+  sanitized records locally under `~/.arcade-plugin/self-reports/` (disable with
+  `ARCADE_PLUGIN_SELF_REPORT=0`). See
   [Architecture](ARCHITECTURE.md#observability-boundary).
 
 ## Develop

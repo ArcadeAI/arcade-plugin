@@ -185,3 +185,10 @@ with `ARCADE_PLUGIN_TELEMETRY=0`. Override the project key with
 Each machine gets a stable `install_id` in `~/.arcade-plugin/install-id` (or
 `ARCADE_PLUGIN_INSTALL_ID`) for PostHog deduplication across hook events on that
 install. It is not a join key to gateway MCP sessions.
+
+Hook failures also append sanitized records to `~/.arcade-plugin/self-reports/`
+via `hooks/self-report.mjs`. Allowlisted fields only (timestamp, install id,
+plugin version, host, hook name, error class, optional plugin-internal stack
+frames). No prompt text, paths, or secrets. This spool is local and zero-egress;
+it runs even when PostHog telemetry is opted out. Disable with
+`ARCADE_PLUGIN_SELF_REPORT=0`.

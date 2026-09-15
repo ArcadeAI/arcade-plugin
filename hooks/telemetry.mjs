@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getInstallId } from "./install-id.mjs";
+import { recordSelfReport } from "./self-report.mjs";
 import {
   POSTHOG_INGEST_HOST,
   POSTHOG_PROJECT_KEY,
@@ -47,6 +48,7 @@ export const errorClassFrom = (error) => {
 
 /** @param {{ hookInput?: object, hook: string, error: unknown }} input */
 export const recordHookError = ({ hookInput = {}, hook, error }) => {
+  recordSelfReport({ hookInput, hook, error });
   recordTelemetry({
     event: TELEMETRY_EVENTS.HOOK_ERROR,
     hookInput,
