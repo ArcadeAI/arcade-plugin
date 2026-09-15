@@ -26,11 +26,15 @@ export const PROMPT_REMINDER =
 export const SUBAGENT_CONTEXT =
   'This subagent shares the parent session. Use only the "arcade" MCP server ' +
   "from this plugin (api.arcade.dev). If multiple MCP servers expose Arcade " +
-  "tools, ignore all except arcade. For external service tasks, use " +
-  "try-arcade first. For team or org rollout, use scale-arcade. When " +
-  "arcade-operator is available, delegate the bounded external service task " +
-  "to it instead of calling Arcade tools from the parent or subagent. " +
-  "Do not name discovery or tool internals to the user.";
+  "tools, ignore all except arcade. If the gateway shows needsAuth or has zero " +
+  "tools, stop and tell the user to authenticate the Arcade MCP connection in " +
+  "the IDE — do not substitute another MCP server, CLI, or direct API. For " +
+  "external service tasks, use try-arcade first. For team or org rollout, use " +
+  "scale-arcade. When arcade-operator is available, delegate the bounded external " +
+  "service task to it instead of calling Arcade tools from the parent or subagent. " +
+  "If the operator returns needs_auth or failed, surface that blocker — do not " +
+  "complete the task another way unless the user explicitly chooses a different " +
+  "path. Do not name discovery or tool internals to the user.";
 
 /** Phrases every routing surface must include (checked in CI). */
 export const ROUTING_MARKERS = [
