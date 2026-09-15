@@ -46,9 +46,15 @@ already read:
 | Hooks | `clients/claude/hooks/hooks.json` | Claude Code (post-tool telemetry) |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
 | Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT local runtime (`SubagentStart`) |
-| OpenAI extension | `plugin.json` → `extensions.com.openai` | Codex / ChatGPT local runtime |
+| OpenAI extension | `plugin.json` → `extensions.com.openai` | Codex / ChatGPT local runtime only |
 | Codex fallback | `.codex-plugin/plugin.json` | Older Codex plugin loaders |
 | Rule | `clients/cursor/rules/` | Cursor |
+
+Cursor and Claude do **not** consume root `extensions.*` for hooks, rules, or
+other client-specific components. They keep using `.cursor-plugin/plugin.json`
+and `.claude-plugin/plugin.json` respectively. Only Codex reads
+`extensions.com.openai` from root `plugin.json`. See
+[ARCHITECTURE.md](../ARCHITECTURE.md#host-manifest-wiring).
 
 The subagent filename ends in `.agent.md` so Copilot CLI can discover it.
 Claude Code and Cursor accept any `.md`. Cursor now loads `agents/` because

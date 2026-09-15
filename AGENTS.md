@@ -25,4 +25,15 @@ hooks only.
 `scripts/check.mjs` enforces this split. After editing hook manifests, run
 `npm run verify`.
 
-More context: [ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate).
+## Manifest extensions
+
+Root `plugin.json` may declare `extensions.com.openai` for Codex. Do **not** move
+Cursor or Claude wiring into root `extensions.*` — those hosts ignore unknown
+extension namespaces at runtime and still need generated sidecars
+(`.cursor-plugin/`, `.claude-plugin/`). Do not invent `extensions.dev.cursor`
+or `extensions.com.anthropic`.
+
+More context:
+[ARCHITECTURE.md](ARCHITECTURE.md#host-manifest-wiring) (verified host behavior),
+[ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate) (generate
+and check flow).

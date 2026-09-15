@@ -106,6 +106,41 @@ plugin marketplace via `.claude-plugin/marketplace.json` (`source: "./"`).
 Every client can still run the workflow directly through MCP without the
 operator.
 
+## Host manifest wiring
+
+[Agent Plugins](https://agent-plugins.org) reserves `extensions.{reverse-domain}`
+in root `plugin.json` for client-specific manifest data. Only the clients that
+implement a namespace actually consume it at runtime. This package keeps
+generated sidecars for Cursor and Claude because those hosts still require
+them.
+
+| Host | Reads root `extensions.*`? | Runtime wiring | Verified |
+| --- | --- | --- | --- |
+| Codex / ChatGPT local | Yes — `extensions.com.openai` | Root extension selects `com.openai/hooks/hooks.json`; `.codex-plugin/plugin.json` is a compatibility fallback only | [OpenAI plugin docs](https://developers.openai.com/plugins/build/plugins); Codex install cache preserves root `extensions` without a sidecar |
+| Cursor | No documented namespace | `.cursor-plugin/plugin.json` component paths, or default `hooks/hooks.json` discovery for Agent Plugins roots | [Cursor plugins reference](https://cursor.com/docs/reference/plugins); local probe via `cursor agent --plugin-dir` (sidecar path loads; root `extensions.dev.cursor` does not) |
+| Claude Code | No — field ignored | `.claude-plugin/plugin.json`; default discovery for `skills/`, `hooks/hooks.json`, and related folders | [Claude plugins reference](https://code.claude.com/docs/en/plugins-reference); `claude plugin validate plugin.json` warns that `extensions` is ignored at load time |
+
+Decisions for maintainers:
+
+- Keep generating `.cursor-plugin/` and `.claude-plugin/` until those hosts read
+  an official extension namespace natively.
+- Keep `extensions.com.openai` as the Codex primary selector; do not drop
+  `.codex-plugin/plugin.json` yet.
+- Do not invent `extensions.dev.cursor`, `extensions.com.cursor`, or
+  `extensions.com.anthropic` — no host docs define them, and probes showed
+  Cursor does not load hooks from those keys.
+- Treat `npx plugins discover` as install-tooling introspection, not host
+  runtime behavior. It ignores root `extensions` for hooks and only checks
+  `hooks/hooks.json` at the plugin root plus sidecar manifests.
+
+Optional follow-up (not required for correctness): move Codex listing fields such
+as `displayName` into `extensions.com.openai.interface` in root `plugin.json` and
+let the generator trim duplicated fields from `.codex-plugin/plugin.json`.
+
+Open question: whether Codex executes plugin hooks selected only through root
+`extensions.com.openai` was not proven in non-interactive `codex exec` runs;
+install layout matches the documented extensions-first model.
+
 ## Execution model
 
 Skills should activate from the outcome the person asks for; they must not
