@@ -5,7 +5,7 @@ export const SESSION_CONTEXT =
   "api.arcade.dev). For external service tasks, use try-arcade first. Use " +
   "only that MCP server — not any other server that also exposes Arcade tools. " +
   "If the gateway shows needsAuth or has zero tools, stop and tell the user to " +
-  "authenticate the Arcade MCP connection in Cursor — do not substitute another " +
+  "authenticate the Arcade MCP connection in the IDE — do not substitute another " +
   "MCP server, CLI, or direct API. For team or org rollout, use scale-arcade. " +
   "When arcade-operator is available, delegate the bounded external service task " +
   "to it instead of calling Arcade tools from the parent. If the operator " +
