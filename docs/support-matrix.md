@@ -13,7 +13,7 @@ browser. The rows differ in how much of this plugin the client can load.
 | **Claude Cowork / desktop** | ✅ | 2 | ✅ | 3 | — | 2 | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | 2 | ✅ | — | — | — | [guide](install/copilot.md) |
 | **VS Code** | ✅ | 2 | — | — | — | — | [guide](install/vscode.md) |
-| **Codex / ChatGPT** | ✅ | 2 | — | — | — | — | [guide](install/codex.md) |
+| **Codex / ChatGPT** | ✅ | 2 | — | — | — | ✅ 3 | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | 2 | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
@@ -42,8 +42,9 @@ already read:
 | Desktop config | `clients/claude-desktop/claude_desktop_config.json` | Claude Desktop Chat (tools-only fallback) |
 | Subagent | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Copilot CLI |
 | Commands | `commands/` | Cursor, Claude Code |
-| Hooks | `hooks/hooks.json` | Claude Code |
+| Hooks | `hooks/hooks.json` | Claude Code, Codex / ChatGPT |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
+| Codex adapter | `.codex-plugin/plugin.json` | Codex / ChatGPT |
 | Rule | `clients/cursor/rules/` | Cursor |
 
 The subagent filename ends in `.agent.md` so Copilot CLI can discover it.

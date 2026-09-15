@@ -17,6 +17,11 @@ export const PROMPT_REMINDER =
   "bounded external service task to it instead of calling Arcade tools from " +
   "the parent. Do not name discovery or tool internals to the user.";
 
+export const SUBAGENT_CONTEXT =
+  'This subagent shares the parent session. Use only the "arcade" MCP server ' +
+  "from this plugin (api.arcade.dev). For external service tasks, use " +
+  "try-arcade first. Keep discovery and tool names out of the conversation.";
+
 /** Phrases every routing surface must include (checked in CI). */
 export const ROUTING_MARKERS = [
   "try-arcade",

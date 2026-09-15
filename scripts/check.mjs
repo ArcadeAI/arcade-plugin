@@ -59,6 +59,7 @@ for (const required of [
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
+  ".codex-plugin/plugin.json",
 ]) {
   if (!existsSync(join(ROOT, required))) {
     fail(`missing required path: ${required}`);
@@ -184,6 +185,21 @@ for (const hooksFile of ["hooks/hooks.json"]) {
   }
   if (!content.includes("hooks/user-prompt-submit.mjs")) {
     fail(`${hooksFile}: must reference hooks/user-prompt-submit.mjs`);
+  }
+  if (!content.includes("hooks/subagent-start.mjs")) {
+    fail(`${hooksFile}: must reference hooks/subagent-start.mjs`);
+  }
+}
+
+const codexManifest = json[".codex-plugin/plugin.json"];
+if (codexManifest) {
+  const hooksPath = codexManifest.hooks?.replace(/^\.\//, "");
+  if (hooksPath !== "hooks/hooks.json") {
+    fail('.codex-plugin/plugin.json: hooks must point at "./hooks/hooks.json"');
+  }
+  const mcpPath = codexManifest.mcpServers?.replace(/^\.\//, "");
+  if (mcpPath !== "mcp.json") {
+    fail('.codex-plugin/plugin.json: mcpServers must point at "./mcp.json"');
   }
 }
 

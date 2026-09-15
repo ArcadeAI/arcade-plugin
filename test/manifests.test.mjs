@@ -32,12 +32,20 @@ test("Cursor hook command uses CURSOR_PLUGIN_ROOT and resolves to a real file", 
 test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
 
-  for (const event of ["SessionStart", "UserPromptSubmit"]) {
+  for (const event of ["SessionStart", "UserPromptSubmit", "SubagentStart"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
+});
+
+test("Codex manifest wires hooks and MCP adapter paths", async () => {
+  const manifest = await readRepoJson(".codex-plugin/plugin.json");
+  assert.equal(manifest.hooks, "./hooks/hooks.json");
+  assert.equal(manifest.mcpServers, "./mcp.json");
+  assert.equal(await pathExists("hooks/hooks.json"), true);
+  assert.equal(await pathExists("mcp.json"), true);
 });
 
 test(".cursor-plugin manifest paths exist", async () => {

@@ -34,5 +34,6 @@ test("VERSIONED_MANIFESTS covers every checked adapter manifest", () => {
     ".cursor-plugin/plugin.json",
     ".claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
+    ".codex-plugin/plugin.json",
   ]);
 });

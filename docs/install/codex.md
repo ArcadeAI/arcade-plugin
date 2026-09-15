@@ -1,8 +1,8 @@
 # Install in Codex or ChatGPT
 
 Codex and ChatGPT share one plugin directory, so a single install shows up on
-both surfaces. You get the Arcade gateway and both skills. Codex does not
-load `arcade-operator`.
+both surfaces. You get the Arcade gateway, both skills, and lifecycle hooks.
+Codex does not load `arcade-operator`.
 
 ## Install
 
@@ -35,6 +35,20 @@ in a repo):
 
 `try-arcade` and `scale-arcade` should appear as skills, and the `arcade`
 MCP server should be connected.
+
+### Trust plugin hooks
+
+Codex does not run plugin-bundled hooks until you review and trust them.
+After install, open `/hooks` in Codex and trust the Arcade plugin hooks.
+Codex prints a startup warning when hooks still need review.
+
+The plugin ships three hooks from `hooks/hooks.json`:
+
+| Event | Purpose |
+| --- | --- |
+| `SessionStart` | Session routing guidance |
+| `UserPromptSubmit` | Per-turn Arcade reminder |
+| `SubagentStart` | Subagent routing guidance |
 
 ## Sign in
 

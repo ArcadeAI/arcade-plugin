@@ -20,6 +20,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 ├── .cursor-plugin/plugin.json          Cursor Plugin (skills + operator)
 ├── .claude-plugin/plugin.json          Claude plugin (skills + operator)
 ├── .claude-plugin/marketplace.json     Claude Desktop / Code marketplace catalog
+├── .codex-plugin/plugin.json           Codex hooks + portable MCP
 ├── clients/
 │   ├── cursor/
 │   │   ├── mcp.json                    Cursor infers transport from url
@@ -30,7 +31,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │       └── claude_desktop_config.json  tools-only fallback
 │
 ├── commands/                           arcade-apps, arcade-connect, arcade-status
-├── hooks/                              Claude Code session + per-turn hooks
+├── hooks/                              Claude/Codex lifecycle hooks
 │
 ├── README.md                           customer-facing overview
 ├── ARCHITECTURE.md                     this file
