@@ -19,7 +19,7 @@
     },
     {
       "path": ".cursor-plugin/plugin.json",
-      "sha256": "1815abdd8ebe99c98e350d06789a384c4a83d41ab72598c51be8d9faed75e2e7"
+      "sha256": "26fa5d2bf10bf2508dde4d71e7dd203979f17caa3e65143c1c7fc214a0379272"
     },
     {
       "path": ".claude-plugin/plugin.json",
@@ -27,16 +27,16 @@
     },
     {
       "path": ".claude-plugin/marketplace.json",
-      "sha256": "699487aaadd2d63ebef54ed28edc4ae97dfee164a99346df4fc6e52f215756c7"
+      "sha256": "92e5e17167a31e69c027e1c4743008bb8c7e1af7b7100eefafb57221d76bcab2"
     },
     {
       "path": ".codex-plugin/plugin.json",
-      "sha256": "da21d6f61b16a93c649eef303ec90f829a993a4def28b0937030fda739491acb"
+      "sha256": "ecb381be78da2d24269ef1b64479787a41e0a1f213e2330b8703be6d1371ea76"
     }
   ],
   "components": [
     "agents",
-    "assets/logo.svg",
+    "assets/logo.png",
     "clients/claude/mcp.json",
     "clients/cursor/hooks/hooks.json",
     "clients/cursor/mcp.json",
