@@ -16,7 +16,7 @@ export const runHook = (script, stdin = "", env = {}) => {
     input: stdin,
     encoding: "utf8",
     cwd: ROOT,
-    env: { ...process.env, ...env },
+    env: { ...process.env, ARCADE_PLUGIN_TELEMETRY: "0", ...env },
   });
 
   return result;
