@@ -7,7 +7,22 @@ const CONTEXT_PHRASES = [
   "scale-arcade",
   "arcade-operator",
   "arcade",
+  "needsAuth",
+  "setup or connection failure",
 ];
+
+test("routing guidance distinguishes auth from gateway failures", async () => {
+  const { PROMPT_REMINDER, SESSION_CONTEXT, SUBAGENT_CONTEXT } =
+    await import("../hooks/routing-guidance.mjs");
+
+  for (const context of [SESSION_CONTEXT, PROMPT_REMINDER, SUBAGENT_CONTEXT]) {
+    assert.match(context, /explicitly shows needsAuth/);
+    assert.match(context, /namespace is present but has zero tools/);
+    assert.match(context, /missing, unavailable, or failing gateway/);
+    assert.match(context, /setup or connection failure/);
+    assert.doesNotMatch(context, /needsAuth or unavailable/);
+  }
+});
 
 test("session-start emits Cursor shape with shared guidance", () => {
   const result = runHook("session-start.mjs", '{"cursor_version":"1.0"}');
@@ -45,7 +60,9 @@ test("user-prompt-submit injects guidance for substantive prompts", () => {
   assert.equal(result.status, 0, result.stderr);
   const out = JSON.parse(result.stdout.trim());
   assert.equal(out.hookSpecificOutput.hookEventName, "UserPromptSubmit");
-  assert.match(out.hookSpecificOutput.additionalContext, /try-arcade/);
+  for (const phrase of CONTEXT_PHRASES) {
+    assert.match(out.hookSpecificOutput.additionalContext, new RegExp(phrase));
+  }
 });
 
 test("user-prompt-submit injects guidance for short action follow-ups", () => {
@@ -98,4 +115,3 @@ test("subagent-start emits safe default when stdin is invalid", () => {
   assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
   assert.match(out.hookSpecificOutput.additionalContext, /try-arcade/);
 });
-
