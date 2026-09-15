@@ -23,5 +23,10 @@ test("Claude Desktop guide documents the marketplace install", async () => {
   const guide = await readRepoFile("docs/install/claude-desktop.md");
   assert.match(guide, /claude plugin marketplace add ArcadeAI\/arcade-plugin/);
   assert.match(guide, /claude plugin install arcade@arcade/);
+  assert.match(
+    guide,
+    /github\.com\/ArcadeAI\/arcade-plugin\/releases\/latest\/download\/arcade-claude\.zip/,
+  );
+  assert.match(guide, /Organization settings → Plugins → Add plugins → Upload a file/);
   assert.doesNotMatch(guide, /arcade\.mcpb/);
 });

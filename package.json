@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check.mjs",
+    "package:claude": "node scripts/package-claude.mjs",
     "test": "node --test",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "verify:discover": "plugins discover .",

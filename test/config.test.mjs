@@ -54,6 +54,8 @@ test("release-please config syncs every VERSIONed manifest", async () => {
 
   const workflow = await readRepoFile(".github/workflows/release-please.yml");
   assert.match(workflow, /release-please-action@v4/);
+  assert.match(workflow, /npm run package:claude/);
+  assert.match(workflow, /gh release upload.*arcade-claude\.zip/);
 });
 test("CI toolchain versions are pinned in package.json", async () => {
   const packageJson = await readRepoJson("package.json");
@@ -68,7 +70,10 @@ test("CI toolchain versions are pinned in package.json", async () => {
     packageJson.scripts?.["verify:claude"],
     "claude plugin validate .",
   );
+  assert.equal(packageJson.scripts?.["package:claude"], "node scripts/package-claude.mjs");
 
   const workflow = await readRepoFile(".github/workflows/check.yml");
   assert.match(workflow, new RegExp(`node-version: "${CI_NODE_VERSION}"`));
+  assert.match(workflow, /npm run package:claude/);
+  assert.match(workflow, /claude plugin validate.*arcade-plugin/);
 });

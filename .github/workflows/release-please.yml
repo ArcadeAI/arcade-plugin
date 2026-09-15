@@ -14,7 +14,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - uses: actions/checkout@v4
+        if: steps.release.outputs.release_created == 'true'
+        with:
+          ref: ${{ steps.release.outputs.tag_name }}
+
+      - uses: actions/setup-node@v4
+        if: steps.release.outputs.release_created == 'true'
+        with:
+          node-version: "22.23.2"
+          cache: npm
+
+      - name: Build and validate Claude upload ZIP
+        if: steps.release.outputs.release_created == 'true'
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npm run package:claude
+          unzip -q dist/arcade-claude.zip -d "$RUNNER_TEMP/arcade-plugin"
+          npm exec --no -- claude plugin validate "$RUNNER_TEMP/arcade-plugin"
+
+      - name: Attach Claude upload ZIP to release
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh release upload "$RELEASE_TAG" dist/arcade-claude.zip

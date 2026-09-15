@@ -35,6 +35,12 @@ jobs:
       - name: Claude plugin validation
         run: npm run verify:claude
 
+      - name: Claude upload ZIP validation
+        run: |
+          npm run package:claude
+          unzip -q dist/arcade-claude.zip -d "$RUNNER_TEMP/arcade-plugin"
+          npm exec --no -- claude plugin validate "$RUNNER_TEMP/arcade-plugin"
+
   complete:
     runs-on: ubuntu-latest
     if: >-

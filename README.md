@@ -33,6 +33,9 @@ install to one client. See [install guides](docs/install/) for details.
 Add this repository as a plugin marketplace, then install Arcade.
 [Guide →](docs/install/claude-desktop.md)
 
+**Organization install:** [Download the Claude plugin ZIP](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade-claude.zip)
+and upload it through **Organization settings → Plugins → Add plugins → Upload a file**.
+
 ### Tools only
 
 Any MCP client (including OpenCode):
@@ -115,6 +118,12 @@ Use **`complete`** as the only required status check in branch protection.
 Release Please opens a release PR on `main` with version bumps across `VERSION`,
 adapter manifests, and `CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and
 create the GitHub release.
+
+The release workflow builds and validates the Claude plugin ZIP from the release
+tag, then attaches `arcade-claude.zip`. The
+[latest download](https://github.com/ArcadeAI/arcade-plugin/releases/latest/download/arcade-claude.zip)
+keeps the same URL across releases. CI also validates the extracted ZIP on pull
+requests. To build locally, run `npm run package:claude`.
 
 Configure paths in `release-please-config.json`. The workflow lives at
 `.github/workflows/release-please.yml`.
