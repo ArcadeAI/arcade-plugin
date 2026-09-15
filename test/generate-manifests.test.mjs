@@ -57,8 +57,17 @@ test("generateManifests matches committed host manifests", async () => {
   assert.equal(claudeMcp.mcpServers.arcade.type, "http");
   assert.equal(claudeMcp.mcpServers.arcade.url, mcp.mcpServers.arcade.url);
 
+<<<<<<< HEAD
   const cursorPlugin = await readRepoJson(".cursor-plugin/plugin.json");
   assert.equal(cursorPlugin.displayName, PLUGIN_DISPLAY_NAME);
+=======
+  const claudePlugin = await readRepoJson(".claude-plugin/plugin.json");
+  assert.deepEqual(claudePlugin.hooks, [
+    "./hooks/hooks.json",
+    "./clients/claude/hooks/hooks.json",
+  ]);
+  assert.equal(claudePlugin.mcpServers, "./clients/claude/mcp.json");
+>>>>>>> 0889bb0 (Split Claude post-tool hooks out of shared Codex manifest.)
 
   const codexPlugin = await readRepoJson(".codex-plugin/plugin.json");
   assert.equal(codexPlugin.displayName, PLUGIN_DISPLAY_NAME);

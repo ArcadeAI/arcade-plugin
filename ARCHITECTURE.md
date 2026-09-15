@@ -15,10 +15,12 @@ client MCP adapters plus `.cursor-plugin/`, `.claude-plugin/`, and the optional
 `.codex-plugin/` compatibility manifest.
 
 Hook manifests stay hand-authored because each host has its own event schema:
-`hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-and `com.openai/hooks/hooks.json` for Codex. Structural and behavioral tests
-validate the split directly; no generated hash inventory sits between the
-manifests and the runtime checks.
+`hooks/hooks.json` for shared Claude/Codex events,
+`clients/claude/hooks/hooks.json` for Claude-only events,
+`clients/cursor/hooks/hooks.json` for Cursor, and
+`com.openai/hooks/hooks.json` for Codex-only events. Structural and behavioral
+tests validate the split directly; no generated hash inventory sits between
+the manifests and the runtime checks.
 
 ```text
 plugin.json + mcp.json + VERSION

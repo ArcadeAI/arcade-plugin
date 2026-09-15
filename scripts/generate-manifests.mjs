@@ -72,6 +72,7 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   const claudePlugin = {
     ...shared,
     mcpServers: "./clients/claude/mcp.json",
+    hooks: ["./hooks/hooks.json", "./clients/claude/hooks/hooks.json"],
   };
   const codexPlugin = {
     ...shared,

@@ -111,7 +111,7 @@ for (const manifest of [".cursor-plugin/plugin.json", ".claude-plugin/plugin.jso
   }
 }
 
-for (const key of ["skills", "agents", "commands", "hooks"]) {
+for (const key of ["skills", "agents", "commands"]) {
   if (key in (json[".claude-plugin/plugin.json"] ?? {})) {
     fail(
       `.claude-plugin/plugin.json: drop "${key}" — Claude discovers default locations automatically`,
@@ -211,6 +211,11 @@ if (claudeHooks.includes("SubagentStart")) {
     "hooks/hooks.json: Arcade wires SubagentStart only in com.openai/hooks/hooks.json",
   );
 }
+if (claudeHooks.includes("PostToolUse") || claudeHooks.includes("PostToolUseFailure")) {
+  fail(
+    "hooks/hooks.json: PostToolUse hooks are Claude-only — use clients/claude/hooks/hooks.json",
+  );
+}
 
 const codexHooks = read("com.openai/hooks/hooks.json");
 if (!codexHooks.includes("${PLUGIN_ROOT}")) {
@@ -284,14 +289,33 @@ if (!cursorHooksJson.includes("postToolUseFailure")) {
   fail("clients/cursor/hooks/hooks.json: must wire postToolUseFailure for arcade MCP telemetry");
 }
 
-if (!claudeHooks.includes("PostToolUse")) {
-  fail("hooks/hooks.json: must wire PostToolUse for Arcade telemetry");
+const claudePostToolHooks = read("clients/claude/hooks/hooks.json");
+if (!claudePostToolHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
+  fail("clients/claude/hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}");
 }
-if (!claudeHooks.includes("PostToolUseFailure")) {
-  fail("hooks/hooks.json: must wire PostToolUseFailure for Arcade telemetry");
+if (!claudePostToolHooks.includes("PostToolUse")) {
+  fail("clients/claude/hooks/hooks.json: must wire PostToolUse for arcade MCP telemetry");
 }
-if (!claudeHooks.includes("hooks/post-arcade-tool.mjs")) {
-  fail("hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+if (!claudePostToolHooks.includes("PostToolUseFailure")) {
+  fail("clients/claude/hooks/hooks.json: must wire PostToolUseFailure for arcade MCP telemetry");
+}
+if (!claudePostToolHooks.includes("hooks/post-arcade-tool.mjs")) {
+  fail("clients/claude/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+}
+
+const claudeManifest = json[".claude-plugin/plugin.json"];
+if (claudeManifest) {
+  const hooksPaths = claudeManifest.hooks;
+  const expectedHooks = ["./hooks/hooks.json", "./clients/claude/hooks/hooks.json"];
+  if (
+    !Array.isArray(hooksPaths) ||
+    hooksPaths.length !== expectedHooks.length ||
+    !expectedHooks.every((path, index) => hooksPaths[index] === path)
+  ) {
+    fail(
+      `.claude-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
+    );
+  }
 }
 
 const marketplace = json[".claude-plugin/marketplace.json"];

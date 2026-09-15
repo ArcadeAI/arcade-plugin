@@ -41,21 +41,31 @@ test("Cursor hook commands use CURSOR_PLUGIN_ROOT and resolve to real files", as
   );
 });
 
-test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
+test("Shared Claude/Codex hook manifest wires session and prompt only", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
 
-  for (const event of ["SessionStart", "UserPromptSubmit", "PostToolUse", "PostToolUseFailure"]) {
+  for (const event of ["SessionStart", "UserPromptSubmit"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
-  for (const event of ["PostToolUse", "PostToolUseFailure"]) {
-    const command = hooks.hooks[event][0].hooks[0].command;
-    assert.match(command, /post-arcade-tool\.mjs/);
-  }
   assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear");
   assert.equal(hooks.hooks.SubagentStart, undefined);
+  assert.equal(hooks.hooks.PostToolUse, undefined);
+  assert.equal(hooks.hooks.PostToolUseFailure, undefined);
+});
+
+test("Claude post-tool hook manifest wires MCP telemetry only", async () => {
+  const hooks = await readRepoJson("clients/claude/hooks/hooks.json");
+
+  for (const event of ["PostToolUse", "PostToolUseFailure"]) {
+    const command = hooks.hooks[event][0].hooks[0].command;
+    assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
+    assert.match(command, /post-arcade-tool\.mjs/);
+    const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
+    assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+  }
   assert.match(
     hooks.hooks.PostToolUse[0].matcher,
     /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
