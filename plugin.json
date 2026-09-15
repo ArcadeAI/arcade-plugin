@@ -18,7 +18,10 @@
   "repository": "https://github.com/ArcadeAI/arcade-plugin",
   "extensions": {
     "com.openai": {
-      "hooks": "./com.openai/hooks/hooks.json"
+      "hooks": [
+        "./hooks/hooks.json",
+        "./com.openai/hooks/hooks.json"
+      ]
     }
   }
 }

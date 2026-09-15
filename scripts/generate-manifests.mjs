@@ -77,7 +77,7 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   const codexPlugin = {
     ...shared,
     ...listingFields(),
-    hooks: "./com.openai/hooks/hooks.json",
+    hooks: ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"],
   };
   const marketplaceManifest = {
     $schema: "https://json.schemastore.org/claude-code-marketplace.json",

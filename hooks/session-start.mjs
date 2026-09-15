@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Shared session-start hook. Cursor and Claude send different stdin
+// Shared session-start hook. Hosts send different stdin
 // shapes; emit the one the caller understands. Always exit 0.
 
+import { readHookInput } from "./hook-input.mjs";
 import { SESSION_CONTEXT } from "./routing-guidance.mjs";
 import {
   detectHost,
@@ -9,25 +10,6 @@ import {
   recordTelemetry,
   TELEMETRY_EVENTS,
 } from "./telemetry.mjs";
-
-const readStdin = async () => {
-  if (process.stdin.isTTY) return "";
-  let data = "";
-  try {
-    for await (const chunk of process.stdin) data += chunk;
-  } catch {
-    // No stdin — default platform below.
-  }
-  return data;
-};
-
-const parseInput = (rawInput) => {
-  try {
-    return JSON.parse(rawInput);
-  } catch {
-    return {};
-  }
-};
 
 const emitResponse = (platform) => {
   const response =
@@ -43,7 +25,7 @@ const emitResponse = (platform) => {
 };
 
 try {
-  const hookInput = parseInput(await readStdin());
+  const hookInput = await readHookInput();
   const platform = detectHost(hookInput);
   recordTelemetry({
     event: TELEMETRY_EVENTS.SESSION_STARTED,

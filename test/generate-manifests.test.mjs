@@ -41,9 +41,9 @@ test("generateManifests matches committed host manifests", async () => {
 
   const portable = await readRepoJson("plugin.json");
   assert.equal(portable.version, version);
-  assert.equal(
+  assert.deepEqual(
     portable.extensions?.["com.openai"]?.hooks,
-    "./com.openai/hooks/hooks.json",
+    ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"],
   );
 
   const mcp = await readRepoJson("mcp.json");
@@ -57,21 +57,22 @@ test("generateManifests matches committed host manifests", async () => {
   assert.equal(claudeMcp.mcpServers.arcade.type, "http");
   assert.equal(claudeMcp.mcpServers.arcade.url, mcp.mcpServers.arcade.url);
 
-<<<<<<< HEAD
   const cursorPlugin = await readRepoJson(".cursor-plugin/plugin.json");
   assert.equal(cursorPlugin.displayName, PLUGIN_DISPLAY_NAME);
-=======
+
   const claudePlugin = await readRepoJson(".claude-plugin/plugin.json");
   assert.deepEqual(claudePlugin.hooks, [
     "./hooks/hooks.json",
     "./clients/claude/hooks/hooks.json",
   ]);
   assert.equal(claudePlugin.mcpServers, "./clients/claude/mcp.json");
->>>>>>> 0889bb0 (Split Claude post-tool hooks out of shared Codex manifest.)
 
   const codexPlugin = await readRepoJson(".codex-plugin/plugin.json");
   assert.equal(codexPlugin.displayName, PLUGIN_DISPLAY_NAME);
-  assert.equal(codexPlugin.hooks, "./com.openai/hooks/hooks.json");
+  assert.deepEqual(codexPlugin.hooks, [
+    "./hooks/hooks.json",
+    "./com.openai/hooks/hooks.json",
+  ]);
   assert.equal(codexPlugin.skills, undefined);
   assert.equal(codexPlugin.mcpServers, undefined);
 });

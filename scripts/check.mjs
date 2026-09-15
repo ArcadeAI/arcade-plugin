@@ -61,6 +61,9 @@ for (const required of [
   "agents",
   "commands",
   "hooks/hooks.json",
+  "clients/claude/hooks/hooks.json",
+  "clients/cursor/hooks/hooks.json",
+  "com.openai/hooks/hooks.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
@@ -85,12 +88,16 @@ if (portable) {
   if (portable.repository !== "https://github.com/ArcadeAI/arcade-plugin") {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
   }
+  const expectedCodexHooks = [
+    "./hooks/hooks.json",
+    "./com.openai/hooks/hooks.json",
+  ];
   if (
-    portable.extensions?.["com.openai"]?.hooks !==
-    "./com.openai/hooks/hooks.json"
+    JSON.stringify(portable.extensions?.["com.openai"]?.hooks) !==
+    JSON.stringify(expectedCodexHooks)
   ) {
     fail(
-      'plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"',
+      `plugin.json: extensions.com.openai.hooks must be ${JSON.stringify(expectedCodexHooks)}`,
     );
   }
 }
@@ -203,8 +210,8 @@ if (!claudeHooks.includes("hooks/session-start.mjs")) {
 if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
   fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
 }
-if (!claudeHooks.includes('"matcher": "startup|resume|clear"')) {
-  fail('hooks/hooks.json: SessionStart must match startup, resume, and clear');
+if (!claudeHooks.includes('"matcher": "startup|resume|clear|compact"')) {
+  fail('hooks/hooks.json: SessionStart must match startup, resume, clear, and compact');
 }
 if (claudeHooks.includes("SubagentStart")) {
   fail(
@@ -221,13 +228,12 @@ const codexHooks = read("com.openai/hooks/hooks.json");
 if (!codexHooks.includes("${PLUGIN_ROOT}")) {
   fail("com.openai/hooks/hooks.json: must use ${PLUGIN_ROOT}");
 }
-for (const script of [
-  "hooks/session-start.mjs",
-  "hooks/user-prompt-submit.mjs",
-  "hooks/subagent-start.mjs",
-]) {
-  if (!codexHooks.includes(script)) {
-    fail(`com.openai/hooks/hooks.json: must reference ${script}`);
+if (!codexHooks.includes("hooks/subagent-start.mjs")) {
+  fail("com.openai/hooks/hooks.json: must reference hooks/subagent-start.mjs");
+}
+for (const sharedEvent of ["SessionStart", "UserPromptSubmit"]) {
+  if (codexHooks.includes(sharedEvent)) {
+    fail(`com.openai/hooks/hooks.json: ${sharedEvent} belongs in hooks/hooks.json`);
   }
 }
 for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
@@ -246,9 +252,10 @@ if (codexManifest) {
       `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
-  if (codexManifest.hooks !== "./com.openai/hooks/hooks.json") {
+  const expectedHooks = ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"];
+  if (JSON.stringify(codexManifest.hooks) !== JSON.stringify(expectedHooks)) {
     fail(
-      '.codex-plugin/plugin.json: hooks must be "./com.openai/hooks/hooks.json"',
+      `.codex-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
     );
   }
   for (const portableComponent of ["skills", "mcpServers"]) {
@@ -263,13 +270,19 @@ if (codexManifest) {
 for (const telemetryFile of [
   "hooks/telemetry.mjs",
   "hooks/telemetry-send.mjs",
-  "hooks/install-id.mjs",
+  "hooks/hook-input.mjs",
   "hooks/prompt-telemetry.mjs",
   "hooks/prompt-continuation.mjs",
   "hooks/post-arcade-tool.mjs",
 ]) {
   if (!existsSync(join(ROOT, telemetryFile))) {
     fail(`missing telemetry file: ${telemetryFile}`);
+  }
+}
+
+for (const statefulTelemetryFile of ["hooks/install-id.mjs", "hooks/self-report.mjs"]) {
+  if (existsSync(join(ROOT, statefulTelemetryFile))) {
+    fail(`${statefulTelemetryFile}: telemetry must not persist local identity or reports`);
   }
 }
 
@@ -287,6 +300,16 @@ if (!cursorHooksJson.includes("afterMCPExecution")) {
 }
 if (!cursorHooksJson.includes("postToolUseFailure")) {
   fail("clients/cursor/hooks/hooks.json: must wire postToolUseFailure for arcade MCP telemetry");
+}
+const cursorHookConfig = json["clients/cursor/hooks/hooks.json"]?.hooks;
+if ("matcher" in (cursorHookConfig?.afterMCPExecution?.[0] ?? {})) {
+  fail("clients/cursor/hooks/hooks.json: afterMCPExecution must filter by mcp_server_name in the hook");
+}
+if (
+  cursorHookConfig?.postToolUseFailure?.[0]?.matcher !==
+  "^(?:MCP:)?Arcade_.*$"
+) {
+  fail("clients/cursor/hooks/hooks.json: postToolUseFailure must use Cursor's MCP tool matcher format");
 }
 
 const claudePostToolHooks = read("clients/claude/hooks/hooks.json");

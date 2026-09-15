@@ -173,25 +173,20 @@ explicit, non-portable, and separate from gateway truth.
 | Layer | What it records | Identity |
 | --- | --- | --- |
 | Gateway MCP | Session start, tool calls, auth | Arcade `principalId` / `user_id` |
-| Plugin hooks | Delivery friction, routing, Arcade MCP tool invocation | Hashed host session + `install_id` |
+| Plugin hooks | Delivery friction, routing, Arcade MCP tool invocation | Hashed host session |
 
 Plugin hook telemetry measures **delivery and friction** (session start, prompt
 submit, routing context injection, bare-continuation skips, hook errors) and
 **Arcade MCP tool invocation** (tool name and success/failure only). It does not
 replace gateway truth for auth, request outcomes, or tool payloads.
 
-Hook telemetry sends anonymized events to PostHog via `https://p.arcade.dev`.
-Payloads never include prompt text, tool arguments, or tool responses. Opt out
-with `ARCADE_PLUGIN_TELEMETRY=0`. Override the project key with
-`ARCADE_PLUGIN_POSTHOG_KEY` or the ingest host with `ARCADE_PLUGIN_POSTHOG_HOST`.
+Hook telemetry is off by default. Set `ARCADE_PLUGIN_TELEMETRY=1` to send events
+to PostHog via `https://p.arcade.dev`. Payloads use an event-specific property
+allowlist and never include prompt text, tool arguments, tool responses, paths,
+or error messages. Session IDs are hashed before capture, and events disable
+PostHog person profiles. The plugin does not create a persistent machine
+identifier or write telemetry reports to disk.
 
-Each machine gets a stable `install_id` in `~/.arcade-plugin/install-id` (or
-`ARCADE_PLUGIN_INSTALL_ID`) for PostHog deduplication across hook events on that
-install. It is not a join key to gateway MCP sessions.
-
-Hook failures also append sanitized records to `~/.arcade-plugin/self-reports/`
-via `hooks/self-report.mjs`. Allowlisted fields only (timestamp, install id,
-plugin version, host, hook name, error class, optional plugin-internal stack
-frames). No prompt text, paths, or secrets. This spool is local and zero-egress;
-it runs even when PostHog telemetry is opted out. Disable with
-`ARCADE_PLUGIN_SELF_REPORT=0`.
+Override the project key with `ARCADE_PLUGIN_POSTHOG_KEY` or the ingest host
+with `ARCADE_PLUGIN_POSTHOG_HOST`. The detached sender has a two-second timeout,
+and telemetry failures never change hook output or exit status.

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { Readable } from "node:stream";
 import { test } from "node:test";
-import { resetInstallIdCache } from "../hooks/install-id.mjs";
 import {
+  MAX_HOOK_INPUT_BYTES,
+  readHookInput,
+} from "../hooks/hook-input.mjs";
+import {
+  arcadeToolNameFromInput,
   bucketPromptLength,
   buildCapturePayload,
   detectHost,
@@ -10,6 +15,7 @@ import {
   isTelemetryEnabled,
   normalizeArcadeToolName,
   PLUGIN_VERSION,
+  recordTelemetry,
   TELEMETRY_EVENTS,
 } from "../hooks/telemetry.mjs";
 import { isBareContinuation } from "../hooks/prompt-continuation.mjs";
@@ -28,16 +34,25 @@ test("resolvePosthogIngestHost defaults to production and respects override", ()
   );
 });
 
-test("isTelemetryEnabled defaults on and respects opt-out", () => {
-  const previous = process.env.ARCADE_PLUGIN_TELEMETRY;
-  delete process.env.ARCADE_PLUGIN_TELEMETRY;
-  assert.equal(isTelemetryEnabled(), true);
-  process.env.ARCADE_PLUGIN_TELEMETRY = "0";
-  assert.equal(isTelemetryEnabled(), false);
-  process.env.ARCADE_PLUGIN_TELEMETRY = "off";
-  assert.equal(isTelemetryEnabled(), false);
-  if (previous === undefined) delete process.env.ARCADE_PLUGIN_TELEMETRY;
-  else process.env.ARCADE_PLUGIN_TELEMETRY = previous;
+test("readHookInput rejects malformed and oversized payloads", async () => {
+  assert.deepEqual(await readHookInput(Readable.from(['{"session_id":"s1"}'])), {
+    session_id: "s1",
+  });
+  assert.deepEqual(await readHookInput(Readable.from(["not json"])), {});
+  assert.deepEqual(
+    await readHookInput(Readable.from(["x".repeat(MAX_HOOK_INPUT_BYTES + 1)])),
+    {},
+  );
+});
+
+test("isTelemetryEnabled requires explicit opt-in", () => {
+  assert.equal(isTelemetryEnabled({}), false);
+  assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "" }), false);
+  assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "0" }), false);
+  assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "off" }), false);
+  for (const value of ["1", "true", "on", "yes", " YES "]) {
+    assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: value }), true);
+  }
 });
 
 test("bucketPromptLength buckets lengths without storing raw text", () => {
@@ -62,9 +77,10 @@ test("hashDistinctId is stable and does not echo the session id", () => {
 });
 
 test("detectHost distinguishes cursor, codex, and claude shapes", () => {
-  assert.equal(detectHost({ conversation_id: "c1", cursor_version: "1.0" }), "cursor");
-  assert.equal(detectHost({ session_id: "s1", turn_id: "t1" }), "codex");
-  assert.equal(detectHost({ session_id: "s1" }), "claude");
+  assert.equal(detectHost({ conversation_id: "c1", cursor_version: "1.0" }, {}), "cursor");
+  assert.equal(detectHost({ session_id: "s1", turn_id: "t1" }, {}), "codex");
+  assert.equal(detectHost({ session_id: "s1" }, { PLUGIN_ROOT: "/plugin" }), "codex");
+  assert.equal(detectHost({ session_id: "s1" }, {}), "claude");
 });
 
 test("TELEMETRY_EVENTS registry covers lifecycle, routing, errors, and MCP tools", () => {
@@ -90,6 +106,10 @@ test("normalizeArcadeToolName extracts bare tool names from MCP identifiers", ()
     normalizeArcadeToolName("mcp__plugin_arcade_arcade__Arcade_UseTool"),
     "Arcade_UseTool",
   );
+  assert.equal(
+    normalizeArcadeToolName("MCP:Arcade_SelectTools"),
+    "Arcade_SelectTools",
+  );
   assert.equal(normalizeArcadeToolName("Arcade_SelectTools"), "Arcade_SelectTools");
   assert.equal(normalizeArcadeToolName("Shell"), undefined);
   assert.equal(normalizeArcadeToolName(""), undefined);
@@ -102,33 +122,35 @@ test("errorClassFrom never includes stack traces", () => {
   assert.equal(errorClassFrom(null), "UnknownError");
 });
 
-test("buildCapturePayload includes install_id and omits prompt text", () => {
-  const previousInstallId = process.env.ARCADE_PLUGIN_INSTALL_ID;
-  process.env.ARCADE_PLUGIN_INSTALL_ID = "install-test-uuid";
-  resetInstallIdCache();
-
-  const payload = buildCapturePayload({
-    event: TELEMETRY_EVENTS.SESSION_STARTED,
-    hookInput: {
-      conversation_id: "conv-abc",
-      cursor_version: "1.2.3",
-      composer_mode: "agent",
+test("buildCapturePayload has no persistent identity and allowlists properties", () => {
+  const payload = buildCapturePayload(
+    {
+      event: TELEMETRY_EVENTS.SESSION_STARTED,
+      hookInput: {
+        conversation_id: "conv-abc",
+        cursor_version: "1.2.3",
+        composer_mode: "agent",
+      },
+      props: {
+        hook: "sessionStart",
+        source: "startup",
+        prompt: "privacy-canary",
+        arbitrary: "privacy-canary",
+      },
     },
-    props: { hook: "sessionStart" },
-  });
+    {},
+  );
 
   assert.equal(payload.event, TELEMETRY_EVENTS.SESSION_STARTED);
   assert.equal(payload.properties.host, "cursor");
-  assert.equal(payload.properties.install_id, "install-test-uuid");
+  assert.equal(payload.properties.install_id, undefined);
+  assert.equal(payload.properties.$process_person_profile, false);
   assert.equal(payload.properties.plugin_version, PLUGIN_VERSION);
   assert.equal(payload.properties.prompt, undefined);
   assert.equal(payload.properties.tool_input, undefined);
   assert.equal(payload.properties.tool_response, undefined);
   assert.equal(payload.properties.stack, undefined);
-
-  if (previousInstallId === undefined) delete process.env.ARCADE_PLUGIN_INSTALL_ID;
-  else process.env.ARCADE_PLUGIN_INSTALL_ID = previousInstallId;
-  resetInstallIdCache();
+  assert.doesNotMatch(JSON.stringify(payload), /privacy-canary/);
 });
 
 test("buildCapturePayload for arcade tool events includes tool_name only", () => {
@@ -145,6 +167,57 @@ test("buildCapturePayload for arcade tool events includes tool_name only", () =>
   assert.equal(payload.properties.tool_response, undefined);
 });
 
+test("arcadeToolNameFromInput filters Cursor MCP events by server", () => {
+  assert.equal(
+    arcadeToolNameFromInput({
+      mcp_server_name: "arcade",
+      tool_name: "Arcade_SelectTools",
+    }),
+    "Arcade_SelectTools",
+  );
+  assert.equal(
+    arcadeToolNameFromInput({
+      mcp_server_name: "other",
+      tool_name: "Arcade_SelectTools",
+    }),
+    undefined,
+  );
+});
+
+test("recordTelemetry is a no-op until opted in and swallows spawn failures", () => {
+  const calls = [];
+  const child = { once() {}, unref() {} };
+  const spawnProcess = (...args) => {
+    calls.push(args);
+    return child;
+  };
+  const input = {
+    event: TELEMETRY_EVENTS.SESSION_STARTED,
+    hookInput: { session_id: "s1" },
+    props: { hook: "SessionStart", source: "startup" },
+  };
+
+  assert.equal(recordTelemetry(input, { env: {}, spawnProcess }), false);
+  assert.equal(calls.length, 0);
+  assert.equal(
+    recordTelemetry(input, {
+      env: { ARCADE_PLUGIN_TELEMETRY: "1" },
+      spawnProcess,
+    }),
+    true,
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(
+    recordTelemetry(input, {
+      env: { ARCADE_PLUGIN_TELEMETRY: "1" },
+      spawnProcess: () => {
+        throw new Error("spawn failed");
+      },
+    }),
+    false,
+  );
+});
+
 test("prompt-telemetry hook exits cleanly for cursor prompt input", () => {
   const result = runHook(
     "prompt-telemetry.mjs",
@@ -154,14 +227,14 @@ test("prompt-telemetry hook exits cleanly for cursor prompt input", () => {
   assert.equal(result.stdout.trim(), "");
 });
 
-test("session-start still emits cursor shape when telemetry is enabled", () => {
+test("session-start emits the Cursor response shape with telemetry disabled", () => {
   const result = runHook("session-start.mjs", '{"cursor_version":"1.0","conversation_id":"c1"}');
   assert.equal(result.status, 0, result.stderr);
   const out = JSON.parse(result.stdout.trim());
   assert.ok(out.additional_context);
 });
 
-test("subagent-start still emits guidance when telemetry is enabled", () => {
+test("subagent-start emits guidance with telemetry disabled", () => {
   const result = runHook(
     "subagent-start.mjs",
     '{"session_id":"s1","turn_id":"t1","agent_type":"review","agent_id":"a1"}',

@@ -34,10 +34,10 @@ test("Cursor hook commands use CURSOR_PLUGIN_ROOT and resolve to real files", as
     const hookPath = resolvePluginPath(command, "CURSOR_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
-  assert.match(hooks.hooks.afterMCPExecution[0].matcher, /arcade/);
-  assert.match(
+  assert.equal(hooks.hooks.afterMCPExecution[0].matcher, undefined);
+  assert.equal(
     hooks.hooks.postToolUseFailure[0].matcher,
-    /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
+    "^(?:MCP:)?Arcade_.*$",
   );
 });
 
@@ -50,7 +50,7 @@ test("Shared Claude/Codex hook manifest wires session and prompt only", async ()
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
-  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear");
+  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear|compact");
   assert.equal(hooks.hooks.SubagentStart, undefined);
   assert.equal(hooks.hooks.PostToolUse, undefined);
   assert.equal(hooks.hooks.PostToolUseFailure, undefined);
@@ -72,17 +72,12 @@ test("Claude post-tool hook manifest wires MCP telemetry only", async () => {
   );
 });
 
-test("Codex extension hook manifest owns all Codex lifecycle events", async () => {
+test("Codex extension hook manifest owns the Codex-only lifecycle event", async () => {
   const hooks = await readRepoJson("com.openai/hooks/hooks.json");
-  assert.deepEqual(Object.keys(hooks.hooks).sort(), [
-    "SessionStart",
-    "SubagentStart",
-    "UserPromptSubmit",
-  ]);
-  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear|compact");
+  assert.deepEqual(Object.keys(hooks.hooks), ["SubagentStart"]);
   assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 
-  for (const event of ["SessionStart", "SubagentStart", "UserPromptSubmit"]) {
+  for (const event of ["SubagentStart"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{PLUGIN_ROOT\}/);
     assert.doesNotMatch(command, /\$\{(?:CLAUDE|CODEX)_PLUGIN_ROOT\}/);
@@ -95,11 +90,14 @@ test("portable manifest selects the Codex adapter", async () => {
   const portable = await readRepoJson("plugin.json");
   const fallback = await readRepoJson(".codex-plugin/plugin.json");
 
-  assert.equal(
+  assert.deepEqual(
     portable.extensions?.["com.openai"]?.hooks,
-    "./com.openai/hooks/hooks.json",
+    ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"],
   );
-  assert.equal(fallback.hooks, "./com.openai/hooks/hooks.json");
+  assert.deepEqual(fallback.hooks, [
+    "./hooks/hooks.json",
+    "./com.openai/hooks/hooks.json",
+  ]);
   assert.equal(fallback.skills, undefined);
   assert.equal(fallback.mcpServers, undefined);
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
