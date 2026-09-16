@@ -45,7 +45,7 @@ already read:
 | Hooks | `hooks/hooks.json` | Claude Code, Codex (session and prompt) |
 | Hooks | `clients/claude/hooks/hooks.json` | Claude Code (post-tool telemetry) |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
-| Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT local runtime (`SubagentStart`) |
+| Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT local runtime (`SubagentStart`, post-tool telemetry) |
 | OpenAI extension | `plugin.json` → `extensions.com.openai` | Codex / ChatGPT local runtime only |
 | Codex fallback | `.codex-plugin/plugin.json` | Older Codex plugin loaders |
 | Rule | `clients/cursor/rules/` | Cursor |
@@ -67,9 +67,11 @@ infers transport from `url` in `clients/cursor/mcp.json`.
 
 Copilot CLI does not load `hooks/hooks.json`. Claude Code and Codex run
 `SessionStart` and `UserPromptSubmit` from that shared file. Codex adds
-`SubagentStart` from `com.openai/hooks/hooks.json`, selected by the portable
-manifest's OpenAI extension. Claude Code adds post-tool telemetry from
-`clients/claude/hooks/hooks.json`.
+`SubagentStart` and post-tool telemetry from `com.openai/hooks/hooks.json`,
+selected by the portable manifest's OpenAI extension. Claude Code adds post-tool
+telemetry from `clients/claude/hooks/hooks.json`. Cursor uses host-specific MCP
+hook events (`afterMCPExecution`, `postToolUseFailure`) instead of Claude's
+`PostToolUse` shape.
 Copilot's native hook schema differs; skills provide routing guidance on
 that client.
 

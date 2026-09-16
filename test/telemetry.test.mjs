@@ -45,11 +45,12 @@ test("readHookInput rejects malformed and oversized payloads", async () => {
   );
 });
 
-test("isTelemetryEnabled requires explicit opt-in", () => {
-  assert.equal(isTelemetryEnabled({}), false);
-  assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "" }), false);
+test("isTelemetryEnabled defaults on and respects opt-out", () => {
+  assert.equal(isTelemetryEnabled({}), true);
+  assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "" }), true);
   assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "0" }), false);
   assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "off" }), false);
+  assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: "false" }), false);
   for (const value of ["1", "true", "on", "yes", " YES "]) {
     assert.equal(isTelemetryEnabled({ ARCADE_PLUGIN_TELEMETRY: value }), true);
   }
@@ -184,7 +185,7 @@ test("arcadeToolNameFromInput filters Cursor MCP events by server", () => {
   );
 });
 
-test("recordTelemetry is a no-op until opted in and swallows spawn failures", () => {
+test("recordTelemetry respects opt-out and swallows spawn failures", () => {
   const calls = [];
   const child = { once() {}, unref() {} };
   const spawnProcess = (...args) => {
@@ -197,19 +198,19 @@ test("recordTelemetry is a no-op until opted in and swallows spawn failures", ()
     props: { hook: "SessionStart", source: "startup" },
   };
 
-  assert.equal(recordTelemetry(input, { env: {}, spawnProcess }), false);
-  assert.equal(calls.length, 0);
+  assert.equal(recordTelemetry(input, { env: {}, spawnProcess }), true);
+  assert.equal(calls.length, 1);
   assert.equal(
     recordTelemetry(input, {
-      env: { ARCADE_PLUGIN_TELEMETRY: "1" },
+      env: { ARCADE_PLUGIN_TELEMETRY: "0" },
       spawnProcess,
     }),
-    true,
+    false,
   );
   assert.equal(calls.length, 1);
   assert.equal(
     recordTelemetry(input, {
-      env: { ARCADE_PLUGIN_TELEMETRY: "1" },
+      env: {},
       spawnProcess: () => {
         throw new Error("spawn failed");
       },

@@ -37,7 +37,8 @@ Codex prints a startup warning when hooks still need review.
 
 The plugin wires session and prompt hooks from `hooks/hooks.json` (shared with
 Claude Code; Codex resolves `${CLAUDE_PLUGIN_ROOT}` as a compatibility alias)
-and `SubagentStart` from `com.openai/hooks/hooks.json` with `${PLUGIN_ROOT}`.
+and lifecycle plus post-tool telemetry from `com.openai/hooks/hooks.json` with
+`${PLUGIN_ROOT}`.
 Root `plugin.json` selects both adapters through
 `extensions.com.openai.hooks`; `.codex-plugin/plugin.json` lists the same paths
 as a compatibility fallback.
@@ -47,6 +48,7 @@ as a compatibility fallback.
 | `SessionStart` | Session routing guidance |
 | `UserPromptSubmit` | Per-turn Arcade reminder |
 | `SubagentStart` | Subagent routing guidance |
+| `PostToolUse` / `PostToolUseFailure` | Arcade MCP tool outcome telemetry |
 
 ## Sign in
 

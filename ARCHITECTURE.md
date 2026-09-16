@@ -215,8 +215,8 @@ submit, routing context injection, bare-continuation skips, hook errors) and
 **Arcade MCP tool invocation** (tool name and success/failure only). It does not
 replace gateway truth for auth, request outcomes, or tool payloads.
 
-Hook telemetry is off by default. Set `ARCADE_PLUGIN_TELEMETRY=1` to send events
-to PostHog via `https://p.arcade.dev`. Every capture includes `plugin_version`
+Hook telemetry is on by default. Set `ARCADE_PLUGIN_TELEMETRY=0` to opt out.
+Events go to PostHog via `https://p.arcade.dev`. Every capture includes `plugin_version`
 (from `VERSION`) and `host`, plus an event-specific property allowlist. Payloads
 never include prompt text, tool arguments, tool responses, paths, or error
 messages. Session IDs are hashed before capture, and events disable PostHog
@@ -226,3 +226,17 @@ write telemetry reports to disk.
 Override the project key with `ARCADE_PLUGIN_POSTHOG_KEY` or the ingest host
 with `ARCADE_PLUGIN_POSTHOG_HOST`. The detached sender has a two-second timeout,
 and telemetry failures never change hook output or exit status.
+
+### Hook telemetry coverage by host
+
+| Signal | Cursor | Claude Code | Codex / ChatGPT |
+| --- | --- | --- | --- |
+| Session start | `sessionStart` | `SessionStart` (shared) | `SessionStart` (shared) |
+| Prompt submit | `beforeSubmitPrompt` | `UserPromptSubmit` (shared) | `UserPromptSubmit` (shared) |
+| Subagent start | — | — | `SubagentStart` (Codex adapter) |
+| Arcade MCP tool outcome | `afterMCPExecution` + `postToolUseFailure` | `PostToolUse` + `PostToolUseFailure` (Claude adapter) | `PostToolUse` + `PostToolUseFailure` (Codex adapter) |
+
+Cursor has no `PostToolUse` hook surface. It filters Arcade MCP calls in
+`post-arcade-tool.mjs` via `mcp_server_name` on `afterMCPExecution` instead of a
+manifest matcher. Codex does not expose Cursor's `beforeSubmitPrompt` name, but
+the shared `UserPromptSubmit` hook covers prompt-length telemetry there.

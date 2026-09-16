@@ -93,12 +93,13 @@ anything is sent, created, or deleted.
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
 - Privacy: tasks run through Arcade's hosted gateway and the apps you
   connect — [privacy policy](https://www.arcade.dev/privacy-policy).
-- **Optional telemetry (hooks only):** Set `ARCADE_PLUGIN_TELEMETRY=1` to send
-  limited funnel events (session start, prompt length bucket, subagent start,
-  and Arcade tool outcome) to Arcade's PostHog project. Each event includes
-  `plugin_version` for release correlation. It is off by default, includes no
-  prompt text, tool arguments, or tool responses, and writes no telemetry
-  identity or reports to disk. See
+- **Optional telemetry (hooks only):** Cursor, Claude Code, and Codex / ChatGPT
+  send limited funnel events (session start, prompt length bucket, subagent
+  start, and Arcade tool outcome) to Arcade's PostHog project by default. Each
+  event includes `plugin_version` for release correlation. Set
+  `ARCADE_PLUGIN_TELEMETRY=0` to disable. Payloads include no prompt text, tool
+  arguments, or tool responses, and the plugin writes no telemetry identity or
+  reports to disk. See
   [Architecture](ARCHITECTURE.md#observability-boundary).
 
 ## Develop

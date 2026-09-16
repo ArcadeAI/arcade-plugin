@@ -1,4 +1,4 @@
-/** Opt-in plugin-side telemetry. Fire-and-forget PostHog capture via p.arcade.dev. */
+/** Opt-out plugin-side telemetry. Fire-and-forget PostHog capture via p.arcade.dev. */
 
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -34,7 +34,7 @@ const ARCADE_SERVER_NAMES = new Set([
   "plugin_arcade_arcade",
   "plugin-arcade-arcade",
 ]);
-const TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
+const OPT_OUT_VALUES = new Set(["0", "false", "off", "no"]);
 const SAFE_TOKEN_RE = /^[a-zA-Z0-9._:-]{1,64}$/;
 const PROMPT_BUCKETS = new Set(["0", "1-20", "21-100", "101-500", "501+"]);
 const SESSION_SOURCES = new Set(["startup", "resume", "clear", "compact"]);
@@ -94,8 +94,11 @@ export const recordHookError = ({ hookInput = {}, hook, error }) => {
 
 export const PLUGIN_VERSION = readFileSync(join(ROOT, "VERSION"), "utf8").trim();
 
-export const isTelemetryEnabled = (env = process.env) =>
-  TRUE_VALUES.has(env.ARCADE_PLUGIN_TELEMETRY?.trim().toLowerCase());
+export const isTelemetryEnabled = (env = process.env) => {
+  const raw = env.ARCADE_PLUGIN_TELEMETRY?.trim().toLowerCase();
+  if (!raw) return true;
+  return !OPT_OUT_VALUES.has(raw);
+};
 
 export const bucketPromptLength = (length) => {
   if (length <= 0) return "0";

@@ -244,6 +244,15 @@ for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
 if (!codexHooks.includes('"matcher": "*"')) {
   fail('com.openai/hooks/hooks.json: SubagentStart must use matcher "*"');
 }
+if (!codexHooks.includes("PostToolUse")) {
+  fail("com.openai/hooks/hooks.json: must wire PostToolUse for arcade MCP telemetry");
+}
+if (!codexHooks.includes("PostToolUseFailure")) {
+  fail("com.openai/hooks/hooks.json: must wire PostToolUseFailure for arcade MCP telemetry");
+}
+if (!codexHooks.includes("hooks/post-arcade-tool.mjs")) {
+  fail("com.openai/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+}
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {

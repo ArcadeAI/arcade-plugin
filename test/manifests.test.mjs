@@ -72,18 +72,25 @@ test("Claude post-tool hook manifest wires MCP telemetry only", async () => {
   );
 });
 
-test("Codex extension hook manifest owns the Codex-only lifecycle event", async () => {
+test("Codex extension hook manifest wires lifecycle and post-tool telemetry", async () => {
   const hooks = await readRepoJson("com.openai/hooks/hooks.json");
-  assert.deepEqual(Object.keys(hooks.hooks), ["SubagentStart"]);
+  assert.deepEqual(
+    Object.keys(hooks.hooks).sort(),
+    ["PostToolUse", "PostToolUseFailure", "SubagentStart"],
+  );
   assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 
-  for (const event of ["SubagentStart"]) {
+  for (const event of ["SubagentStart", "PostToolUse", "PostToolUseFailure"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{PLUGIN_ROOT\}/);
     assert.doesNotMatch(command, /\$\{(?:CLAUDE|CODEX)_PLUGIN_ROOT\}/);
     const hookPath = resolvePluginPath(command, "PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
+  assert.match(
+    hooks.hooks.PostToolUse[0].matcher,
+    /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
+  );
 });
 
 test("portable manifest selects the Codex adapter", async () => {
