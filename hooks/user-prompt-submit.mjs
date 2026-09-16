@@ -6,7 +6,6 @@ import { PROMPT_REMINDER } from "./routing-guidance.mjs";
 import { readHookInput } from "./hook-input.mjs";
 import { isBareContinuation } from "./prompt-continuation.mjs";
 import {
-  bucketPromptLength,
   recordHookError,
   recordTelemetry,
   TELEMETRY_EVENTS,
@@ -17,30 +16,18 @@ try {
   const prompt = hookInput.prompt ?? "";
   const trimmed = typeof prompt === "string" ? prompt.trim() : "";
   const continuation = trimmed ? isBareContinuation(trimmed) : false;
-  if (trimmed) {
+  if (trimmed && continuation) {
     recordTelemetry({
-      event: TELEMETRY_EVENTS.PROMPT_SUBMITTED,
+      event: TELEMETRY_EVENTS.ROUTING_SKIPPED_BARE_CONTINUATION,
       hookInput,
-      props: {
-        hook: "UserPromptSubmit",
-        prompt_length_bucket: bucketPromptLength(trimmed.length),
-        routing_injected: !continuation,
-        is_continuation: continuation,
-      },
+      props: { hook: "UserPromptSubmit" },
     });
-    if (continuation) {
-      recordTelemetry({
-        event: TELEMETRY_EVENTS.ROUTING_SKIPPED_BARE_CONTINUATION,
-        hookInput,
-        props: { hook: "prompt_submit" },
-      });
-    }
   }
   if (trimmed && !continuation) {
     recordTelemetry({
       event: TELEMETRY_EVENTS.ROUTING_CONTEXT_EMITTED,
       hookInput,
-      props: { hook: "prompt_submit" },
+      props: { hook: "UserPromptSubmit" },
     });
     process.stdout.write(
       JSON.stringify({

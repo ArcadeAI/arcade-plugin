@@ -7,15 +7,15 @@ import {
 } from "../hooks/hook-input.mjs";
 import {
   arcadeToolNameFromInput,
-  arcadeToolOutcomeFromInput,
-  bucketPromptLength,
   buildCapturePayload,
   detectHost,
   errorClassFrom,
   hashDistinctId,
+  hostSessionHashFromInput,
   isTelemetryEnabled,
   normalizeArcadeToolName,
   PLUGIN_VERSION,
+  queryIdFromSelectToolsResponse,
   recordTelemetry,
   TELEMETRY_EVENTS,
 } from "../hooks/telemetry.mjs";
@@ -57,13 +57,6 @@ test("isTelemetryEnabled defaults on and respects opt-out", () => {
   }
 });
 
-test("bucketPromptLength buckets lengths without storing raw text", () => {
-  assert.equal(bucketPromptLength(0), "0");
-  assert.equal(bucketPromptLength(12), "1-20");
-  assert.equal(bucketPromptLength(250), "101-500");
-  assert.equal(bucketPromptLength(900), "501+");
-});
-
 test("isBareContinuation matches short acknowledgements only", () => {
   assert.equal(isBareContinuation("ok"), true);
   assert.equal(isBareContinuation("yes thanks"), true);
@@ -78,6 +71,11 @@ test("hashDistinctId is stable and does not echo the session id", () => {
   assert.doesNotMatch(first, /conv-123/);
 });
 
+test("hostSessionHashFromInput returns undefined without a session key", () => {
+  assert.equal(hostSessionHashFromInput({}), undefined);
+  assert.equal(hostSessionHashFromInput({ cursor_version: "1.0" }), undefined);
+});
+
 test("detectHost distinguishes cursor, codex, and claude shapes", () => {
   assert.equal(detectHost({ conversation_id: "c1", cursor_version: "1.0" }, {}), "cursor");
   assert.equal(detectHost({ session_id: "s1", turn_id: "t1" }, {}), "codex");
@@ -85,18 +83,16 @@ test("detectHost distinguishes cursor, codex, and claude shapes", () => {
   assert.equal(detectHost({ session_id: "s1" }, {}), "claude");
 });
 
-test("TELEMETRY_EVENTS registry covers lifecycle, routing, errors, and MCP tools", () => {
+test("TELEMETRY_EVENTS registry covers lifecycle, routing, discovery link, and errors", () => {
   assert.equal(TELEMETRY_EVENTS.SESSION_STARTED, "Plugin session started");
-  assert.equal(TELEMETRY_EVENTS.PROMPT_SUBMITTED, "Plugin prompt submitted");
   assert.equal(TELEMETRY_EVENTS.SUBAGENT_STARTED, "Plugin subagent started");
   assert.equal(TELEMETRY_EVENTS.ROUTING_CONTEXT_EMITTED, "Plugin routing context emitted");
   assert.equal(
     TELEMETRY_EVENTS.ROUTING_SKIPPED_BARE_CONTINUATION,
     "Plugin routing skipped bare continuation",
   );
+  assert.equal(TELEMETRY_EVENTS.DISCOVERY_LINKED, "Plugin discovery linked");
   assert.equal(TELEMETRY_EVENTS.HOOK_ERROR, "Plugin hook error");
-  assert.equal(TELEMETRY_EVENTS.ARCADE_TOOL_CALLED, "Plugin arcade tool called");
-  assert.equal(TELEMETRY_EVENTS.ARCADE_TOOL_FAILED, "Plugin arcade tool failed");
 });
 
 test("normalizeArcadeToolName extracts bare tool names from MCP identifiers", () => {
@@ -124,7 +120,19 @@ test("errorClassFrom never includes stack traces", () => {
   assert.equal(errorClassFrom(null), "UnknownError");
 });
 
-test("buildCapturePayload has no persistent identity and allowlists properties", () => {
+test("buildCapturePayload skips capture when no session key is present", () => {
+  const payload = buildCapturePayload(
+    {
+      event: TELEMETRY_EVENTS.SESSION_STARTED,
+      hookInput: { cursor_version: "1.2.3" },
+      props: { hook: "sessionStart", source: "startup" },
+    },
+    {},
+  );
+  assert.equal(payload, undefined);
+});
+
+test("buildCapturePayload allowlists properties and includes host_session_hash", () => {
   const payload = buildCapturePayload(
     {
       event: TELEMETRY_EVENTS.SESSION_STARTED,
@@ -148,6 +156,7 @@ test("buildCapturePayload has no persistent identity and allowlists properties",
   assert.equal(payload.properties.install_id, undefined);
   assert.equal(payload.properties.$process_person_profile, false);
   assert.equal(payload.properties.plugin_version, PLUGIN_VERSION);
+  assert.equal(payload.properties.host_session_hash, payload.distinct_id);
   assert.equal(payload.properties.prompt, undefined);
   assert.equal(payload.properties.tool_input, undefined);
   assert.equal(payload.properties.tool_response, undefined);
@@ -155,18 +164,61 @@ test("buildCapturePayload has no persistent identity and allowlists properties",
   assert.doesNotMatch(JSON.stringify(payload), /privacy-canary/);
 });
 
-test("buildCapturePayload for arcade tool events includes tool_name only", () => {
+test("buildCapturePayload for discovery link includes query_id only", () => {
   const payload = buildCapturePayload({
-    event: TELEMETRY_EVENTS.ARCADE_TOOL_CALLED,
+    event: TELEMETRY_EVENTS.DISCOVERY_LINKED,
     hookInput: { session_id: "s1" },
-    props: { tool_name: "Arcade_SelectTools", outcome: "success" },
+    props: { hook: "post_tool", query_id: "q-abc-123" },
   });
 
-  assert.equal(payload.event, TELEMETRY_EVENTS.ARCADE_TOOL_CALLED);
-  assert.equal(payload.properties.tool_name, "Arcade_SelectTools");
-  assert.equal(payload.properties.outcome, "success");
-  assert.equal(payload.properties.tool_input, undefined);
-  assert.equal(payload.properties.tool_response, undefined);
+  assert.equal(payload.event, TELEMETRY_EVENTS.DISCOVERY_LINKED);
+  assert.equal(payload.properties.query_id, "q-abc-123");
+  assert.equal(payload.properties.tool_name, undefined);
+  assert.equal(payload.properties.outcome, undefined);
+});
+
+test("queryIdFromSelectToolsResponse reads Cursor result_json", () => {
+  assert.equal(
+    queryIdFromSelectToolsResponse({
+      mcp_server_name: "arcade",
+      tool_name: "Arcade_SelectTools",
+      result_json: JSON.stringify({ query_id: "cursor-q-1", tools: [] }),
+    }),
+    "cursor-q-1",
+  );
+});
+
+test("queryIdFromSelectToolsResponse reads Codex tool_response object", () => {
+  assert.equal(
+    queryIdFromSelectToolsResponse({
+      mcp_server_name: "arcade",
+      tool_name: "mcp__arcade__Arcade_SelectTools",
+      tool_response: { queryId: "codex-q-2" },
+    }),
+    "codex-q-2",
+  );
+});
+
+test("queryIdFromSelectToolsResponse ignores non-SelectTools tools", () => {
+  assert.equal(
+    queryIdFromSelectToolsResponse({
+      mcp_server_name: "arcade",
+      tool_name: "Arcade_UseTool",
+      result_json: JSON.stringify({ query_id: "ignored" }),
+    }),
+    undefined,
+  );
+});
+
+test("queryIdFromSelectToolsResponse rejects unsafe query_id tokens", () => {
+  assert.equal(
+    queryIdFromSelectToolsResponse({
+      mcp_server_name: "arcade",
+      tool_name: "Arcade_SelectTools",
+      result_json: JSON.stringify({ query_id: "has spaces" }),
+    }),
+    undefined,
+  );
 });
 
 test("arcadeToolNameFromInput filters Cursor MCP events by server", () => {
@@ -210,6 +262,17 @@ test("recordTelemetry respects opt-out and swallows spawn failures", () => {
   );
   assert.equal(calls.length, 1);
   assert.equal(
+    recordTelemetry(
+      {
+        event: TELEMETRY_EVENTS.SESSION_STARTED,
+        hookInput: { cursor_version: "1.0" },
+        props: { hook: "SessionStart", source: "startup" },
+      },
+      { env: {}, spawnProcess },
+    ),
+    false,
+  );
+  assert.equal(
     recordTelemetry(input, {
       env: {},
       spawnProcess: () => {
@@ -246,14 +309,15 @@ test("subagent-start emits guidance with telemetry disabled", () => {
   assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
 });
 
-test("post-arcade-tool records success for arcade MCP tool names only", () => {
+test("post-arcade-tool links SelectTools query_id only", () => {
   const result = runHook(
     "post-arcade-tool.mjs success",
     JSON.stringify({
       session_id: "s1",
+      mcp_server_name: "arcade",
       tool_name: "mcp__plugin_arcade_arcade__Arcade_SelectTools",
       tool_input: { secret: "must-not-leak" },
-      tool_response: { data: "must-not-leak" },
+      result_json: JSON.stringify({ query_id: "q-link-1", tools: [] }),
     }),
   );
   assert.equal(result.status, 0, result.stderr);
@@ -268,41 +332,17 @@ test("post-arcade-tool ignores non-arcade tools", () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
-test("post-arcade-tool records failure outcome from argv", () => {
+test("post-arcade-tool ignores SelectTools responses without query_id", () => {
   const result = runHook(
-    "post-arcade-tool.mjs failure",
+    "post-arcade-tool.mjs success",
     JSON.stringify({
       session_id: "s1",
+      mcp_server_name: "arcade",
       tool_name: "mcp__arcade__Arcade_UseTool",
+      tool_response: { ok: true },
     }),
   );
   assert.equal(result.status, 0, result.stderr);
-});
-
-test("arcadeToolOutcomeFromInput treats Cursor result_json failures as failure", () => {
-  assert.equal(
-    arcadeToolOutcomeFromInput(
-      {
-        tool_name: "Arcade_UseTool",
-        result_json: JSON.stringify({ isError: true, content: [{ type: "text", text: "auth" }] }),
-      },
-      "success",
-    ),
-    "failure",
-  );
-});
-
-test("arcadeToolOutcomeFromInput treats in-band MCP tool_response failures as failure", () => {
-  assert.equal(
-    arcadeToolOutcomeFromInput(
-      {
-        tool_name: "mcp__arcade__Arcade_SelectTools",
-        tool_response: { isError: true },
-      },
-      "success",
-    ),
-    "failure",
-  );
 });
 
 test("user-prompt-submit suppresses bare continuations without stdout", () => {

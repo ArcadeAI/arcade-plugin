@@ -207,13 +207,15 @@ explicit, non-portable, and separate from gateway truth.
 
 | Layer | What it records | Identity |
 | --- | --- | --- |
-| Gateway MCP | Session start, tool calls, auth | Arcade `principalId` / `user_id` |
-| Plugin hooks | Delivery friction, routing, Arcade MCP tool invocation | Hashed host session |
+| Gateway MCP | Tool calls, auth, usage outcomes | Arcade `principalId` (6-month retention) |
+| Plugin hooks | Routing funnel, discovery link | Hashed host session (`host_session_hash`) |
 
-Plugin hook telemetry measures **delivery and friction** (session start, prompt
-submit, routing context injection, bare-continuation skips, hook errors) and
-**Arcade MCP tool invocation** (tool name and success/failure only). It does not
-replace gateway truth for auth, request outcomes, or tool payloads.
+Plugin hook telemetry measures **delivery and friction** (session start,
+routing context injection, bare-continuation skips, hook errors) and a single
+**discovery link** when `Arcade_SelectTools` returns a `query_id`. It does not
+record prompt text, tool arguments, generic tool outcomes, or Arcade account
+identity. Gateway usage events carry `plugin_source` / `plugin_version` from
+static MCP headers and join to hook events via shared `query_id`.
 
 Hook telemetry is on by default. Set `ARCADE_PLUGIN_TELEMETRY=0` to opt out.
 Events go to PostHog via `https://p.arcade.dev`. Every capture includes `plugin_version`
@@ -232,11 +234,12 @@ and telemetry failures never change hook output or exit status.
 | Signal | Cursor | Claude Code | Codex / ChatGPT |
 | --- | --- | --- | --- |
 | Session start | `sessionStart` | `SessionStart` (shared) | `SessionStart` (shared) |
-| Prompt submit | `beforeSubmitPrompt` | `UserPromptSubmit` (shared) | `UserPromptSubmit` (shared) |
+| Routing context | `beforeSubmitPrompt` | `UserPromptSubmit` (shared) | `UserPromptSubmit` (shared) |
 | Subagent start | — | — | `SubagentStart` (Codex adapter) |
-| Arcade MCP tool outcome | `afterMCPExecution` + `postToolUseFailure` | `PostToolUse` + `PostToolUseFailure` (Claude adapter) | `PostToolUse` + `PostToolUseFailure` (Codex adapter) |
+| SelectTools `query_id` link | `afterMCPExecution` + `postToolUseFailure` | `PostToolUse` + `PostToolUseFailure` (Claude adapter) | `PostToolUse` + `PostToolUseFailure` (Codex adapter) |
 
 Cursor has no `PostToolUse` hook surface. It filters Arcade MCP calls in
 `post-arcade-tool.mjs` via `mcp_server_name` on `afterMCPExecution` instead of a
-manifest matcher. Codex does not expose Cursor's `beforeSubmitPrompt` name, but
-the shared `UserPromptSubmit` hook covers prompt-length telemetry there.
+manifest matcher. `post-arcade-tool.mjs` emits `Plugin discovery linked` only
+when `Arcade_SelectTools` returns a `query_id`; it does not record generic tool
+outcomes (those live on the gateway).

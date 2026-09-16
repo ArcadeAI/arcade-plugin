@@ -1,6 +1,6 @@
-/** Opt-out plugin-side telemetry. Fire-and-forget PostHog capture via p.arcade.dev. */
+/** Opt-out plugin-side routing and discovery-link telemetry. Fire-and-forget PostHog via p.arcade.dev. */
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -18,13 +18,11 @@ export { POSTHOG_INGEST_HOST, POSTHOG_PROJECT_KEY };
 
 export const TELEMETRY_EVENTS = {
   SESSION_STARTED: "Plugin session started",
-  PROMPT_SUBMITTED: "Plugin prompt submitted",
   SUBAGENT_STARTED: "Plugin subagent started",
   ROUTING_CONTEXT_EMITTED: "Plugin routing context emitted",
   ROUTING_SKIPPED_BARE_CONTINUATION: "Plugin routing skipped bare continuation",
+  DISCOVERY_LINKED: "Plugin discovery linked",
   HOOK_ERROR: "Plugin hook error",
-  ARCADE_TOOL_CALLED: "Plugin arcade tool called",
-  ARCADE_TOOL_FAILED: "Plugin arcade tool failed",
 };
 
 const ARCADE_TOOL_PREFIX_RE = /^mcp__(?:plugin_arcade_arcade|arcade)__(Arcade_.+)$/;
@@ -36,29 +34,8 @@ const ARCADE_SERVER_NAMES = new Set([
 ]);
 const OPT_OUT_VALUES = new Set(["0", "false", "off", "no"]);
 const SAFE_TOKEN_RE = /^[a-zA-Z0-9._:-]{1,64}$/;
-const PROMPT_BUCKETS = new Set(["0", "1-20", "21-100", "101-500", "501+"]);
 const SESSION_SOURCES = new Set(["startup", "resume", "clear", "compact"]);
-
-/** Extract bare Arcade tool name from MCP-qualified identifiers. */
-export const normalizeArcadeToolName = (rawName) => {
-  if (typeof rawName !== "string" || !rawName) return undefined;
-  const prefixed = rawName.match(ARCADE_TOOL_PREFIX_RE);
-  if (prefixed) return prefixed[1];
-  const cursorPrefixed = rawName.match(CURSOR_TOOL_PREFIX_RE);
-  if (cursorPrefixed) return cursorPrefixed[1];
-  if (rawName.startsWith("Arcade_")) return rawName;
-  return undefined;
-};
-
-/** Extract an Arcade tool name while rejecting events from another MCP server. */
-const truthyFailureFlag = (value) => {
-  if (value === true) return true;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    return normalized === "true" || normalized === "error" || normalized === "failed";
-  }
-  return false;
-};
+const SELECT_TOOLS_NAME = "Arcade_SelectTools";
 
 const parseJsonPayload = (value) => {
   if (value && typeof value === "object") return value;
@@ -71,41 +48,15 @@ const parseJsonPayload = (value) => {
   }
 };
 
-const payloadIndicatesFailure = (payload) => {
-  if (!payload || typeof payload !== "object") return false;
-  if (truthyFailureFlag(payload.isError) || truthyFailureFlag(payload.is_error)) {
-    return true;
-  }
-  if (payload.success === false) return true;
-  if (typeof payload.error === "string" && payload.error.trim()) return true;
-  if (typeof payload.tool_error === "string" && payload.tool_error.trim()) {
-    return true;
-  }
-  return false;
-};
-
-/** Derive Arcade MCP tool outcome from hook argv and host payload fields. */
-export const arcadeToolOutcomeFromInput = (hookInput, argvOutcome = "success") => {
-  if (argvOutcome === "failure") return "failure";
-  if (!hookInput || typeof hookInput !== "object") return "success";
-
-  if (
-    hookInput.failure_type ||
-    (typeof hookInput.error_message === "string" && hookInput.error_message.trim()) ||
-    (typeof hookInput.tool_error === "string" && hookInput.tool_error.trim()) ||
-    truthyFailureFlag(hookInput.is_error)
-  ) {
-    return "failure";
-  }
-
-  const responsePayload =
-    parseJsonPayload(hookInput.result_json) ??
-    parseJsonPayload(hookInput.tool_response) ??
-    parseJsonPayload(hookInput.tool_result) ??
-    hookInput.tool_response ??
-    hookInput.tool_result;
-
-  return payloadIndicatesFailure(responsePayload) ? "failure" : "success";
+/** Extract bare Arcade tool name from MCP-qualified identifiers. */
+export const normalizeArcadeToolName = (rawName) => {
+  if (typeof rawName !== "string" || !rawName) return undefined;
+  const prefixed = rawName.match(ARCADE_TOOL_PREFIX_RE);
+  if (prefixed) return prefixed[1];
+  const cursorPrefixed = rawName.match(CURSOR_TOOL_PREFIX_RE);
+  if (cursorPrefixed) return cursorPrefixed[1];
+  if (rawName.startsWith("Arcade_")) return rawName;
+  return undefined;
 };
 
 export const arcadeToolNameFromInput = (hookInput) => {
@@ -129,6 +80,23 @@ export const arcadeToolNameFromInput = (hookInput) => {
     if (normalized) return normalized;
   }
   return undefined;
+};
+
+/** Read query_id from a verified Arcade_SelectTools response envelope only. */
+export const queryIdFromSelectToolsResponse = (hookInput) => {
+  if (arcadeToolNameFromInput(hookInput) !== SELECT_TOOLS_NAME) return undefined;
+
+  const responsePayload =
+    parseJsonPayload(hookInput.result_json) ??
+    parseJsonPayload(hookInput.tool_response) ??
+    parseJsonPayload(hookInput.tool_result) ??
+    hookInput.tool_response ??
+    hookInput.tool_result;
+
+  if (!responsePayload || typeof responsePayload !== "object") return undefined;
+
+  const candidate = responsePayload.query_id ?? responsePayload.queryId;
+  return safeToken(candidate);
 };
 
 export const errorClassFrom = (error) => {
@@ -157,18 +125,16 @@ export const isTelemetryEnabled = (env = process.env) => {
   return !OPT_OUT_VALUES.has(raw);
 };
 
-export const bucketPromptLength = (length) => {
-  if (length <= 0) return "0";
-  if (length <= 20) return "1-20";
-  if (length <= 100) return "21-100";
-  if (length <= 500) return "101-500";
-  return "501+";
-};
-
-export const hashDistinctId = (sessionKey = randomUUID()) => {
+export const hashDistinctId = (sessionKey) => {
   const material = String(sessionKey);
   const digest = createHash("sha256").update(`arcade-plugin:${material}`).digest("hex");
   return `plugin:${digest.slice(0, 32)}`;
+};
+
+export const hostSessionHashFromInput = (hookInput) => {
+  const sessionKey = sessionKeyFromInput(hookInput);
+  if (!sessionKey) return undefined;
+  return hashDistinctId(sessionKey);
 };
 
 export const detectHost = (hookInput, env = process.env) => {
@@ -219,20 +185,6 @@ const safeProperties = (event, props) => {
         : {}),
     };
   }
-  if (event === TELEMETRY_EVENTS.PROMPT_SUBMITTED) {
-    return {
-      ...(hook ? { hook } : {}),
-      ...(PROMPT_BUCKETS.has(props.prompt_length_bucket)
-        ? { prompt_length_bucket: props.prompt_length_bucket }
-        : {}),
-      ...(typeof props.routing_injected === "boolean"
-        ? { routing_injected: props.routing_injected }
-        : {}),
-      ...(typeof props.is_continuation === "boolean"
-        ? { is_continuation: props.is_continuation }
-        : {}),
-    };
-  }
   if (event === TELEMETRY_EVENTS.SUBAGENT_STARTED) {
     return {
       ...(hook ? { hook } : {}),
@@ -245,24 +197,18 @@ const safeProperties = (event, props) => {
   ) {
     return hook ? { hook } : {};
   }
+  if (event === TELEMETRY_EVENTS.DISCOVERY_LINKED) {
+    const queryId = safeToken(props.query_id);
+    return {
+      ...(hook ? { hook } : {}),
+      ...(queryId ? { query_id: queryId } : {}),
+    };
+  }
   if (event === TELEMETRY_EVENTS.HOOK_ERROR) {
     const errorClass = safeToken(props.error_class);
     return {
       ...(hook ? { hook } : {}),
       ...(errorClass ? { error_class: errorClass } : {}),
-    };
-  }
-  if (
-    event === TELEMETRY_EVENTS.ARCADE_TOOL_CALLED ||
-    event === TELEMETRY_EVENTS.ARCADE_TOOL_FAILED
-  ) {
-    const toolName = normalizeArcadeToolName(props.tool_name);
-    const outcome = ["success", "failure"].includes(props.outcome)
-      ? props.outcome
-      : undefined;
-    return {
-      ...(toolName ? { tool_name: toolName } : {}),
-      ...(outcome ? { outcome } : {}),
     };
   }
   return {};
@@ -273,19 +219,22 @@ export const buildCapturePayload = (
   { event, hookInput = {}, props = {} },
   env = process.env,
 ) => {
+  const sessionHash = hostSessionHashFromInput(hookInput);
+  if (!sessionHash) return undefined;
+
   const host = detectHost(hookInput, env);
-  const distinctId = hashDistinctId(sessionKeyFromInput(hookInput));
   const hostVersion = hostVersionFromInput(hookInput, host);
 
   return {
     api_key: env.ARCADE_PLUGIN_POSTHOG_KEY ?? POSTHOG_PROJECT_KEY,
     event,
-    distinct_id: distinctId,
+    distinct_id: sessionHash,
     properties: {
       $lib: TELEMETRY_LIB,
       $process_person_profile: false,
       plugin_version: PLUGIN_VERSION,
       host,
+      host_session_hash: sessionHash,
       ...(safeToken(hostVersion) ? { host_version: hostVersion } : {}),
       ...safeProperties(event, props),
     },
@@ -300,6 +249,7 @@ export const recordTelemetry = (
   if (!isTelemetryEnabled(env)) return false;
   try {
     const payload = buildCapturePayload(input, env);
+    if (!payload) return false;
     const child = spawnProcess(
       process.execPath,
       [join(HOOKS_DIR, "telemetry-send.mjs"), JSON.stringify(payload)],

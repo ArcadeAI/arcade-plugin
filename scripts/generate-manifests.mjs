@@ -49,14 +49,26 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   }
 
   const shared = { ...identityFields(portablePlugin), version };
+  const pluginHeaders = {
+    "Arcade-Plugin": "arcade",
+    "Arcade-Plugin-Version": version,
+    ...(gateway.headers ?? {}),
+  };
   const cursorMcp = {
     mcpServers: {
-      arcade: { url: gateway.url },
+      arcade: {
+        url: gateway.url,
+        headers: pluginHeaders,
+      },
     },
   };
   const claudeMcp = {
     mcpServers: {
-      arcade: { type: "http", url: gateway.url },
+      arcade: {
+        type: "http",
+        url: gateway.url,
+        headers: pluginHeaders,
+      },
     },
   };
   const cursorPlugin = {

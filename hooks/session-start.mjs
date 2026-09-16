@@ -37,14 +37,9 @@ try {
       is_background_agent: hookInput.is_background_agent,
     },
   });
-  recordTelemetry({
-    event: TELEMETRY_EVENTS.ROUTING_CONTEXT_EMITTED,
-    hookInput,
-    props: { hook: "session_start" },
-  });
   emitResponse(platform);
 } catch (error) {
-  recordHookError({ hook: "session_start", error });
+  recordHookError({ hook: "session_start", error, hookInput: {} });
   emitResponse("claude");
 }
 

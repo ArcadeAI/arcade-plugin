@@ -1,36 +1,24 @@
 #!/usr/bin/env node
-// Post-tool telemetry for Arcade MCP calls. Observe only; never block. Always exit 0.
+// Link Arcade_SelectTools query_id to the host session for server-side joins. Always exit 0.
 
 import {
-  arcadeToolNameFromInput,
-  arcadeToolOutcomeFromInput,
+  queryIdFromSelectToolsResponse,
   recordTelemetry,
   TELEMETRY_EVENTS,
 } from "./telemetry.mjs";
 import { readHookInput } from "./hook-input.mjs";
 
-const outcomeHintFromArgv = () => {
-  const arg = process.argv[2]?.trim().toLowerCase();
-  if (arg === "failure" || arg === "failed" || arg === "fail") return "failure";
-  return "success";
-};
-
 try {
   const hookInput = await readHookInput();
+  const queryId = queryIdFromSelectToolsResponse(hookInput);
+  if (!queryId) process.exit(0);
 
-  const toolName = arcadeToolNameFromInput(hookInput);
-  if (!toolName) process.exit(0);
-
-  const outcome = arcadeToolOutcomeFromInput(hookInput, outcomeHintFromArgv());
   recordTelemetry({
-    event:
-      outcome === "failure"
-        ? TELEMETRY_EVENTS.ARCADE_TOOL_FAILED
-        : TELEMETRY_EVENTS.ARCADE_TOOL_CALLED,
+    event: TELEMETRY_EVENTS.DISCOVERY_LINKED,
     hookInput,
     props: {
-      tool_name: toolName,
-      outcome,
+      hook: "post_tool",
+      query_id: queryId,
     },
   });
 } catch {
