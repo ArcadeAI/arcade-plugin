@@ -51,6 +51,63 @@ export const normalizeArcadeToolName = (rawName) => {
 };
 
 /** Extract an Arcade tool name while rejecting events from another MCP server. */
+const truthyFailureFlag = (value) => {
+  if (value === true) return true;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "error" || normalized === "failed";
+  }
+  return false;
+};
+
+const parseJsonPayload = (value) => {
+  if (value && typeof value === "object") return value;
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const payloadIndicatesFailure = (payload) => {
+  if (!payload || typeof payload !== "object") return false;
+  if (truthyFailureFlag(payload.isError) || truthyFailureFlag(payload.is_error)) {
+    return true;
+  }
+  if (payload.success === false) return true;
+  if (typeof payload.error === "string" && payload.error.trim()) return true;
+  if (typeof payload.tool_error === "string" && payload.tool_error.trim()) {
+    return true;
+  }
+  return false;
+};
+
+/** Derive Arcade MCP tool outcome from hook argv and host payload fields. */
+export const arcadeToolOutcomeFromInput = (hookInput, argvOutcome = "success") => {
+  if (argvOutcome === "failure") return "failure";
+  if (!hookInput || typeof hookInput !== "object") return "success";
+
+  if (
+    hookInput.failure_type ||
+    (typeof hookInput.error_message === "string" && hookInput.error_message.trim()) ||
+    (typeof hookInput.tool_error === "string" && hookInput.tool_error.trim()) ||
+    truthyFailureFlag(hookInput.is_error)
+  ) {
+    return "failure";
+  }
+
+  const responsePayload =
+    parseJsonPayload(hookInput.result_json) ??
+    parseJsonPayload(hookInput.tool_response) ??
+    parseJsonPayload(hookInput.tool_result) ??
+    hookInput.tool_response ??
+    hookInput.tool_result;
+
+  return payloadIndicatesFailure(responsePayload) ? "failure" : "success";
+};
+
 export const arcadeToolNameFromInput = (hookInput) => {
   if (!hookInput || typeof hookInput !== "object") return undefined;
   const serverName = hookInput.mcp_server_name ?? hookInput.mcpServerName;

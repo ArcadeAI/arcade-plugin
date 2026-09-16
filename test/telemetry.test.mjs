@@ -7,6 +7,7 @@ import {
 } from "../hooks/hook-input.mjs";
 import {
   arcadeToolNameFromInput,
+  arcadeToolOutcomeFromInput,
   bucketPromptLength,
   buildCapturePayload,
   detectHost,
@@ -276,6 +277,32 @@ test("post-arcade-tool records failure outcome from argv", () => {
     }),
   );
   assert.equal(result.status, 0, result.stderr);
+});
+
+test("arcadeToolOutcomeFromInput treats Cursor result_json failures as failure", () => {
+  assert.equal(
+    arcadeToolOutcomeFromInput(
+      {
+        tool_name: "Arcade_UseTool",
+        result_json: JSON.stringify({ isError: true, content: [{ type: "text", text: "auth" }] }),
+      },
+      "success",
+    ),
+    "failure",
+  );
+});
+
+test("arcadeToolOutcomeFromInput treats in-band MCP tool_response failures as failure", () => {
+  assert.equal(
+    arcadeToolOutcomeFromInput(
+      {
+        tool_name: "mcp__arcade__Arcade_SelectTools",
+        tool_response: { isError: true },
+      },
+      "success",
+    ),
+    "failure",
+  );
 });
 
 test("user-prompt-submit suppresses bare continuations without stdout", () => {

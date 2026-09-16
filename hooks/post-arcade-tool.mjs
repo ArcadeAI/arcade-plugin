@@ -3,12 +3,13 @@
 
 import {
   arcadeToolNameFromInput,
+  arcadeToolOutcomeFromInput,
   recordTelemetry,
   TELEMETRY_EVENTS,
 } from "./telemetry.mjs";
 import { readHookInput } from "./hook-input.mjs";
 
-const outcomeFromArgv = () => {
+const outcomeHintFromArgv = () => {
   const arg = process.argv[2]?.trim().toLowerCase();
   if (arg === "failure" || arg === "failed" || arg === "fail") return "failure";
   return "success";
@@ -20,7 +21,7 @@ try {
   const toolName = arcadeToolNameFromInput(hookInput);
   if (!toolName) process.exit(0);
 
-  const outcome = outcomeFromArgv();
+  const outcome = arcadeToolOutcomeFromInput(hookInput, outcomeHintFromArgv());
   recordTelemetry({
     event:
       outcome === "failure"
