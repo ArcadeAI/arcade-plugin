@@ -188,14 +188,34 @@ test("queryIdFromSelectToolsResponse reads Cursor result_json", () => {
   );
 });
 
-test("queryIdFromSelectToolsResponse reads Codex tool_response object", () => {
+test("queryIdFromSelectToolsResponse reads Codex MCP structured content", () => {
   assert.equal(
     queryIdFromSelectToolsResponse({
       mcp_server_name: "arcade",
       tool_name: "mcp__arcade__Arcade_SelectTools",
-      tool_response: { queryId: "codex-q-2" },
+      tool_response: {
+        content: [{ type: "text", text: "SelectTools completed" }],
+        structuredContent: { query_id: "codex-q-2", results: [] },
+      },
     }),
     "codex-q-2",
+  );
+});
+
+test("queryIdFromSelectToolsResponse reads MCP text content", () => {
+  assert.equal(
+    queryIdFromSelectToolsResponse({
+      tool_name: "mcp__arcade__Arcade_SelectTools",
+      tool_response: {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ query_id: "claude-q-3", results: [] }),
+          },
+        ],
+      },
+    }),
+    "claude-q-3",
   );
 });
 

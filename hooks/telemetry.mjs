@@ -48,6 +48,23 @@ const parseJsonPayload = (value) => {
   }
 };
 
+const queryIdFromPayload = (payload) => {
+  if (!payload || typeof payload !== "object") return undefined;
+
+  for (const candidate of [payload, payload.structuredContent, payload.structured_content]) {
+    const queryId = safeToken(candidate?.query_id ?? candidate?.queryId);
+    if (queryId) return queryId;
+  }
+
+  const content = Array.isArray(payload.content) ? payload.content : [payload.content];
+  for (const item of content) {
+    const parsed = parseJsonPayload(item?.text ?? item);
+    const queryId = safeToken(parsed?.query_id ?? parsed?.queryId);
+    if (queryId) return queryId;
+  }
+  return undefined;
+};
+
 /** Extract bare Arcade tool name from MCP-qualified identifiers. */
 export const normalizeArcadeToolName = (rawName) => {
   if (typeof rawName !== "string" || !rawName) return undefined;
@@ -93,10 +110,7 @@ export const queryIdFromSelectToolsResponse = (hookInput) => {
     hookInput.tool_response ??
     hookInput.tool_result;
 
-  if (!responsePayload || typeof responsePayload !== "object") return undefined;
-
-  const candidate = responsePayload.query_id ?? responsePayload.queryId;
-  return safeToken(candidate);
+  return queryIdFromPayload(responsePayload);
 };
 
 export const errorClassFrom = (error) => {

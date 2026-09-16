@@ -1,106 +1,64 @@
-# Gateway telemetry follow-up (monorepo step 2)
+# Gateway telemetry follow-up
 
-Implementation spec for the monorepo half of [telemetry-design.md](../../../../workspace/arcade/arcade-plugin/docs/research/telemetry-design.md) delivery step 2: **gateway attribution**. Plugin step 1 (static MCP headers in manifests) is a separate PR in this repo.
+Implementation checklist for the monorepo half of
+[plugin telemetry correlation](telemetry-design.md).
 
-**Scope:** Engine Usage captures on MCP requests. No hook changes here. No PostHog sink changes unless a new property needs explicit typing (it should not).
+## Required outcome
 
-## Goal
+1. Authenticated Usage events from a plugin-marked MCP request include
+   `plugin_source`. Preserve `plugin_version` when present, but do not require it.
+2. A successful `Arcade_SelectTools` Usage event includes the server-generated
+   `query_id` returned in that call's output.
 
-Every authenticated MCP Usage event from a plugin-marked connection carries `plugin_source` and `plugin_version`. Successful `Arcade_SelectTools` dispatches also carry `query_id` on the principal-attributed `MCP tool recommendation queried` event, matching `tr_select_tools`.
+Together these properties allow the plugin's `Plugin discovery linked` event to
+join to a principal-attributed gateway event on `query_id`.
 
-## Current state (monorepo)
+## Ingress attribution
 
-| Piece | Behavior today |
-| --- | --- |
-| PostHog `distinct_id` (Usage sink) | `principalId`, else `"system"` — `apps/usage/internal/sink/processor/posthog.go` |
-| Gateway context props | `gateway_*` via `gateway_lookup_middleware` → `usage.WithContextProperties` |
-| Protocol version | `mcpstateless/dispatch.go` stamps `protocol_version` from `Mcp-Protocol-Version` |
-| Stateful MCP usage | `mcpUsageProperties(session, td)` + explicit `usage.Capture` in `mcp/service.go` |
-| Stateless MCP usage | `captureUsageEvent` in `mcpstateless/tools/call.go` / `meta.go` |
-| SelectTools analytics | `tr_select_tools` already includes `query_id` — `arcadetools/select_tools_analytics.go` |
-| MCP recommendation Usage | `MCP tool recommendation queried` emitted on success; **no `query_id`** — `metatools.MetaToolUsageEvent` |
+Map the static request headers into Usage context properties:
 
-Context properties merge under explicit event properties in `usage.resolveOptions` (`usage/service.go`).
-
----
-
-## 1. Normalize plugin headers at ingress
-
-### Incoming headers
-
-| HTTP header | Usage property |
-| --- | --- |
-| `Arcade-Plugin` | `plugin_source` |
-| `Arcade-Plugin-Version` | `plugin_version` |
-
-Read with `c.GetHeader` (canonical casing). Trim whitespace. **Omit** properties when the header is empty. Do not default `plugin_source` to `"arcade"` server-side.
-
-### Where to stamp
-
-Add `pluginUsageProperties(c *gin.Context)` and merge via `usage.WithContextProperties` in **`GatewayLookupMiddleware`** (auth failures inherit plugin dims, same as `gatewayUsageProperties`). Verify stateless routing cannot skip lookup; if it can, also stamp in `mcpstateless/dispatch.Handle`.
-
-Request-scoped only — not `mcpUsageProperties` session fields. No per-capture changes for headers; `usage.Capture` merges context props on both MCP paths. Keep Engine analytics `source` unchanged (`tr_select_tools` stays `"arcade-engine"`).
-
----
-
-## 2. Add `query_id` to `MCP tool recommendation queried`
-
-### When
-
-After a **successful** meta-tool dispatch where `metatools.MetaToolUsageEvent(name) == "MCP tool recommendation queried"` **and** the tool is SelectTools (wire name `Arcade.SelectTools` / `Arcade_SelectTools`).
-
-SearchTools shares the event name but does not return `query_id` — omit the property.
-
-### How
-
-1. Type-assert `resp.Output.Value` to `*arcadetools.SelectToolsOutput` (same assertion as `metatools.StoreSelectToolsResults`).
-2. If `output.QueryID != ""`, set `props["query_id"] = output.QueryID` on the Usage capture.
-
-Extract a shared helper in `internal/mcp/metatools` (e.g. `AppendSelectToolsQueryID(props, resp *tool.Response)`) so stateful and stateless cannot drift.
-
-### Call sites
-
-- **Stateful:** `mcp/service.go` `executeBuiltinToolCall` success branch (~1065), before `usage.Capture`.
-- **Stateless:** `mcpstateless/tools/meta.go` `shapeMetaToolResult` (~139), inside `captureUsageEvent` or immediately before it.
-
-### Semantics
-
-- Server-generated ID from Condex only. Never copy `query_id` from client tool arguments into Usage properties.
-- Empty/missing ID is valid (logging disabled, failed tasks, queue full). Do not block capture.
-- Multi-task SelectTools exposes the first non-empty task `query_id` (existing `SelectTools` aggregation). Document in dashboards; do not treat as unique per task.
-
-`tr_select_tools` remains the Engine-analytics owner for condex latencies; this change aligns the **Usage** event used for principal-attributed billing/product analytics.
-
----
-
-## 3. What NOT to do
-
-| Do not | Why |
-| --- | --- |
-| Use `Mcp-Session-Id` as a chat or hook join key | Transport-scoped server session; stateless path deletes the header (`dispatch.go`). Not Cursor `conversation_id`. |
-| Change Usage PostHog `distinct_id` | Stays `principalId` via Usage sink. Plugin headers are properties, not identity. |
-| Merge `tr_select_tools` `distinct_id` (`project_*` / `customer_*`) into person profiles | Separate analytics scheme — `analytics/capture.go`. Join on `query_id` in views, not `identify`/`alias`. |
-| Alias hook `distinct_id` to gateway `principalId` | Hook session hash is untrusted conversation context; server principal is trusted account identity. |
-| Treat `plugin_source` / `plugin_version` as authorization | Client-declared analytics context only. |
-| Emit `query_id` on SearchTools or failed SelectTools | Property only when SelectTools output includes it on the success branch. |
-| Require `query_id` for event emission | Capture without the property when absent. |
-
----
-
-## 4. Suggested tests
-
-| Area | Location | Assert |
+| Header | Usage property | Requirement |
 | --- | --- | --- |
-| Header → context props | `mcp/gateway_lookup_middleware_test.go` (or new `plugin_usage_properties_test.go`) | Request with headers → `usage.ContextProperties(ctx)` has both fields; absent headers → omitted |
-| Stateless ingress | `mcpstateless/dispatch_test.go` | Same merge on routed context |
-| Context merge | `usage/context_test.go` / `usage/service_test.go` | Plugin props survive merge with gateway + explicit event props |
-| Stateful SelectTools | `mcp/service_test.go` (extend builtin/meta-tool usage tests) | Success capture includes `query_id` when mock returns `SelectToolsOutput{QueryID: "…"}` |
-| Stateless SelectTools | `mcpstateless/tools/meta_test.go` `TestStatelessMetaTools_UsageEventPerTool` | SelectTools row asserts `query_id`; SearchTools row asserts property absent |
-| Shared helper | `mcp/metatools/usage_test.go` | `AppendSelectToolsQueryID` edge cases (nil resp, wrong type, empty ID) |
-| Parity / funnel | `mcp/billing_parity_test.go`, `mcpstateless/parity_test.go`, `arcadetools/select_tools_analytics_test.go` | Optional billing prop list update; reuse existing `query_id` funnel tests |
+| `Arcade-Plugin` | `plugin_source` | Required for plugin attribution |
+| `Arcade-Plugin-Version` | `plugin_version` | Optional debugging metadata |
 
-## 5. Rollout
+Trim values and omit empty properties. Add them through
+`usage.WithContextProperties` in `GatewayLookupMiddleware` so stateful and
+stateless captures inherit the same values. Keep these properties
+request-scoped and leave Engine analytics `source` unchanged.
 
-Land monorepo PR first. Plugin step 1 adds headers to generated `mcp.json` + conformance spike. Dashboards filter Usage on `plugin_source`; track `query_id` fill rate on `MCP tool recommendation queried` vs `tr_select_tools`.
+The headers are untrusted analytics metadata. Never use them for authorization.
 
-**Out of scope:** hook link events, proxy, `tr_select_tools` identity changes, retention dashboards, `_meta` receipts.
+## SelectTools correlation
+
+The Engine already returns `SelectToolsOutput.QueryID` and records it on
+`tr_select_tools`. Add the same nonempty value to the principal-attributed
+`MCP tool recommendation queried` Usage event after successful SelectTools
+dispatch.
+
+Use one shared helper for both paths:
+
+- Stateful: `mcp/service.go`, before the successful Usage capture.
+- Stateless: `mcpstateless/tools/meta.go`, before its successful Usage capture.
+
+Read the ID from the server response output. Do not copy it from client input.
+SearchTools shares the Usage event name but does not return this ID, so omit the
+property there. A missing ID is valid and must not suppress the Usage event.
+
+## Verification
+
+- Request headers appear as Usage context properties and empty headers are
+  omitted.
+- Stateful and stateless SelectTools success events carry the same `query_id`
+  returned in `SelectToolsOutput`.
+- SearchTools, failed SelectTools, and successful SelectTools without an ID do
+  not invent one.
+- Existing `principalId` identity and gateway context properties remain intact.
+
+## Non-goals
+
+- Using `Mcp-Session-Id` as a conversation ID.
+- Changing Usage `distinct_id` or Engine analytics identity.
+- Aliasing hook session hashes to gateway principals.
+- Making `plugin_version` necessary for joins or dashboards.
+- Adding a proxy, correlation service, or new PostHog sink.
