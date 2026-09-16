@@ -33,6 +33,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
 const fail = (message) => errors.push(message);
 const read = (path) => readFileSync(join(ROOT, path), "utf8");
+const assertCommittedLogo = (manifest, label) => {
+  const logoPath = manifest.logo?.replace(/^\.\//, "");
+  if (logoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
+    fail(`${label}: logo must point at a committed asset`);
+  }
+};
 
 const jsonFiles = [];
 const walk = (dir) => {
@@ -152,10 +158,7 @@ if (cursorManifest) {
       `.cursor-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
-  const cursorLogoPath = cursorManifest.logo?.replace(/^\.\//, "");
-  if (cursorLogoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
-    fail(".cursor-plugin/plugin.json: logo must point at a committed asset");
-  }
+  assertCommittedLogo(cursorManifest, ".cursor-plugin/plugin.json");
 }
 
 if (json["clients/claude/mcp.json"]?.mcpServers?.arcade?.type !== "http") {
@@ -266,10 +269,7 @@ if (codexManifest) {
       `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
-  const codexLogoPath = codexManifest.logo?.replace(/^\.\//, "");
-  if (codexLogoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
-    fail(".codex-plugin/plugin.json: logo must point at a committed asset");
-  }
+  assertCommittedLogo(codexManifest, ".codex-plugin/plugin.json");
   const expectedHooks = ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"];
   if (JSON.stringify(codexManifest.hooks) !== JSON.stringify(expectedHooks)) {
     fail(
@@ -373,10 +373,7 @@ if (marketplace) {
       `.claude-plugin/marketplace.json: plugin displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
-  const marketplaceLogoPath = listed.logo?.replace(/^\.\//, "");
-  if (marketplaceLogoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
-    fail(".claude-plugin/marketplace.json: plugin logo must point at a committed asset");
-  }
+  assertCommittedLogo(listed, ".claude-plugin/marketplace.json: plugin");
 }
 
 if (!read("docs/install/claude-desktop.md").includes(`claude plugin marketplace add ${INSTALL_SLUG}`)) {

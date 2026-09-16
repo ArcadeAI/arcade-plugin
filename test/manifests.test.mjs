@@ -105,6 +105,8 @@ test("portable manifest selects the Codex adapter", async () => {
     "./hooks/hooks.json",
     "./com.openai/hooks/hooks.json",
   ]);
+  assert.equal(fallback.displayName, "Arcade");
+  assert.equal(await pathExists(fallback.logo), true, `missing ${fallback.logo}`);
   assert.equal(fallback.skills, undefined);
   assert.equal(fallback.mcpServers, undefined);
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
