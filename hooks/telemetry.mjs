@@ -37,35 +37,56 @@ const SAFE_TOKEN_RE = /^[a-zA-Z0-9._:-]{1,64}$/;
 const SESSION_SOURCES = new Set(["startup", "resume", "clear", "compact"]);
 const SELECT_TOOLS_NAME = "Arcade_SelectTools";
 
-const parseJsonPayload = (value) => {
-  if (value && typeof value === "object") return value;
+/** @typedef {Record<string, unknown>} UnknownRecord */
+
+/** @param {unknown} value @returns {value is UnknownRecord} */
+const isRecord = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const safeToken = (value) =>
+  typeof value === "string" && SAFE_TOKEN_RE.test(value) ? value : undefined;
+
+/** @param {unknown} value @returns {UnknownRecord | undefined} */
+const parseJsonRecord = (value) => {
+  if (isRecord(value)) return value;
   if (typeof value !== "string" || !value.trim()) return undefined;
   try {
     const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" ? parsed : undefined;
+    return isRecord(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
 };
 
-const queryIdFromPayload = (payload) => {
-  if (!payload || typeof payload !== "object") return undefined;
+/** @param {unknown} value */
+const queryIdFromRecord = (value) => {
+  const record = parseJsonRecord(value);
+  return record ? safeToken(record.query_id ?? record.queryId) : undefined;
+};
+
+/** Extract query_id from an MCP result without trusting its host-specific shape. */
+const queryIdFromMcpResult = (value) => {
+  const payload = parseJsonRecord(value);
+  if (!payload) return undefined;
 
   for (const candidate of [payload, payload.structuredContent, payload.structured_content]) {
-    const queryId = safeToken(candidate?.query_id ?? candidate?.queryId);
+    const queryId = queryIdFromRecord(candidate);
     if (queryId) return queryId;
   }
 
   const content = Array.isArray(payload.content) ? payload.content : [payload.content];
   for (const item of content) {
-    const parsed = parseJsonPayload(item?.text ?? item);
-    const queryId = safeToken(parsed?.query_id ?? parsed?.queryId);
+    const itemRecord = parseJsonRecord(item);
+    const embeddedPayload = itemRecord && "text" in itemRecord
+      ? parseJsonRecord(itemRecord.text)
+      : itemRecord;
+    const queryId = queryIdFromRecord(embeddedPayload);
     if (queryId) return queryId;
   }
   return undefined;
 };
 
-/** Extract bare Arcade tool name from MCP-qualified identifiers. */
+/** @param {unknown} rawName - MCP-qualified or bare tool name. */
 export const normalizeArcadeToolName = (rawName) => {
   if (typeof rawName !== "string" || !rawName) return undefined;
   const prefixed = rawName.match(ARCADE_TOOL_PREFIX_RE);
@@ -76,8 +97,9 @@ export const normalizeArcadeToolName = (rawName) => {
   return undefined;
 };
 
+/** @param {unknown} hookInput */
 export const arcadeToolNameFromInput = (hookInput) => {
-  if (!hookInput || typeof hookInput !== "object") return undefined;
+  if (!isRecord(hookInput)) return undefined;
   const serverName = hookInput.mcp_server_name ?? hookInput.mcpServerName;
   if (
     typeof serverName === "string" &&
@@ -86,11 +108,12 @@ export const arcadeToolNameFromInput = (hookInput) => {
     return undefined;
   }
 
+  const nestedTool = isRecord(hookInput.tool) ? hookInput.tool : undefined;
   for (const candidate of [
     hookInput.tool_name,
     hookInput.toolName,
     hookInput.name,
-    hookInput.tool?.name,
+    nestedTool?.name,
     hookInput.mcp_tool_name,
   ]) {
     const normalized = normalizeArcadeToolName(candidate);
@@ -99,18 +122,20 @@ export const arcadeToolNameFromInput = (hookInput) => {
   return undefined;
 };
 
-/** Read query_id from a verified Arcade_SelectTools response envelope only. */
+/** @param {unknown} hookInput - Untrusted host hook payload. */
 export const queryIdFromSelectToolsResponse = (hookInput) => {
+  if (!isRecord(hookInput)) return undefined;
   if (arcadeToolNameFromInput(hookInput) !== SELECT_TOOLS_NAME) return undefined;
 
-  const responsePayload =
-    parseJsonPayload(hookInput.result_json) ??
-    parseJsonPayload(hookInput.tool_response) ??
-    parseJsonPayload(hookInput.tool_result) ??
-    hookInput.tool_response ??
-    hookInput.tool_result;
-
-  return queryIdFromPayload(responsePayload);
+  for (const response of [
+    hookInput.result_json,
+    hookInput.tool_response,
+    hookInput.tool_result,
+  ]) {
+    const queryId = queryIdFromMcpResult(response);
+    if (queryId) return queryId;
+  }
+  return undefined;
 };
 
 export const errorClassFrom = (error) => {
@@ -180,9 +205,6 @@ export const hostVersionFromInput = (hookInput, host) => {
   if (host === "codex") return hookInput.codex_version ?? hookInput.client_version;
   return hookInput.claude_code_version ?? hookInput.claude_version;
 };
-
-const safeToken = (value) =>
-  typeof value === "string" && SAFE_TOKEN_RE.test(value) ? value : undefined;
 
 const safeProperties = (event, props) => {
   const hook = safeToken(props.hook);

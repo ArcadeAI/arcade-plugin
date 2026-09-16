@@ -70,8 +70,9 @@ Copilot CLI does not load `hooks/hooks.json`. Claude Code and Codex run
 `SubagentStart` and post-tool telemetry from `com.openai/hooks/hooks.json`,
 selected by the portable manifest's OpenAI extension. Claude Code adds post-tool
 telemetry from `clients/claude/hooks/hooks.json`. Cursor uses host-specific MCP
-hook events (`afterMCPExecution`, `postToolUseFailure`) instead of Claude's
-`PostToolUse` shape.
+hook event `afterMCPExecution` instead of Claude's `PostToolUse` shape. Failure
+hooks are omitted because failed SelectTools calls have no returned `query_id`
+to link.
 Copilot's native hook schema differs; skills provide routing guidance on
 that client.
 

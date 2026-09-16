@@ -236,10 +236,13 @@ and telemetry failures never change hook output or exit status.
 | Session start | `sessionStart` | `SessionStart` (shared) | `SessionStart` (shared) |
 | Routing context | `beforeSubmitPrompt` | `UserPromptSubmit` (shared) | `UserPromptSubmit` (shared) |
 | Subagent start | — | — | `SubagentStart` (Codex adapter) |
-| SelectTools `query_id` link | `afterMCPExecution` + `postToolUseFailure` | `PostToolUse` + `PostToolUseFailure` (Claude adapter) | `PostToolUse` + `PostToolUseFailure` (Codex adapter) |
+| SelectTools `query_id` link | `afterMCPExecution` | `PostToolUse` (Claude adapter) | `PostToolUse` (Codex adapter) |
 
 Cursor has no `PostToolUse` hook surface. It filters Arcade MCP calls in
 `post-arcade-tool.mjs` via `mcp_server_name` on `afterMCPExecution` instead of a
 manifest matcher. `post-arcade-tool.mjs` emits `Plugin discovery linked` only
 when `Arcade_SelectTools` returns a `query_id`; it does not record generic tool
 outcomes (those live on the gateway).
+
+Failure hooks are intentionally omitted. A failed SelectTools call has no
+returned `query_id` to link, so running the hook cannot emit an event.

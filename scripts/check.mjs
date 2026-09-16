@@ -247,8 +247,8 @@ if (!codexHooks.includes('"matcher": "*"')) {
 if (!codexHooks.includes("PostToolUse")) {
   fail("com.openai/hooks/hooks.json: must wire PostToolUse for arcade MCP telemetry");
 }
-if (!codexHooks.includes("PostToolUseFailure")) {
-  fail("com.openai/hooks/hooks.json: must wire PostToolUseFailure for arcade MCP telemetry");
+if (codexHooks.includes("PostToolUseFailure")) {
+  fail("com.openai/hooks/hooks.json: Codex has no PostToolUseFailure event");
 }
 if (!codexHooks.includes("hooks/post-arcade-tool.mjs")) {
   fail("com.openai/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
@@ -307,18 +307,12 @@ if (!cursorHooksJson.includes("afterMCPExecution")) {
     "clients/cursor/hooks/hooks.json: must wire afterMCPExecution for Arcade telemetry",
   );
 }
-if (!cursorHooksJson.includes("postToolUseFailure")) {
-  fail("clients/cursor/hooks/hooks.json: must wire postToolUseFailure for arcade MCP telemetry");
-}
 const cursorHookConfig = json["clients/cursor/hooks/hooks.json"]?.hooks;
 if ("matcher" in (cursorHookConfig?.afterMCPExecution?.[0] ?? {})) {
   fail("clients/cursor/hooks/hooks.json: afterMCPExecution must filter by mcp_server_name in the hook");
 }
-if (
-  cursorHookConfig?.postToolUseFailure?.[0]?.matcher !==
-  "^(?:MCP:)?Arcade_.*$"
-) {
-  fail("clients/cursor/hooks/hooks.json: postToolUseFailure must use Cursor's MCP tool matcher format");
+if ("postToolUseFailure" in (cursorHookConfig ?? {})) {
+  fail("clients/cursor/hooks/hooks.json: failed calls cannot provide a SelectTools query_id");
 }
 
 const claudePostToolHooks = read("clients/claude/hooks/hooks.json");
@@ -328,8 +322,8 @@ if (!claudePostToolHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
 if (!claudePostToolHooks.includes("PostToolUse")) {
   fail("clients/claude/hooks/hooks.json: must wire PostToolUse for arcade MCP telemetry");
 }
-if (!claudePostToolHooks.includes("PostToolUseFailure")) {
-  fail("clients/claude/hooks/hooks.json: must wire PostToolUseFailure for arcade MCP telemetry");
+if (claudePostToolHooks.includes("PostToolUseFailure")) {
+  fail("clients/claude/hooks/hooks.json: failed calls cannot provide a SelectTools query_id");
 }
 if (!claudePostToolHooks.includes("hooks/post-arcade-tool.mjs")) {
   fail("clients/claude/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");

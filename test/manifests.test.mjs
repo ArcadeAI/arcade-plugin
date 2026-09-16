@@ -26,7 +26,6 @@ test("Cursor hook commands use CURSOR_PLUGIN_ROOT and resolve to real files", as
     "sessionStart",
     "beforeSubmitPrompt",
     "afterMCPExecution",
-    "postToolUseFailure",
   ]) {
     const command = hooks.hooks[event][0].command;
     assert.match(command, /\$\{CURSOR_PLUGIN_ROOT\}/);
@@ -35,10 +34,7 @@ test("Cursor hook commands use CURSOR_PLUGIN_ROOT and resolve to real files", as
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
   assert.equal(hooks.hooks.afterMCPExecution[0].matcher, undefined);
-  assert.equal(
-    hooks.hooks.postToolUseFailure[0].matcher,
-    "^(?:MCP:)?Arcade_.*$",
-  );
+  assert.equal(hooks.hooks.postToolUseFailure, undefined);
 });
 
 test("Shared Claude/Codex hook manifest wires session and prompt only", async () => {
@@ -59,7 +55,7 @@ test("Shared Claude/Codex hook manifest wires session and prompt only", async ()
 test("Claude post-tool hook manifest wires MCP telemetry only", async () => {
   const hooks = await readRepoJson("clients/claude/hooks/hooks.json");
 
-  for (const event of ["PostToolUse", "PostToolUseFailure"]) {
+  for (const event of ["PostToolUse"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
     assert.match(command, /post-arcade-tool\.mjs/);
@@ -70,17 +66,18 @@ test("Claude post-tool hook manifest wires MCP telemetry only", async () => {
     hooks.hooks.PostToolUse[0].matcher,
     /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
   );
+  assert.equal(hooks.hooks.PostToolUseFailure, undefined);
 });
 
 test("Codex extension hook manifest wires lifecycle and post-tool telemetry", async () => {
   const hooks = await readRepoJson("com.openai/hooks/hooks.json");
   assert.deepEqual(
     Object.keys(hooks.hooks).sort(),
-    ["PostToolUse", "PostToolUseFailure", "SubagentStart"],
+    ["PostToolUse", "SubagentStart"],
   );
   assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 
-  for (const event of ["SubagentStart", "PostToolUse", "PostToolUseFailure"]) {
+  for (const event of ["SubagentStart", "PostToolUse"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{PLUGIN_ROOT\}/);
     assert.doesNotMatch(command, /\$\{(?:CLAUDE|CODEX)_PLUGIN_ROOT\}/);
@@ -91,6 +88,7 @@ test("Codex extension hook manifest wires lifecycle and post-tool telemetry", as
     hooks.hooks.PostToolUse[0].matcher,
     /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
   );
+  assert.equal(hooks.hooks.PostToolUseFailure, undefined);
 });
 
 test("portable manifest selects the Codex adapter", async () => {

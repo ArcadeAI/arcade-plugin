@@ -2,6 +2,13 @@
 
 export const MAX_HOOK_INPUT_BYTES = 256 * 1024;
 
+/** @typedef {Record<string, unknown>} HookInput */
+
+/** @param {unknown} value @returns {value is HookInput} */
+const isHookInput = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+/** @returns {Promise<HookInput>} */
 export const readHookInput = async (stream = process.stdin) => {
   if (stream.isTTY) return {};
 
@@ -26,7 +33,7 @@ export const readHookInput = async (stream = process.stdin) => {
   if (oversized || !raw) return {};
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
+    return isHookInput(parsed) ? parsed : {};
   } catch {
     return {};
   }

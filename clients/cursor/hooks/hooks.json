@@ -14,14 +14,7 @@
     ],
     "afterMCPExecution": [
       {
-        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/post-arcade-tool.mjs\" success",
-        "timeout": 5
-      }
-    ],
-    "postToolUseFailure": [
-      {
-        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/post-arcade-tool.mjs\" failure",
-        "matcher": "^(?:MCP:)?Arcade_.*$",
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/post-arcade-tool.mjs\"",
         "timeout": 5
       }
     ]

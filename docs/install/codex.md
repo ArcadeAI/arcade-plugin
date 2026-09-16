@@ -48,7 +48,7 @@ as a compatibility fallback.
 | `SessionStart` | Session routing guidance |
 | `UserPromptSubmit` | Per-turn Arcade reminder |
 | `SubagentStart` | Subagent routing guidance |
-| `PostToolUse` / `PostToolUseFailure` | Arcade MCP tool outcome telemetry |
+| `PostToolUse` | Link successful SelectTools results to plugin routing telemetry |
 
 ## Sign in
 

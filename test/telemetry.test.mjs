@@ -40,6 +40,9 @@ test("readHookInput rejects malformed and oversized payloads", async () => {
     session_id: "s1",
   });
   assert.deepEqual(await readHookInput(Readable.from(["not json"])), {});
+  assert.deepEqual(await readHookInput(Readable.from(["null"])), {});
+  assert.deepEqual(await readHookInput(Readable.from(["[]"])), {});
+  assert.deepEqual(await readHookInput(Readable.from(['"text"'])), {});
   assert.deepEqual(
     await readHookInput(Readable.from(["x".repeat(MAX_HOOK_INPUT_BYTES + 1)])),
     {},
@@ -241,6 +244,36 @@ test("queryIdFromSelectToolsResponse rejects unsafe query_id tokens", () => {
   );
 });
 
+test("queryIdFromSelectToolsResponse rejects malformed host envelopes", () => {
+  for (const input of [undefined, null, [], "hook input"]) {
+    assert.equal(queryIdFromSelectToolsResponse(input), undefined);
+  }
+  assert.equal(
+    queryIdFromSelectToolsResponse({
+      tool_name: "mcp__arcade__Arcade_SelectTools",
+      result_json: "[]",
+      tool_response: {
+        structuredContent: [],
+        content: [{ type: "text", text: "null" }],
+      },
+    }),
+    undefined,
+  );
+});
+
+test("queryIdFromSelectToolsResponse skips malformed candidates", () => {
+  assert.equal(
+    queryIdFromSelectToolsResponse({
+      tool_name: "mcp__arcade__Arcade_SelectTools",
+      result_json: "not json",
+      tool_response: {
+        structuredContent: { query_id: "codex-q-4" },
+      },
+    }),
+    "codex-q-4",
+  );
+});
+
 test("arcadeToolNameFromInput filters Cursor MCP events by server", () => {
   assert.equal(
     arcadeToolNameFromInput({
@@ -331,7 +364,7 @@ test("subagent-start emits guidance with telemetry disabled", () => {
 
 test("post-arcade-tool links SelectTools query_id only", () => {
   const result = runHook(
-    "post-arcade-tool.mjs success",
+    "post-arcade-tool.mjs",
     JSON.stringify({
       session_id: "s1",
       mcp_server_name: "arcade",
@@ -346,7 +379,7 @@ test("post-arcade-tool links SelectTools query_id only", () => {
 
 test("post-arcade-tool ignores non-arcade tools", () => {
   const result = runHook(
-    "post-arcade-tool.mjs success",
+    "post-arcade-tool.mjs",
     JSON.stringify({ session_id: "s1", tool_name: "Shell" }),
   );
   assert.equal(result.status, 0, result.stderr);
@@ -354,7 +387,7 @@ test("post-arcade-tool ignores non-arcade tools", () => {
 
 test("post-arcade-tool ignores SelectTools responses without query_id", () => {
   const result = runHook(
-    "post-arcade-tool.mjs success",
+    "post-arcade-tool.mjs",
     JSON.stringify({
       session_id: "s1",
       mcp_server_name: "arcade",
