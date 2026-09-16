@@ -23,6 +23,7 @@ import {
   MCP_SERVER_NAME,
   PLUGINS_CLI_VERSION,
   PLUGIN_DISPLAY_NAME,
+  PLUGIN_LOGO,
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
@@ -151,6 +152,10 @@ if (cursorManifest) {
       `.cursor-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
+  const cursorLogoPath = cursorManifest.logo?.replace(/^\.\//, "");
+  if (cursorLogoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
+    fail(".cursor-plugin/plugin.json: logo must point at a committed asset");
+  }
 }
 
 if (json["clients/claude/mcp.json"]?.mcpServers?.arcade?.type !== "http") {
@@ -261,6 +266,10 @@ if (codexManifest) {
       `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
+  const codexLogoPath = codexManifest.logo?.replace(/^\.\//, "");
+  if (codexLogoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
+    fail(".codex-plugin/plugin.json: logo must point at a committed asset");
+  }
   const expectedHooks = ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"];
   if (JSON.stringify(codexManifest.hooks) !== JSON.stringify(expectedHooks)) {
     fail(
@@ -363,6 +372,10 @@ if (marketplace) {
     fail(
       `.claude-plugin/marketplace.json: plugin displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
+  }
+  const marketplaceLogoPath = listed.logo?.replace(/^\.\//, "");
+  if (marketplaceLogoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
+    fail(".claude-plugin/marketplace.json: plugin logo must point at a committed asset");
   }
 }
 

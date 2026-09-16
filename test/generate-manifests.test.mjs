@@ -14,7 +14,7 @@ import {
   generateManifests,
 } from "../scripts/generate-manifests.mjs";
 import { readVersion } from "../scripts/version.mjs";
-import { PLUGIN_DISPLAY_NAME } from "../scripts/constants.mjs";
+import { PLUGIN_DISPLAY_NAME, PLUGIN_LOGO } from "../scripts/constants.mjs";
 import { readRepoJson, ROOT } from "./helpers.mjs";
 
 const writeJson = (root, relativePath, value) => {
@@ -59,6 +59,7 @@ test("generateManifests matches committed host manifests", async () => {
 
   const cursorPlugin = await readRepoJson(".cursor-plugin/plugin.json");
   assert.equal(cursorPlugin.displayName, PLUGIN_DISPLAY_NAME);
+  assert.equal(cursorPlugin.logo, PLUGIN_LOGO);
 
   const claudePlugin = await readRepoJson(".claude-plugin/plugin.json");
   assert.deepEqual(claudePlugin.hooks, [
@@ -69,6 +70,11 @@ test("generateManifests matches committed host manifests", async () => {
 
   const codexPlugin = await readRepoJson(".codex-plugin/plugin.json");
   assert.equal(codexPlugin.displayName, PLUGIN_DISPLAY_NAME);
+  assert.equal(codexPlugin.logo, PLUGIN_LOGO);
+
+  const marketplace = await readRepoJson(".claude-plugin/marketplace.json");
+  assert.equal(marketplace.plugins[0].displayName, PLUGIN_DISPLAY_NAME);
+  assert.equal(marketplace.plugins[0].logo, PLUGIN_LOGO);
   assert.deepEqual(codexPlugin.hooks, [
     "./hooks/hooks.json",
     "./com.openai/hooks/hooks.json",

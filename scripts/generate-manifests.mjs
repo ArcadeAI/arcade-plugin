@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readVersion } from "./version.mjs";
-import { PLUGIN_DISPLAY_NAME } from "./constants.mjs";
+import { PLUGIN_DISPLAY_NAME, PLUGIN_LOGO } from "./constants.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -34,7 +34,10 @@ const identityFields = (portablePlugin) => {
   return { name, description, author, homepage, license, keywords };
 };
 
-const listingFields = () => ({ displayName: PLUGIN_DISPLAY_NAME });
+const listingFields = () => ({
+  displayName: PLUGIN_DISPLAY_NAME,
+  logo: PLUGIN_LOGO,
+});
 
 export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   if (portablePlugin.version !== version) {
@@ -100,7 +103,7 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
     plugins: [
       {
         name: portablePlugin.name,
-        displayName: PLUGIN_DISPLAY_NAME,
+        ...listingFields(),
         source: "./",
         description: portablePlugin.description,
         version,

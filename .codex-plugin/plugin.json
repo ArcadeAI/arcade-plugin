@@ -15,6 +15,7 @@
   ],
   "version": "0.1.0",
   "displayName": "Arcade",
+  "logo": "assets/logo.png",
   "hooks": [
     "./hooks/hooks.json",
     "./com.openai/hooks/hooks.json"
