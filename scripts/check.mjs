@@ -65,6 +65,7 @@ for (const required of [
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
   ".codex-plugin/plugin.json",
+  "com.github.copilot/agents/arcade-operator.agent.md",
 ]) {
   if (!existsSync(join(ROOT, required))) {
     fail(`missing required path: ${required}`);
@@ -174,6 +175,7 @@ for (const file of ["mcp.json", "clients/cursor/mcp.json", "clients/claude/mcp.j
 for (const routingFile of [
   "skills/try-arcade/SKILL.md",
   "agents/arcade-operator.agent.md",
+  "com.github.copilot/agents/arcade-operator.agent.md",
   "clients/cursor/rules/arcade.mdc",
 ]) {
   const content = read(routingFile);
@@ -203,8 +205,10 @@ if (!claudeHooks.includes("hooks/session-start.mjs")) {
 if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
   fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
 }
-if (!claudeHooks.includes('"matcher": "startup|resume|clear"')) {
-  fail('hooks/hooks.json: SessionStart must match startup, resume, and clear');
+if (!claudeHooks.includes('"matcher": "startup|resume|clear|compact|fork"')) {
+  fail(
+    "hooks/hooks.json: SessionStart must match startup, resume, clear, compact, and fork",
+  );
 }
 if (claudeHooks.includes("SubagentStart")) {
   fail(
@@ -329,7 +333,7 @@ for (const [schemaUrl, localPath] of Object.entries(VENDORED_SCHEMAS)) {
 
 const verifyScripts = {
   "verify:discover": "plugins discover .",
-  "verify:claude": "claude plugin validate .",
+  "verify:claude": "claude plugin validate . --strict",
 };
 for (const [scriptName, expected] of Object.entries(verifyScripts)) {
   if (packageJson.scripts?.[scriptName] !== expected) {

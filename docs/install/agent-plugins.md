@@ -18,9 +18,10 @@ npx plugins add ArcadeAI/arcade-plugin
 That loads `plugin.json`, `skills/`, and `mcp.json` — `try-arcade`,
 `scale-arcade`, and the gateway.
 
-The operator file in `agents/` is not a portable Agent Plugins component.
-Hosts that already scan `agents/` (Claude Code, Copilot CLI) pick it up;
-everyone else runs the same loop in the parent skill.
+The operator is not a portable Agent Plugins component. Claude Code and Cursor
+load the canonical file in `agents/`; Copilot CLI and VS Code load its generated
+projection in `com.github.copilot/agents/`. Other clients run the same loop in
+the parent skill.
 
 ## Sign in
 

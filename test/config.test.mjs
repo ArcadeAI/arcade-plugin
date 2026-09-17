@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import {
   copyFileSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
   PROMPT_REMINDER,
@@ -104,7 +105,15 @@ test("a release-style version bump leaves generated manifests in sync", async ()
   const extraFiles = config.packages["."]["extra-files"];
 
   try {
-    for (const file of ["VERSION", "plugin.json", "mcp.json"]) {
+    for (const file of [
+      "VERSION",
+      "plugin.json",
+      "mcp.json",
+      "agents/arcade-operator.agent.md",
+    ]) {
+      if (file.includes("/")) {
+        mkdirSync(dirname(join(root, file)), { recursive: true });
+      }
       copyFileSync(join(ROOT, file), join(root, file));
     }
     generateManifests({ root });
@@ -140,7 +149,7 @@ test("CI toolchain versions are pinned in package.json", async () => {
   assert.equal(packageJson.scripts?.["verify:discover"], "plugins discover .");
   assert.equal(
     packageJson.scripts?.["verify:claude"],
-    "claude plugin validate .",
+    "claude plugin validate . --strict",
   );
   assert.match(packageJson.scripts?.verify, /generate:check/);
 

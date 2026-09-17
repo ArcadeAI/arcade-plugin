@@ -25,13 +25,26 @@ test("routing guidance distinguishes auth from gateway failures", async () => {
 });
 
 test("session-start emits Cursor shape with shared guidance", () => {
-  const result = runHook("session-start.mjs", '{"cursor_version":"1.0"}');
+  const result = runHook(
+    "session-start.mjs",
+    '{"session_id":"cursor-session","is_background_agent":false,"composer_mode":"agent"}',
+  );
   assert.equal(result.status, 0, result.stderr);
   const out = JSON.parse(result.stdout.trim());
   assert.ok(out.additional_context);
   for (const phrase of CONTEXT_PHRASES) {
     assert.match(out.additional_context, new RegExp(phrase));
   }
+});
+
+test("session-start does not treat a shared session_id as Cursor", () => {
+  const result = runHook(
+    "session-start.mjs",
+    '{"session_id":"claude-or-codex-session"}',
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const out = JSON.parse(result.stdout.trim());
+  assert.equal(out.hookSpecificOutput.hookEventName, "SessionStart");
 });
 
 test("session-start emits Claude shape with shared guidance", () => {

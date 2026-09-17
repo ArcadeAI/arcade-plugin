@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ArcadeAI/arcade-plugin/schemas/host-adapters/claude-hooks.schema.json",
+  "title": "Arcade Claude hook adapter contract",
+  "$comment": "Repository-owned contract for the documented Claude hook subset used here. Source checked 2026-09-17: https://code.claude.com/docs/en/hooks",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hooks"],
+  "properties": {
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["SessionStart", "UserPromptSubmit"],
+      "properties": {
+        "SessionStart": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["matcher", "hooks"],
+            "properties": {
+              "matcher": {
+                "const": "startup|resume|clear|compact|fork"
+              },
+              "hooks": {
+                "$ref": "#/$defs/commands"
+              }
+            }
+          }
+        },
+        "UserPromptSubmit": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["hooks"],
+            "properties": {
+              "hooks": {
+                "$ref": "#/$defs/commands"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "command"],
+        "properties": {
+          "type": {
+            "const": "command"
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "timeout": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      }
+    }
+  }
+}

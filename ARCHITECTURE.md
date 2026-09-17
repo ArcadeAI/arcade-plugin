@@ -1,27 +1,29 @@
 # Architecture
 
 This package is a portable Agent Plugin plus a small adapter per host. The
-portable core is `plugin.json`, `mcp.json`, and `skills/`. Cursor and Claude
-adapters live in `.cursor-plugin/`, `.claude-plugin/`, and `clients/`.
+portable core is `plugin.json`, `mcp.json`, and `skills/`. Cursor, Claude, and
+Copilot adapters live in `.cursor-plugin/`, `.claude-plugin/`, `clients/`, and
+`com.github.copilot/`.
 Commands, hooks, and the Cursor rule are host adapters, not portable
 Agent Plugins components. The package still ships no credentials.
 
 ## Portable contract → generate → validate
 
 The standard Agent Plugins files—`plugin.json`, `mcp.json`, and `skills/`—are
-the portable source of truth. `scripts/generate-manifests.mjs` reads the two
-portable manifests and `VERSION`, then writes only the host projections:
-client MCP adapters plus `.cursor-plugin/`, `.claude-plugin/`, and the optional
-`.codex-plugin/` compatibility manifest.
+the portable source of truth. The canonical operator lives under `agents/`.
+`scripts/generate-manifests.mjs` reads those sources and `VERSION`, then writes
+only the host projections: client MCP adapters, `.cursor-plugin/`,
+`.claude-plugin/`, the optional `.codex-plugin/` compatibility manifest, and
+the Copilot operator projection under `com.github.copilot/`.
 
 Hook manifests stay hand-authored because each host has its own event schema:
 `hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-and `com.openai/hooks/hooks.json` for Codex. Structural and behavioral tests
-validate the split directly; no generated hash inventory sits between the
-manifests and the runtime checks.
+and `com.openai/hooks/hooks.json` for Codex. Strict repository-owned JSON
+Schemas validate the documented subset used by each adapter, while structural
+and behavioral tests validate path tokens, event ownership, and hook output.
 
 ```text
-plugin.json + mcp.json + VERSION
+plugin.json + mcp.json + agents/ + VERSION
         │
         ▼
 scripts/generate-manifests.mjs
@@ -29,7 +31,8 @@ scripts/generate-manifests.mjs
         ├── clients/*/mcp.json
         ├── .cursor-plugin/plugin.json
         ├── .claude-plugin/plugin.json, marketplace.json
-        └── .codex-plugin/plugin.json
+        ├── .codex-plugin/plugin.json
+        └── com.github.copilot/agents/arcade-operator.agent.md
         │
         ▼
 npm run generate:check  (in verify)  +  scripts/check.mjs
@@ -61,6 +64,8 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 ├── .claude-plugin/plugin.json          Claude plugin (skills + operator)
 ├── .claude-plugin/marketplace.json     Claude Desktop / Code marketplace catalog
 ├── .codex-plugin/plugin.json           Codex compatibility fallback
+├── com.github.copilot/
+│   └── agents/arcade-operator.agent.md Copilot and VS Code projection
 ├── clients/
 │   ├── cursor/
 │   │   ├── mcp.json                    Cursor infers transport from url
@@ -91,7 +96,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │       ├── SKILL.md                    org rollout guidance
 │       └── references/arcade-docs.md   same docs entry points
 │
-└── agents/                             one copy, read by Cursor + Claude + Copilot CLI
+└── agents/                             canonical Cursor + Claude operator
     └── arcade-operator.agent.md        bounded discovery + execution
 ```
 
@@ -100,6 +105,8 @@ resolves `.cursor-plugin/plugin.json` first and also registers `agents/`.
 Claude Code resolves `.claude-plugin/plugin.json` and discovers `skills/` and
 `agents/` from the default folders. Claude Desktop adds this repository as a
 plugin marketplace via `.claude-plugin/marketplace.json` (`source: "./"`).
+Copilot CLI and VS Code discover the generated operator under the Agent
+Plugins client extension directory `com.github.copilot/agents/`.
 Every client can still run the workflow directly through MCP without the
 operator.
 

@@ -17,6 +17,11 @@ export const GENERATED_MANIFESTS = [
   ".codex-plugin/plugin.json",
 ];
 
+export const GENERATED_PROJECTIONS = [
+  ...GENERATED_MANIFESTS,
+  "com.github.copilot/agents/arcade-operator.agent.md",
+];
+
 const readJson = (root, relativePath) =>
   JSON.parse(readFileSync(join(root, relativePath), "utf8"));
 
@@ -137,7 +142,14 @@ export function generateManifests({ check = false, root = ROOT } = {}) {
     writeIfChanged(root, path, serialize(value), check);
   }
 
-  return { version, manifestCount: manifests.size };
+  writeIfChanged(
+    root,
+    "com.github.copilot/agents/arcade-operator.agent.md",
+    readFileSync(join(root, "agents/arcade-operator.agent.md"), "utf8"),
+    check,
+  );
+
+  return { version, projectionCount: GENERATED_PROJECTIONS.length };
 }
 
 const isCli =
@@ -149,7 +161,7 @@ if (isCli) {
     const result = generateManifests({ check });
     const mode = check ? "check" : "generate";
     console.log(
-      `${mode}: ${result.manifestCount} host manifests from portable plugin (v${result.version})`,
+      `${mode}: ${result.projectionCount} host projections from portable sources (v${result.version})`,
     );
   } catch (error) {
     console.error(error.message);

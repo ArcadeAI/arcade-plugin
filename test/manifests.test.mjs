@@ -38,7 +38,10 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
-  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear");
+  assert.equal(
+    hooks.hooks.SessionStart[0].matcher,
+    "startup|resume|clear|compact|fork",
+  );
   assert.equal(hooks.hooks.SubagentStart, undefined);
 });
 
@@ -87,6 +90,13 @@ test(".claude-plugin MCP adapter path exists", async () => {
   const manifest = await readRepoJson(".claude-plugin/plugin.json");
   const mcpPath = manifest.mcpServers.replace(/^\.\//, "");
   assert.equal(await pathExists(mcpPath), true, `missing ${mcpPath}`);
+});
+
+test("Copilot agent projection matches the canonical operator", async () => {
+  assert.equal(
+    await readRepoFile("com.github.copilot/agents/arcade-operator.agent.md"),
+    await readRepoFile("agents/arcade-operator.agent.md"),
+  );
 });
 
 test("skill directories include SKILL.md", async () => {

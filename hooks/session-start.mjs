@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Shared session-start hook. Cursor and Claude send different stdin
-// shapes; emit the one the caller understands. Always exit 0.
+// Shared session-start hook. Cursor and Claude-compatible hosts send different
+// stdin shapes; emit the one the caller understands. Always exit 0.
 
 import { SESSION_CONTEXT } from "./routing-guidance.mjs";
 
@@ -19,6 +19,8 @@ const detectPlatform = (rawInput) => {
   try {
     const input = JSON.parse(rawInput);
     if (
+      "is_background_agent" in input ||
+      "composer_mode" in input ||
       "conversation_id" in input ||
       "workspace_roots" in input ||
       "cursor_version" in input

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ArcadeAI/arcade-plugin/schemas/host-adapters/openai-hooks.schema.json",
+  "title": "Arcade OpenAI hook adapter contract",
+  "$comment": "Repository-owned contract for the documented OpenAI hook subset used here. Source checked 2026-09-17: https://learn.chatgpt.com/docs/hooks",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hooks"],
+  "properties": {
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
+      "properties": {
+        "SessionStart": {
+          "$ref": "#/$defs/sessionStart"
+        },
+        "UserPromptSubmit": {
+          "$ref": "#/$defs/userPromptSubmit"
+        },
+        "SubagentStart": {
+          "$ref": "#/$defs/subagentStart"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "properties": {
+        "type": {
+          "const": "command"
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "sessionStart": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["matcher", "hooks"],
+        "properties": {
+          "matcher": {
+            "const": "startup|resume|clear|compact"
+          },
+          "hooks": {
+            "$ref": "#/$defs/commands"
+          }
+        }
+      }
+    },
+    "userPromptSubmit": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["hooks"],
+        "properties": {
+          "hooks": {
+            "$ref": "#/$defs/commands"
+          }
+        }
+      }
+    },
+    "subagentStart": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["matcher", "hooks"],
+        "properties": {
+          "matcher": {
+            "const": "*"
+          },
+          "hooks": {
+            "$ref": "#/$defs/commands"
+          }
+        }
+      }
+    }
+  }
+}

@@ -8,8 +8,9 @@ npx plugins add ArcadeAI/arcade-plugin --target vscode
 
 Enable agent plugins in VS Code if needed (`chat.plugins.enabled`).
 
-VS Code loads root `plugin.json` as an Agent Plugin: 2 skills and the
-gateway. It does not read `.cursor-plugin/` or register `arcade-operator`.
+VS Code loads root `plugin.json` as an Agent Plugin: 2 skills, the gateway,
+and `arcade-operator` from `com.github.copilot/agents/`. It does not read the
+`.cursor-plugin/` adapter.
 
 If you already installed the plugin via Copilot CLI, VS Code may auto-discover
 it from `~/.copilot/installed-plugins/`. Install in one place.

@@ -33,3 +33,14 @@ test("Codex guide documents hook trust", async () => {
   assert.match(guide, /extensions\.com\.openai/);
   assert.match(guide, /local runtime/);
 });
+
+test("Copilot and VS Code guides document the namespaced operator", async () => {
+  for (const guidePath of [
+    "docs/install/copilot.md",
+    "docs/install/vscode.md",
+  ]) {
+    const guide = await readRepoFile(guidePath);
+    assert.match(guide, /com\.github\.copilot\/agents/);
+    assert.match(guide, /arcade-operator/);
+  }
+});

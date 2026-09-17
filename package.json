@@ -9,7 +9,7 @@
     "test": "node --test",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "verify:discover": "plugins discover .",
-    "verify:claude": "claude plugin validate .",
+    "verify:claude": "claude plugin validate . --strict",
     "verify": "npm run check && npm run generate:check && npm run validate:schemas && npm test && npm run verify:discover && npm run verify:claude"
   },
   "devDependencies": {
