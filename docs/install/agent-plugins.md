@@ -31,4 +31,6 @@ approve it in the browser when prompted.
 ## First steps
 
 - "What's on my calendar tomorrow?"
-- `/try-arcade` (when the client loaded skills)
+- Invoke skills the way your client supports them (for example `/try-arcade` in
+  Cursor and Claude Code, or `@Arcade` / `$arcade:try-arcade` in Codex — see
+  [codex.md](codex.md))

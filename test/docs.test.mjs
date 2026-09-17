@@ -36,6 +36,14 @@ test("Codex guide documents hook trust", async () => {
   assert.match(guide, /local runtime/);
 });
 
+test("Codex guide documents install completion and skill invocation", async () => {
+  const guide = await readRepoFile("docs/install/codex.md");
+  assert.match(guide, /codex plugin add arcade@plugins-cli/);
+  assert.match(guide, /@Arcade/);
+  assert.match(guide, /\$arcade:try-arcade/);
+  assert.doesNotMatch(guide, /\/try-arcade/);
+});
+
 test("Copilot and VS Code guides document the namespaced operator", async () => {
   for (const guidePath of [
     "docs/install/copilot.md",

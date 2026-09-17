@@ -35,8 +35,10 @@ Dry run (see what would install, without writing files):
 npx plugins discover ArcadeAI/arcade-plugin
 ```
 
-After install, reload your agent if needed. The first external service task
-returns a browser sign-in link — approve it when prompted.
+After install, reload your agent or start a new session if needed. Codex also
+needs `codex plugin add arcade@plugins-cli` after `npx plugins add --target
+codex` — see [codex.md](codex.md). The first external service task returns a
+browser sign-in link — approve it when prompted.
 
 ## Tools only
 

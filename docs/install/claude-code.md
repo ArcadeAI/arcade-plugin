@@ -2,15 +2,23 @@
 
 ## Full plugin
 
+**Anthropic-native (matches Claude Code docs):**
+
+```bash
+claude plugin marketplace add ArcadeAI/arcade-plugin
+claude plugin install arcade@arcade
+```
+
+Then in Claude Code run **`/reload-plugins`**.
+
+**Cross-client CLI:**
+
 ```bash
 npx plugins add ArcadeAI/arcade-plugin --target claude-code
 ```
 
-Then enable the plugin if your client prompts you:
-
-```bash
-claude plugin
-```
+Verify with `claude plugin list` or **`/plugin`**, then **`/reload-plugins`**
+if the session was already open.
 
 Claude Code reads `.claude-plugin/plugin.json`. Skills and `arcade-operator`
 come from the default `skills/` and `agents/` folders. The gateway comes
