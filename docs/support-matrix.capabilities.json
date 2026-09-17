@@ -76,7 +76,7 @@
       "skills": 2,
       "subagent": null,
       "hooks": null,
-      "notes": "Lifecycle hooks blocked on Codex 0.154.0 for Agent Plugin packages (openai/codex#39895). Use skills for routing."
+      "notes": "Codex 0.154.0 parses extensions.com.openai.hooks then discards them at load for AgentPlugin format (openai/codex#37027, openai/codex#39895). Use skills for routing."
     },
     "opencode": {
       "label": "OpenCode",

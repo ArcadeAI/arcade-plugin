@@ -44,10 +44,13 @@ every version-bearing manifest, and CI simulates that update before accepting
 the release configuration.
 
 Hook scripts live in `hooks/*.mjs`. Hook manifests are per client:
-`hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-for Claude and Cursor. Codex lifecycle hooks are parked on branch
-`cursor/park-codex-hooks-gro-353-f8ad` until Codex loads hooks for Agent
-Plugin packages ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
+`hooks/hooks.json` for Claude and `clients/cursor/hooks/hooks.json` for Cursor.
+Codex lifecycle hooks are parked on branch `cursor/park-codex-hooks-gro-353-f8ad`.
+Codex 0.154.0 parses `extensions.com.openai.hooks` and the `.codex-plugin`
+fallback into `manifest.paths.hooks`, then discards them at load time for
+`AgentPlugin` format ([`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956);
+gate introduced in [openai/codex#37027](https://github.com/openai/codex/pull/37027);
+tracked in [openai/codex#39895](https://github.com/openai/codex/issues/39895)).
 `scripts/check.mjs` enforces that split. Maintainer-facing agent guidance lives
 in [AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
 

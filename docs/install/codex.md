@@ -12,12 +12,22 @@ skills and MCP, but not custom agent roles yet
 ([codex#36855](https://github.com/openai/codex/issues/36855)). Use the
 `arcade:try-arcade` skill instead.
 
-**Lifecycle hooks are not active on Codex today.** Codex 0.154.0 skips plugin
-hooks for Agent Plugin packages that ship a root `plugin.json`
-([openai/codex#39895](https://github.com/openai/codex/issues/39895)). Use
-`@Arcade` or `$arcade:try-arcade` for routing guidance until upstream fixes
-that loader gap. The Codex hook adapter lives on branch
-`cursor/park-codex-hooks-gro-353-f8ad` for when that lands.
+**Lifecycle hooks are not active on Codex today.** On Codex 0.154.0 (current
+npm stable), a root `plugin.json` with the Agent Plugins `$schema` causes the
+loader to discard plugin hooks even when they are declared correctly in
+`extensions.com.openai` or `.codex-plugin/plugin.json`. The manifest parser
+reads those paths; [`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956)
+returns empty `hook_sources` for `AgentPlugin` format. That gate landed in
+[openai/codex#37027](https://github.com/openai/codex/pull/37027); see
+[openai/codex#39895](https://github.com/openai/codex/issues/39895).
+
+Measured on `@openai/codex@0.154.0` against the parked hook adapter: 0 hooks
+with the Agent Plugins `$schema` present, 3 hooks when `$schema` is removed
+(same install path, skills and display name still load). Removing `$schema`
+breaks Agent Plugins 1.0 conformance, so this repo does not ship that
+workaround. Use `@Arcade` or `$arcade:try-arcade` for routing until upstream
+fixes the loader. The hook adapter lives on branch
+`cursor/park-codex-hooks-gro-353-f8ad`.
 
 ## Install
 

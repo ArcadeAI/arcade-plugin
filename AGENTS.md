@@ -19,9 +19,13 @@ Claude Code runs `SubagentStart` from `hooks/hooks.json` with
 `agent_type` is `arcade-operator` or a plugin-scoped name ending in
 `:arcade-operator`.
 
-**Codex hooks are parked** on branch `cursor/park-codex-hooks-gro-353-f8ad`
-until [openai/codex#39895](https://github.com/openai/codex/issues/39895) lets
-Agent Plugin packages load `extensions.com.openai.hooks` at runtime.
+**Codex hooks are parked** on branch `cursor/park-codex-hooks-gro-353-f8ad`.
+Codex 0.154.0 parses `extensions.com.openai.hooks` (and the `.codex-plugin`
+fallback) but the loader discards them for `AgentPlugin` format
+([`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956);
+[openai/codex#37027](https://github.com/openai/codex/pull/37027),
+[openai/codex#39895](https://github.com/openai/codex/issues/39895)). Do not
+drop root `$schema` to force hooks; that breaks Agent Plugins conformance.
 
 `scripts/check.mjs` enforces this split. Run `npm run verify` after editing a
 hook manifest.
