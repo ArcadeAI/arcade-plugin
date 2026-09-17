@@ -9,12 +9,13 @@
     "test": "node --test",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "validate:hooks": "node scripts/validate-hook-contracts.mjs",
+    "validate:manifest-hooks": "node scripts/validate-manifest-hook-smoke.mjs",
     "vendor:codex-schemas": "node scripts/vendor-codex-hook-schemas.mjs",
     "verify:discover": "plugins discover .",
     "verify:claude": "claude plugin validate . --strict",
     "verify:codex": "node scripts/verify-codex-plugin.mjs",
     "verify:cursor": "node scripts/verify-cursor-plugin.mjs",
-    "verify": "npm run check && npm run generate:check && npm run validate:schemas && npm run validate:hooks && npm test && npm run verify:discover && npm run verify:claude && npm run verify:codex && npm run verify:cursor"
+    "verify": "npm run check && npm run generate:check && npm run validate:schemas && npm run validate:hooks && npm run validate:manifest-hooks && npm test && npm run verify:discover && npm run verify:claude && npm run verify:codex && npm run verify:cursor"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.258",

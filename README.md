@@ -106,7 +106,8 @@ npm run verify
 ```
 
 `verify` runs structural checks, generated-manifest drift checks, JSON Schema
-validation, hook contract validation, hook/manifest tests, `plugins discover`,
+validation, hook contract validation, manifest-command hook smoke,
+hook/manifest tests, `plugins discover`,
 `claude plugin validate`, and Codex/Cursor adapter smoke scripts (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 

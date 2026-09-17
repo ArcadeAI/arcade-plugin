@@ -422,7 +422,12 @@ const verifyScripts = {
   "verify:codex": "node scripts/verify-codex-plugin.mjs",
   "verify:cursor": "node scripts/verify-cursor-plugin.mjs",
   "validate:hooks": "node scripts/validate-hook-contracts.mjs",
+  "validate:manifest-hooks":
+    "node scripts/validate-manifest-hook-smoke.mjs",
 };
+if (!packageJson.scripts?.verify?.includes("validate:manifest-hooks")) {
+  fail("package.json scripts.verify must include validate:manifest-hooks");
+}
 for (const [scriptName, expected] of Object.entries(verifyScripts)) {
   if (packageJson.scripts?.[scriptName] !== expected) {
     fail(`package.json scripts.${scriptName} must be "${expected}"`);

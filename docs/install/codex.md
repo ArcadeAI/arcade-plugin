@@ -33,7 +33,10 @@ MCP server should be connected.
 
 Codex does not run plugin-bundled hooks until you review and trust them.
 After install, open `/hooks` in Codex and trust the Arcade plugin hooks.
-Codex prints a startup warning when hooks still need review.
+Codex prints a startup warning when hooks still need review. CI runs
+`validate:manifest-hooks` to execute the wired `${PLUGIN_ROOT}` commands from
+`com.openai/hooks/hooks.json`. That proves path substitution and stdout work in
+the repo. It does not replace trusting hooks in your local Codex session.
 
 The plugin ships three hooks in `com.openai/hooks/hooks.json`. Root
 `plugin.json` selects that adapter through `extensions.com.openai.hooks`.
