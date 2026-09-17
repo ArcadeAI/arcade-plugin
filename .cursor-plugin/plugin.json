@@ -15,6 +15,7 @@
   ],
   "version": "0.1.0",
   "displayName": "Arcade",
+  "logo": "assets/logo.png",
   "skills": "skills",
   "agents": "agents",
   "commands": "commands",

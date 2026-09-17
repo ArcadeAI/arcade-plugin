@@ -103,6 +103,8 @@ test("portable manifest selects the Codex adapter", async () => {
     "./hooks/hooks.json",
     "./com.openai/hooks/hooks.json",
   ]);
+  assert.equal(fallback.displayName, "Arcade");
+  assert.equal(await pathExists(fallback.logo), true, `missing ${fallback.logo}`);
   assert.equal(fallback.skills, undefined);
   assert.equal(fallback.mcpServers, undefined);
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
@@ -111,6 +113,8 @@ test("portable manifest selects the Codex adapter", async () => {
 
 test(".cursor-plugin manifest paths exist", async () => {
   const manifest = await readRepoJson(".cursor-plugin/plugin.json");
+  assert.equal(manifest.displayName, "Arcade");
+  assert.equal(await pathExists(manifest.logo), true, `missing ${manifest.logo}`);
   for (const key of ["skills", "agents", "commands", "rules", "hooks", "mcpServers"]) {
     assert.equal(await pathExists(manifest[key]), true, `missing ${manifest[key]}`);
   }
@@ -137,6 +141,8 @@ test("Claude marketplace lists this plugin at the repo root", async () => {
   assert.equal(marketplace.name, "arcade");
   assert.equal(marketplace.plugins?.length, 1);
   assert.equal(marketplace.plugins[0].name, "arcade");
+  assert.equal(marketplace.plugins[0].displayName, "Arcade");
+  assert.equal(await pathExists(marketplace.plugins[0].logo), true);
   assert.equal(marketplace.plugins[0].source, "./");
 });
 

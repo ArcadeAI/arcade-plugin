@@ -23,6 +23,7 @@ import {
   MCP_SERVER_NAME,
   PLUGINS_CLI_VERSION,
   PLUGIN_DISPLAY_NAME,
+  PLUGIN_LOGO,
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
@@ -32,6 +33,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
 const fail = (message) => errors.push(message);
 const read = (path) => readFileSync(join(ROOT, path), "utf8");
+const assertCommittedLogo = (manifest, label) => {
+  const logoPath = manifest.logo?.replace(/^\.\//, "");
+  if (logoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
+    fail(`${label}: logo must point at a committed asset`);
+  }
+};
 
 const jsonFiles = [];
 const walk = (dir) => {
@@ -151,6 +158,7 @@ if (cursorManifest) {
       `.cursor-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
+  assertCommittedLogo(cursorManifest, ".cursor-plugin/plugin.json");
 }
 
 if (json["clients/claude/mcp.json"]?.mcpServers?.arcade?.type !== "http") {
@@ -261,6 +269,7 @@ if (codexManifest) {
       `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
+  assertCommittedLogo(codexManifest, ".codex-plugin/plugin.json");
   const expectedHooks = ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"];
   if (JSON.stringify(codexManifest.hooks) !== JSON.stringify(expectedHooks)) {
     fail(
@@ -358,6 +367,7 @@ if (marketplace) {
       `.claude-plugin/marketplace.json: plugin displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
+  assertCommittedLogo(listed, ".claude-plugin/marketplace.json: plugin");
 }
 
 if (!read("docs/install/claude-desktop.md").includes(`claude plugin marketplace add ${INSTALL_SLUG}`)) {
