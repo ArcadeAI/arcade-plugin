@@ -4,11 +4,17 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check.mjs",
+    "generate": "node scripts/generate-manifests.mjs",
+    "generate:check": "node scripts/generate-manifests.mjs --check",
     "test": "node --test",
     "validate:schemas": "node scripts/validate-schemas.mjs",
+    "validate:hooks": "node scripts/validate-hook-contracts.mjs",
+    "validate:manifest-hooks": "node scripts/validate-manifest-hook-smoke.mjs",
     "verify:discover": "plugins discover .",
-    "verify:claude": "claude plugin validate .",
-    "verify": "npm run check && npm run validate:schemas && npm test && npm run verify:discover && npm run verify:claude"
+    "verify:claude": "claude plugin validate . --strict",
+    "verify:codex": "node scripts/verify-codex-plugin.mjs",
+    "verify:cursor": "node scripts/verify-cursor-plugin.mjs",
+    "verify": "npm run check && npm run generate:check && npm run validate:schemas && npm test && npm run verify:discover && npm run verify:claude && npm run verify:codex && npm run verify:cursor"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.258",

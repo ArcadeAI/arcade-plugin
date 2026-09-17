@@ -19,13 +19,13 @@ once in the browser without ever handing your agent a key.
 
 ### Full plugin
 
-#### Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT
+#### Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT local runtime
 
 ```bash
 npx plugins add ArcadeAI/arcade-plugin
 ```
 
-Add `--target cursor` (or `claude-code`, `vscode`, `codex`, `copilot`) to
+Add `--target cursor` (or `claude-code`, `vscode`, `codex`, `github-copilot`) to
 install to one client. See [install guides](docs/install/) for details.
 
 ### Claude Desktop
@@ -49,20 +49,25 @@ the [install guides](docs/install/).
 | Client | MCP | Skills | Subagents | Commands | Rules | Hooks |
 | --- | :--: | :--: | :--: | :--: | :--: | :--: |
 | **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
-| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
-| **Claude Cowork / desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
+| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 3 |
+| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 3 |
 | **GitHub Copilot CLI** | ✅ | ✅ 2 | ✅ | — | — | — |
-| **VS Code** | ✅ | ✅ 2 | — | — | — | — |
-| **Codex / ChatGPT** | ✅ | ✅ 2 | — | — | — | — |
+| **VS Code** | ✅ | ✅ 2 | ✅ | — | — | — |
+| **Codex / ChatGPT local runtime** | ✅ | ✅ 2 | — | — | — | — |
 | **OpenCode** | ✅ | — | — | — | — | — |
 | **Claude Desktop** | ✅ | ✅ 2 | — | — | — | — |
 | **Any MCP client** | ✅ | — | — | — | — | — |
 
 Skills are `try-arcade` and `scale-arcade`. The operator is
 `arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
-`/arcade-status`. Cursor also gets an always-on rule and a session hook;
-Claude Code and Cowork get session and per-turn hooks. Claude Desktop
-Chat loads tools and skills from the plugin marketplace. Full detail is
+`/arcade-status`. Cursor also gets an always-on rule and a session hook.
+Claude Code and Cowork get session, per-turn, and subagent hooks. Copilot CLI and VS Code
+load the operator from their namespaced adapter. Codex and the ChatGPT local
+runtime get MCP and skills; lifecycle hooks are blocked on Codex 0.154.0 for
+Agent Plugin packages ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
+Use `@Arcade` or the bundled skills for routing. Web installation does not
+deploy hook scripts. Claude Desktop Chat
+loads tools and skills from the plugin marketplace. Full detail is
 in the [support matrix](docs/support-matrix.md).
 
 ## Try it
@@ -94,13 +99,18 @@ anything is sent, created, or deleted.
 
 ## Develop
 
+Agents editing this repo should read [AGENTS.md](AGENTS.md) for hook adapter
+rules. [ARCHITECTURE.md](ARCHITECTURE.md) covers the full contract and layout.
+
 ```bash
 npm ci
 npm run verify
 ```
 
-`verify` runs structural checks, JSON Schema validation, hook/manifest
-tests, `plugins discover`, and `claude plugin validate` (pinned in
+`verify` runs structural checks, generated-manifest drift checks, JSON Schema
+validation, hook contract validation, manifest-command hook smoke,
+hook/manifest tests, `plugins discover`,
+`claude plugin validate`, and Codex/Cursor adapter smoke scripts (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).

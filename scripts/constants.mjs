@@ -1,14 +1,26 @@
-/** Shared plugin constants — single source for endpoint, pins, and doc URLs. */
+/** Shared plugin constants derived from the portable Agent Plugins manifests. */
 
-export const ENDPOINT = "https://api.arcade.dev/mcp/arcade";
-export const GATEWAY_HOST = "api.arcade.dev";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const portablePlugin = JSON.parse(
+  readFileSync(join(ROOT, "plugin.json"), "utf8"),
+);
+const portableMcp = JSON.parse(
+  readFileSync(join(ROOT, "mcp.json"), "utf8"),
+);
+
 export const MCP_SERVER_NAME = "arcade";
+export const ENDPOINT = portableMcp.mcpServers[MCP_SERVER_NAME].url;
+export const GATEWAY_HOST = new URL(ENDPOINT).host;
 export const MCP_REMOTE_VERSION = "0.1.38";
 export const MCP_REMOTE_PACKAGE = `mcp-remote@${MCP_REMOTE_VERSION}`;
 export const INSTALL_SLUG = "ArcadeAI/arcade-plugin";
-export const PLUGIN_SCHEMA =
-  "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
-export const MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
+export const PLUGIN_DISPLAY_NAME = "Arcade";
+export const PLUGIN_SCHEMA = portablePlugin.$schema;
+export const MCP_SCHEMA = portableMcp.$schema;
 export const TRIAL_DASHBOARD_URL =
   "https://app.arcade.dev?utm_source=arcade-plugin";
 export const ORG_DASHBOARD_URL =
@@ -23,3 +35,14 @@ export const VENDORED_SCHEMAS = {
   [PLUGIN_SCHEMA]: "schemas/agent-plugins/1.0.0/plugin.schema.json",
   [MCP_SCHEMA]: "schemas/agent-plugins/1.0.0/mcp.schema.json",
 };
+
+/** SessionStart sources shared by Claude and Codex hook matchers. */
+export const SESSION_START_SOURCES = [
+  "startup",
+  "resume",
+  "clear",
+  "compact",
+  "fork",
+];
+export const SESSION_START_MATCHER = SESSION_START_SOURCES.join("|");
+export const HOOK_COMMAND_TIMEOUT_SEC = 5;

@@ -4,23 +4,31 @@ Every install below connects to the same gateway,
 `https://api.arcade.dev/mcp/arcade`. Sign-in happens in the
 browser. The rows differ in how much of this plugin the client can load.
 
+Machine-readable capability data lives in
+[`support-matrix.capabilities.json`](support-matrix.capabilities.json) and is
+checked in CI.
+
 ## Everything at a glance
 
 | Client | Tools | Skills | Subagent | Commands | Rule | Hooks | Install |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
-| **Cursor** | ✅ | 2 | ✅ | 3 | ✅ | ✅ | [guide](install/cursor.md) |
-| **Claude Code** | ✅ | 2 | ✅ | 3 | — | 2 | [guide](install/claude-code.md) |
-| **Claude Cowork / desktop** | ✅ | 2 | ✅ | 3 | — | 2 | [guide](install/claude-code.md) |
+| **Cursor** | ✅ | 2 | ✅ | 3 | ✅ | ✅¹ | [guide](install/cursor.md) |
+| **Claude Code** | ✅ | 2 | ✅ | 3 | — | 3 | [guide](install/claude-code.md) |
+| **Claude Cowork / Code desktop** | ✅ | 2 | ✅ | 3 | — | 3 | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | 2 | ✅ | — | — | — | [guide](install/copilot.md) |
-| **VS Code** | ✅ | 2 | — | — | — | — | [guide](install/vscode.md) |
-| **Codex / ChatGPT** | ✅ | 2 | — | — | — | — | [guide](install/codex.md) |
+| **VS Code** | ✅ | 2 | ✅ | — | — | — | [guide](install/vscode.md) |
+| **Codex / ChatGPT local runtime** | ✅ | 2 | — | — | — | — | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | 2 | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
 
+¹ Cursor plugin hooks apply to the IDE and CLI. Cloud Agents load hooks from
+project, team, or enterprise settings instead.
+
 Skills are `try-arcade` and `scale-arcade`. The subagent is
-`arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
-`/arcade-status`.
+`arcade-operator`. In Cursor the commands are `/arcade-apps`, `/arcade-connect`,
+and `/arcade-status`. In Claude Code they appear as `/arcade:arcade-apps`,
+`/arcade:arcade-connect`, and `/arcade:arcade-status`.
 
 Only skills and MCP servers are portable component types in
 [Agent Plugins](https://agent-plugins.org) 1.0. Commands, the operator,
@@ -29,8 +37,8 @@ thin out.
 
 ## How the same components reach each client
 
-There is one copy of each component, at the location the most clients
-already read:
+Portable components stay shared. Client-specific projections are generated
+where a host requires a different discovery path:
 
 | Component | Location | Read by |
 |---|---|---|
@@ -40,24 +48,30 @@ already read:
 | MCP server | `clients/claude/mcp.json` | Claude Code (via `.claude-plugin/`) |
 | Marketplace catalog | `.claude-plugin/marketplace.json` | Claude Desktop, Cowork, Claude Code |
 | Desktop config | `clients/claude-desktop/claude_desktop_config.json` | Claude Desktop Chat (tools-only fallback) |
-| Subagent | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Copilot CLI |
-| Commands | `commands/` | Cursor, Claude Code |
+| Subagent source | `agents/arcade-operator.agent.md` | Cursor, Claude Code |
+| Subagent projection | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code |
+| Commands | `commands/arcade-*.md` | Cursor, Claude Code |
 | Hooks | `hooks/hooks.json` | Claude Code |
-| Hooks | `clients/cursor/hooks/hooks.json` | Cursor |
+| Hooks | `clients/cursor/hooks/hooks.json` | Cursor IDE / CLI |
+| OpenAI extension | `plugin.json` → `extensions.com.openai.interface` | Codex / ChatGPT local runtime |
+| Codex listing metadata | `plugin.json` → `extensions.com.openai.interface` | Codex / ChatGPT local runtime |
+| Codex fallback | `.codex-plugin/plugin.json` | Legacy loaders without `extensions.com.openai` |
 | Rule | `clients/cursor/rules/` | Cursor |
 
-The subagent filename ends in `.agent.md` so Copilot CLI can discover it.
-Claude Code and Cursor accept any `.md`. Cursor now loads `agents/` because
-`.cursor-plugin/plugin.json` points at it. VS Code still stays on the
-portable core when it sees a root `plugin.json` with the Agent Plugins
-`$schema`.
+Claude Code and Cursor load the canonical file under `agents/`. Copilot CLI
+and VS Code apply Agent Plugins 1.0 semantics and load custom agents from the
+`com.github.copilot/agents/` client extension directory. That file is generated
+from the canonical operator, and `npm run generate:check` rejects drift.
 
 Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
-Copilot CLI does not load `hooks/hooks.json` — that file targets Claude
-Code's hook format (`SessionStart`, `UserPromptSubmit`). Copilot's native
-hook schema differs; skills provide routing guidance on that client.
+Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
+`SessionStart`, `UserPromptSubmit`, and `SubagentStart` from that file.
+Codex 0.154.0 does not load plugin hooks for Agent Plugin packages with a
+root `plugin.json` ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
+Use `@Arcade` or the bundled skills on Codex. Copilot's native hook schema
+differs; skills provide routing guidance on that client too.
 
 Claude Desktop installs this repo as a plugin marketplace (see
 [claude-desktop.md](install/claude-desktop.md)): add
@@ -69,11 +83,11 @@ tools-only fallback. There is no `.mcpb` Desktop Extension.
 
 These read root `plugin.json` and load the portable component types.
 
-| | Cursor | VS Code | Copilot CLI | Codex / ChatGPT |
+| | Cursor | VS Code | Copilot CLI | Codex / ChatGPT local runtime |
 |---|---|---|---|---|
 | **MCP tools** | ✅ | ✅ | ✅ | ✅ |
 | **Skills (2)** | ✅ | ✅ | ✅ | ✅ |
-| **Operator** | ✅ (`.cursor-plugin`) | — | ✅ (`agents/*.agent.md`) | — | — |
+| **Operator** | ✅ (`.cursor-plugin`) | ✅ (`com.github.copilot`) | ✅ (`com.github.copilot`) | — (use `try-arcade`) |
 
 ## Tools-only installs
 

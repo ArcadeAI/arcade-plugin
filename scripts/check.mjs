@@ -6,21 +6,29 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ROUTING_MARKERS } from "../hooks/routing-guidance.mjs";
+import {
+  PROMPT_REMINDER,
+  ROUTING_MARKERS,
+  SESSION_CONTEXT,
+  SUBAGENT_CONTEXT,
+} from "../hooks/routing-guidance.mjs";
 import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
   ENDPOINT,
   GATEWAY_HOST,
+  HOOK_COMMAND_TIMEOUT_SEC,
   INSTALL_SLUG,
   MCP_REMOTE_PACKAGE,
   MCP_SCHEMA,
   MCP_SERVER_NAME,
   PLUGINS_CLI_VERSION,
+  PLUGIN_DISPLAY_NAME,
   PLUGIN_SCHEMA,
+  SESSION_START_MATCHER,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
-import { VERSIONED_MANIFESTS } from "./version.mjs";
+import { validateCodexFallbackManifest } from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -56,9 +64,15 @@ for (const required of [
   "agents",
   "commands",
   "hooks/hooks.json",
+  "schemas/host-adapters/claude-hooks.schema.json",
+  "schemas/host-adapters/cursor-hooks.schema.json",
+  "schemas/host-adapters/cursor-plugin.schema.json",
+  "schemas/host-adapters/codex-fallback-plugin.schema.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
+  ".codex-plugin/plugin.json",
+  "com.github.copilot/agents/arcade-operator.agent.md",
 ]) {
   if (!existsSync(join(ROOT, required))) {
     fail(`missing required path: ${required}`);
@@ -78,6 +92,18 @@ if (portable) {
   }
   if (portable.repository !== "https://github.com/ArcadeAI/arcade-plugin") {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
+  }
+  const openAiInterface = portable.extensions?.["com.openai"]?.interface;
+  if (openAiInterface?.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `plugin.json: extensions.com.openai.interface.displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
+  }
+  if (!openAiInterface?.shortDescription) {
+    fail("plugin.json: extensions.com.openai.interface.shortDescription is required");
+  }
+  if (openAiInterface?.developerName !== "Arcade.dev") {
+    fail('plugin.json: extensions.com.openai.interface.developerName must be "Arcade.dev"');
   }
 }
 
@@ -125,6 +151,33 @@ if (cursorManifest) {
       fail(`.cursor-plugin/plugin.json: ${key} path does not exist: ${value}`);
     }
   }
+  if (cursorManifest.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `.cursor-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
+  }
+  const cursorAllowed = new Set([
+    "name",
+    "description",
+    "author",
+    "homepage",
+    "license",
+    "keywords",
+    "version",
+    "displayName",
+    "repository",
+    "skills",
+    "agents",
+    "commands",
+    "rules",
+    "hooks",
+    "mcpServers",
+  ]);
+  for (const key of Object.keys(cursorManifest)) {
+    if (!cursorAllowed.has(key)) {
+      fail(`.cursor-plugin/plugin.json: unexpected field "${key}"`);
+    }
+  }
 }
 
 if (json["clients/claude/mcp.json"]?.mcpServers?.arcade?.type !== "http") {
@@ -155,6 +208,7 @@ for (const file of ["mcp.json", "clients/cursor/mcp.json", "clients/claude/mcp.j
 for (const routingFile of [
   "skills/try-arcade/SKILL.md",
   "agents/arcade-operator.agent.md",
+  "com.github.copilot/agents/arcade-operator.agent.md",
   "clients/cursor/rules/arcade.mdc",
 ]) {
   const content = read(routingFile);
@@ -174,25 +228,31 @@ if (cursorHooks.includes("node ./hooks/")) {
   fail("clients/cursor/hooks/hooks.json: must not use project-relative ./hooks/ paths");
 }
 
-for (const hooksFile of ["hooks/hooks.json"]) {
-  const content = read(hooksFile);
-  if (!content.includes("${CLAUDE_PLUGIN_ROOT}")) {
-    fail(`${hooksFile}: must use ${"${CLAUDE_PLUGIN_ROOT}"}`);
-  }
-  if (!content.includes("hooks/session-start.mjs")) {
-    fail(`${hooksFile}: must reference hooks/session-start.mjs`);
-  }
-  if (!content.includes("hooks/user-prompt-submit.mjs")) {
-    fail(`${hooksFile}: must reference hooks/user-prompt-submit.mjs`);
-  }
+const claudeHooks = read("hooks/hooks.json");
+if (!claudeHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
+  fail('hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}');
+}
+if (!claudeHooks.includes("hooks/session-start.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/session-start.mjs");
+}
+if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
+}
+if (!claudeHooks.includes(`"matcher": "${SESSION_START_MATCHER}"`)) {
+  fail(
+    `hooks/hooks.json: SessionStart must match ${SESSION_START_MATCHER.replaceAll("|", ", ")}`,
+  );
+}
+if (!claudeHooks.includes("hooks/subagent-start.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/subagent-start.mjs");
+}
+if (!claudeHooks.includes('"matcher": "*"')) {
+  fail('hooks/hooks.json: SubagentStart must use matcher "*"');
 }
 
-const version = read("VERSION").trim();
-for (const manifestPath of VERSIONED_MANIFESTS) {
-  const manifestVersion = json[manifestPath]?.version;
-  if (manifestVersion && manifestVersion !== version) {
-    fail(`${manifestPath} version ${manifestVersion} != VERSION ${version}`);
-  }
+const codexManifest = json[".codex-plugin/plugin.json"];
+if (codexManifest) {
+  validateCodexFallbackManifest(codexManifest, portable, fail);
 }
 
 const marketplace = json[".claude-plugin/marketplace.json"];
@@ -204,9 +264,9 @@ if (marketplace) {
   if (!listed || listed.name !== "arcade" || listed.source !== "./") {
     fail('.claude-plugin/marketplace.json: must list plugin "arcade" at source "./"');
   }
-  if (listed.version && listed.version !== version) {
+  if (listed.displayName !== PLUGIN_DISPLAY_NAME) {
     fail(
-      `.claude-plugin/marketplace.json plugins[0].version ${listed.version} != VERSION ${version}`,
+      `.claude-plugin/marketplace.json: plugin displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
 }
@@ -223,6 +283,18 @@ const cursorRule = read("clients/cursor/rules/arcade.mdc");
 for (const marker of ROUTING_MARKERS) {
   if (!cursorRule.includes(marker)) {
     fail(`clients/cursor/rules/arcade.mdc: missing routing marker "${marker}"`);
+  }
+}
+
+for (const [label, surface] of [
+  ["SESSION_CONTEXT", SESSION_CONTEXT],
+  ["PROMPT_REMINDER", PROMPT_REMINDER],
+  ["SUBAGENT_CONTEXT", SUBAGENT_CONTEXT],
+]) {
+  for (const marker of ROUTING_MARKERS) {
+    if (!surface.includes(marker)) {
+      fail(`routing-guidance.mjs ${label}: missing routing marker "${marker}"`);
+    }
   }
 }
 if (!read("README.md").includes(`npx plugins add ${INSTALL_SLUG}`)) {
@@ -257,8 +329,16 @@ for (const [schemaUrl, localPath] of Object.entries(VENDORED_SCHEMAS)) {
 
 const verifyScripts = {
   "verify:discover": "plugins discover .",
-  "verify:claude": "claude plugin validate .",
+  "verify:claude": "claude plugin validate . --strict",
+  "verify:codex": "node scripts/verify-codex-plugin.mjs",
+  "verify:cursor": "node scripts/verify-cursor-plugin.mjs",
+  "validate:hooks": "node scripts/validate-hook-contracts.mjs",
+  "validate:manifest-hooks":
+    "node scripts/validate-manifest-hook-smoke.mjs",
 };
+if (!packageJson.scripts?.verify?.includes("npm test")) {
+  fail("package.json scripts.verify must include npm test");
+}
 for (const [scriptName, expected] of Object.entries(verifyScripts)) {
   if (packageJson.scripts?.[scriptName] !== expected) {
     fail(`package.json scripts.${scriptName} must be "${expected}"`);

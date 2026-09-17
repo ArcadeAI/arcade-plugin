@@ -6,7 +6,22 @@ import { fileURLToPath } from "node:url";
 import { VENDORED_SCHEMAS } from "./constants.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SCHEMA_FILES = ["plugin.json", "mcp.json"];
+const PORTABLE_DOCUMENTS = ["plugin.json", "mcp.json"];
+const HOST_CONTRACTS = [
+  ["hooks/hooks.json", "schemas/host-adapters/claude-hooks.schema.json"],
+  [
+    "clients/cursor/hooks/hooks.json",
+    "schemas/host-adapters/cursor-hooks.schema.json",
+  ],
+  [
+    ".cursor-plugin/plugin.json",
+    "schemas/host-adapters/cursor-plugin.schema.json",
+  ],
+  [
+    ".codex-plugin/plugin.json",
+    "schemas/host-adapters/codex-fallback-plugin.schema.json",
+  ],
+];
 
 const readJson = async (relativePath) =>
   JSON.parse(await readFile(path.join(ROOT, relativePath), "utf8"));
@@ -22,7 +37,22 @@ const loadSchema = async (schemaUrl) => {
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 let failed = false;
 
-for (const relativePath of SCHEMA_FILES) {
+const validateDocument = async (relativePath, schema) => {
+  const doc = await readJson(relativePath);
+  const validate = ajv.compile(schema);
+  if (!validate(doc)) {
+    failed = true;
+    console.error(`${relativePath}: schema validation failed`);
+    for (const error of validate.errors ?? []) {
+      console.error(`  - ${error.instancePath || "/"} ${error.message}`);
+    }
+    return;
+  }
+
+  console.log(`${relativePath}: ok`);
+};
+
+for (const relativePath of PORTABLE_DOCUMENTS) {
   const doc = await readJson(relativePath);
   const schemaUrl = doc.$schema;
   if (!schemaUrl) {
@@ -31,18 +61,11 @@ for (const relativePath of SCHEMA_FILES) {
     continue;
   }
 
-  const schema = await loadSchema(schemaUrl);
-  const validate = ajv.compile(schema);
-  if (!validate(doc)) {
-    failed = true;
-    console.error(`${relativePath}: schema validation failed`);
-    for (const error of validate.errors ?? []) {
-      console.error(`  - ${error.instancePath || "/"} ${error.message}`);
-    }
-    continue;
-  }
+  await validateDocument(relativePath, await loadSchema(schemaUrl));
+}
 
-  console.log(`${relativePath}: ok`);
+for (const [relativePath, schemaPath] of HOST_CONTRACTS) {
+  await validateDocument(relativePath, await readJson(schemaPath));
 }
 
 if (failed) process.exit(1);

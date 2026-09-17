@@ -14,12 +14,11 @@
     "connected-apps"
   ],
   "version": "0.1.0",
-  "displayName": "Arcade",
-  "repository": "https://github.com/ArcadeAI/arcade-plugin",
-  "skills": "skills",
-  "agents": "agents",
-  "commands": "commands",
-  "rules": "clients/cursor/rules",
-  "hooks": "clients/cursor/hooks/hooks.json",
-  "mcpServers": "clients/cursor/mcp.json"
+  "interface": {
+    "displayName": "Arcade",
+    "shortDescription": "Your agent, every app you've connected.",
+    "developerName": "Arcade.dev",
+    "category": "Productivity",
+    "websiteURL": "https://arcade.dev"
+  }
 }

@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { ROUTING_MARKERS } from "../hooks/routing-guidance.mjs";
+import {
+  PROMPT_REMINDER,
+  ROUTING_MARKERS,
+  SESSION_CONTEXT,
+  SUBAGENT_CONTEXT,
+} from "../hooks/routing-guidance.mjs";
 import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
@@ -8,6 +23,7 @@ import {
   MCP_REMOTE_PACKAGE,
   PLUGINS_CLI_VERSION,
 } from "../scripts/constants.mjs";
+import { generateManifests } from "../scripts/generate-manifests.mjs";
 import { VERSIONED_MANIFESTS, readVersion } from "../scripts/version.mjs";
 import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
 
@@ -15,6 +31,14 @@ test("Cursor rule includes shared routing markers", async () => {
   const rule = await readRepoFile("clients/cursor/rules/arcade.mdc");
   for (const marker of ROUTING_MARKERS) {
     assert.match(rule, new RegExp(marker));
+  }
+});
+
+test("hook guidance strings include shared routing markers", () => {
+  for (const surface of [SESSION_CONTEXT, PROMPT_REMINDER, SUBAGENT_CONTEXT]) {
+    for (const marker of ROUTING_MARKERS) {
+      assert.match(surface, new RegExp(marker));
+    }
   }
 });
 
@@ -41,20 +65,74 @@ test("adapter manifest versions match VERSION", async () => {
   );
 });
 
-test("release-please config syncs every VERSIONed manifest", async () => {
+const releaseExtraFiles = [
+  ["plugin.json", "$.version"],
+  [".cursor-plugin/plugin.json", "$.version"],
+  [".claude-plugin/plugin.json", "$.version"],
+  [".claude-plugin/marketplace.json", "$.version"],
+  [".claude-plugin/marketplace.json", "$.plugins[0].version"],
+  [".codex-plugin/plugin.json", "$.version"],
+];
+
+const setJsonPath = (document, jsonPath, value) => {
+  const segments = jsonPath
+    .replace(/^\$\./, "")
+    .replace(/\[(\d+)\]/g, ".$1")
+    .split(".");
+  const property = segments.pop();
+  let target = document;
+  for (const segment of segments) target = target[segment];
+  target[property] = value;
+};
+
+test("release-please config bumps every version-bearing manifest", async () => {
   const config = await readRepoJson("release-please-config.json");
   const pkg = config.packages?.["."];
-  const extraPaths = new Set((pkg?.["extra-files"] ?? []).map((entry) => entry.path));
 
   assert.equal(pkg?.["version-file"], "VERSION");
-
-  for (const path of VERSIONED_MANIFESTS) {
-    assert.ok(extraPaths.has(path), `release-please-config.json must list ${path}`);
-  }
+  assert.deepEqual(
+    pkg?.["extra-files"]?.map(({ path, jsonpath }) => [path, jsonpath]),
+    releaseExtraFiles,
+  );
 
   const workflow = await readRepoFile(".github/workflows/release-please.yml");
   assert.match(workflow, /release-please-action@v4/);
 });
+
+test("a release-style version bump leaves generated manifests in sync", async () => {
+  const root = mkdtempSync(join(tmpdir(), "arcade-release-"));
+  const config = await readRepoJson("release-please-config.json");
+  const extraFiles = config.packages["."]["extra-files"];
+
+  try {
+    for (const file of [
+      "VERSION",
+      "plugin.json",
+      "mcp.json",
+      "agents/arcade-operator.agent.md",
+    ]) {
+      if (file.includes("/")) {
+        mkdirSync(dirname(join(root, file)), { recursive: true });
+      }
+      copyFileSync(join(ROOT, file), join(root, file));
+    }
+    generateManifests({ root });
+
+    const nextVersion = "9.9.9";
+    writeFileSync(join(root, "VERSION"), `${nextVersion}\n`);
+    for (const { path, jsonpath } of extraFiles) {
+      const target = join(root, path);
+      const document = JSON.parse(readFileSync(target, "utf8"));
+      setJsonPath(document, jsonpath, nextVersion);
+      writeFileSync(target, `${JSON.stringify(document, null, 2)}\n`);
+    }
+
+    generateManifests({ check: true, root });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("CI toolchain versions are pinned in package.json", async () => {
   const packageJson = await readRepoJson("package.json");
   assert.equal(packageJson.devDependencies?.plugins, PLUGINS_CLI_VERSION);
@@ -63,11 +141,17 @@ test("CI toolchain versions are pinned in package.json", async () => {
     CLAUDE_CODE_CLI_VERSION,
   );
   assert.equal(packageJson.engines?.node, CI_NODE_VERSION);
+  assert.equal(packageJson.scripts?.generate, "node scripts/generate-manifests.mjs");
+  assert.equal(
+    packageJson.scripts?.["generate:check"],
+    "node scripts/generate-manifests.mjs --check",
+  );
   assert.equal(packageJson.scripts?.["verify:discover"], "plugins discover .");
   assert.equal(
     packageJson.scripts?.["verify:claude"],
-    "claude plugin validate .",
+    "claude plugin validate . --strict",
   );
+  assert.match(packageJson.scripts?.verify, /generate:check/);
 
   const workflow = await readRepoFile(".github/workflows/check.yml");
   assert.match(workflow, new RegExp(`node-version: "${CI_NODE_VERSION}"`));

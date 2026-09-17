@@ -9,16 +9,24 @@ npx plugins add ArcadeAI/arcade-plugin --target cursor
 Reload the window if needed. Open **Customize** and confirm 2 skills, the
 `arcade-operator` agent, and the `arcade` MCP server.
 
-### Advanced: local checkout
+If Customize does not show the plugin after install, use the local copy path
+below. On macOS and Linux the cross-client CLI may stage under Claude's plugin
+cache instead of Cursor's plugin store.
 
-Copy or symlink this repository to:
+### Local checkout (reliable for development)
+
+Copy this repository to:
 
 ```text
 ~/.cursor/plugins/local/arcade-plugin
 ```
 
-Use this when developing the plugin itself. Local plugin imports must be
-allowed (on Teams/Enterprise, that's an admin setting).
+Do not symlink to a folder outside `~/.cursor/plugins/local/` — Cursor ignores
+external symlink targets. Reload Cursor, then open **Customize** and confirm
+the plugin loaded.
+
+Local plugin imports must be allowed (on Teams/Enterprise, that's an admin
+setting).
 
 Cursor reads `.cursor-plugin/plugin.json` first, so it loads `skills/`,
 `agents/`, and `clients/cursor/mcp.json` — not just the portable Agent

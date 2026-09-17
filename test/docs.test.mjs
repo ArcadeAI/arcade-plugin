@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readRepoFile } from "./helpers.mjs";
-
-const COMMANDS = ["arcade-apps", "arcade-connect", "arcade-status"];
+import { readRepoFile, readRepoJson } from "./helpers.mjs";
 
 test("README and support matrix agree on slash command names", async () => {
   const readme = await readRepoFile("README.md");
   const matrix = await readRepoFile("docs/support-matrix.md");
+  const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
 
-  for (const command of COMMANDS) {
-    assert.match(readme, new RegExp(`/${command}`));
-    assert.match(matrix, new RegExp(`/${command}`));
+  for (const command of capabilities.commands.cursor) {
+    assert.match(readme, new RegExp(command.replace("/", "\\/")));
+    assert.match(matrix, new RegExp(command.replace("/", "\\/")));
+  }
+  for (const command of capabilities.commands["claude-code"]) {
+    assert.match(matrix, new RegExp(command.replace("/", "\\/")));
   }
 });
 
@@ -24,4 +26,31 @@ test("Claude Desktop guide documents the marketplace install", async () => {
   assert.match(guide, /claude plugin marketplace add ArcadeAI\/arcade-plugin/);
   assert.match(guide, /claude plugin install arcade@arcade/);
   assert.doesNotMatch(guide, /arcade\.mcpb/);
+});
+
+test("Codex guide documents upstream hook blocker", async () => {
+  const guide = await readRepoFile("docs/install/codex.md");
+  assert.match(guide, /openai\/codex#39895/);
+  assert.match(guide, /extensions\.com\.openai\.interface/);
+  assert.match(guide, /local runtime/);
+  assert.doesNotMatch(guide, /trust them in `\/hooks`/);
+});
+
+test("Codex guide documents install completion and skill invocation", async () => {
+  const guide = await readRepoFile("docs/install/codex.md");
+  assert.match(guide, /codex plugin add arcade@plugins-cli/);
+  assert.match(guide, /@Arcade/);
+  assert.match(guide, /\$arcade:try-arcade/);
+  assert.doesNotMatch(guide, /\/try-arcade/);
+});
+
+test("Copilot and VS Code guides document the namespaced operator", async () => {
+  for (const guidePath of [
+    "docs/install/copilot.md",
+    "docs/install/vscode.md",
+  ]) {
+    const guide = await readRepoFile(guidePath);
+    assert.match(guide, /com\.github\.copilot\/agents/);
+    assert.match(guide, /arcade-operator/);
+  }
 });

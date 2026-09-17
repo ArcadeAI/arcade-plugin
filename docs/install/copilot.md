@@ -3,14 +3,26 @@
 ## Full plugin
 
 ```bash
-npx plugins add ArcadeAI/arcade-plugin --target copilot
+npx plugins add ArcadeAI/arcade-plugin --target github-copilot
 ```
 
-Copilot CLI reads the Agent Plugins manifest (`plugin.json`, `skills/`,
-`mcp.json`) and still discovers `agents/*.agent.md`, so you get 2 skills, the
-gateway, and `arcade-operator`. Session hooks in `hooks/hooks.json` use
-Claude Code's format and are not loaded by Copilot CLI — use the skills for
-routing guidance instead.
+Native alternative:
+
+```bash
+copilot plugin install ArcadeAI/arcade-plugin
+```
+
+Restart or `/restart` your Copilot session after install.
+
+Copilot CLI reads the portable Agent Plugins components (`plugin.json`,
+`skills/`, and `mcp.json`) and its custom agent from
+`com.github.copilot/agents/arcade-operator.agent.md`. You get 2 skills, the
+gateway, and `arcade-operator`.
+
+Copilot and VS Code load plugin hooks only from
+`com.github.copilot/hooks/hooks.json`. Arcade lifecycle hooks live in
+`hooks/hooks.json` for Claude Code, so use the skills for routing guidance on
+Copilot CLI.
 
 ## Sign in
 

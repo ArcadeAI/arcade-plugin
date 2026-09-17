@@ -20,20 +20,8 @@ jobs:
       - name: Install dev dependencies
         run: npm ci
 
-      - name: Structural checks
-        run: node scripts/check.mjs
-
-      - name: Agent Plugins schema validation
-        run: npm run validate:schemas
-
-      - name: Hook and manifest tests
-        run: npm test
-
-      - name: Agent Plugins discovery smoke test
-        run: npm run verify:discover
-
-      - name: Claude plugin validation
-        run: npm run verify:claude
+      - name: Verify plugin (local gate)
+        run: npm run verify
 
   complete:
     runs-on: ubuntu-latest
@@ -60,10 +48,13 @@ jobs:
           deadline=$(( $(date +%s) + 900 ))
 
           while [ "$(date +%s)" -lt "$deadline" ]; do
-            mapfile -t bugbot < <(gh api "repos/${repo}/commits/${sha}/check-runs" --paginate \
-              --jq '[.check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last | (.status // ""), (.conclusion // "")')
-            status="${bugbot[0]:-}"
-            conclusion="${bugbot[1]:-}"
+            bugbot_json="$(
+              gh api "repos/${repo}/commits/${sha}/check-runs" --paginate |
+                jq -s '[.[].check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last'
+            )"
+            status="$(printf '%s' "${bugbot_json}" | jq -r '.status // ""')"
+            conclusion="$(printf '%s' "${bugbot_json}" | jq -r '.conclusion // ""')"
+            summary="$(printf '%s' "${bugbot_json}" | jq -r '.output.summary // ""')"
 
             if [ -z "${status}" ]; then
               echo "Waiting for Cursor Bugbot check to appear..."
@@ -83,6 +74,15 @@ jobs:
                 exit 0
                 ;;
               neutral)
+                if printf '%s' "${summary}" | grep -qi 'cancelled because a new commit was pushed'; then
+                  echo "Cursor Bugbot cancelled by a push race; waiting for a fresh run..."
+                  sleep 15
+                  continue
+                fi
+                if printf '%s' "${summary}" | grep -qi 'no issues found'; then
+                  echo "Cursor Bugbot completed with no issues"
+                  exit 0
+                fi
                 echo "Cursor Bugbot returned neutral (findings or incomplete review)"
                 exit 1
                 ;;
