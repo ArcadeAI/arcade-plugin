@@ -61,9 +61,10 @@ jobs:
 
           while [ "$(date +%s)" -lt "$deadline" ]; do
             mapfile -t bugbot < <(gh api "repos/${repo}/commits/${sha}/check-runs" --paginate \
-              --jq '[.check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last | (.status // ""), (.conclusion // "")')
+              --jq '[.check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last | (.status // ""), (.conclusion // ""), (.output.summary // "")')
             status="${bugbot[0]:-}"
             conclusion="${bugbot[1]:-}"
+            summary="${bugbot[2]:-}"
 
             if [ -z "${status}" ]; then
               echo "Waiting for Cursor Bugbot check to appear..."
@@ -83,6 +84,11 @@ jobs:
                 exit 0
                 ;;
               neutral)
+                if printf '%s' "${summary}" | grep -qi 'cancelled because a new commit was pushed'; then
+                  echo "Cursor Bugbot cancelled by a push race; waiting for a fresh run..."
+                  sleep 15
+                  continue
+                fi
                 echo "Cursor Bugbot returned neutral (findings or incomplete review)"
                 exit 1
                 ;;
