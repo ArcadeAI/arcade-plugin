@@ -48,11 +48,11 @@ jobs:
           deadline=$(( $(date +%s) + 900 ))
 
           while [ "$(date +%s)" -lt "$deadline" ]; do
-            mapfile -t bugbot < <(gh api "repos/${repo}/commits/${sha}/check-runs" --paginate \
-              --jq '[.check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last | (.status // ""), (.conclusion // ""), (.output.summary // "")')
-            status="${bugbot[0]:-}"
-            conclusion="${bugbot[1]:-}"
-            summary="${bugbot[2]:-}"
+            bugbot_json="$(gh api "repos/${repo}/commits/${sha}/check-runs" --paginate \
+              --jq '[.check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last')"
+            status="$(printf '%s' "${bugbot_json}" | jq -r '.status // ""')"
+            conclusion="$(printf '%s' "${bugbot_json}" | jq -r '.conclusion // ""')"
+            summary="$(printf '%s' "${bugbot_json}" | jq -r '.output.summary // ""')"
 
             if [ -z "${status}" ]; then
               echo "Waiting for Cursor Bugbot check to appear..."
@@ -76,6 +76,10 @@ jobs:
                   echo "Cursor Bugbot cancelled by a push race; waiting for a fresh run..."
                   sleep 15
                   continue
+                fi
+                if printf '%s' "${summary}" | grep -qi 'no issues found'; then
+                  echo "Cursor Bugbot completed with no issues"
+                  exit 0
                 fi
                 echo "Cursor Bugbot returned neutral (findings or incomplete review)"
                 exit 1
