@@ -6,6 +6,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateHookContracts } from "./hook-contracts.mjs";
+import {
+  CODEX_HOOKS_PATH,
+  readOpenAiInterface,
+  validateCodexFallbackManifest,
+} from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const VENDOR_DIR = join(ROOT, "schemas/vendor/openai/codex-hooks");
@@ -34,10 +39,10 @@ for (const file of source.files) {
 }
 
 const portable = readJson("plugin.json");
-if (portable.extensions?.["com.openai"]?.hooks !== "./com.openai/hooks/hooks.json") {
-  fail('plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"');
+if (portable.extensions?.["com.openai"]?.hooks !== CODEX_HOOKS_PATH) {
+  fail(`plugin.json: extensions.com.openai.hooks must be "${CODEX_HOOKS_PATH}"`);
 }
-const openAiInterface = portable.extensions?.["com.openai"]?.interface;
+const openAiInterface = readOpenAiInterface(portable);
 if (openAiInterface?.displayName !== "Arcade") {
   fail('plugin.json: extensions.com.openai.interface.displayName must be "Arcade"');
 }
@@ -45,10 +50,11 @@ if (!openAiInterface?.shortDescription) {
   fail("plugin.json: extensions.com.openai.interface.shortDescription is required");
 }
 
-const fallback = readJson(".codex-plugin/plugin.json");
-if (fallback.hooks !== "./com.openai/hooks/hooks.json") {
-  fail('.codex-plugin/plugin.json: hooks must be "./com.openai/hooks/hooks.json"');
-}
+validateCodexFallbackManifest(
+  readJson(".codex-plugin/plugin.json"),
+  portable,
+  fail,
+);
 
 for (const message of validateHookContracts(ROOT)) {
   fail(message);

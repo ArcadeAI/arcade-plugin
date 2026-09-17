@@ -28,6 +28,7 @@ import {
   SESSION_START_MATCHER,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
+import { validateCodexFallbackManifest } from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -299,39 +300,7 @@ if (
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
-  if (codexManifest.displayName !== PLUGIN_DISPLAY_NAME) {
-    fail(
-      `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
-    );
-  }
-  if (codexManifest.hooks !== "./com.openai/hooks/hooks.json") {
-    fail(
-      '.codex-plugin/plugin.json: hooks must be "./com.openai/hooks/hooks.json"',
-    );
-  }
-  for (const portableComponent of ["skills", "mcpServers"]) {
-    if (portableComponent in codexManifest) {
-      fail(
-        `.codex-plugin/plugin.json: ${portableComponent} comes from the portable root manifest`,
-      );
-    }
-  }
-  const codexAllowed = new Set([
-    "name",
-    "description",
-    "author",
-    "homepage",
-    "license",
-    "keywords",
-    "version",
-    "displayName",
-    "hooks",
-  ]);
-  for (const key of Object.keys(codexManifest)) {
-    if (!codexAllowed.has(key)) {
-      fail(`.codex-plugin/plugin.json: unexpected field "${key}"`);
-    }
-  }
+  validateCodexFallbackManifest(codexManifest, portable, fail);
 }
 
 const marketplace = json[".claude-plugin/marketplace.json"];
@@ -425,8 +394,8 @@ const verifyScripts = {
   "validate:manifest-hooks":
     "node scripts/validate-manifest-hook-smoke.mjs",
 };
-if (!packageJson.scripts?.verify?.includes("validate:manifest-hooks")) {
-  fail("package.json scripts.verify must include validate:manifest-hooks");
+if (!packageJson.scripts?.verify?.includes("npm test")) {
+  fail("package.json scripts.verify must include npm test");
 }
 for (const [scriptName, expected] of Object.entries(verifyScripts)) {
   if (packageJson.scripts?.[scriptName] !== expected) {

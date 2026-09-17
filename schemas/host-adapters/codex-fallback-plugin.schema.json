@@ -13,7 +13,7 @@
     "license",
     "keywords",
     "version",
-    "displayName",
+    "interface",
     "hooks"
   ],
   "properties": {
@@ -34,8 +34,28 @@
       "minItems": 1,
       "items": { "type": "string" }
     },
-    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
-    "displayName": { "const": "Arcade" },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[\\w.-]+)?(\\+[\\w.-]+)?$"
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "displayName",
+        "shortDescription",
+        "developerName",
+        "category",
+        "websiteURL"
+      ],
+      "properties": {
+        "displayName": { "const": "Arcade" },
+        "shortDescription": { "type": "string", "minLength": 1 },
+        "developerName": { "const": "Arcade.dev" },
+        "category": { "type": "string", "minLength": 1 },
+        "websiteURL": { "type": "string", "minLength": 1 }
+      }
+    },
     "hooks": { "const": "./com.openai/hooks/hooks.json" }
   }
 }

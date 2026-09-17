@@ -17,7 +17,8 @@ export const VERSIONED_MANIFESTS = [
   ".codex-plugin/plugin.json",
 ];
 
-const SEMVER = /^\d+\.\d+\.\d+(-[\w.-]+)?(\+[\w.-]+)?$/;
+export const SEMVER_PATTERN = String.raw`^\d+\.\d+\.\d+(-[\w.-]+)?(\+[\w.-]+)?$`;
+const SEMVER = new RegExp(SEMVER_PATTERN);
 
 export function parseVersion(raw) {
   const version = raw.trim();

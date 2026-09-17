@@ -5,6 +5,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readVersion } from "./version.mjs";
 import { PLUGIN_DISPLAY_NAME } from "./constants.mjs";
+import {
+  CODEX_HOOKS_PATH,
+  readOpenAiInterface,
+} from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -79,10 +83,16 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
     ...shared,
     mcpServers: "./clients/claude/mcp.json",
   };
+  const openAiInterface = readOpenAiInterface(portablePlugin);
+  if (!openAiInterface?.displayName) {
+    throw new Error(
+      "plugin.json must define extensions.com.openai.interface.displayName",
+    );
+  }
   const codexPlugin = {
     ...shared,
-    ...listingFields(),
-    hooks: "./com.openai/hooks/hooks.json",
+    interface: openAiInterface,
+    hooks: CODEX_HOOKS_PATH,
   };
   const marketplaceManifest = {
     $schema: "https://json.schemastore.org/claude-code-marketplace.json",

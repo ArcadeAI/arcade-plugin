@@ -21,6 +21,33 @@ const resolveClient = (capabilities, clientId) => {
   return client;
 };
 
+const README_CLIENT_ROWS = {
+  Cursor: "cursor",
+  "Claude Code": "claude-code",
+  "Claude Cowork / Code desktop": "claude-cowork-code-desktop",
+  "GitHub Copilot CLI": "copilot-cli",
+  "VS Code": "vscode",
+  "Codex / ChatGPT local runtime": "codex",
+  OpenCode: "opencode",
+  "Claude Desktop": "claude-desktop",
+  "Any MCP client": "any-mcp-client",
+};
+
+const extractMarkdownRow = (markdown, label) => {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = markdown.match(
+    new RegExp(`^\\|\\s*\\*\\*${escaped}\\*\\*\\s*\\|(.+)\\|\\s*$`, "m"),
+  );
+  if (!match) return null;
+  return match[1].split("|").map((cell) => cell.trim());
+};
+
+const formatHooksCell = (hooks) => {
+  if (!hooks) return "—";
+  if (hooks.count === 1) return "✅";
+  return `✅ ${hooks.count}`;
+};
+
 test("support matrix capabilities file matches documented clients", async () => {
   const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
   const matrix = await readRepoFile("docs/support-matrix.md");
@@ -77,6 +104,18 @@ test("support matrix capability paths exist on disk", async () => {
         `${clientId} hook events`,
       );
     }
+  }
+});
+
+test("README hook counts match capabilities data", async () => {
+  const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
+  const readme = await readRepoFile("README.md");
+
+  for (const [label, clientId] of Object.entries(README_CLIENT_ROWS)) {
+    const cells = extractMarkdownRow(readme, label);
+    assert.ok(cells, `README row for ${label}`);
+    const hooks = resolveClient(capabilities, clientId).hooks;
+    assert.equal(cells[5], formatHooksCell(hooks), `${label} README hooks cell`);
   }
 });
 

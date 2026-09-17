@@ -61,9 +61,9 @@ Codex prints a startup warning when hooks still need review.
 The plugin ships three hooks in `com.openai/hooks/hooks.json`. Root
 `plugin.json` selects that adapter through `extensions.com.openai.hooks`.
 Listing metadata such as the **Arcade** display name lives in
-`extensions.com.openai.interface`. The `.codex-plugin/plugin.json` file carries
-the hooks path only as a legacy fallback when the OpenAI extension object is
-absent.
+`extensions.com.openai.interface`. The `.codex-plugin/plugin.json` file mirrors
+that `interface` object and the hooks path as a legacy fallback when the OpenAI
+extension object is absent.
 
 | Event | Purpose |
 | --- | --- |

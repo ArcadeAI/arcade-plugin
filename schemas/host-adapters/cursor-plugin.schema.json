@@ -40,7 +40,10 @@
       "minItems": 1,
       "items": { "type": "string" }
     },
-    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[\\w.-]+)?(\\+[\\w.-]+)?$"
+    },
     "displayName": { "const": "Arcade" },
     "repository": {
       "const": "https://github.com/ArcadeAI/arcade-plugin"

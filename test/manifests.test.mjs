@@ -91,6 +91,7 @@ test("portable manifest selects the Codex adapter", async () => {
     portable.extensions?.["com.openai"]?.interface?.displayName,
     "Arcade",
   );
+  assert.deepEqual(fallback.interface, portable.extensions?.["com.openai"]?.interface);
   assert.equal(fallback.hooks, "./com.openai/hooks/hooks.json");
   assert.equal(fallback.skills, undefined);
   assert.equal(fallback.mcpServers, undefined);

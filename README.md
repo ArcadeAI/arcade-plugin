@@ -49,8 +49,8 @@ the [install guides](docs/install/).
 | Client | MCP | Skills | Subagents | Commands | Rules | Hooks |
 | --- | :--: | :--: | :--: | :--: | :--: | :--: |
 | **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
-| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
-| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
+| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 3 |
+| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 3 |
 | **GitHub Copilot CLI** | ✅ | ✅ 2 | ✅ | — | — | — |
 | **VS Code** | ✅ | ✅ 2 | ✅ | — | — | — |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ 2 | — | — | — | ✅ 3 |
@@ -61,10 +61,10 @@ the [install guides](docs/install/).
 Skills are `try-arcade` and `scale-arcade`. The operator is
 `arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
 `/arcade-status`. Cursor also gets an always-on rule and a session hook.
-Claude Code and Cowork get session and per-turn hooks. Copilot CLI and VS Code
+Claude Code and Cowork get session, per-turn, and subagent hooks. Copilot CLI and VS Code
 load the operator from their namespaced adapter. Codex and the ChatGPT local
-runtime get those hooks plus a subagent lifecycle hook (trust via
-`/hooks`). Web installation does not deploy hook scripts. Claude Desktop Chat
+runtime get the same three lifecycle hooks (trust via `/hooks`). Web
+installation does not deploy hook scripts. Claude Desktop Chat
 loads tools and skills from the plugin marketplace. Full detail is
 in the [support matrix](docs/support-matrix.md).
 

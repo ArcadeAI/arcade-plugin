@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import Ajv2020 from "ajv/dist/2020.js";
 import {
   mkdirSync,
   mkdtempSync,
@@ -67,7 +68,11 @@ test("generateManifests matches committed host manifests", async () => {
   assert.equal(cursorPlugin.displayName, PLUGIN_DISPLAY_NAME);
 
   const codexPlugin = await readRepoJson(".codex-plugin/plugin.json");
-  assert.equal(codexPlugin.displayName, PLUGIN_DISPLAY_NAME);
+  assert.equal(codexPlugin.interface.displayName, PLUGIN_DISPLAY_NAME);
+  assert.deepEqual(
+    codexPlugin.interface,
+    portable.extensions?.["com.openai"]?.interface,
+  );
   assert.equal(codexPlugin.hooks, "./com.openai/hooks/hooks.json");
   assert.equal(codexPlugin.skills, undefined);
   assert.equal(codexPlugin.mcpServers, undefined);
@@ -79,6 +84,37 @@ test("generateManifests matches committed host manifests", async () => {
     ),
     readFileSync(join(ROOT, "agents/arcade-operator.agent.md"), "utf8"),
   );
+});
+
+test("generateManifests accepts prerelease versions through adapter schemas", async () => {
+  const root = await createFixture();
+  const prerelease = "1.2.3-rc.1";
+
+  try {
+    writeFileSync(join(root, "VERSION"), `${prerelease}\n`);
+    const plugin = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8"));
+    plugin.version = prerelease;
+    writeJson(root, "plugin.json", plugin);
+
+    generateManifests({ root });
+
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    for (const [docPath, schemaPath] of [
+      [".cursor-plugin/plugin.json", "schemas/host-adapters/cursor-plugin.schema.json"],
+      [
+        ".codex-plugin/plugin.json",
+        "schemas/host-adapters/codex-fallback-plugin.schema.json",
+      ],
+    ]) {
+      const doc = JSON.parse(readFileSync(join(root, docPath), "utf8"));
+      const schema = JSON.parse(readFileSync(join(ROOT, schemaPath), "utf8"));
+      const validate = ajv.compile(schema);
+      assert.equal(validate(doc), true, `${docPath}: ${JSON.stringify(validate.errors)}`);
+      assert.equal(doc.version, prerelease);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("generateManifests checks a temporary installed-artifact fixture", async () => {
