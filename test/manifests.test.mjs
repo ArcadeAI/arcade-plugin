@@ -19,17 +19,25 @@ const resolvePluginPath = (command, token) => {
   return match[1].replace(/^\//, "");
 };
 
-test("Cursor hook command uses CURSOR_PLUGIN_ROOT and resolves to a real file", async () => {
+test("Cursor hook commands use CURSOR_PLUGIN_ROOT and resolve to real files", async () => {
   const hooks = await readRepoJson("clients/cursor/hooks/hooks.json");
-  const command = hooks.hooks.sessionStart[0].command;
-  assert.match(command, /\$\{CURSOR_PLUGIN_ROOT\}/);
-  assert.doesNotMatch(command, /node \.\/hooks\//);
 
-  const hookPath = resolvePluginPath(command, "CURSOR_PLUGIN_ROOT");
-  assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+  for (const event of [
+    "sessionStart",
+    "beforeSubmitPrompt",
+    "afterMCPExecution",
+  ]) {
+    const command = hooks.hooks[event][0].command;
+    assert.match(command, /\$\{CURSOR_PLUGIN_ROOT\}/);
+    assert.doesNotMatch(command, /node \.\/hooks\//);
+    const hookPath = resolvePluginPath(command, "CURSOR_PLUGIN_ROOT");
+    assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+  }
+  assert.equal(hooks.hooks.afterMCPExecution[0].matcher, undefined);
+  assert.equal(hooks.hooks.postToolUseFailure, undefined);
 });
 
-test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
+test("Shared Claude/Codex hook manifest wires session and prompt only", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
 
   for (const event of ["SessionStart", "UserPromptSubmit"]) {
@@ -38,38 +46,63 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
-  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear");
+  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear|compact");
   assert.equal(hooks.hooks.SubagentStart, undefined);
+  assert.equal(hooks.hooks.PostToolUse, undefined);
+  assert.equal(hooks.hooks.PostToolUseFailure, undefined);
 });
 
-test("Codex extension hook manifest owns all Codex lifecycle events", async () => {
+test("Claude post-tool hook manifest wires MCP telemetry only", async () => {
+  const hooks = await readRepoJson("clients/claude/hooks/hooks.json");
+
+  for (const event of ["PostToolUse"]) {
+    const command = hooks.hooks[event][0].hooks[0].command;
+    assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
+    assert.match(command, /post-arcade-tool\.mjs/);
+    const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
+    assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+  }
+  assert.match(
+    hooks.hooks.PostToolUse[0].matcher,
+    /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
+  );
+  assert.equal(hooks.hooks.PostToolUseFailure, undefined);
+});
+
+test("Codex extension hook manifest wires lifecycle and post-tool telemetry", async () => {
   const hooks = await readRepoJson("com.openai/hooks/hooks.json");
-  assert.deepEqual(Object.keys(hooks.hooks).sort(), [
-    "SessionStart",
-    "SubagentStart",
-    "UserPromptSubmit",
-  ]);
-  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear|compact");
+  assert.deepEqual(
+    Object.keys(hooks.hooks).sort(),
+    ["PostToolUse", "SubagentStart"],
+  );
   assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 
-  for (const event of ["SessionStart", "SubagentStart", "UserPromptSubmit"]) {
+  for (const event of ["SubagentStart", "PostToolUse"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{PLUGIN_ROOT\}/);
     assert.doesNotMatch(command, /\$\{(?:CLAUDE|CODEX)_PLUGIN_ROOT\}/);
     const hookPath = resolvePluginPath(command, "PLUGIN_ROOT");
     assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
   }
+  assert.match(
+    hooks.hooks.PostToolUse[0].matcher,
+    /mcp__plugin_arcade_arcade__\.\*|mcp__arcade__\.\*/,
+  );
+  assert.equal(hooks.hooks.PostToolUseFailure, undefined);
 });
 
 test("portable manifest selects the Codex adapter", async () => {
   const portable = await readRepoJson("plugin.json");
   const fallback = await readRepoJson(".codex-plugin/plugin.json");
 
-  assert.equal(
+  assert.deepEqual(
     portable.extensions?.["com.openai"]?.hooks,
-    "./com.openai/hooks/hooks.json",
+    ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"],
   );
-  assert.equal(fallback.hooks, "./com.openai/hooks/hooks.json");
+  assert.deepEqual(fallback.hooks, [
+    "./hooks/hooks.json",
+    "./com.openai/hooks/hooks.json",
+  ]);
   assert.equal(fallback.skills, undefined);
   assert.equal(fallback.mcpServers, undefined);
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);

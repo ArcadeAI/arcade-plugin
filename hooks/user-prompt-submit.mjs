@@ -3,74 +3,32 @@
 // rule instead. Always exit 0.
 
 import { PROMPT_REMINDER } from "./routing-guidance.mjs";
-
-// Short acknowledgements only — not action phrases like "fix it".
-const CONTINUATION_WORDS = new Set([
-  "yes",
-  "y",
-  "yeah",
-  "yep",
-  "yup",
-  "no",
-  "nope",
-  "ok",
-  "okay",
-  "k",
-  "sure",
-  "please",
-  "pls",
-  "plz",
-  "thanks",
-  "thank",
-  "ty",
-  "continue",
-  "proceed",
-  "lgtm",
-  "done",
-  "perfect",
-  "great",
-  "good",
-  "cool",
-  "nice",
-  "right",
-  "correct",
-  "stop",
-  "wait",
-  "actually",
-]);
-
-const MAX_CONTINUATION_WORDS = 2;
-
-const isBareContinuation = (prompt) => {
-  const words = prompt
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-  if (words.length === 0 || words.length > MAX_CONTINUATION_WORDS) return false;
-  return words.every((word) => CONTINUATION_WORDS.has(word));
-};
-
-const readStdin = async () => {
-  if (process.stdin.isTTY) return "";
-  let data = "";
-  try {
-    for await (const chunk of process.stdin) data += chunk;
-  } catch {
-    // Stay silent.
-  }
-  return data;
-};
+import { readHookInput } from "./hook-input.mjs";
+import { isBareContinuation } from "./prompt-continuation.mjs";
+import {
+  recordHookError,
+  recordTelemetry,
+  TELEMETRY_EVENTS,
+} from "./telemetry.mjs";
 
 try {
-  const raw = await readStdin();
-  let prompt = "";
-  try {
-    prompt = JSON.parse(raw)?.prompt ?? "";
-  } catch {
-    // Unparseable input: stay silent.
+  const hookInput = await readHookInput();
+  const prompt = hookInput.prompt ?? "";
+  const trimmed = typeof prompt === "string" ? prompt.trim() : "";
+  const continuation = trimmed ? isBareContinuation(trimmed) : false;
+  if (trimmed && continuation) {
+    recordTelemetry({
+      event: TELEMETRY_EVENTS.ROUTING_SKIPPED_BARE_CONTINUATION,
+      hookInput,
+      props: { hook: "UserPromptSubmit" },
+    });
   }
-  if (typeof prompt === "string" && prompt.trim() && !isBareContinuation(prompt)) {
+  if (trimmed && !continuation) {
+    recordTelemetry({
+      event: TELEMETRY_EVENTS.ROUTING_CONTEXT_EMITTED,
+      hookInput,
+      props: { hook: "UserPromptSubmit" },
+    });
     process.stdout.write(
       JSON.stringify({
         hookSpecificOutput: {
@@ -80,8 +38,8 @@ try {
       }),
     );
   }
-} catch {
-  // A hook must never break a prompt.
+} catch (error) {
+  recordHookError({ hook: "prompt_submit", error });
 }
 
 process.exit(0);

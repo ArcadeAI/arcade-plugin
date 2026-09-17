@@ -3,7 +3,10 @@
   "mcpServers": {
     "arcade": {
       "type": "streamable-http",
-      "url": "https://api.arcade.dev/mcp/arcade"
+      "url": "https://api.arcade.dev/mcp/arcade",
+      "headers": {
+        "Arcade-Plugin": "arcade"
+      }
     }
   }
 }

@@ -49,14 +49,26 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   }
 
   const shared = { ...identityFields(portablePlugin), version };
+  const pluginHeaders = {
+    "Arcade-Plugin": "arcade",
+    "Arcade-Plugin-Version": version,
+    ...(gateway.headers ?? {}),
+  };
   const cursorMcp = {
     mcpServers: {
-      arcade: { url: gateway.url },
+      arcade: {
+        url: gateway.url,
+        headers: pluginHeaders,
+      },
     },
   };
   const claudeMcp = {
     mcpServers: {
-      arcade: { type: "http", url: gateway.url },
+      arcade: {
+        type: "http",
+        url: gateway.url,
+        headers: pluginHeaders,
+      },
     },
   };
   const cursorPlugin = {
@@ -72,11 +84,12 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   const claudePlugin = {
     ...shared,
     mcpServers: "./clients/claude/mcp.json",
+    hooks: ["./hooks/hooks.json", "./clients/claude/hooks/hooks.json"],
   };
   const codexPlugin = {
     ...shared,
     ...listingFields(),
-    hooks: "./com.openai/hooks/hooks.json",
+    hooks: ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"],
   };
   const marketplaceManifest = {
     $schema: "https://json.schemastore.org/claude-code-marketplace.json",

@@ -118,6 +118,7 @@ test("a release-style version bump leaves generated manifests in sync", async ()
       writeFileSync(target, `${JSON.stringify(document, null, 2)}\n`);
     }
 
+    generateManifests({ root });
     generateManifests({ check: true, root });
   } finally {
     rmSync(root, { recursive: true, force: true });

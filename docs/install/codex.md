@@ -35,17 +35,20 @@ Codex does not run plugin-bundled hooks until you review and trust them.
 After install, open `/hooks` in Codex and trust the Arcade plugin hooks.
 Codex prints a startup warning when hooks still need review.
 
-The plugin ships three hooks in `com.openai/hooks/hooks.json`. Root
-`plugin.json` selects that adapter through `extensions.com.openai.hooks`; the
-`.codex-plugin/plugin.json` file carries the same path only as a compatibility
-fallback. Every Codex command uses `${PLUGIN_ROOT}` so local installs continue
-to resolve after vendor-specific packaging.
+The plugin wires session and prompt hooks from `hooks/hooks.json` (shared with
+Claude Code; Codex resolves `${CLAUDE_PLUGIN_ROOT}` as a compatibility alias)
+and lifecycle plus post-tool telemetry from `com.openai/hooks/hooks.json` with
+`${PLUGIN_ROOT}`.
+Root `plugin.json` selects both adapters through
+`extensions.com.openai.hooks`; `.codex-plugin/plugin.json` lists the same paths
+as a compatibility fallback.
 
 | Event | Purpose |
 | --- | --- |
 | `SessionStart` | Session routing guidance |
 | `UserPromptSubmit` | Per-turn Arcade reminder |
 | `SubagentStart` | Subagent routing guidance |
+| `PostToolUse` | Link successful SelectTools results to plugin routing telemetry |
 
 ## Sign in
 

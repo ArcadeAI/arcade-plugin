@@ -61,6 +61,9 @@ for (const required of [
   "agents",
   "commands",
   "hooks/hooks.json",
+  "clients/claude/hooks/hooks.json",
+  "clients/cursor/hooks/hooks.json",
+  "com.openai/hooks/hooks.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
@@ -85,12 +88,16 @@ if (portable) {
   if (portable.repository !== "https://github.com/ArcadeAI/arcade-plugin") {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
   }
+  const expectedCodexHooks = [
+    "./hooks/hooks.json",
+    "./com.openai/hooks/hooks.json",
+  ];
   if (
-    portable.extensions?.["com.openai"]?.hooks !==
-    "./com.openai/hooks/hooks.json"
+    JSON.stringify(portable.extensions?.["com.openai"]?.hooks) !==
+    JSON.stringify(expectedCodexHooks)
   ) {
     fail(
-      'plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"',
+      `plugin.json: extensions.com.openai.hooks must be ${JSON.stringify(expectedCodexHooks)}`,
     );
   }
 }
@@ -111,7 +118,7 @@ for (const manifest of [".cursor-plugin/plugin.json", ".claude-plugin/plugin.jso
   }
 }
 
-for (const key of ["skills", "agents", "commands", "hooks"]) {
+for (const key of ["skills", "agents", "commands"]) {
   if (key in (json[".claude-plugin/plugin.json"] ?? {})) {
     fail(
       `.claude-plugin/plugin.json: drop "${key}" — Claude discovers default locations automatically`,
@@ -203,12 +210,17 @@ if (!claudeHooks.includes("hooks/session-start.mjs")) {
 if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
   fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
 }
-if (!claudeHooks.includes('"matcher": "startup|resume|clear"')) {
-  fail('hooks/hooks.json: SessionStart must match startup, resume, and clear');
+if (!claudeHooks.includes('"matcher": "startup|resume|clear|compact"')) {
+  fail('hooks/hooks.json: SessionStart must match startup, resume, clear, and compact');
 }
 if (claudeHooks.includes("SubagentStart")) {
   fail(
     "hooks/hooks.json: Arcade wires SubagentStart only in com.openai/hooks/hooks.json",
+  );
+}
+if (claudeHooks.includes("PostToolUse") || claudeHooks.includes("PostToolUseFailure")) {
+  fail(
+    "hooks/hooks.json: PostToolUse hooks are Claude-only — use clients/claude/hooks/hooks.json",
   );
 }
 
@@ -216,13 +228,12 @@ const codexHooks = read("com.openai/hooks/hooks.json");
 if (!codexHooks.includes("${PLUGIN_ROOT}")) {
   fail("com.openai/hooks/hooks.json: must use ${PLUGIN_ROOT}");
 }
-for (const script of [
-  "hooks/session-start.mjs",
-  "hooks/user-prompt-submit.mjs",
-  "hooks/subagent-start.mjs",
-]) {
-  if (!codexHooks.includes(script)) {
-    fail(`com.openai/hooks/hooks.json: must reference ${script}`);
+if (!codexHooks.includes("hooks/subagent-start.mjs")) {
+  fail("com.openai/hooks/hooks.json: must reference hooks/subagent-start.mjs");
+}
+for (const sharedEvent of ["SessionStart", "UserPromptSubmit"]) {
+  if (codexHooks.includes(sharedEvent)) {
+    fail(`com.openai/hooks/hooks.json: ${sharedEvent} belongs in hooks/hooks.json`);
   }
 }
 for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
@@ -233,6 +244,15 @@ for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
 if (!codexHooks.includes('"matcher": "*"')) {
   fail('com.openai/hooks/hooks.json: SubagentStart must use matcher "*"');
 }
+if (!codexHooks.includes("PostToolUse")) {
+  fail("com.openai/hooks/hooks.json: must wire PostToolUse for arcade MCP telemetry");
+}
+if (codexHooks.includes("PostToolUseFailure")) {
+  fail("com.openai/hooks/hooks.json: Codex has no PostToolUseFailure event");
+}
+if (!codexHooks.includes("hooks/post-arcade-tool.mjs")) {
+  fail("com.openai/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+}
 
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
@@ -241,9 +261,10 @@ if (codexManifest) {
       `.codex-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
-  if (codexManifest.hooks !== "./com.openai/hooks/hooks.json") {
+  const expectedHooks = ["./hooks/hooks.json", "./com.openai/hooks/hooks.json"];
+  if (JSON.stringify(codexManifest.hooks) !== JSON.stringify(expectedHooks)) {
     fail(
-      '.codex-plugin/plugin.json: hooks must be "./com.openai/hooks/hooks.json"',
+      `.codex-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
     );
   }
   for (const portableComponent of ["skills", "mcpServers"]) {
@@ -252,6 +273,74 @@ if (codexManifest) {
         `.codex-plugin/plugin.json: ${portableComponent} comes from the portable root manifest`,
       );
     }
+  }
+}
+
+for (const telemetryFile of [
+  "hooks/telemetry.mjs",
+  "hooks/telemetry-send.mjs",
+  "hooks/hook-input.mjs",
+  "hooks/prompt-telemetry.mjs",
+  "hooks/prompt-continuation.mjs",
+  "hooks/post-arcade-tool.mjs",
+]) {
+  if (!existsSync(join(ROOT, telemetryFile))) {
+    fail(`missing telemetry file: ${telemetryFile}`);
+  }
+}
+
+for (const statefulTelemetryFile of ["hooks/install-id.mjs", "hooks/self-report.mjs"]) {
+  if (existsSync(join(ROOT, statefulTelemetryFile))) {
+    fail(`${statefulTelemetryFile}: telemetry must not persist local identity or reports`);
+  }
+}
+
+const cursorHooksJson = read("clients/cursor/hooks/hooks.json");
+if (!cursorHooksJson.includes("hooks/prompt-telemetry.mjs")) {
+  fail("clients/cursor/hooks/hooks.json: must reference hooks/prompt-telemetry.mjs");
+}
+if (!cursorHooksJson.includes("hooks/post-arcade-tool.mjs")) {
+  fail("clients/cursor/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+}
+if (!cursorHooksJson.includes("afterMCPExecution")) {
+  fail(
+    "clients/cursor/hooks/hooks.json: must wire afterMCPExecution for Arcade telemetry",
+  );
+}
+const cursorHookConfig = json["clients/cursor/hooks/hooks.json"]?.hooks;
+if ("matcher" in (cursorHookConfig?.afterMCPExecution?.[0] ?? {})) {
+  fail("clients/cursor/hooks/hooks.json: afterMCPExecution must filter by mcp_server_name in the hook");
+}
+if ("postToolUseFailure" in (cursorHookConfig ?? {})) {
+  fail("clients/cursor/hooks/hooks.json: failed calls cannot provide a SelectTools query_id");
+}
+
+const claudePostToolHooks = read("clients/claude/hooks/hooks.json");
+if (!claudePostToolHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
+  fail("clients/claude/hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}");
+}
+if (!claudePostToolHooks.includes("PostToolUse")) {
+  fail("clients/claude/hooks/hooks.json: must wire PostToolUse for arcade MCP telemetry");
+}
+if (claudePostToolHooks.includes("PostToolUseFailure")) {
+  fail("clients/claude/hooks/hooks.json: failed calls cannot provide a SelectTools query_id");
+}
+if (!claudePostToolHooks.includes("hooks/post-arcade-tool.mjs")) {
+  fail("clients/claude/hooks/hooks.json: must reference hooks/post-arcade-tool.mjs");
+}
+
+const claudeManifest = json[".claude-plugin/plugin.json"];
+if (claudeManifest) {
+  const hooksPaths = claudeManifest.hooks;
+  const expectedHooks = ["./hooks/hooks.json", "./clients/claude/hooks/hooks.json"];
+  if (
+    !Array.isArray(hooksPaths) ||
+    hooksPaths.length !== expectedHooks.length ||
+    !expectedHooks.every((path, index) => hooksPaths[index] === path)
+  ) {
+    fail(
+      `.claude-plugin/plugin.json: hooks must be ${JSON.stringify(expectedHooks)}`,
+    );
   }
 }
 
