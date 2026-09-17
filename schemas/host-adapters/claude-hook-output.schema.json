@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ArcadeAI/arcade-plugin/schemas/host-adapters/claude-hook-output.schema.json",
+  "title": "Claude-compatible hook stdout (SessionStart, UserPromptSubmit, SubagentStart)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hookSpecificOutput"],
+  "properties": {
+    "hookSpecificOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hookEventName", "additionalContext"],
+      "properties": {
+        "hookEventName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "additionalContext": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

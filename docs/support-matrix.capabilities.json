@@ -1,0 +1,100 @@
+{
+  "skills": ["try-arcade", "scale-arcade"],
+  "commands": ["arcade-apps", "arcade-connect", "arcade-status"],
+  "clients": {
+    "cursor": {
+      "label": "Cursor",
+      "installGuide": "docs/install/cursor.md",
+      "tools": true,
+      "skills": 2,
+      "subagent": {
+        "path": "agents/arcade-operator.agent.md",
+        "via": ".cursor-plugin"
+      },
+      "commands": 3,
+      "rule": "clients/cursor/rules/arcade.mdc",
+      "hooks": {
+        "count": 1,
+        "manifest": "clients/cursor/hooks/hooks.json",
+        "events": ["sessionStart"]
+      }
+    },
+    "claude-code": {
+      "label": "Claude Code",
+      "installGuide": "docs/install/claude-code.md",
+      "tools": true,
+      "skills": 2,
+      "subagent": {
+        "path": "agents/arcade-operator.agent.md",
+        "via": "default-discovery"
+      },
+      "commands": 3,
+      "hooks": {
+        "count": 2,
+        "manifest": "hooks/hooks.json",
+        "events": ["SessionStart", "UserPromptSubmit"]
+      }
+    },
+    "claude-cowork-code-desktop": {
+      "label": "Claude Cowork / Code desktop",
+      "installGuide": "docs/install/claude-code.md",
+      "sameAs": "claude-code"
+    },
+    "copilot-cli": {
+      "label": "GitHub Copilot CLI",
+      "installGuide": "docs/install/copilot.md",
+      "tools": true,
+      "skills": 2,
+      "subagent": {
+        "path": "com.github.copilot/agents/arcade-operator.agent.md",
+        "via": "com.github.copilot"
+      },
+      "hooks": null
+    },
+    "vscode": {
+      "label": "VS Code",
+      "installGuide": "docs/install/vscode.md",
+      "sameAs": "copilot-cli"
+    },
+    "codex": {
+      "label": "Codex / ChatGPT local runtime",
+      "installGuide": "docs/install/codex.md",
+      "tools": true,
+      "skills": 2,
+      "subagent": null,
+      "hooks": {
+        "count": 3,
+        "manifest": "com.openai/hooks/hooks.json",
+        "extension": "plugin.json extensions.com.openai.hooks",
+        "events": ["SessionStart", "UserPromptSubmit", "SubagentStart"]
+      }
+    },
+    "opencode": {
+      "label": "OpenCode",
+      "installGuide": "docs/install/opencode.md",
+      "tools": true,
+      "skills": null,
+      "subagent": null,
+      "commands": null,
+      "hooks": null
+    },
+    "claude-desktop": {
+      "label": "Claude Desktop",
+      "installGuide": "docs/install/claude-desktop.md",
+      "tools": true,
+      "skills": 2,
+      "subagent": null,
+      "commands": null,
+      "hooks": null
+    },
+    "any-mcp-client": {
+      "label": "Any MCP client",
+      "installGuide": "docs/install/agent-plugins.md",
+      "tools": true,
+      "skills": null,
+      "subagent": null,
+      "commands": null,
+      "hooks": null
+    }
+  }
+}

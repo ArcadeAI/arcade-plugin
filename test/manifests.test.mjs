@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
+import { SESSION_START_MATCHER } from "../scripts/constants.mjs";
 import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
 
 const pathExists = async (relativePath) => {
@@ -29,6 +30,19 @@ test("Cursor hook command uses CURSOR_PLUGIN_ROOT and resolves to a real file", 
   assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
 });
 
+test("Claude hook manifest wires only supported events", async () => {
+  const hooks = await readRepoJson("hooks/hooks.json");
+  assert.deepEqual(Object.keys(hooks.hooks).sort(), [
+    "SessionStart",
+    "UserPromptSubmit",
+  ]);
+});
+
+test("Cursor hook manifest wires only supported events", async () => {
+  const hooks = await readRepoJson("clients/cursor/hooks/hooks.json");
+  assert.deepEqual(Object.keys(hooks.hooks).sort(), ["sessionStart"]);
+});
+
 test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
 
@@ -40,7 +54,7 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
   }
   assert.equal(
     hooks.hooks.SessionStart[0].matcher,
-    "startup|resume|clear|compact|fork",
+    SESSION_START_MATCHER,
   );
   assert.equal(hooks.hooks.SubagentStart, undefined);
 });
@@ -52,7 +66,7 @@ test("Codex extension hook manifest owns all Codex lifecycle events", async () =
     "SubagentStart",
     "UserPromptSubmit",
   ]);
-  assert.equal(hooks.hooks.SessionStart[0].matcher, "startup|resume|clear|compact");
+  assert.equal(hooks.hooks.SessionStart[0].matcher, SESSION_START_MATCHER);
   assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 
   for (const event of ["SessionStart", "SubagentStart", "UserPromptSubmit"]) {

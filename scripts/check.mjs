@@ -17,6 +17,7 @@ import {
   CI_NODE_VERSION,
   ENDPOINT,
   GATEWAY_HOST,
+  HOOK_COMMAND_TIMEOUT_SEC,
   INSTALL_SLUG,
   MCP_REMOTE_PACKAGE,
   MCP_SCHEMA,
@@ -24,6 +25,7 @@ import {
   PLUGINS_CLI_VERSION,
   PLUGIN_DISPLAY_NAME,
   PLUGIN_SCHEMA,
+  SESSION_START_MATCHER,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
 
@@ -61,6 +63,12 @@ for (const required of [
   "agents",
   "commands",
   "hooks/hooks.json",
+  "schemas/host-adapters/claude-hooks.schema.json",
+  "schemas/host-adapters/cursor-hooks.schema.json",
+  "schemas/host-adapters/openai-hooks.schema.json",
+  "schemas/host-adapters/cursor-plugin.schema.json",
+  "schemas/host-adapters/codex-fallback-plugin.schema.json",
+  "schemas/vendor/openai/codex-hooks/SOURCE.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
@@ -145,6 +153,27 @@ if (cursorManifest) {
       `.cursor-plugin/plugin.json: displayName must be "${PLUGIN_DISPLAY_NAME}"`,
     );
   }
+  const cursorAllowed = new Set([
+    "name",
+    "description",
+    "author",
+    "homepage",
+    "license",
+    "keywords",
+    "version",
+    "displayName",
+    "skills",
+    "agents",
+    "commands",
+    "rules",
+    "hooks",
+    "mcpServers",
+  ]);
+  for (const key of Object.keys(cursorManifest)) {
+    if (!cursorAllowed.has(key)) {
+      fail(`.cursor-plugin/plugin.json: unexpected field "${key}"`);
+    }
+  }
 }
 
 if (json["clients/claude/mcp.json"]?.mcpServers?.arcade?.type !== "http") {
@@ -205,9 +234,9 @@ if (!claudeHooks.includes("hooks/session-start.mjs")) {
 if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
   fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
 }
-if (!claudeHooks.includes('"matcher": "startup|resume|clear|compact|fork"')) {
+if (!claudeHooks.includes(`"matcher": "${SESSION_START_MATCHER}"`)) {
   fail(
-    "hooks/hooks.json: SessionStart must match startup, resume, clear, compact, and fork",
+    `hooks/hooks.json: SessionStart must match ${SESSION_START_MATCHER.replaceAll("|", ", ")}`,
   );
 }
 if (claudeHooks.includes("SubagentStart")) {
@@ -216,9 +245,20 @@ if (claudeHooks.includes("SubagentStart")) {
   );
 }
 
+const codexHooksJson = json["com.openai/hooks/hooks.json"];
 const codexHooks = read("com.openai/hooks/hooks.json");
 if (!codexHooks.includes("${PLUGIN_ROOT}")) {
   fail("com.openai/hooks/hooks.json: must use ${PLUGIN_ROOT}");
+}
+if (
+  codexHooksJson?.hooks?.SessionStart?.[0]?.matcher !== SESSION_START_MATCHER
+) {
+  fail(
+    `com.openai/hooks/hooks.json: SessionStart must match ${SESSION_START_MATCHER.replaceAll("|", ", ")}`,
+  );
+}
+if (codexHooksJson?.hooks?.SubagentStart?.[0]?.matcher !== "*") {
+  fail('com.openai/hooks/hooks.json: SubagentStart must use matcher "*"');
 }
 for (const script of [
   "hooks/session-start.mjs",
@@ -234,8 +274,13 @@ for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
     fail(`com.openai/hooks/hooks.json: must not use ${forbiddenRoot}`);
   }
 }
-if (!codexHooks.includes('"matcher": "*"')) {
-  fail('com.openai/hooks/hooks.json: SubagentStart must use matcher "*"');
+if (
+  !codexHooks.includes(`"timeout": ${HOOK_COMMAND_TIMEOUT_SEC}`) ||
+  (codexHooks.match(/"timeout": \d+/g) ?? []).length < 3
+) {
+  fail(
+    `com.openai/hooks/hooks.json: SessionStart, UserPromptSubmit, and SubagentStart must set timeout ${HOOK_COMMAND_TIMEOUT_SEC}`,
+  );
 }
 
 const codexManifest = json[".codex-plugin/plugin.json"];
@@ -255,6 +300,22 @@ if (codexManifest) {
       fail(
         `.codex-plugin/plugin.json: ${portableComponent} comes from the portable root manifest`,
       );
+    }
+  }
+  const codexAllowed = new Set([
+    "name",
+    "description",
+    "author",
+    "homepage",
+    "license",
+    "keywords",
+    "version",
+    "displayName",
+    "hooks",
+  ]);
+  for (const key of Object.keys(codexManifest)) {
+    if (!codexAllowed.has(key)) {
+      fail(`.codex-plugin/plugin.json: unexpected field "${key}"`);
     }
   }
 }
@@ -331,9 +392,22 @@ for (const [schemaUrl, localPath] of Object.entries(VENDORED_SCHEMAS)) {
   }
 }
 
+const codexVendor = json["schemas/vendor/openai/codex-hooks/SOURCE.json"];
+if (codexVendor) {
+  for (const file of codexVendor.files ?? []) {
+    const vendorPath = join("schemas/vendor/openai/codex-hooks", file);
+    if (!existsSync(join(ROOT, vendorPath))) {
+      fail(`missing vendored Codex hook schema: ${vendorPath}`);
+    }
+  }
+}
+
 const verifyScripts = {
   "verify:discover": "plugins discover .",
   "verify:claude": "claude plugin validate . --strict",
+  "verify:codex": "node scripts/verify-codex-plugin.mjs",
+  "verify:cursor": "node scripts/verify-cursor-plugin.mjs",
+  "validate:hooks": "node scripts/validate-hook-contracts.mjs",
 };
 for (const [scriptName, expected] of Object.entries(verifyScripts)) {
   if (packageJson.scripts?.[scriptName] !== expected) {

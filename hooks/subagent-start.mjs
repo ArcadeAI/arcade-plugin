@@ -15,14 +15,18 @@ const readStdin = async () => {
 };
 
 const emitResponse = () => {
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "SubagentStart",
-        additionalContext: SUBAGENT_CONTEXT,
-      },
-    }),
-  );
+  try {
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "SubagentStart",
+          additionalContext: SUBAGENT_CONTEXT,
+        },
+      }),
+    );
+  } catch {
+    // Never block subagent startup on stdout failures.
+  }
 };
 
 try {

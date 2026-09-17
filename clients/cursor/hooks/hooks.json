@@ -3,7 +3,8 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs\""
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs\"",
+        "timeout": 5
       }
     ]
   }

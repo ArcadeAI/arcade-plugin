@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ArcadeAI/arcade-plugin/schemas/host-adapters/openai-hooks.schema.json",
   "title": "Arcade OpenAI hook adapter contract",
-  "$comment": "Repository-owned contract for the documented OpenAI hook subset used here. Source checked 2026-09-17: https://learn.chatgpt.com/docs/hooks",
+  "$comment": "Repository-owned contract for the documented OpenAI hook subset used here. SessionStart source enum checked 2026-09-17 against codex-rs/hooks/schema/generated/session-start.command.input.schema.json on openai/codex main.",
   "type": "object",
   "additionalProperties": false,
   "required": ["hooks"],
@@ -38,16 +38,29 @@
           "minLength": 1
         },
         "timeout": {
-          "type": "number",
-          "exclusiveMinimum": 0
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
-    "commands": {
+    "timedCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/command" },
+        {
+          "required": ["timeout"],
+          "properties": {
+            "timeout": {
+              "const": 5
+            }
+          }
+        }
+      ]
+    },
+    "timedCommands": {
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "#/$defs/command"
+        "$ref": "#/$defs/timedCommand"
       }
     },
     "sessionStart": {
@@ -60,10 +73,10 @@
         "required": ["matcher", "hooks"],
         "properties": {
           "matcher": {
-            "const": "startup|resume|clear|compact"
+            "const": "startup|resume|clear|compact|fork"
           },
           "hooks": {
-            "$ref": "#/$defs/commands"
+            "$ref": "#/$defs/timedCommands"
           }
         }
       }
@@ -78,7 +91,7 @@
         "required": ["hooks"],
         "properties": {
           "hooks": {
-            "$ref": "#/$defs/commands"
+            "$ref": "#/$defs/timedCommands"
           }
         }
       }
@@ -96,7 +109,7 @@
             "const": "*"
           },
           "hooks": {
-            "$ref": "#/$defs/commands"
+            "$ref": "#/$defs/timedCommands"
           }
         }
       }

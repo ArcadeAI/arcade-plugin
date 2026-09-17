@@ -25,7 +25,7 @@
                 "const": "startup|resume|clear|compact|fork"
               },
               "hooks": {
-                "$ref": "#/$defs/commands"
+                "$ref": "#/$defs/timedCommands"
               }
             }
           }
@@ -40,7 +40,7 @@
             "required": ["hooks"],
             "properties": {
               "hooks": {
-                "$ref": "#/$defs/commands"
+                "$ref": "#/$defs/timedCommands"
               }
             }
           }
@@ -49,26 +49,42 @@
     }
   },
   "$defs": {
-    "commands": {
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "properties": {
+        "type": {
+          "const": "command"
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "timedCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/command" },
+        {
+          "required": ["timeout"],
+          "properties": {
+            "timeout": {
+              "const": 5
+            }
+          }
+        }
+      ]
+    },
+    "timedCommands": {
       "type": "array",
       "minItems": 1,
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["type", "command"],
-        "properties": {
-          "type": {
-            "const": "command"
-          },
-          "command": {
-            "type": "string",
-            "minLength": 1
-          },
-          "timeout": {
-            "type": "number",
-            "exclusiveMinimum": 0
-          }
-        }
+        "$ref": "#/$defs/timedCommand"
       }
     }
   }

@@ -18,6 +18,9 @@ const readStdin = async () => {
 const detectPlatform = (rawInput) => {
   try {
     const input = JSON.parse(rawInput);
+    if (input.hook_event_name === "sessionStart") {
+      return "cursor";
+    }
     if (
       "is_background_agent" in input ||
       "composer_mode" in input ||
@@ -43,7 +46,11 @@ const emitResponse = (platform) => {
             additionalContext: SESSION_CONTEXT,
           },
         };
-  process.stdout.write(JSON.stringify(response));
+  try {
+    process.stdout.write(JSON.stringify(response));
+  } catch {
+    // Never block session startup on stdout failures.
+  }
 };
 
 try {

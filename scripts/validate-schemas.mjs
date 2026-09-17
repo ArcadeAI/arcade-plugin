@@ -17,6 +17,14 @@ const HOST_CONTRACTS = [
     "com.openai/hooks/hooks.json",
     "schemas/host-adapters/openai-hooks.schema.json",
   ],
+  [
+    ".cursor-plugin/plugin.json",
+    "schemas/host-adapters/cursor-plugin.schema.json",
+  ],
+  [
+    ".codex-plugin/plugin.json",
+    "schemas/host-adapters/codex-fallback-plugin.schema.json",
+  ],
 ];
 
 const readJson = async (relativePath) =>
