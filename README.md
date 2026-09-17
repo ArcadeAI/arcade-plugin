@@ -25,7 +25,7 @@ once in the browser without ever handing your agent a key.
 npx plugins add ArcadeAI/arcade-plugin
 ```
 
-Add `--target cursor` (or `claude-code`, `vscode`, `codex`, `copilot`) to
+Add `--target cursor` (or `claude-code`, `vscode`, `codex`, `github-copilot`) to
 install to one client. See [install guides](docs/install/) for details.
 
 ### Claude Desktop

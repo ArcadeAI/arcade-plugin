@@ -3,7 +3,7 @@
 ## Full plugin
 
 ```bash
-npx plugins add ArcadeAI/arcade-plugin --target copilot
+npx plugins add ArcadeAI/arcade-plugin --target github-copilot
 ```
 
 Native alternative:
