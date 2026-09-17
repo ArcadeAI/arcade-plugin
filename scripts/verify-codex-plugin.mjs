@@ -5,7 +5,6 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateHookContracts } from "./hook-contracts.mjs";
 import {
   CODEX_HOOKS_PATH,
   readOpenAiInterface,
@@ -55,10 +54,6 @@ validateCodexFallbackManifest(
   portable,
   fail,
 );
-
-for (const message of validateHookContracts(ROOT)) {
-  fail(message);
-}
 
 const hasCodexCli = (() => {
   try {

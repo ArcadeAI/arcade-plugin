@@ -48,8 +48,10 @@ jobs:
           deadline=$(( $(date +%s) + 900 ))
 
           while [ "$(date +%s)" -lt "$deadline" ]; do
-            bugbot_json="$(gh api "repos/${repo}/commits/${sha}/check-runs" --paginate \
-              --jq '[.check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last')"
+            bugbot_json="$(
+              gh api "repos/${repo}/commits/${sha}/check-runs" --paginate |
+                jq -s '[.[].check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last'
+            )"
             status="$(printf '%s' "${bugbot_json}" | jq -r '.status // ""')"
             conclusion="$(printf '%s' "${bugbot_json}" | jq -r '.conclusion // ""')"
             summary="$(printf '%s' "${bugbot_json}" | jq -r '.output.summary // ""')"

@@ -15,22 +15,10 @@ const pathExists = async (relativePath) => {
 
 const resolveClient = (capabilities, clientId) => {
   const client = capabilities.clients[clientId];
-  if (client.sameAs) {
-    return capabilities.clients[client.sameAs];
-  }
-  return client;
-};
-
-const README_CLIENT_ROWS = {
-  Cursor: "cursor",
-  "Claude Code": "claude-code",
-  "Claude Cowork / Code desktop": "claude-cowork-code-desktop",
-  "GitHub Copilot CLI": "copilot-cli",
-  "VS Code": "vscode",
-  "Codex / ChatGPT local runtime": "codex",
-  OpenCode: "opencode",
-  "Claude Desktop": "claude-desktop",
-  "Any MCP client": "any-mcp-client",
+  const { sameAs, ...overrides } = client;
+  return sameAs
+    ? { ...capabilities.clients[sameAs], ...overrides }
+    : overrides;
 };
 
 const extractMarkdownRow = (markdown, label) => {
@@ -79,7 +67,6 @@ test("support matrix capability paths exist on disk", async () => {
 
   for (const [clientId, client] of Object.entries(capabilities.clients)) {
     const resolved = resolveClient(capabilities, clientId);
-    if (resolved.sameAs) continue;
 
     assert.equal(
       await pathExists(resolved.installGuide),
@@ -107,15 +94,27 @@ test("support matrix capability paths exist on disk", async () => {
   }
 });
 
+test("sameAs clients retain their own metadata", async () => {
+  const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
+  const vscode = resolveClient(capabilities, "vscode");
+
+  assert.equal(vscode.installGuide, "docs/install/vscode.md");
+  assert.deepEqual(vscode.subagent, capabilities.clients["copilot-cli"].subagent);
+});
+
 test("README hook counts match capabilities data", async () => {
   const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
   const readme = await readRepoFile("README.md");
 
-  for (const [label, clientId] of Object.entries(README_CLIENT_ROWS)) {
-    const cells = extractMarkdownRow(readme, label);
-    assert.ok(cells, `README row for ${label}`);
+  for (const [clientId, client] of Object.entries(capabilities.clients)) {
+    const cells = extractMarkdownRow(readme, client.label);
+    assert.ok(cells, `README row for ${client.label}`);
     const hooks = resolveClient(capabilities, clientId).hooks;
-    assert.equal(cells[5], formatHooksCell(hooks), `${label} README hooks cell`);
+    assert.equal(
+      cells[5],
+      formatHooksCell(hooks),
+      `${client.label} README hooks cell`,
+    );
   }
 });
 
