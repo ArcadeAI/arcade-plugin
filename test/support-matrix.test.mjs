@@ -26,14 +26,15 @@ test("support matrix capabilities file matches documented clients", async () => 
   const matrix = await readRepoFile("docs/support-matrix.md");
 
   assert.deepEqual(capabilities.skills, ["try-arcade", "scale-arcade"]);
-  assert.deepEqual(capabilities.commands, [
-    "arcade-apps",
-    "arcade-connect",
-    "arcade-status",
-  ]);
+  for (const commandFile of capabilities.commandFiles) {
+    assert.equal(await pathExists(commandFile), true, commandFile);
+  }
 
-  for (const command of capabilities.commands) {
-    assert.match(matrix, new RegExp(`/${command}`));
+  for (const command of capabilities.commands.cursor) {
+    assert.match(matrix, new RegExp(command.replace("/", "\\/")));
+  }
+  for (const command of capabilities.commands["claude-code"]) {
+    assert.match(matrix, new RegExp(command.replace("/", "\\/")));
   }
 
   for (const [clientId, client] of Object.entries(capabilities.clients)) {
@@ -84,9 +85,9 @@ test("support matrix markdown hook counts match capabilities data", async () => 
   const matrix = await readRepoFile("docs/support-matrix.md");
 
   const rows = {
-    cursor: /\*\*Cursor\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*✅\s*\|\s*✅\s*\|/,
-    "claude-code": /\*\*Claude Code\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*—\s*\|\s*2\s*\|/,
-    codex: /\*\*Codex \/ ChatGPT local runtime\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*—\s*\|\s*—\s*\|\s*—\s*\|\s*✅\s*3\s*\|/,
+    cursor: /\*\*Cursor\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*✅\s*\|\s*✅¹\s*\|/,
+    "claude-code": /\*\*Claude Code\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*—\s*\|\s*3\s*\|/,
+    codex: /\*\*Codex \/ ChatGPT local runtime\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*—\s*\|\s*—\s*\|\s*—\s*\|\s*✅² 3\s*\|/,
   };
 
   for (const [clientId, pattern] of Object.entries(rows)) {
@@ -105,4 +106,9 @@ test("copilot and vscode subagent paths use com.github.copilot projection", asyn
     assert.match(subagent.path, /^com\.github\.copilot\//);
     assert.equal(subagent.via, "com.github.copilot");
   }
+});
+
+test("portable manifest exposes Codex listing metadata", async () => {
+  const portable = await readRepoJson("plugin.json");
+  assert.equal(portable.extensions?.["com.openai"]?.interface?.displayName, "Arcade");
 });

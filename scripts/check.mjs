@@ -102,6 +102,18 @@ if (portable) {
       'plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"',
     );
   }
+  const openAiInterface = portable.extensions?.["com.openai"]?.interface;
+  if (openAiInterface?.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(
+      `plugin.json: extensions.com.openai.interface.displayName must be "${PLUGIN_DISPLAY_NAME}"`,
+    );
+  }
+  if (!openAiInterface?.shortDescription) {
+    fail("plugin.json: extensions.com.openai.interface.shortDescription is required");
+  }
+  if (openAiInterface?.developerName !== "Arcade.dev") {
+    fail('plugin.json: extensions.com.openai.interface.developerName must be "Arcade.dev"');
+  }
 }
 
 const portableMcp = json["mcp.json"];
@@ -162,6 +174,7 @@ if (cursorManifest) {
     "keywords",
     "version",
     "displayName",
+    "repository",
     "skills",
     "agents",
     "commands",
@@ -239,10 +252,11 @@ if (!claudeHooks.includes(`"matcher": "${SESSION_START_MATCHER}"`)) {
     `hooks/hooks.json: SessionStart must match ${SESSION_START_MATCHER.replaceAll("|", ", ")}`,
   );
 }
-if (claudeHooks.includes("SubagentStart")) {
-  fail(
-    "hooks/hooks.json: Arcade wires SubagentStart only in com.openai/hooks/hooks.json",
-  );
+if (!claudeHooks.includes("hooks/subagent-start.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/subagent-start.mjs");
+}
+if (!claudeHooks.includes('"matcher": "*"')) {
+  fail('hooks/hooks.json: SubagentStart must use matcher "*"');
 }
 
 const codexHooksJson = json["com.openai/hooks/hooks.json"];

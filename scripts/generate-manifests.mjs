@@ -67,6 +67,7 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   const cursorPlugin = {
     ...shared,
     ...listingFields(),
+    repository: portablePlugin.repository,
     skills: "skills",
     agents: "agents",
     commands: "commands",

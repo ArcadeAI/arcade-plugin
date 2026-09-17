@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ArcadeAI/arcade-plugin/schemas/host-adapters/cursor-hooks.schema.json",
   "title": "Arcade Cursor hook adapter contract",
-  "$comment": "Repository-owned contract for the documented Cursor hook subset used here. sessionStart is the only Cursor hook that can inject additional_context. Source checked 2026-09-17: https://cursor.com/docs/hooks",
+  "$comment": "Repository-owned contract for the documented Cursor hook subset used here. sessionStart injects session routing; postToolUse can also emit additional_context but is out of scope here. Source checked 2026-09-17: https://cursor.com/docs/hooks",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "hooks"],

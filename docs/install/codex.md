@@ -36,9 +36,11 @@ After install, open `/hooks` in Codex and trust the Arcade plugin hooks.
 Codex prints a startup warning when hooks still need review.
 
 The plugin ships three hooks in `com.openai/hooks/hooks.json`. Root
-`plugin.json` selects that adapter through `extensions.com.openai.hooks`; the
-`.codex-plugin/plugin.json` file carries the same path only as a compatibility
-fallback. Every Codex command uses `${PLUGIN_ROOT}` so local installs continue
+`plugin.json` selects that adapter through `extensions.com.openai.hooks`.
+Listing metadata such as the **Arcade** display name lives in
+`extensions.com.openai.interface`. The `.codex-plugin/plugin.json` file carries
+the hooks path only as a legacy fallback when the OpenAI extension object is
+absent. Every Codex command uses `${PLUGIN_ROOT}` so local installs continue
 to resolve after vendor-specific packaging.
 
 | Event | Purpose |

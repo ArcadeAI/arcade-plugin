@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readRepoFile } from "./helpers.mjs";
-
-const COMMANDS = ["arcade-apps", "arcade-connect", "arcade-status"];
+import { readRepoFile, readRepoJson } from "./helpers.mjs";
 
 test("README and support matrix agree on slash command names", async () => {
   const readme = await readRepoFile("README.md");
   const matrix = await readRepoFile("docs/support-matrix.md");
+  const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
 
-  for (const command of COMMANDS) {
-    assert.match(readme, new RegExp(`/${command}`));
-    assert.match(matrix, new RegExp(`/${command}`));
+  for (const command of capabilities.commands.cursor) {
+    assert.match(readme, new RegExp(command.replace("/", "\\/")));
+    assert.match(matrix, new RegExp(command.replace("/", "\\/")));
+  }
+  for (const command of capabilities.commands["claude-code"]) {
+    assert.match(matrix, new RegExp(command.replace("/", "\\/")));
   }
 });
 

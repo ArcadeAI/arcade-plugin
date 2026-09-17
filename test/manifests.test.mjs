@@ -34,6 +34,7 @@ test("Claude hook manifest wires only supported events", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
   assert.deepEqual(Object.keys(hooks.hooks).sort(), [
     "SessionStart",
+    "SubagentStart",
     "UserPromptSubmit",
   ]);
 });
@@ -46,7 +47,7 @@ test("Cursor hook manifest wires only supported events", async () => {
 test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
 
-  for (const event of ["SessionStart", "UserPromptSubmit"]) {
+  for (const event of ["SessionStart", "UserPromptSubmit", "SubagentStart"]) {
     const command = hooks.hooks[event][0].hooks[0].command;
     assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
     const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
@@ -56,7 +57,7 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
     hooks.hooks.SessionStart[0].matcher,
     SESSION_START_MATCHER,
   );
-  assert.equal(hooks.hooks.SubagentStart, undefined);
+  assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 });
 
 test("Codex extension hook manifest owns all Codex lifecycle events", async () => {
@@ -85,6 +86,10 @@ test("portable manifest selects the Codex adapter", async () => {
   assert.equal(
     portable.extensions?.["com.openai"]?.hooks,
     "./com.openai/hooks/hooks.json",
+  );
+  assert.equal(
+    portable.extensions?.["com.openai"]?.interface?.displayName,
+    "Arcade",
   );
   assert.equal(fallback.hooks, "./com.openai/hooks/hooks.json");
   assert.equal(fallback.skills, undefined);
@@ -131,8 +136,12 @@ test("Claude marketplace lists this plugin at the repo root", async () => {
   assert.equal(marketplace.plugins[0].source, "./");
 });
 
-test("commands use arcade-* names", async () => {
-  const commands = ["apps.md", "connect.md", "status.md"];
+test("command files use arcade-* filenames and frontmatter names", async () => {
+  const commands = [
+    "arcade-apps.md",
+    "arcade-connect.md",
+    "arcade-status.md",
+  ];
   for (const file of commands) {
     const content = await readRepoFile(`commands/${file}`);
     assert.match(content, /^name: arcade-/m);

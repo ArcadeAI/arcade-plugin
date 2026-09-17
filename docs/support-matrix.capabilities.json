@@ -1,6 +1,18 @@
 {
   "skills": ["try-arcade", "scale-arcade"],
-  "commands": ["arcade-apps", "arcade-connect", "arcade-status"],
+  "commands": {
+    "cursor": ["/arcade-apps", "/arcade-connect", "/arcade-status"],
+    "claude-code": [
+      "/arcade:arcade-apps",
+      "/arcade:arcade-connect",
+      "/arcade:arcade-status"
+    ]
+  },
+  "commandFiles": [
+    "commands/arcade-apps.md",
+    "commands/arcade-connect.md",
+    "commands/arcade-status.md"
+  ],
   "clients": {
     "cursor": {
       "label": "Cursor",
@@ -16,7 +28,8 @@
       "hooks": {
         "count": 1,
         "manifest": "clients/cursor/hooks/hooks.json",
-        "events": ["sessionStart"]
+        "events": ["sessionStart"],
+        "notes": "Cursor IDE and CLI plugin hooks only. Cloud Agents use project or team hooks instead."
       }
     },
     "claude-code": {
@@ -30,9 +43,9 @@
       },
       "commands": 3,
       "hooks": {
-        "count": 2,
+        "count": 3,
         "manifest": "hooks/hooks.json",
-        "events": ["SessionStart", "UserPromptSubmit"]
+        "events": ["SessionStart", "UserPromptSubmit", "SubagentStart"]
       }
     },
     "claude-cowork-code-desktop": {
@@ -66,7 +79,8 @@
         "count": 3,
         "manifest": "com.openai/hooks/hooks.json",
         "extension": "plugin.json extensions.com.openai.hooks",
-        "events": ["SessionStart", "UserPromptSubmit", "SubagentStart"]
+        "events": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
+        "notes": "Hooks run only after the user trusts them in /hooks."
       }
     },
     "opencode": {

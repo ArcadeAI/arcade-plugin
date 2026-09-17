@@ -133,7 +133,7 @@ merged. Do not rely on fallback-only display metadata in current loaders. See
 `SessionStart`, `UserPromptSubmit`, and `SubagentStart` are supported. The
 configured matchers are correct for the released contract:
 
-- `SessionStart`: `startup|resume|clear|compact`;
+- `SessionStart`: `startup|resume|clear|compact|fork`;
 - `UserPromptSubmit`: matcher omitted because it is ignored;
 - `SubagentStart`: `*`, matching all `agent_type` strings.
 

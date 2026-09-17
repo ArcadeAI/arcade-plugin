@@ -37,6 +37,13 @@ const portable = readJson("plugin.json");
 if (portable.extensions?.["com.openai"]?.hooks !== "./com.openai/hooks/hooks.json") {
   fail('plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"');
 }
+const openAiInterface = portable.extensions?.["com.openai"]?.interface;
+if (openAiInterface?.displayName !== "Arcade") {
+  fail('plugin.json: extensions.com.openai.interface.displayName must be "Arcade"');
+}
+if (!openAiInterface?.shortDescription) {
+  fail("plugin.json: extensions.com.openai.interface.shortDescription is required");
+}
 
 const fallback = readJson(".codex-plugin/plugin.json");
 if (fallback.hooks !== "./com.openai/hooks/hooks.json") {

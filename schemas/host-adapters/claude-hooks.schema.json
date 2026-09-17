@@ -10,7 +10,7 @@
     "hooks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["SessionStart", "UserPromptSubmit"],
+      "required": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
       "properties": {
         "SessionStart": {
           "type": "array",
@@ -44,6 +44,9 @@
               }
             }
           }
+        },
+        "SubagentStart": {
+          "$ref": "#/$defs/subagentStart"
         }
       }
     }
@@ -85,6 +88,24 @@
       "minItems": 1,
       "items": {
         "$ref": "#/$defs/timedCommand"
+      }
+    },
+    "subagentStart": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["matcher", "hooks"],
+        "properties": {
+          "matcher": {
+            "const": "*"
+          },
+          "hooks": {
+            "$ref": "#/$defs/timedCommands"
+          }
+        }
       }
     }
   }
