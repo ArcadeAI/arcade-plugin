@@ -14,10 +14,6 @@ const HOST_CONTRACTS = [
     "schemas/host-adapters/cursor-hooks.schema.json",
   ],
   [
-    "com.openai/hooks/hooks.json",
-    "schemas/host-adapters/openai-hooks.schema.json",
-  ],
-  [
     ".cursor-plugin/plugin.json",
     "schemas/host-adapters/cursor-plugin.schema.json",
   ],

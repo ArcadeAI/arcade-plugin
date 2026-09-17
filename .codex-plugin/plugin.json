@@ -20,6 +20,5 @@
     "developerName": "Arcade.dev",
     "category": "Productivity",
     "websiteURL": "https://arcade.dev"
-  },
-  "hooks": "./com.openai/hooks/hooks.json"
+  }
 }

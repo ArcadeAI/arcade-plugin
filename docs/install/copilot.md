@@ -21,8 +21,8 @@ gateway, and `arcade-operator`.
 
 Copilot and VS Code load plugin hooks only from
 `com.github.copilot/hooks/hooks.json`. Arcade lifecycle hooks live in
-`hooks/hooks.json` (Claude Code) and `com.openai/hooks/hooks.json` (Codex), so
-use the skills for routing guidance on Copilot CLI.
+`hooks/hooks.json` for Claude Code, so use the skills for routing guidance on
+Copilot CLI.
 
 ## Sign in
 

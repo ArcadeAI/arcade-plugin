@@ -25,43 +25,6 @@ export const extractHookCommands = (hooksJson) => {
 
 export const MANIFEST_HOOK_ADAPTERS = [
   {
-    name: "codex",
-    manifest: "com.openai/hooks/hooks.json",
-    rootToken: "PLUGIN_ROOT",
-    stdinByEvent: {
-      SessionStart: JSON.stringify({
-        cwd: "/repo",
-        hook_event_name: "SessionStart",
-        model: "gpt-5",
-        permission_mode: "default",
-        session_id: "codex-smoke-1",
-        source: "startup",
-        transcript_path: null,
-      }),
-      UserPromptSubmit: JSON.stringify({
-        cwd: "/repo",
-        hook_event_name: "UserPromptSubmit",
-        model: "gpt-5",
-        permission_mode: "default",
-        prompt: "What is on my calendar tomorrow?",
-        session_id: "codex-smoke-1",
-        transcript_path: null,
-        turn_id: "turn-1",
-      }),
-      SubagentStart: JSON.stringify({
-        agent_id: "agent-1",
-        agent_type: "review",
-        cwd: "/repo",
-        hook_event_name: "SubagentStart",
-        model: "gpt-5",
-        permission_mode: "default",
-        session_id: "codex-smoke-1",
-        transcript_path: null,
-        turn_id: "turn-1",
-      }),
-    },
-  },
-  {
     name: "claude",
     manifest: "hooks/hooks.json",
     rootToken: "CLAUDE_PLUGIN_ROOT",

@@ -66,10 +66,8 @@ for (const required of [
   "hooks/hooks.json",
   "schemas/host-adapters/claude-hooks.schema.json",
   "schemas/host-adapters/cursor-hooks.schema.json",
-  "schemas/host-adapters/openai-hooks.schema.json",
   "schemas/host-adapters/cursor-plugin.schema.json",
   "schemas/host-adapters/codex-fallback-plugin.schema.json",
-  "schemas/vendor/openai/codex-hooks/SOURCE.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
@@ -94,14 +92,6 @@ if (portable) {
   }
   if (portable.repository !== "https://github.com/ArcadeAI/arcade-plugin") {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
-  }
-  if (
-    portable.extensions?.["com.openai"]?.hooks !==
-    "./com.openai/hooks/hooks.json"
-  ) {
-    fail(
-      'plugin.json: extensions.com.openai.hooks must be "./com.openai/hooks/hooks.json"',
-    );
   }
   const openAiInterface = portable.extensions?.["com.openai"]?.interface;
   if (openAiInterface?.displayName !== PLUGIN_DISPLAY_NAME) {
@@ -260,44 +250,6 @@ if (!claudeHooks.includes('"matcher": "*"')) {
   fail('hooks/hooks.json: SubagentStart must use matcher "*"');
 }
 
-const codexHooksJson = json["com.openai/hooks/hooks.json"];
-const codexHooks = read("com.openai/hooks/hooks.json");
-if (!codexHooks.includes("${PLUGIN_ROOT}")) {
-  fail("com.openai/hooks/hooks.json: must use ${PLUGIN_ROOT}");
-}
-if (
-  codexHooksJson?.hooks?.SessionStart?.[0]?.matcher !== SESSION_START_MATCHER
-) {
-  fail(
-    `com.openai/hooks/hooks.json: SessionStart must match ${SESSION_START_MATCHER.replaceAll("|", ", ")}`,
-  );
-}
-if (codexHooksJson?.hooks?.SubagentStart?.[0]?.matcher !== "*") {
-  fail('com.openai/hooks/hooks.json: SubagentStart must use matcher "*"');
-}
-for (const script of [
-  "hooks/session-start.mjs",
-  "hooks/user-prompt-submit.mjs",
-  "hooks/subagent-start.mjs",
-]) {
-  if (!codexHooks.includes(script)) {
-    fail(`com.openai/hooks/hooks.json: must reference ${script}`);
-  }
-}
-for (const forbiddenRoot of ["${CLAUDE_PLUGIN_ROOT}", "${CODEX_PLUGIN_ROOT}"]) {
-  if (codexHooks.includes(forbiddenRoot)) {
-    fail(`com.openai/hooks/hooks.json: must not use ${forbiddenRoot}`);
-  }
-}
-if (
-  !codexHooks.includes(`"timeout": ${HOOK_COMMAND_TIMEOUT_SEC}`) ||
-  (codexHooks.match(/"timeout": \d+/g) ?? []).length < 3
-) {
-  fail(
-    `com.openai/hooks/hooks.json: SessionStart, UserPromptSubmit, and SubagentStart must set timeout ${HOOK_COMMAND_TIMEOUT_SEC}`,
-  );
-}
-
 const codexManifest = json[".codex-plugin/plugin.json"];
 if (codexManifest) {
   validateCodexFallbackManifest(codexManifest, portable, fail);
@@ -372,16 +324,6 @@ if (packageJson.engines?.node !== CI_NODE_VERSION) {
 for (const [schemaUrl, localPath] of Object.entries(VENDORED_SCHEMAS)) {
   if (!existsSync(join(ROOT, localPath))) {
     fail(`missing vendored schema for ${schemaUrl}: ${localPath}`);
-  }
-}
-
-const codexVendor = json["schemas/vendor/openai/codex-hooks/SOURCE.json"];
-if (codexVendor) {
-  for (const file of codexVendor.files ?? []) {
-    const vendorPath = join("schemas/vendor/openai/codex-hooks", file);
-    if (!existsSync(join(ROOT, vendorPath))) {
-      fail(`missing vendored Codex hook schema: ${vendorPath}`);
-    }
   }
 }
 

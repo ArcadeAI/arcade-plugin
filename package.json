@@ -10,7 +10,6 @@
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "validate:hooks": "node scripts/validate-hook-contracts.mjs",
     "validate:manifest-hooks": "node scripts/validate-manifest-hook-smoke.mjs",
-    "vendor:codex-schemas": "node scripts/vendor-codex-hook-schemas.mjs",
     "verify:discover": "plugins discover .",
     "verify:claude": "claude plugin validate . --strict",
     "verify:codex": "node scripts/verify-codex-plugin.mjs",

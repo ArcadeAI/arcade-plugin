@@ -4,20 +4,24 @@ import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const CODEX_SCHEMA_DIR = "schemas/vendor/openai/codex-hooks";
 const ajvDraft7 = new Ajv({ allErrors: true, strict: false });
 const ajv2020 = new Ajv2020({ allErrors: true, strict: false });
+const compiledSchemas = new Map();
 
 const loadJson = (root, relativePath) =>
   JSON.parse(readFileSync(path.join(root, relativePath), "utf8"));
 
 const compileSchema = (root, relativePath) => {
+  if (compiledSchemas.has(relativePath)) {
+    return compiledSchemas.get(relativePath);
+  }
   const schema = loadJson(root, relativePath);
   const ajv = schema.$schema?.includes("2020-12") ? ajv2020 : ajvDraft7;
   const validate = ajv.compile(schema);
   if (!validate) {
     throw new Error(`failed to compile ${relativePath}`);
   }
+  compiledSchemas.set(relativePath, validate);
   return validate;
 };
 
@@ -29,21 +33,6 @@ const runHook = (root, script, stdin) =>
   });
 
 export const HOOK_CONTRACTS = [
-  {
-    name: "session-start codex fork",
-    script: "session-start.mjs",
-    input: {
-      cwd: "/repo",
-      hook_event_name: "SessionStart",
-      model: "gpt-5",
-      permission_mode: "default",
-      session_id: "codex-fork-1",
-      source: "fork",
-      transcript_path: null,
-    },
-    inputSchema: `${CODEX_SCHEMA_DIR}/session-start.command.input.schema.json`,
-    outputSchema: `${CODEX_SCHEMA_DIR}/session-start.command.output.schema.json`,
-  },
   {
     name: "session-start cursor full fixture",
     script: "session-start.mjs",
@@ -59,20 +48,16 @@ export const HOOK_CONTRACTS = [
     outputSchema: "schemas/host-adapters/cursor-hook-output.schema.json",
   },
   {
-    name: "user-prompt-submit codex",
+    name: "session-start claude empty stdin",
+    script: "session-start.mjs",
+    input: {},
+    outputSchema: "schemas/host-adapters/claude-hook-output.schema.json",
+  },
+  {
+    name: "user-prompt-submit substantive",
     script: "user-prompt-submit.mjs",
-    input: {
-      cwd: "/repo",
-      hook_event_name: "UserPromptSubmit",
-      model: "gpt-5",
-      permission_mode: "default",
-      prompt: "What is on my calendar tomorrow?",
-      session_id: "codex-1",
-      transcript_path: null,
-      turn_id: "turn-1",
-    },
-    inputSchema: `${CODEX_SCHEMA_DIR}/user-prompt-submit.command.input.schema.json`,
-    outputSchema: `${CODEX_SCHEMA_DIR}/user-prompt-submit.command.output.schema.json`,
+    input: { prompt: "What is on my calendar tomorrow?" },
+    outputSchema: "schemas/host-adapters/claude-hook-output.schema.json",
   },
   {
     name: "user-prompt-submit suppressed",
@@ -81,21 +66,13 @@ export const HOOK_CONTRACTS = [
     expectEmptyStdout: true,
   },
   {
-    name: "subagent-start codex",
+    name: "subagent-start claude shape",
     script: "subagent-start.mjs",
     input: {
-      agent_id: "agent-1",
-      agent_type: "review",
-      cwd: "/repo",
       hook_event_name: "SubagentStart",
-      model: "gpt-5",
-      permission_mode: "default",
-      session_id: "codex-1",
-      transcript_path: null,
-      turn_id: "turn-1",
+      agent_type: "review",
     },
-    inputSchema: `${CODEX_SCHEMA_DIR}/subagent-start.command.input.schema.json`,
-    outputSchema: `${CODEX_SCHEMA_DIR}/subagent-start.command.output.schema.json`,
+    outputSchema: "schemas/host-adapters/claude-hook-output.schema.json",
   },
   {
     name: "subagent-start skips arcade-operator",
@@ -114,16 +91,6 @@ export const validateHookContracts = (root) => {
 
   for (const contract of HOOK_CONTRACTS) {
     const stdin = JSON.stringify(contract.input ?? {});
-
-    if (contract.inputSchema) {
-      const validateInput = compileSchema(root, contract.inputSchema);
-      if (!validateInput(contract.input)) {
-        errors.push(
-          `${contract.name}: input fixture invalid — ${JSON.stringify(validateInput.errors)}`,
-        );
-        continue;
-      }
-    }
 
     const result = runHook(root, contract.script, stdin);
     if (result.status !== 0) {

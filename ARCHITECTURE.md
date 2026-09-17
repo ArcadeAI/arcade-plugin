@@ -18,7 +18,7 @@ the Copilot operator projection under `com.github.copilot/`.
 
 Hook manifests stay hand-authored because each host has its own event schema:
 `hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-and `com.openai/hooks/hooks.json` for Codex. Strict repository-owned JSON
+for each host. Strict repository-owned JSON
 Schemas validate the documented subset used by each adapter, while structural
 and behavioral tests validate path tokens, event ownership, and hook output.
 
@@ -45,7 +45,9 @@ the release configuration.
 
 Hook scripts live in `hooks/*.mjs`. Hook manifests are per client:
 `hooks/hooks.json` for Claude, `clients/cursor/hooks/hooks.json` for Cursor,
-and `com.openai/hooks/hooks.json` for all Codex lifecycle hooks.
+for Claude and Cursor. Codex lifecycle hooks are parked on branch
+`cursor/park-codex-hooks-gro-353-f8ad` until Codex loads hooks for Agent
+Plugin packages ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
 `scripts/check.mjs` enforces that split. Maintainer-facing agent guidance lives
 in [AGENTS.md](AGENTS.md) (read by Cursor, Claude Code, Codex, and others).
 
@@ -76,7 +78,6 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 │   │   └── claude_desktop_config.json  tools-only fallback
 │   └── codex/                          (reserved)
 │
-├── com.openai/hooks/hooks.json         Codex lifecycle hook adapter
 ├── commands/                           arcade-apps, arcade-connect, arcade-status
 ├── hooks/                              shared hook scripts + Claude hook manifest
 │

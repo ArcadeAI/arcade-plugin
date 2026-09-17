@@ -28,12 +28,12 @@ test("Claude Desktop guide documents the marketplace install", async () => {
   assert.doesNotMatch(guide, /arcade\.mcpb/);
 });
 
-test("Codex guide documents hook trust", async () => {
+test("Codex guide documents upstream hook blocker", async () => {
   const guide = await readRepoFile("docs/install/codex.md");
-  assert.match(guide, /\/hooks/);
-  assert.match(guide, /SubagentStart/);
-  assert.match(guide, /extensions\.com\.openai/);
+  assert.match(guide, /openai\/codex#39895/);
+  assert.match(guide, /extensions\.com\.openai\.interface/);
   assert.match(guide, /local runtime/);
+  assert.doesNotMatch(guide, /trust them in `\/hooks`/);
 });
 
 test("Codex guide documents install completion and skill invocation", async () => {

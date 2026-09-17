@@ -1,7 +1,5 @@
 /** Shared helpers for extensions.com.openai and the Codex fallback manifest. */
 
-export const CODEX_HOOKS_PATH = "./com.openai/hooks/hooks.json";
-
 export const CODEX_FALLBACK_ALLOWED_KEYS = new Set([
   "name",
   "description",
@@ -11,7 +9,6 @@ export const CODEX_FALLBACK_ALLOWED_KEYS = new Set([
   "keywords",
   "version",
   "interface",
-  "hooks",
 ]);
 
 export function readOpenAiInterface(portablePlugin) {
@@ -25,12 +22,6 @@ export function interfacesMatch(left, right) {
 export function validateCodexFallbackManifest(fallback, portablePlugin, report) {
   const openAiInterface = readOpenAiInterface(portablePlugin);
 
-  if (fallback.hooks !== CODEX_HOOKS_PATH) {
-    report(
-      `.codex-plugin/plugin.json: hooks must be "${CODEX_HOOKS_PATH}"`,
-    );
-  }
-
   if (fallback.displayName) {
     report(
       ".codex-plugin/plugin.json: displayName must live under interface.displayName",
@@ -43,10 +34,10 @@ export function validateCodexFallbackManifest(fallback, portablePlugin, report) 
     );
   }
 
-  for (const field of ["skills", "mcpServers", "displayName"]) {
+  for (const field of ["skills", "mcpServers", "displayName", "hooks"]) {
     if (field in fallback) {
       report(
-        `.codex-plugin/plugin.json: ${field} comes from the portable root manifest`,
+        `.codex-plugin/plugin.json: ${field} is not part of the generated fallback manifest`,
       );
     }
   }

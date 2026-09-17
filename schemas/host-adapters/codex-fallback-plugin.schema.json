@@ -13,8 +13,7 @@
     "license",
     "keywords",
     "version",
-    "interface",
-    "hooks"
+    "interface"
   ],
   "properties": {
     "name": { "type": "string", "minLength": 1 },
@@ -55,7 +54,6 @@
         "category": { "type": "string", "minLength": 1 },
         "websiteURL": { "type": "string", "minLength": 1 }
       }
-    },
-    "hooks": { "const": "./com.openai/hooks/hooks.json" }
+    }
   }
 }

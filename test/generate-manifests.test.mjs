@@ -48,11 +48,6 @@ test("generateManifests matches committed host manifests", async () => {
 
   const portable = await readRepoJson("plugin.json");
   assert.equal(portable.version, version);
-  assert.equal(
-    portable.extensions?.["com.openai"]?.hooks,
-    "./com.openai/hooks/hooks.json",
-  );
-
   const mcp = await readRepoJson("mcp.json");
   assert.equal(mcp.mcpServers.arcade.type, "streamable-http");
 
@@ -73,7 +68,7 @@ test("generateManifests matches committed host manifests", async () => {
     codexPlugin.interface,
     portable.extensions?.["com.openai"]?.interface,
   );
-  assert.equal(codexPlugin.hooks, "./com.openai/hooks/hooks.json");
+  assert.equal(codexPlugin.hooks, undefined);
   assert.equal(codexPlugin.skills, undefined);
   assert.equal(codexPlugin.mcpServers, undefined);
 

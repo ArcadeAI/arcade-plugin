@@ -5,10 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readVersion } from "./version.mjs";
 import { PLUGIN_DISPLAY_NAME } from "./constants.mjs";
-import {
-  CODEX_HOOKS_PATH,
-  readOpenAiInterface,
-} from "./openai-extension.mjs";
+import { readOpenAiInterface } from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -92,7 +89,6 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
   const codexPlugin = {
     ...shared,
     interface: openAiInterface,
-    hooks: CODEX_HOOKS_PATH,
   };
   const marketplaceManifest = {
     $schema: "https://json.schemastore.org/claude-code-marketplace.json",

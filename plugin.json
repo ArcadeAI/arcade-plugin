@@ -18,7 +18,6 @@
   "repository": "https://github.com/ArcadeAI/arcade-plugin",
   "extensions": {
     "com.openai": {
-      "hooks": "./com.openai/hooks/hooks.json",
       "interface": {
         "displayName": "Arcade",
         "shortDescription": "Your agent, every app you've connected.",

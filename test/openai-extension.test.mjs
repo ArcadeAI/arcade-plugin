@@ -23,7 +23,6 @@ test("validateCodexFallbackManifest rejects partial interface copies", () => {
   const errors = [];
   validateCodexFallbackManifest(
     {
-      hooks: "./com.openai/hooks/hooks.json",
       interface: {
         displayName: "Arcade",
         shortDescription: "Short",
@@ -40,7 +39,6 @@ test("validateCodexFallbackManifest rejects partial interface copies", () => {
   const partialErrors = [];
   validateCodexFallbackManifest(
     {
-      hooks: "./com.openai/hooks/hooks.json",
       interface: { displayName: "Arcade" },
     },
     portable,
@@ -50,6 +48,19 @@ test("validateCodexFallbackManifest rejects partial interface copies", () => {
     partialErrors.join("\n"),
     /interface must match extensions\.com\.openai\.interface/,
   );
+});
+
+test("validateCodexFallbackManifest rejects legacy hooks field", () => {
+  const errors = [];
+  validateCodexFallbackManifest(
+    {
+      interface: portable.extensions["com.openai"].interface,
+      hooks: "./com.openai/hooks/hooks.json",
+    },
+    portable,
+    (message) => errors.push(message),
+  );
+  assert.match(errors.join("\n"), /hooks is not part of the generated fallback manifest/);
 });
 
 test("interfacesMatch compares serialized interface objects", () => {

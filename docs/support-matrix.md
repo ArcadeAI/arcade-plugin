@@ -17,15 +17,13 @@ checked in CI.
 | **Claude Cowork / Code desktop** | ✅ | 2 | ✅ | 3 | — | 3 | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | 2 | ✅ | — | — | — | [guide](install/copilot.md) |
 | **VS Code** | ✅ | 2 | ✅ | — | — | — | [guide](install/vscode.md) |
-| **Codex / ChatGPT local runtime** | ✅ | 2 | — | — | — | ✅² 3 | [guide](install/codex.md) |
+| **Codex / ChatGPT local runtime** | ✅ | 2 | — | — | — | — | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | 2 | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
 
 ¹ Cursor plugin hooks apply to the IDE and CLI. Cloud Agents load hooks from
 project, team, or enterprise settings instead.
-
-² Codex runs plugin hooks only after you trust them in `/hooks`.
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
 `arcade-operator`. In Cursor the commands are `/arcade-apps`, `/arcade-connect`,
@@ -55,8 +53,7 @@ where a host requires a different discovery path:
 | Commands | `commands/arcade-*.md` | Cursor, Claude Code |
 | Hooks | `hooks/hooks.json` | Claude Code |
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor IDE / CLI |
-| Hooks | `com.openai/hooks/hooks.json` | Codex / ChatGPT local runtime |
-| OpenAI extension | `plugin.json` → `extensions.com.openai` | Codex / ChatGPT local runtime |
+| OpenAI extension | `plugin.json` → `extensions.com.openai.interface` | Codex / ChatGPT local runtime |
 | Codex listing metadata | `plugin.json` → `extensions.com.openai.interface` | Codex / ChatGPT local runtime |
 | Codex fallback | `.codex-plugin/plugin.json` | Legacy loaders without `extensions.com.openai` |
 | Rule | `clients/cursor/rules/` | Cursor |
@@ -70,11 +67,11 @@ Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
 Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
-`SessionStart`, `UserPromptSubmit`, and `SubagentStart` from that file. Codex
-runs the same three lifecycle hooks from `com.openai/hooks/hooks.json`, selected
-by the portable manifest's OpenAI extension.
-Copilot's native hook schema differs; skills provide routing guidance on
-that client.
+`SessionStart`, `UserPromptSubmit`, and `SubagentStart` from that file.
+Codex 0.154.0 does not load plugin hooks for Agent Plugin packages with a
+root `plugin.json` ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
+Use `@Arcade` or the bundled skills on Codex. Copilot's native hook schema
+differs; skills provide routing guidance on that client too.
 
 Claude Desktop installs this repo as a plugin marketplace (see
 [claude-desktop.md](install/claude-desktop.md)): add

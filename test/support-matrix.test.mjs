@@ -125,7 +125,7 @@ test("support matrix markdown hook counts match capabilities data", async () => 
   const rows = {
     cursor: /\*\*Cursor\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*✅\s*\|\s*✅¹\s*\|/,
     "claude-code": /\*\*Claude Code\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*—\s*\|\s*3\s*\|/,
-    codex: /\*\*Codex \/ ChatGPT local runtime\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*—\s*\|\s*—\s*\|\s*—\s*\|\s*✅² 3\s*\|/,
+    codex: /\*\*Codex \/ ChatGPT local runtime\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*—\s*\|\s*—\s*\|\s*—\s*\|\s*—\s*\|/,
   };
 
   for (const [clientId, pattern] of Object.entries(rows)) {

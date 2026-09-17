@@ -75,13 +75,8 @@
       "tools": true,
       "skills": 2,
       "subagent": null,
-      "hooks": {
-        "count": 3,
-        "manifest": "com.openai/hooks/hooks.json",
-        "extension": "plugin.json extensions.com.openai.hooks",
-        "events": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
-        "notes": "Hooks run only after the user trusts them in /hooks."
-      }
+      "hooks": null,
+      "notes": "Lifecycle hooks blocked on Codex 0.154.0 for Agent Plugin packages (openai/codex#39895). Use skills for routing."
     },
     "opencode": {
       "label": "OpenCode",
