@@ -18,6 +18,8 @@ Do not add Codex-only hook wiring to `hooks/hooks.json`. `SubagentStart` in
 `com.openai/hooks/hooks.json` must use `${PLUGIN_ROOT}`. Claude Code also runs
 `SubagentStart` from `hooks/hooks.json` with `${CLAUDE_PLUGIN_ROOT}` so
 built-in subagents get routing guidance when `arcade-operator` is not used.
+`hooks/subagent-start.mjs` skips injection when `agent_type` is
+`arcade-operator` or a plugin-scoped name ending in `:arcade-operator`.
 
 `scripts/check.mjs` enforces this split. Run `npm run verify` after editing a
 hook manifest.

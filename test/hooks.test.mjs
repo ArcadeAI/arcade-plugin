@@ -198,3 +198,17 @@ test("subagent-start emits safe default when stdin is invalid", () => {
   assert.equal(out.hookSpecificOutput.hookEventName, "SubagentStart");
   assert.match(out.hookSpecificOutput.additionalContext, /try-arcade/);
 });
+
+test("subagent-start skips routing guidance for arcade-operator", () => {
+  for (const agentType of ["arcade-operator", "arcade:arcade-operator"]) {
+    const result = runHook(
+      "subagent-start.mjs",
+      JSON.stringify({
+        hook_event_name: "SubagentStart",
+        agent_type: agentType,
+      }),
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), "", agentType);
+  }
+});

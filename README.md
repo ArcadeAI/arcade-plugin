@@ -105,8 +105,9 @@ npm ci
 npm run verify
 ```
 
-`verify` runs structural checks, JSON Schema validation, hook/manifest
-tests, `plugins discover`, and `claude plugin validate` (pinned in
+`verify` runs structural checks, generated-manifest drift checks, JSON Schema
+validation, hook contract validation, hook/manifest tests, `plugins discover`,
+`claude plugin validate`, and Codex/Cursor adapter smoke scripts (pinned in
 `package.json` devDependencies; CI uses Node 22.23.2).
 
 CI runs the same steps on push and pull request (`.github/workflows/check.yml`).

@@ -97,6 +97,16 @@ export const HOOK_CONTRACTS = [
     inputSchema: `${CODEX_SCHEMA_DIR}/subagent-start.command.input.schema.json`,
     outputSchema: `${CODEX_SCHEMA_DIR}/subagent-start.command.output.schema.json`,
   },
+  {
+    name: "subagent-start skips arcade-operator",
+    script: "subagent-start.mjs",
+    input: {
+      hook_event_name: "SubagentStart",
+      agent_id: "agent-op",
+      agent_type: "arcade:arcade-operator",
+    },
+    expectEmptyStdout: true,
+  },
 ];
 
 export const validateHookContracts = (root) => {

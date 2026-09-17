@@ -3,14 +3,29 @@
 
 import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 
+const OPERATOR_AGENT = "arcade-operator";
+
 const readStdin = async () => {
-  if (process.stdin.isTTY) return;
+  if (process.stdin.isTTY) return "";
+  let data = "";
   try {
-    for await (const chunk of process.stdin) {
-      // Drain hook input so the host can close stdin cleanly.
-    }
+    for await (const chunk of process.stdin) data += chunk;
   } catch {
-    // No stdin — still inject routing guidance.
+    // No stdin.
+  }
+  return data;
+};
+
+const isArcadeOperator = (rawInput) => {
+  try {
+    const input = JSON.parse(rawInput);
+    const agentType = input.agent_type;
+    if (typeof agentType !== "string") return false;
+    return (
+      agentType === OPERATOR_AGENT || agentType.endsWith(`:${OPERATOR_AGENT}`)
+    );
+  } catch {
+    return false;
   }
 };
 
@@ -30,10 +45,11 @@ const emitResponse = () => {
 };
 
 try {
-  await readStdin();
-  emitResponse();
+  const rawInput = await readStdin();
+  if (!isArcadeOperator(rawInput)) {
+    emitResponse();
+  }
 } catch {
-  // A hook must never block subagent startup.
   emitResponse();
 }
 

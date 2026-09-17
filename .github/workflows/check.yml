@@ -20,20 +20,8 @@ jobs:
       - name: Install dev dependencies
         run: npm ci
 
-      - name: Structural checks
-        run: node scripts/check.mjs
-
-      - name: Agent Plugins schema validation
-        run: npm run validate:schemas
-
-      - name: Hook and manifest tests
-        run: npm test
-
-      - name: Agent Plugins discovery smoke test
-        run: npm run verify:discover
-
-      - name: Claude plugin validation
-        run: npm run verify:claude
+      - name: Verify plugin (local gate)
+        run: npm run verify
 
   complete:
     runs-on: ubuntu-latest
