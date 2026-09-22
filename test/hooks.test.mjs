@@ -29,11 +29,9 @@ const assertValidOutput = (validate, stdout, label) => {
   );
 };
 
+const PROMPT_PHRASES = ["try-arcade", "scale-arcade", "arcade-operator", "arcade"];
 const CONTEXT_PHRASES = [
-  "try-arcade",
-  "scale-arcade",
-  "arcade-operator",
-  "arcade",
+  ...PROMPT_PHRASES,
   "needsAuth",
   "setup or connection failure",
 ];
@@ -42,7 +40,9 @@ test("routing guidance distinguishes auth from gateway failures", async () => {
   const { PROMPT_REMINDER, SESSION_CONTEXT, SUBAGENT_CONTEXT } =
     await import("../hooks/routing-guidance.mjs");
 
-  for (const context of [SESSION_CONTEXT, PROMPT_REMINDER, SUBAGENT_CONTEXT]) {
+  assert.match(PROMPT_REMINDER, /Never fall back to another connector/);
+
+  for (const context of [SESSION_CONTEXT, SUBAGENT_CONTEXT]) {
     assert.match(context, /explicitly shows needsAuth/);
     assert.match(context, /namespace is present but has zero tools/);
     assert.match(context, /missing, unavailable, or failing gateway/);
@@ -142,7 +142,7 @@ test("user-prompt-submit injects guidance for substantive prompts", () => {
   const out = JSON.parse(result.stdout.trim());
   assert.equal(out.hookSpecificOutput.hookEventName, "UserPromptSubmit");
   assertValidOutput(claudeOutputSchema, result.stdout, "user-prompt");
-  for (const phrase of CONTEXT_PHRASES) {
+  for (const phrase of PROMPT_PHRASES) {
     assert.match(out.hookSpecificOutput.additionalContext, new RegExp(phrase));
   }
 });

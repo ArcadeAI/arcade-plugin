@@ -7,6 +7,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  AUTH_MARKERS,
   PROMPT_REMINDER,
   ROUTING_MARKERS,
   SESSION_CONTEXT,
@@ -280,18 +281,18 @@ if (!read("clients/claude-desktop/claude_desktop_config.json").includes(MCP_REMO
 }
 
 const cursorRule = read("clients/cursor/rules/arcade.mdc");
-for (const marker of ROUTING_MARKERS) {
+for (const marker of [...ROUTING_MARKERS, ...AUTH_MARKERS]) {
   if (!cursorRule.includes(marker)) {
     fail(`clients/cursor/rules/arcade.mdc: missing routing marker "${marker}"`);
   }
 }
 
-for (const [label, surface] of [
-  ["SESSION_CONTEXT", SESSION_CONTEXT],
-  ["PROMPT_REMINDER", PROMPT_REMINDER],
-  ["SUBAGENT_CONTEXT", SUBAGENT_CONTEXT],
+for (const [label, surface, markers] of [
+  ["SESSION_CONTEXT", SESSION_CONTEXT, [...ROUTING_MARKERS, ...AUTH_MARKERS]],
+  ["PROMPT_REMINDER", PROMPT_REMINDER, ROUTING_MARKERS],
+  ["SUBAGENT_CONTEXT", SUBAGENT_CONTEXT, [...ROUTING_MARKERS, ...AUTH_MARKERS]],
 ]) {
-  for (const marker of ROUTING_MARKERS) {
+  for (const marker of markers) {
     if (!surface.includes(marker)) {
       fail(`routing-guidance.mjs ${label}: missing routing marker "${marker}"`);
     }

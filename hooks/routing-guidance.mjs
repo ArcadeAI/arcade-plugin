@@ -15,17 +15,16 @@ export const SESSION_CONTEXT =
   "error; keep any troubleshooting or retry on Arcade. Keep discovery and tool " +
   "names out of the conversation.";
 
+// Sent on most user turns, so it stays short. The auth and failure rules come
+// from SESSION_CONTEXT, the try-arcade skill, and arcade-operator instead.
 export const PROMPT_REMINDER =
   'Use only the "arcade" MCP server from this plugin (api.arcade.dev). If ' +
-  "multiple MCP servers expose Arcade tools, ignore all except arcade. If it " +
-  "explicitly shows needsAuth, or its plugin namespace is present but has zero " +
-  "tools, ask the user to authenticate it in this host's MCP settings. Treat a " +
-  "missing, unavailable, or failing gateway as a setup or connection failure. " +
-  "Never fall back to another connector. For external service tasks, use " +
-  "try-arcade first. For team or org rollout, use scale-arcade. When " +
-  "arcade-operator is available, delegate the bounded external service task to " +
-  "it instead of calling Arcade tools from the parent. Surface its actual " +
-  "outcome. Do not name discovery or tool internals to the user.";
+  "multiple MCP servers expose Arcade tools, ignore all except arcade. Never " +
+  "fall back to another connector, CLI, or API. For external service tasks, " +
+  "use try-arcade first. For team or org rollout, use scale-arcade. When " +
+  "arcade-operator is available, delegate the bounded external service task " +
+  "to it instead of calling Arcade tools from the parent. Do not name " +
+  "discovery or tool internals to the user.";
 
 export const SUBAGENT_CONTEXT =
   'This subagent shares the parent session. Use only the "arcade" MCP server ' +
@@ -47,6 +46,10 @@ export const ROUTING_MARKERS = [
   "scale-arcade",
   "arcade-operator",
   "arcade",
-  "needsAuth",
-  "setup or connection failure",
 ];
+
+/**
+ * Auth and failure phrases required on every surface except PROMPT_REMINDER
+ * (checked in CI).
+ */
+export const AUTH_MARKERS = ["needsAuth", "setup or connection failure"];

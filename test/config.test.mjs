@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
+  AUTH_MARKERS,
   PROMPT_REMINDER,
   ROUTING_MARKERS,
   SESSION_CONTEXT,
@@ -29,16 +30,19 @@ import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
 
 test("Cursor rule includes shared routing markers", async () => {
   const rule = await readRepoFile("clients/cursor/rules/arcade.mdc");
-  for (const marker of ROUTING_MARKERS) {
+  for (const marker of [...ROUTING_MARKERS, ...AUTH_MARKERS]) {
     assert.match(rule, new RegExp(marker));
   }
 });
 
 test("hook guidance strings include shared routing markers", () => {
-  for (const surface of [SESSION_CONTEXT, PROMPT_REMINDER, SUBAGENT_CONTEXT]) {
-    for (const marker of ROUTING_MARKERS) {
+  for (const surface of [SESSION_CONTEXT, SUBAGENT_CONTEXT]) {
+    for (const marker of [...ROUTING_MARKERS, ...AUTH_MARKERS]) {
       assert.match(surface, new RegExp(marker));
     }
+  }
+  for (const marker of ROUTING_MARKERS) {
+    assert.match(PROMPT_REMINDER, new RegExp(marker));
   }
 });
 
