@@ -5,7 +5,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readVersion } from "./version.mjs";
 import { PLUGIN_DISPLAY_NAME } from "./constants.mjs";
-import { readOpenAiInterface } from "./openai-extension.mjs";
+import {
+  CODEX_FALLBACK_MCP_PATH,
+  readOpenAiInterface,
+} from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -86,8 +89,11 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
       "plugin.json must define extensions.com.openai.interface.displayName",
     );
   }
+  // Codex's .codex-plugin format only looks for ".mcp.json" by default, so the
+  // fallback has to point at the portable mcp.json explicitly.
   const codexPlugin = {
     ...shared,
+    mcpServers: CODEX_FALLBACK_MCP_PATH,
     interface: openAiInterface,
   };
   const marketplaceManifest = {

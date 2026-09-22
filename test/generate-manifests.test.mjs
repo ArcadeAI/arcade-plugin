@@ -70,7 +70,7 @@ test("generateManifests matches committed host manifests", async () => {
   );
   assert.equal(codexPlugin.hooks, undefined);
   assert.equal(codexPlugin.skills, undefined);
-  assert.equal(codexPlugin.mcpServers, undefined);
+  assert.equal(codexPlugin.mcpServers, "./mcp.json");
 
   assert.equal(
     readFileSync(

@@ -72,7 +72,7 @@ test("portable manifest exposes Codex listing metadata", async () => {
   assert.deepEqual(fallback.interface, portable.extensions?.["com.openai"]?.interface);
   assert.equal(fallback.hooks, undefined);
   assert.equal(fallback.skills, undefined);
-  assert.equal(fallback.mcpServers, undefined);
+  assert.equal(fallback.mcpServers, "./mcp.json");
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
   assert.equal(await pathExists("mcp.json"), true);
 });

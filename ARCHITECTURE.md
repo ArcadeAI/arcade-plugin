@@ -46,7 +46,7 @@ the release configuration.
 Hook scripts live in `hooks/*.mjs`. Hook manifests are per client:
 `hooks/hooks.json` for Claude and `clients/cursor/hooks/hooks.json` for Cursor.
 Codex lifecycle hooks are parked on branch `cursor/park-codex-hooks-gro-353-f8ad`.
-Codex 0.154.0 parses `extensions.com.openai.hooks` and the `.codex-plugin`
+Codex 0.154.0 and 0.155.1 parse `extensions.com.openai.hooks` and the `.codex-plugin`
 fallback into `manifest.paths.hooks`, then discards them at load time for
 `AgentPlugin` format ([`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956);
 gate introduced in [openai/codex#37027](https://github.com/openai/codex/pull/37027);

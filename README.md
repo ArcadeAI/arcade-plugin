@@ -63,7 +63,7 @@ Skills are `try-arcade` and `scale-arcade`. The operator is
 `/arcade-status`. Cursor also gets an always-on rule and a session hook.
 Claude Code and Cowork get session, per-turn, and subagent hooks. Copilot CLI and VS Code
 load the operator from their namespaced adapter. Codex and the ChatGPT local
-runtime get MCP and skills; lifecycle hooks are blocked on Codex 0.154.0 for
+runtime get MCP and skills; lifecycle hooks are blocked on Codex 0.154.0 and 0.155.1 for
 Agent Plugin packages ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
 Use `@Arcade` or the bundled skills for routing. Web installation does not
 deploy hook scripts. Claude Desktop Chat

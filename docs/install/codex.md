@@ -12,8 +12,8 @@ skills and MCP, but not custom agent roles yet
 ([codex#36855](https://github.com/openai/codex/issues/36855)). Use the
 `arcade:try-arcade` skill instead.
 
-**Lifecycle hooks are not active on Codex today.** On Codex 0.154.0 (current
-npm stable), a root `plugin.json` with the Agent Plugins `$schema` causes the
+**Lifecycle hooks are not active on Codex today.** On Codex 0.154.0 and
+0.155.1 (latest stable as of 2026-09-22, with the same check still on `main`), a root `plugin.json` with the Agent Plugins `$schema` causes the
 loader to discard plugin hooks even when they are declared correctly in
 `extensions.com.openai` or `.codex-plugin/plugin.json`. The manifest parser
 reads those paths; [`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956)
@@ -63,13 +63,15 @@ codex plugin add arcade@arcade
    toggles enablement).
 3. Confirm the **`arcade`** MCP server is connected.
 4. Skills appear as **`arcade:try-arcade`** and **`arcade:scale-arcade`**. Codex
-   does not expose plugin skills as `/slash` commands. Use **`@Arcade`** plus a
+   does not expose plugin skills as `/slash` commands. Pick **`@Arcade`** from the `@` menu plus a
    plain-language ask, or **`$arcade:try-arcade`** / **`$arcade:scale-arcade`**
    for explicit skill invocation.
 
 Listing metadata such as the **Arcade** display name lives in
-`extensions.com.openai.interface` on the portable manifest. The generated
-`.codex-plugin/plugin.json` mirrors that `interface` object for legacy loaders.
+`extensions.com.openai.interface` on the portable manifest. Current Codex reads
+the root `plugin.json` and ignores `.codex-plugin/plugin.json`. The generated
+fallback mirrors the `interface` object and sets `mcpServers` to `./mcp.json`
+for older loaders, which otherwise look only for `.mcp.json`.
 
 ## Sign in
 

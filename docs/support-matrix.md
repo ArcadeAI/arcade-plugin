@@ -55,7 +55,7 @@ where a host requires a different discovery path:
 | Hooks | `clients/cursor/hooks/hooks.json` | Cursor IDE / CLI |
 | OpenAI extension | `plugin.json` → `extensions.com.openai.interface` | Codex / ChatGPT local runtime |
 | Codex listing metadata | `plugin.json` → `extensions.com.openai.interface` | Codex / ChatGPT local runtime |
-| Codex fallback | `.codex-plugin/plugin.json` | Legacy loaders without `extensions.com.openai` |
+| Codex fallback | `.codex-plugin/plugin.json` | Older Codex loaders that don't read root `plugin.json` |
 | Rule | `clients/cursor/rules/` | Cursor |
 
 Claude Code and Cursor load the canonical file under `agents/`. Copilot CLI
@@ -66,12 +66,13 @@ from the canonical operator, and `npm run generate:check` rejects drift.
 Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
-Copilot CLI does not load `hooks/hooks.json`. Claude Code runs
-`SessionStart`, `UserPromptSubmit`, and `SubagentStart` from that file.
-Codex 0.154.0 does not load plugin hooks for Agent Plugin packages with a
-root `plugin.json` ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
-Use `@Arcade` or the bundled skills on Codex. Copilot's native hook schema
-differs; skills provide routing guidance on that client too.
+Claude Code runs `SessionStart`, `UserPromptSubmit`, and `SubagentStart` from
+`hooks/hooks.json`. Copilot CLI and VS Code read Agent Plugins hooks only from
+`com.github.copilot/hooks/hooks.json`, which this plugin does not ship, so
+skills provide routing guidance there. Codex 0.154.0 and 0.155.1 do not load
+plugin hooks for Agent Plugin packages with a root `plugin.json`
+([openai/codex#39895](https://github.com/openai/codex/issues/39895)). Use
+`@Arcade` or the bundled skills on Codex.
 
 Claude Desktop installs this repo as a plugin marketplace (see
 [claude-desktop.md](install/claude-desktop.md)): add

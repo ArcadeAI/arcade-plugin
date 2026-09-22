@@ -36,7 +36,7 @@ export const VENDORED_SCHEMAS = {
   [MCP_SCHEMA]: "schemas/agent-plugins/1.0.0/mcp.schema.json",
 };
 
-/** SessionStart sources shared by Claude and Codex hook matchers. */
+/** Claude Code SessionStart sources matched by hooks/hooks.json. */
 export const SESSION_START_SOURCES = [
   "startup",
   "resume",

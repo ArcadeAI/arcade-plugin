@@ -76,7 +76,7 @@
       "skills": 2,
       "subagent": null,
       "hooks": null,
-      "notes": "Codex 0.154.0 parses extensions.com.openai.hooks then discards them at load for AgentPlugin format (openai/codex#37027, openai/codex#39895). Use skills for routing."
+      "notes": "Codex 0.154.0 and 0.155.1 parse extensions.com.openai.hooks then discards them at load for AgentPlugin format (openai/codex#37027, openai/codex#39895). Use skills for routing."
     },
     "opencode": {
       "label": "OpenCode",

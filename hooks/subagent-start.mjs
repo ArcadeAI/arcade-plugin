@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Subagent routing reminder for Codex-format clients. Always exit 0.
+// Claude Code SubagentStart hook: routing reminder for subagents other than
+// arcade-operator. Always exit 0.
 
 import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 

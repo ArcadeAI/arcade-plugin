@@ -23,6 +23,7 @@ test("validateCodexFallbackManifest rejects partial interface copies", () => {
   const errors = [];
   validateCodexFallbackManifest(
     {
+      mcpServers: "./mcp.json",
       interface: {
         displayName: "Arcade",
         shortDescription: "Short",
@@ -48,6 +49,16 @@ test("validateCodexFallbackManifest rejects partial interface copies", () => {
     partialErrors.join("\n"),
     /interface must match extensions\.com\.openai\.interface/,
   );
+});
+
+test("validateCodexFallbackManifest requires the portable MCP path", () => {
+  const errors = [];
+  validateCodexFallbackManifest(
+    { interface: portable.extensions["com.openai"].interface },
+    portable,
+    (message) => errors.push(message),
+  );
+  assert.match(errors.join("\n"), /mcpServers must be "\.\/mcp\.json"/);
 });
 
 test("validateCodexFallbackManifest rejects legacy hooks field", () => {

@@ -8,8 +8,11 @@ export const CODEX_FALLBACK_ALLOWED_KEYS = new Set([
   "license",
   "keywords",
   "version",
+  "mcpServers",
   "interface",
 ]);
+
+export const CODEX_FALLBACK_MCP_PATH = "./mcp.json";
 
 export function readOpenAiInterface(portablePlugin) {
   return portablePlugin.extensions?.["com.openai"]?.interface ?? null;
@@ -34,7 +37,13 @@ export function validateCodexFallbackManifest(fallback, portablePlugin, report) 
     );
   }
 
-  for (const field of ["skills", "mcpServers", "displayName", "hooks"]) {
+  if (fallback.mcpServers !== CODEX_FALLBACK_MCP_PATH) {
+    report(
+      `.codex-plugin/plugin.json: mcpServers must be "${CODEX_FALLBACK_MCP_PATH}"`,
+    );
+  }
+
+  for (const field of ["skills", "displayName", "hooks"]) {
     if (field in fallback) {
       report(
         `.codex-plugin/plugin.json: ${field} is not part of the generated fallback manifest`,

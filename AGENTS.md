@@ -20,7 +20,7 @@ Claude Code runs `SubagentStart` from `hooks/hooks.json` with
 `:arcade-operator`.
 
 **Codex hooks are parked** on branch `cursor/park-codex-hooks-gro-353-f8ad`.
-Codex 0.154.0 parses `extensions.com.openai.hooks` (and the `.codex-plugin`
+Codex 0.154.0 and 0.155.1 parse `extensions.com.openai.hooks` (and the `.codex-plugin`
 fallback) but the loader discards them for `AgentPlugin` format
 ([`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956);
 [openai/codex#37027](https://github.com/openai/codex/pull/37027),
