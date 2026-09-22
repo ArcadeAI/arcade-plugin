@@ -40,7 +40,7 @@ When the user asked to use Arcade — or the task is an external-service outcome
 routed here — do **not** complete it through:
 
 - another MCP server (Linear, Slack, Gmail, or a different Arcade gateway);
-- a shell CLI or local tool (for example `orca linear`, `gh`, or curl);
+- a shell CLI or local tool (for example `gh` or curl);
 - a built-in search or direct API call.
 
 Surface `needs_auth` as an authentication blocker. Surface `failed` with its
