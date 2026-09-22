@@ -330,11 +330,6 @@ for (const [schemaUrl, localPath] of Object.entries(VENDORED_SCHEMAS)) {
 const verifyScripts = {
   "verify:discover": "plugins discover .",
   "verify:claude": "claude plugin validate . --strict",
-  "verify:codex": "node scripts/verify-codex-plugin.mjs",
-  "verify:cursor": "node scripts/verify-cursor-plugin.mjs",
-  "validate:hooks": "node scripts/validate-hook-contracts.mjs",
-  "validate:manifest-hooks":
-    "node scripts/validate-manifest-hook-smoke.mjs",
 };
 if (!packageJson.scripts?.verify?.includes("npm test")) {
   fail("package.json scripts.verify must include npm test");

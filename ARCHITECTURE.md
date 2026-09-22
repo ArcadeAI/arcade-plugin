@@ -35,7 +35,7 @@ scripts/generate-manifests.mjs
         └── com.github.copilot/agents/arcade-operator.agent.md
         │
         ▼
-npm run generate:check  (in verify)  +  validate:manifest-hooks  +  scripts/check.mjs
+npm run verify  (check.mjs, generate:check, schemas, tests)
 ```
 
 After a version bump, run `node scripts/version.mjs <semver>` or
