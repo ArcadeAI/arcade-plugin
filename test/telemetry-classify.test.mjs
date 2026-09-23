@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  classifyPrompt,
-  KEYWORDS,
-  serviceForToolName,
-  TOOLKIT_SERVICES,
-} from "../hooks/telemetry-classify.mjs";
-import { SERVICE_CATEGORIES } from "../hooks/telemetry-contract.mjs";
+import { classifyPrompt, KEYWORDS, serviceForToolName } from "../hooks/telemetry-classify.mjs";
+import { SERVICE_CATEGORIES, TOOLKIT_SERVICES } from "../hooks/telemetry-contract.mjs";
 import { readRepoJson } from "./helpers.mjs";
 
 const fixtures = await readRepoJson("test/fixtures/routing-prompts.json");

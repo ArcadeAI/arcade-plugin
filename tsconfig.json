@@ -1,5 +1,4 @@
 {
-  "// ": "Type-checks the files that start with // @ts-check. Nothing is compiled: the hooks run as plain .mjs.",
   "compilerOptions": {
     "allowJs": true,
     "checkJs": false,

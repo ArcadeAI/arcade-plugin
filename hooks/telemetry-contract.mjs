@@ -45,6 +45,22 @@ export const GATEWAY_TOOLS = /** @type {const} */ ([
   "System_ManageAuthorization",
 ]);
 
+// Arcade toolkit name (the part of a tool name before "_" or ".", lowercased)
+// to its service category. Tool names from these toolkits are public.
+/** @type {Record<string, typeof SERVICE_CATEGORIES[number]>} */
+export const TOOLKIT_SERVICES = {
+  gmail: "email", outlookmail: "email",
+  googlecalendar: "calendar", outlookcalendar: "calendar",
+  slack: "chat", discord: "chat",
+  linear: "issues", jira: "issues", asana: "issues", clickup: "issues", trello: "issues",
+  notion: "docs", googledocs: "docs", confluence: "docs",
+  granola: "meetings", zoom: "meetings", fireflies: "meetings", microsoftteams: "meetings",
+  hubspot: "crm", salesforce: "crm", attio: "crm",
+  github: "code_hosting", gitlab: "code_hosting", bitbucket: "code_hosting",
+  posthog: "analytics",
+  googledrive: "storage", dropbox: "storage", sharepoint: "storage", onedrive: "storage",
+};
+
 /**
  * @typedef {object} Property
  * @property {object} schema JSON Schema for the value.
@@ -52,9 +68,11 @@ export const GATEWAY_TOOLS = /** @type {const} */ ([
  */
 
 const HASH = { type: "string", pattern: "^[0-9a-f]{16}$" };
+// VERSION, or "unknown" when it can't be read.
+const PLUGIN_VERSION_PATTERN = "^(unknown|[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?)$";
 // The install ID, from crypto.randomUUID().
 const UUID = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
-const oneOf = (/** @type {readonly string[]} */ values) => ({ enum: [...values] });
+const enumOf = (/** @type {readonly string[]} */ values) => ({ enum: [...values] });
 const list = (/** @type {readonly string[]} */ values) => values.map((value) => `\`${value}\``).join(" \\| ");
 
 /** Properties every event may carry. @type {Record<string, Property>} */
@@ -64,9 +82,9 @@ export const COMMON_PROPERTIES = {
     schema: HASH,
     doc: '`sha256(install_id + ":" + prompt_id)`, first 16 hex characters (not on `Plugin session started`)',
   },
-  host: { schema: oneOf(TELEMETRY_HOSTS), doc: list(TELEMETRY_HOSTS) },
-  plugin_version: { schema: { type: "string", minLength: 1 }, doc: "from `VERSION`" },
-  os: { schema: oneOf(OS_NAMES), doc: list(OS_NAMES) },
+  host: { schema: enumOf(TELEMETRY_HOSTS), doc: list(TELEMETRY_HOSTS) },
+  plugin_version: { schema: { type: "string", pattern: PLUGIN_VERSION_PATTERN }, doc: "from `VERSION`" },
+  os: { schema: enumOf(OS_NAMES), doc: list(OS_NAMES) },
   $process_person_profile: { schema: { const: false }, doc: "`false`" },
   $geoip_disable: { schema: { const: true }, doc: "`true`" },
   $ip: { schema: { const: "0.0.0.0" }, doc: "`0.0.0.0`, so PostHog stores this instead of your real IP address" },
@@ -75,24 +93,38 @@ export const COMMON_PROPERTIES = {
 /** Common properties present on every event. */
 const ALWAYS_SENT = ["host", "plugin_version", "os", "$process_person_profile", "$geoip_disable", "$ip"];
 
+// JSON Schema patterns have no case-insensitive flag, and the builder matches
+// toolkit names in any case, so each letter becomes a two-case class.
+const anyCase = (/** @type {string} */ word) =>
+  [...word].map((char) => (/[a-z]/.test(char) ? `[${char}${char.toUpperCase()}]` : char)).join("");
+
+// "other", a gateway tool, or a tool from a toolkit in TOOLKIT_SERVICES.
+const PUBLIC_TOOL = {
+  anyOf: [
+    enumOf(["other", ...GATEWAY_TOOLS]),
+    { type: "string", pattern: `^(${Object.keys(TOOLKIT_SERVICES).map(anyCase).join("|")})[_.]` },
+  ],
+};
+
 const TOOL_PROPERTIES = {
   server: {
-    schema: oneOf(SERVERS),
+    schema: enumOf(SERVERS),
     doc: "`arcade` (this plugin's gateway) \\| `other_arcade` (another connection exposing Arcade's gateway tools) \\| `other`",
   },
   tool: {
-    schema: { type: "string", pattern: "^(other|[A-Za-z]+_[A-Za-z0-9]+)$" },
+    schema: PUBLIC_TOOL,
     doc: "only for `arcade` and `other_arcade`: the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`",
   },
   service: {
-    schema: oneOf(SERVICE_CATEGORIES),
+    schema: enumOf(SERVICE_CATEGORIES),
     doc: "the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches one",
   },
 };
 
-// A tool name is only sent for Arcade's own gateways.
+// A tool name is sent for Arcade's own gateways, and only for them.
 const TOOL_RULES = [
   { if: { properties: { server: { const: "other" } } }, then: { not: { required: ["tool"] } } },
+  { if: { properties: { server: enumOf(["arcade", "other_arcade"]) } }, then: { required: ["tool"] } },
 ];
 
 /**
@@ -110,7 +142,7 @@ export const EVENTS = {
   "Plugin session started": {
     hook: "SessionStart",
     when: "",
-    properties: { source: { schema: oneOf(SESSION_SOURCES), doc: list(SESSION_SOURCES) } },
+    properties: { source: { schema: enumOf(SESSION_SOURCES), doc: list(SESSION_SOURCES) } },
     required: ["source"],
     excludes: ["turn"],
   },
@@ -120,7 +152,7 @@ export const EVENTS = {
     properties: {
       could_use_arcade: { schema: { type: "boolean" }, doc: "boolean, a local keyword guess (see below)" },
       service_hints: {
-        schema: { type: "array", items: oneOf(SERVICE_CATEGORIES), uniqueItems: true },
+        schema: { type: "array", items: enumOf(SERVICE_CATEGORIES), uniqueItems: true },
         doc: "service categories the prompt mentions",
       },
       reminder_sent: { schema: { type: "boolean" }, doc: "boolean, whether the routing reminder was added" },
@@ -145,15 +177,18 @@ export const EVENTS = {
     hook: "SubagentStop",
     when: "",
     properties: {
-      agent: { schema: oneOf(AGENTS), doc: list(AGENTS) },
+      agent: { schema: enumOf(AGENTS), doc: list(AGENTS) },
       status: {
-        schema: oneOf(OPERATOR_STATUSES),
+        schema: enumOf(OPERATOR_STATUSES),
         doc: `only for \`arcade-operator\`: the status line of its final report, ${list(OPERATOR_STATUSES)}`,
       },
     },
     required: ["agent"],
-    // Only the operator's status is read.
-    rules: [{ if: { properties: { agent: { const: "other" } } }, then: { not: { required: ["status"] } } }],
+    // Only the operator's status is read, and it is always sent.
+    rules: [
+      { if: { properties: { agent: { const: "other" } } }, then: { not: { required: ["status"] } } },
+      { if: { properties: { agent: { const: "arcade-operator" } } }, then: { required: ["status"] } },
+    ],
   },
 };
 

@@ -1,7 +1,7 @@
 // @ts-check
 /** Guesses, on the user's machine, whether a prompt is a task Arcade could do. */
 
-import { SERVICE_CATEGORIES } from "./telemetry-contract.mjs";
+import { SERVICE_CATEGORIES, TOOLKIT_SERVICES } from "./telemetry-contract.mjs";
 
 // Words like "issue", "PR", "branch", "schedule", "event", "channel", and
 // "docs" are common in coding prompts, so generic words only count inside a
@@ -89,21 +89,6 @@ export const classifyPrompt = (prompt) => {
     .map(([category]) => category)
     .sort();
   return { couldUseArcade: serviceHints.length > 0, serviceHints };
-};
-
-// Arcade toolkit name (the part before the first "_", lowercased) → category.
-/** @type {Record<string, string>} */
-export const TOOLKIT_SERVICES = {
-  gmail: "email", outlookmail: "email",
-  googlecalendar: "calendar", outlookcalendar: "calendar",
-  slack: "chat", discord: "chat",
-  linear: "issues", jira: "issues", asana: "issues", clickup: "issues", trello: "issues",
-  notion: "docs", googledocs: "docs", confluence: "docs",
-  granola: "meetings", zoom: "meetings", fireflies: "meetings", microsoftteams: "meetings",
-  hubspot: "crm", salesforce: "crm", attio: "crm",
-  github: "code_hosting", gitlab: "code_hosting", bitbucket: "code_hosting",
-  posthog: "analytics",
-  googledrive: "storage", dropbox: "storage", sharepoint: "storage", onedrive: "storage",
 };
 
 /** @param {unknown} toolkit */

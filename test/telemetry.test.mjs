@@ -190,6 +190,8 @@ test("the contract schema rejects events outside the contract", () => {
     withProperties({ prompt: "text" }),
     withProperties({ server: "somewhere" }),
     withProperties({ tool: "Granola_ListMeetings" }),
+    withProperties({ server: "arcade", tool: "AcmeInternalPayroll_GetSalaries" }),
+    withProperties({ server: "arcade" }),
     withProperties({ session: SESSION_ID }),
     withProperties({ $ip: "203.0.113.7" }),
     { ...good, event: "Plugin something else" },
@@ -197,6 +199,10 @@ test("the contract schema rejects events outside the contract", () => {
   ];
   const otherAgent = buildEvent(hookInput({ hook_event_name: "SubagentStop", agent_type: "general-purpose" }), OPTIONS);
   bad.push({ ...otherAgent, properties: { ...otherAgent.properties, status: "completed" } });
+  const operatorStop = buildEvent(hookInput({ hook_event_name: "SubagentStop", agent_type: OPERATOR }), OPTIONS);
+  const { status: _status, ...withoutStatus } = operatorStop.properties;
+  bad.push({ ...operatorStop, properties: withoutStatus });
+  bad.push(withProperties({ plugin_version: "latest" }));
   assertMatchesContract(good);
   for (const event of bad) assert.equal(validateEvent(event), false, JSON.stringify(event));
 });
@@ -216,7 +222,19 @@ test("only the detached sender does network I/O", () => {
   for (const file of hookFiles) {
     if (file === "telemetry-send.mjs") continue;
     const source = readFileSync(path.join(ROOT, "hooks", file), "utf8");
-    assert.doesNotMatch(source, /\bfetch\s*\(|["']node:(?:http|https|http2|net|tls|dgram)["']/, file);
+    assert.doesNotMatch(source, /\bfetch\b|["'](?:node:)?(?:http|https|http2|net|tls|dgram|dns)["']/, file);
+  }
+});
+
+test("every telemetry file is type-checked", () => {
+  const files = [
+    ...readdirSync(path.join(ROOT, "hooks"))
+      .filter((file) => file.startsWith("telemetry"))
+      .map((file) => `hooks/${file}`),
+    "scripts/telemetry-docs.mjs",
+  ];
+  for (const file of files) {
+    assert.match(readFileSync(path.join(ROOT, file), "utf8"), /^(#!.*\n)?\/\/ @ts-check\n/, file);
   }
 });
 

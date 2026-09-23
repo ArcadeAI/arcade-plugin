@@ -1,5 +1,5 @@
 // @ts-check
-/** Telemetry constants. The event contract is docs/telemetry.md. */
+/** Telemetry settings: where events go, the opt-out variable, file names, and the notice. */
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
