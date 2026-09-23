@@ -29,15 +29,16 @@ test("hand-written files name the gateway from mcp.json", () => {
 // Clients load these default locations on their own, which would add a second
 // copy of the operator, gateway, or rule.
 test("no root folders that clients would load a second time", () => {
-  for (const name of ["agents", "rules", ".mcp.json"]) {
+  for (const name of ["agents", "rules", ".mcp.json", "hooks/hooks.json"]) {
     assert.ok(!existsSync(path.join(ROOT, name)), `unexpected root ${name}`);
   }
 });
 
 test("install docs name the repo and link every client page", () => {
   const index = readRepoFile("docs/install/README.md");
-  assert.ok(index.includes(`npx plugins add ${slug}`));
-  assert.ok(readRepoFile("docs/install/claude-desktop.md").includes(`claude plugin marketplace add ${slug}`));
+  for (const file of ["docs/install/README.md", "docs/install/claude-code.md", "docs/install/claude-desktop.md"]) {
+    assert.ok(readRepoFile(file).includes(`claude plugin marketplace add ${slug}`), file);
+  }
   for (const page of readdirSync(path.join(ROOT, "docs/install"))) {
     if (page !== "README.md") assert.ok(index.includes(`(${page})`), `${page} not linked from docs/install/README.md`);
   }

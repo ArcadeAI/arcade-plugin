@@ -8,27 +8,32 @@ browser. The rows differ in how much of this plugin the client can load.
 
 | Client | Tools | Skills | Subagent | Commands | Rule | Hooks | Install |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
-| **Cursor** | ✅ | ✅ | ✅ | ✅ | ✅ | —¹ | [guide](install/cursor.md) |
+| **Cursor** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅¹ | [guide](install/cursor.md) |
 | **Claude Code** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
 | **Claude Cowork / Code desktop** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅² | [guide](install/copilot.md) |
-| **VS Code** | ✅ | ✅ | ✅ | — | — | ✅ | [guide](install/vscode.md) |
+| **VS Code** | ✅ | ✅ | ✅ | — | — | —⁴ | [guide](install/vscode.md) |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | —³ | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | ✅ | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
 
 Hooks add the routing rules at session start, to each prompt, and to
-subagents. The files are `hooks/hooks.json` (Claude Code) and
-`com.github.copilot/hooks/hooks.json` (Copilot CLI and VS Code). Claude Code also runs the telemetry hook on
-`SessionStart`, `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, and
-`SubagentStop` ([what's sent](telemetry.md)); no other client sends telemetry.
+subagents. The files are `.claude-plugin/hooks.json` (Claude Code),
+`clients/cursor/hooks/hooks.json` (Cursor), and
+`com.github.copilot/hooks/hooks.json` (Copilot CLI). Claude Code also runs the
+telemetry hook on `SessionStart`, `UserPromptSubmit`, `PostToolUse`,
+`PostToolUseFailure`, and `SubagentStop` ([what's sent](telemetry.md)); no
+other client sends telemetry.
 
-¹ The always-apply rule carries the full rules in every chat, including Cloud
-Agents. Cursor's prompt and subagent hooks can't add context.
+¹ Session start only; Cursor's prompt and subagent hooks can't add context.
+The always-apply rule adds the short reminder (Cursor's CLI doesn't load it;
+Cloud Agents don't run plugin hooks, so they get the rule and the skill).
 ² Copilot CLI drops the output of prompt hooks from config files, so it gets
 session and subagent hooks only.
 ³ Blocked upstream; see [codex.md](install/codex.md).
+⁴ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
+`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet.
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
 `arcade-operator`. In Cursor the commands are `/arcade-apps`, `/arcade-connect`,

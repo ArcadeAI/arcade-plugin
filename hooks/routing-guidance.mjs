@@ -4,11 +4,13 @@
  * them into the Cursor rule, arcade-operator, and the try-arcade skill.
  */
 
+const CURSOR_NAME =
+  "In Cursor it can appear as plugin-arcade-arcade; that is the same gateway.";
+
 const GATEWAY =
   'Arcade is connected as the "arcade" MCP server (gateway at ' +
   "api.arcade.dev). If more than one MCP server exposes Arcade tools, use " +
-  "only arcade. In Cursor it can appear as plugin-arcade-arcade; that is the " +
-  "same gateway.";
+  `only arcade. ${CURSOR_NAME}`;
 
 const AUTH_DEFINITION =
   "If the gateway explicitly shows needsAuth, or its plugin namespace is " +
@@ -50,13 +52,12 @@ const join = (...sentences) => sentences.join(" ");
 const PARENT_RULES = [GATEWAY, AUTH_DEFINITION, AUTH_ACTION_PARENT, NO_SUBSTITUTES, USER_MAY_CHOOSE];
 const DELEGATE_RULES = [GATEWAY, AUTH_DEFINITION, AUTH_ACTION_DELEGATE, NO_SUBSTITUTES];
 
-// Generated into the try-arcade skill, arcade-operator, and the Cursor rule.
+// Generated into the try-arcade skill and arcade-operator.
 export const SKILL_RULES = join(...PARENT_RULES);
 export const OPERATOR_RULES = join(...DELEGATE_RULES);
-export const CURSOR_RULE = join(...PARENT_RULES, DELEGATION, PRIVACY);
 
-// Printed by the hooks.
-export const SESSION_CONTEXT = CURSOR_RULE;
+// Printed by the session-start hook.
+export const SESSION_CONTEXT = join(...PARENT_RULES, DELEGATION, PRIVACY);
 
 // Sent on most user turns, so it is one short paragraph. The full rules come
 // from SESSION_CONTEXT, try-arcade, and arcade-operator.
@@ -65,6 +66,10 @@ export const PROMPT_REMINDER =
   'through the "arcade" MCP server only, and scale-arcade for team rollout. ' +
   "Don't fall back to another connector, CLI, or API unless the user " +
   "explicitly chooses that.";
+
+// Cursor's always-apply rule. Cursor's session hook adds the full rules; the
+// rule is the only thing Cloud Agents get besides the skill.
+export const CURSOR_RULE = join(PROMPT_REMINDER, CURSOR_NAME);
 
 // Subagents can't start arcade-operator themselves, so they get try-arcade
 // without the delegation sentence.

@@ -5,11 +5,20 @@ import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { shouldRemind } from "../hooks/prompt-filters.mjs";
 import { readRepoFile, ROOT, runHook } from "./helpers.mjs";
 
-// Where each client reads injected context, from its hook docs.
-const CONTEXT_FIELDS = {
-  "claude-code": [(out) => out.hookSpecificOutput?.additionalContext],
-  copilot: [(out) => out.additionalContext, (out) => out.hookSpecificOutput?.additionalContext],
+// Exactly what each client should receive, from its hook docs. Every client in
+// HOSTS needs an entry here.
+const EXPECTED_OUTPUT = {
+  cursor: (_event, text) => ({ additional_context: text }),
+  "claude-code": (event, text) => ({ hookSpecificOutput: { hookEventName: event, additionalContext: text } }),
+  copilot: (event, text) => ({
+    additionalContext: text,
+    hookSpecificOutput: { hookEventName: event, additionalContext: text },
+  }),
 };
+
+test("every client in the hook table has an expected output format", () => {
+  assert.deepEqual(Object.keys(EXPECTED_OUTPUT).sort(), Object.keys(HOSTS).sort());
+});
 
 test("every command in every generated hooks.json runs and prints what its client reads", () => {
   for (const [hostName, { manifest, rootVariable }] of Object.entries(HOSTS)) {
@@ -25,8 +34,9 @@ test("every command in every generated hooks.json runs and prints what its clien
         });
         assert.equal(result.status, 0, `${label}: ${result.stderr}`);
         const out = JSON.parse(result.stdout);
-        assert.equal(out.hookSpecificOutput?.hookEventName, event, label);
-        for (const read of CONTEXT_FIELDS[hostName]) assert.ok(read(out), `${label}: ${result.stdout}`);
+        const text = out.hookSpecificOutput?.additionalContext ?? out.additional_context;
+        assert.ok(text, `${label}: no context in ${result.stdout}`);
+        assert.deepEqual(out, EXPECTED_OUTPUT[hostName](event, text), label);
       }
     }
   }
@@ -46,7 +56,7 @@ test("subagent-start skips arcade-operator in every client's input format", () =
     { agent_type: "arcade-operator" },
     { agent_type: "arcade:arcade-operator" },
   ]) {
-    for (const host of ["claude-code", "copilot"]) {
+    for (const host of Object.keys(HOSTS)) {
       const result = runHook("subagent-start.mjs", input, ["--host", host]);
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stdout, "", `${host} ${JSON.stringify(input)}`);

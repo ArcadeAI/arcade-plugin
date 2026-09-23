@@ -2,17 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { generateManifests, parseVersion } from "../scripts/generate-manifests.mjs";
+import { generateManifests } from "../scripts/generate-manifests.mjs";
 import { makeFixture, readRepoFile } from "./helpers.mjs";
 
 test("committed generated files are current (run npm run generate if not)", () => {
   generateManifests({ check: true });
-});
-
-test("parseVersion accepts semver and rejects anything else", () => {
-  assert.equal(parseVersion("0.1.0\n"), "0.1.0");
-  assert.equal(parseVersion("1.2.3-rc.1"), "1.2.3-rc.1");
-  assert.throws(() => parseVersion("v0.1.0"), /invalid semver/);
 });
 
 test("check mode fails on a hand edit to a generated file or rules block", () => {
@@ -29,6 +23,14 @@ test("check mode fails on a hand edit to a generated file or rules block", () =>
     const skill = join(root, "skills/try-arcade/SKILL.md");
     writeFileSync(skill, readFileSync(skill, "utf8").replace("use only arcade", "use any server"));
     assert.throws(() => generateManifests({ check: true, root }), /skills\/try-arcade\/SKILL\.md is out of date/);
+
+    generateManifests({ root });
+    rmSync(join(root, "com.github.copilot/hooks/hooks.json"));
+    assert.throws(() => generateManifests({ check: true, root }), /com\.github\.copilot\/hooks\/hooks\.json is out of date/);
+
+    generateManifests({ root });
+    writeFileSync(join(root, ".gitattributes"), `${readFileSync(join(root, ".gitattributes"), "utf8")}old/file.json linguist-generated=true\n`);
+    assert.throws(() => generateManifests({ check: true, root }), /old\/file\.json is no longer generated/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
