@@ -43,3 +43,12 @@ test("install docs name the repo and link every client page", () => {
     if (page !== "README.md") assert.ok(index.includes(`(${page})`), `${page} not linked from docs/install/README.md`);
   }
 });
+
+// Claude Code and Cowork read the same .claude-plugin/plugin.json but disagree
+// on "agents": the Claude Code CLI requires .md paths, and Cowork's upload
+// check rejects them ("No agent files found in specified directories"). The
+// default agents/ folder is the only layout both accept.
+test("the operator sits at the default agents/ path and no manifest overrides it for Claude", () => {
+  assert.ok(existsSync(path.join(ROOT, "agents/arcade-operator.agent.md")));
+  assert.equal(JSON.parse(readRepoFile(".claude-plugin/plugin.json")).agents, undefined);
+});
