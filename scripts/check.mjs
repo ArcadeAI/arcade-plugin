@@ -17,6 +17,8 @@ import {
   MCP_SCHEMA,
   MCP_SERVER_NAME,
   PLUGINS_CLI_VERSION,
+  PLUGIN_DISPLAY_NAME,
+  PLUGIN_LOGO,
   PLUGIN_SCHEMA,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
@@ -27,6 +29,15 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
 const fail = (message) => errors.push(message);
 const read = (path) => readFileSync(join(ROOT, path), "utf8");
+const checkListing = (manifest, label) => {
+  if (manifest.displayName !== PLUGIN_DISPLAY_NAME) {
+    fail(`${label}: displayName must be "${PLUGIN_DISPLAY_NAME}"`);
+  }
+  const logoPath = manifest.logo?.replace(/^\.\//, "");
+  if (logoPath !== PLUGIN_LOGO || !existsSync(join(ROOT, PLUGIN_LOGO))) {
+    fail(`${label}: logo must point at the committed ${PLUGIN_LOGO}`);
+  }
+};
 
 const jsonFiles = [];
 const walk = (dir) => {
@@ -125,6 +136,7 @@ if (cursorManifest) {
       fail(`.cursor-plugin/plugin.json: ${key} path does not exist: ${value}`);
     }
   }
+  checkListing(cursorManifest, ".cursor-plugin/plugin.json");
 }
 
 if (json["clients/claude/mcp.json"]?.mcpServers?.arcade?.type !== "http") {
@@ -208,6 +220,9 @@ if (marketplace) {
     fail(
       `.claude-plugin/marketplace.json plugins[0].version ${listed.version} != VERSION ${version}`,
     );
+  }
+  if (listed) {
+    checkListing(listed, ".claude-plugin/marketplace.json plugins[0]");
   }
 }
 
