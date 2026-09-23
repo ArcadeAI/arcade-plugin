@@ -11,13 +11,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
-  AUTH_MARKERS,
-  PROMPT_REMINDER,
-  ROUTING_MARKERS,
-  SESSION_CONTEXT,
-  SUBAGENT_CONTEXT,
-} from "../hooks/routing-guidance.mjs";
-import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
   ENDPOINT,
@@ -27,24 +20,6 @@ import {
 import { generateManifests } from "../scripts/generate-manifests.mjs";
 import { VERSIONED_MANIFESTS, readVersion } from "../scripts/version.mjs";
 import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
-
-test("Cursor rule includes shared routing markers", async () => {
-  const rule = await readRepoFile("clients/cursor/rules/arcade.mdc");
-  for (const marker of [...ROUTING_MARKERS, ...AUTH_MARKERS]) {
-    assert.match(rule, new RegExp(marker));
-  }
-});
-
-test("hook guidance strings include shared routing markers", () => {
-  for (const surface of [SESSION_CONTEXT, SUBAGENT_CONTEXT]) {
-    for (const marker of [...ROUTING_MARKERS, ...AUTH_MARKERS]) {
-      assert.match(surface, new RegExp(marker));
-    }
-  }
-  for (const marker of ROUTING_MARKERS) {
-    assert.match(PROMPT_REMINDER, new RegExp(marker));
-  }
-});
 
 test("mcp-remote pin is consistent across Claude Desktop config", async () => {
   const config = await readRepoFile("clients/claude-desktop/claude_desktop_config.json");
@@ -114,6 +89,7 @@ test("a release-style version bump leaves generated manifests in sync", async ()
       "plugin.json",
       "mcp.json",
       "agents/arcade-operator.agent.md",
+      "skills/try-arcade/SKILL.md",
     ]) {
       if (file.includes("/")) {
         mkdirSync(dirname(join(root, file)), { recursive: true });

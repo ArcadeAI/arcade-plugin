@@ -9,6 +9,11 @@ import {
   CODEX_FALLBACK_MCP_PATH,
   readOpenAiInterface,
 } from "./openai-extension.mjs";
+import {
+  GATEWAY_RULES_DELEGATE,
+  GATEWAY_RULES_PARENT,
+  SESSION_CONTEXT,
+} from "../hooks/routing-guidance.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -24,7 +29,74 @@ export const GENERATED_MANIFESTS = [
 export const GENERATED_PROJECTIONS = [
   ...GENERATED_MANIFESTS,
   "com.github.copilot/agents/arcade-operator.agent.md",
+  "clients/cursor/rules/arcade.mdc",
 ];
+
+/** Hand-written files that contain one generated block of routing rules. */
+export const FILES_WITH_GENERATED_RULES = {
+  "agents/arcade-operator.agent.md": GATEWAY_RULES_DELEGATE,
+  "skills/try-arcade/SKILL.md": GATEWAY_RULES_PARENT,
+};
+
+export const RULES_BLOCK_BEGIN =
+  "<!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->";
+export const RULES_BLOCK_END = "<!-- END generated -->";
+
+const COPILOT_AGENT_NOTE =
+  "<!-- Generated copy of agents/arcade-operator.agent.md by `npm run generate`. " +
+  "Copilot CLI and VS Code only load agents from com.github.copilot/agents/. " +
+  "Edit the source file, not this one. -->";
+
+// Keeps generated Markdown readable in diffs; hosts ignore the line breaks.
+const wrapText = (text, width = 78) => {
+  const lines = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.join("\n");
+};
+
+export const fillRulesBlock = (text, rules, relativePath) => {
+  const begin = text.indexOf(RULES_BLOCK_BEGIN);
+  const end = text.indexOf(RULES_BLOCK_END);
+  if (begin === -1 || end === -1 || end < begin) {
+    throw new Error(`${relativePath} is missing the generated rules block markers`);
+  }
+  return (
+    text.slice(0, begin + RULES_BLOCK_BEGIN.length) +
+    `\n${wrapText(rules)}\n` +
+    text.slice(end)
+  );
+};
+
+const buildCursorRule = () =>
+  [
+    "---",
+    "description: Prefer Arcade for external service tasks",
+    "alwaysApply: true",
+    "---",
+    "",
+    "<!-- Generated from hooks/routing-guidance.mjs by `npm run generate`. Edit that file, not this one. -->",
+    "",
+    wrapText(SESSION_CONTEXT),
+    "",
+  ].join("\n");
+
+const addCopilotNote = (operatorText) => {
+  const frontmatterEnd = operatorText.indexOf("\n---\n", 4) + "\n---\n".length;
+  return (
+    operatorText.slice(0, frontmatterEnd) +
+    `\n${COPILOT_AGENT_NOTE}\n` +
+    operatorText.slice(frontmatterEnd)
+  );
+};
 
 const readJson = (root, relativePath) =>
   JSON.parse(readFileSync(join(root, relativePath), "utf8"));
@@ -155,10 +227,22 @@ export function generateManifests({ check = false, root = ROOT } = {}) {
     writeIfChanged(root, path, serialize(value), check);
   }
 
+  for (const [path, rules] of Object.entries(FILES_WITH_GENERATED_RULES)) {
+    const current = readFileSync(join(root, path), "utf8");
+    writeIfChanged(root, path, fillRulesBlock(current, rules, path), check);
+  }
+
+  writeIfChanged(root, "clients/cursor/rules/arcade.mdc", buildCursorRule(), check);
+
+  const operator = fillRulesBlock(
+    readFileSync(join(root, "agents/arcade-operator.agent.md"), "utf8"),
+    GATEWAY_RULES_DELEGATE,
+    "agents/arcade-operator.agent.md",
+  );
   writeIfChanged(
     root,
     "com.github.copilot/agents/arcade-operator.agent.md",
-    readFileSync(join(root, "agents/arcade-operator.agent.md"), "utf8"),
+    addCopilotNote(operator),
     check,
   );
 

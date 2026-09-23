@@ -91,8 +91,10 @@ test(".claude-plugin MCP adapter path exists", async () => {
 });
 
 test("Copilot agent projection matches the canonical operator", async () => {
+  const copy = await readRepoFile("com.github.copilot/agents/arcade-operator.agent.md");
+  assert.match(copy, /Generated copy of agents\/arcade-operator\.agent\.md/);
   assert.equal(
-    await readRepoFile("com.github.copilot/agents/arcade-operator.agent.md"),
+    copy.replace(/\n<!-- Generated copy of[^\n]*-->\n/, ""),
     await readRepoFile("agents/arcade-operator.agent.md"),
   );
 });

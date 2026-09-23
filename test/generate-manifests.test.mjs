@@ -18,6 +18,9 @@ import { readVersion } from "../scripts/version.mjs";
 import { PLUGIN_DISPLAY_NAME } from "../scripts/constants.mjs";
 import { readRepoJson, ROOT } from "./helpers.mjs";
 
+const withoutCopilotNote = (text) =>
+  text.replace(/\n<!-- Generated copy of agents\/arcade-operator\.agent\.md[^\n]*-->\n/, "");
+
 const writeJson = (root, relativePath, value) => {
   const target = join(root, relativePath);
   mkdirSync(dirname(target), { recursive: true });
@@ -30,12 +33,13 @@ const createFixture = async () => {
   writeFileSync(join(root, "VERSION"), `${version}\n`);
   writeJson(root, "plugin.json", await readRepoJson("plugin.json"));
   writeJson(root, "mcp.json", await readRepoJson("mcp.json"));
-  const agentPath = "agents/arcade-operator.agent.md";
-  mkdirSync(dirname(join(root, agentPath)), { recursive: true });
-  writeFileSync(
-    join(root, agentPath),
-    readFileSync(join(ROOT, agentPath), "utf8"),
-  );
+  for (const path of [
+    "agents/arcade-operator.agent.md",
+    "skills/try-arcade/SKILL.md",
+  ]) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), readFileSync(join(ROOT, path), "utf8"));
+  }
   return root;
 };
 
@@ -73,9 +77,11 @@ test("generateManifests matches committed host manifests", async () => {
   assert.equal(codexPlugin.mcpServers, "./mcp.json");
 
   assert.equal(
-    readFileSync(
-      join(ROOT, "com.github.copilot/agents/arcade-operator.agent.md"),
-      "utf8",
+    withoutCopilotNote(
+      readFileSync(
+        join(ROOT, "com.github.copilot/agents/arcade-operator.agent.md"),
+        "utf8",
+      ),
     ),
     readFileSync(join(ROOT, "agents/arcade-operator.agent.md"), "utf8"),
   );
@@ -143,7 +149,29 @@ test("generateManifests checks a temporary installed-artifact fixture", async ()
       () => generateManifests({ check: true, root }),
       /com\.github\.copilot\/agents\/arcade-operator\.agent\.md is out of date/,
     );
+
+    generateManifests({ root });
+    const skillPath = join(root, "skills/try-arcade/SKILL.md");
+    writeFileSync(
+      skillPath,
+      readFileSync(skillPath, "utf8").replace(
+        "use only arcade",
+        "use any Arcade server",
+      ),
+    );
+
+    assert.throws(
+      () => generateManifests({ check: true, root }),
+      /skills\/try-arcade\/SKILL\.md is out of date/,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test(".gitattributes marks every generated file", () => {
+  const attributes = readFileSync(join(ROOT, ".gitattributes"), "utf8");
+  for (const path of GENERATED_PROJECTIONS) {
+    assert.match(attributes, new RegExp(`^${path.replaceAll(".", "\\.")} linguist-generated=true$`, "m"));
   }
 });
