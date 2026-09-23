@@ -20,8 +20,8 @@ npx plugins add ArcadeAI/arcade-plugin --target claude-code
 Verify with `claude plugin list` or **`/plugin`**, then **`/reload-plugins`**
 if the session was already open.
 
-Claude Code reads `.claude-plugin/plugin.json` (skills, the operator, and the
-gateway) and `hooks/hooks.json`.
+Claude Code reads `.claude-plugin/plugin.json`, which points at the skills,
+the operator, the gateway, and `.claude-plugin/hooks.json`.
 
 The same folder works in Claude Cowork / Claude Code desktop once the plugin
 is enabled there. In Claude Desktop Chat, add this GitHub repo as a

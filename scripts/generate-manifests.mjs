@@ -2,7 +2,7 @@
 // Writes every client-specific file from the sources listed in
 // ARCHITECTURE.md. `--check` fails instead of writing if anything is stale.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -34,14 +34,6 @@ const RULES_BLOCK_BEGIN =
   "<!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->";
 const RULES_BLOCK_END = "<!-- END generated -->";
 
-const SEMVER = /^\d+\.\d+\.\d+(-[\w.-]+)?(\+[\w.-]+)?$/;
-
-export const parseVersion = (raw) => {
-  const version = raw.trim();
-  if (!SEMVER.test(version)) throw new Error(`invalid semver: ${version}`);
-  return version;
-};
-
 const readText = (root, path) => readFileSync(join(root, path), "utf8");
 const readJson = (root, path) => JSON.parse(readText(root, path));
 const serialize = (value) => `${JSON.stringify(value, null, 2)}\n`;
@@ -60,12 +52,14 @@ const hookCommand = (hostName, script) =>
 
 
 // Claude Code nests each command in a group: { hooks: { Event: [{ hooks: [entry] }] } }.
-// Copilot CLI and VS Code take the entries directly and need version 1.
+// Cursor, Copilot CLI, and VS Code take the entries directly and need version 1.
 const buildHookManifest = (hostName) => {
   const hooks = {};
   for (const { event, script } of HOOKS) {
+    const name = HOSTS[hostName].events ? HOSTS[hostName].events[event] : event;
+    if (!name) continue;
     const entry = { type: "command", command: hookCommand(hostName, script), timeout: HOOK_TIMEOUT_SEC };
-    hooks[event] = HOSTS[hostName].format === "nested" ? [{ hooks: [entry] }] : [entry];
+    hooks[name] = HOSTS[hostName].format === "nested" ? [{ hooks: [entry] }] : [entry];
   }
   return HOSTS[hostName].format === "nested" ? { hooks } : { version: 1, hooks };
 };
@@ -73,7 +67,7 @@ const buildHookManifest = (hostName) => {
 /** Every generated file and its contents, from the sources in `root`. */
 const buildFiles = (root) => {
   const plugin = readJson(root, "plugin.json");
-  const version = parseVersion(readText(root, "VERSION"));
+  const version = readText(root, "VERSION").trim();
   if (plugin.version !== version) {
     throw new Error(`plugin.json version ${plugin.version} does not match VERSION ${version}`);
   }
@@ -93,6 +87,7 @@ const buildFiles = (root) => {
         agents: AGENTS_DIR,
         commands: "commands",
         rules: CURSOR_RULE_DIR,
+        hooks: HOSTS.cursor.manifest,
         // Cursor infers the transport from the URL.
         mcpServers: { arcade: { url } },
       }),
@@ -102,6 +97,7 @@ const buildFiles = (root) => {
       serialize({
         ...identity,
         agents: [`./${AGENTS_DIR}/arcade-operator.agent.md`],
+        hooks: `./${HOSTS["claude-code"].manifest}`,
         // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
         mcpServers: { arcade: { type: "http", url } },
       }),
@@ -148,7 +144,7 @@ const buildFiles = (root) => {
   files.set(
     ".gitattributes",
     [
-      "# Written by `npm run generate`. Lists every generated file.",
+      "# Written by `npm run generate`. Lists every fully generated file.",
       ...[...files.keys()].map((path) => `${path} linguist-generated=true`),
       "",
     ].join("\n"),
@@ -158,16 +154,25 @@ const buildFiles = (root) => {
     files.set(path, fillRulesBlock(readText(root, path), rules, path));
   }
 
-
   return files;
 };
 
 export const generateManifests = ({ check = false, root = ROOT } = {}) => {
   const files = buildFiles(root);
+  if (check) {
+    // A path in the committed .gitattributes that is no longer generated is a
+    // leftover from a removed source and should be deleted.
+    const committed = existsSync(join(root, ".gitattributes"))
+      ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
+      : [];
+    for (const path of committed) {
+      if (!files.has(path)) throw new Error(`${path} is no longer generated — delete it`);
+    }
+  }
   for (const [path, content] of files) {
     const absolutePath = join(root, path);
     if (check) {
-      if (readFileSync(absolutePath, "utf8") !== content) {
+      if (!existsSync(absolutePath) || readFileSync(absolutePath, "utf8") !== content) {
         throw new Error(`${path} is out of date — run npm run generate`);
       }
       continue;

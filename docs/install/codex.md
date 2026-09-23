@@ -56,9 +56,7 @@ codex plugin add arcade@plugins-cli
    for explicit skill invocation.
 
 Listing metadata such as the **Arcade** display name lives in
-`extensions.com.openai.interface` on the portable manifest. Codex reads the
-root `plugin.json`; a Codex version that doesn't falls back to
-`.claude-plugin/plugin.json`, which also loads the skills and MCP server.
+`extensions.com.openai.interface` on the portable `plugin.json`.
 
 ## First steps
 

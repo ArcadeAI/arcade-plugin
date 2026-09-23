@@ -11,7 +11,7 @@ below have alternatives and verification steps.
 
 | Client | Install |
 |---|---|
-| Claude Code | `npx plugins add ArcadeAI/arcade-plugin --target claude-code` |
+| Claude Code | `claude plugin marketplace add ArcadeAI/arcade-plugin`, then `claude plugin install arcade@arcade` |
 | Codex / ChatGPT | `codex plugin marketplace add ArcadeAI/arcade-plugin`, then `codex plugin add arcade@arcade` |
 | Cursor | Individual plans: `git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin`, then reload Cursor. Teams/Enterprise: an admin imports the repo as a team marketplace — see [cursor.md](cursor.md) |
 | VS Code | Command Palette → **Chat: Install Plugin From Source** → `https://github.com/ArcadeAI/arcade-plugin` |

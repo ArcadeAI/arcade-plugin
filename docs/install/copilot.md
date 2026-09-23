@@ -22,7 +22,9 @@ gateway, and `arcade-operator`.
 
 Hooks come from `com.github.copilot/hooks/hooks.json`: routing rules at
 session start and for subagents. Copilot CLI drops the output of prompt hooks
-from config files, so there's no per-prompt reminder here.
+from config files, so there's no per-prompt reminder here. VS Code reads the
+same file but can't run Agent Plugins hook commands yet, so it relies on the
+skills.
 
 ## First steps
 

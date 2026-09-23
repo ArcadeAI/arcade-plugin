@@ -20,6 +20,7 @@
   "agents": "com.github.copilot/agents",
   "commands": "commands",
   "rules": "clients/cursor/rules",
+  "hooks": "clients/cursor/hooks/hooks.json",
   "mcpServers": {
     "arcade": {
       "url": "https://api.arcade.dev/mcp/arcade"
