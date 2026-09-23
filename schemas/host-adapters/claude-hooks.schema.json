@@ -10,17 +10,7 @@
     "hooks": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "SessionStart",
-        "UserPromptSubmit",
-        "SubagentStart",
-        "PreToolUse",
-        "PostToolUse",
-        "PostToolUseFailure",
-        "SubagentStop",
-        "Stop",
-        "SessionEnd"
-      ],
+      "required": ["SessionStart", "UserPromptSubmit", "SubagentStart", "PostToolUse", "PostToolUseFailure", "SubagentStop"],
       "properties": {
         "SessionStart": {
           "type": "array",
@@ -41,28 +31,22 @@
           }
         },
         "UserPromptSubmit": {
-          "$ref": "#/$defs/unmatchedGroups"
-        },
-        "SubagentStart": {
-          "$ref": "#/$defs/anyAgentGroups"
-        },
-        "PreToolUse": {
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["matcher", "hooks"],
+            "required": ["hooks"],
             "properties": {
-              "matcher": {
-                "const": "Skill"
-              },
               "hooks": {
                 "$ref": "#/$defs/timedCommands"
               }
             }
           }
+        },
+        "SubagentStart": {
+          "$ref": "#/$defs/anyAgentGroups"
         },
         "PostToolUse": {
           "$ref": "#/$defs/mcpToolGroups"
@@ -72,12 +56,6 @@
         },
         "SubagentStop": {
           "$ref": "#/$defs/anyAgentGroups"
-        },
-        "Stop": {
-          "$ref": "#/$defs/unmatchedGroups"
-        },
-        "SessionEnd": {
-          "$ref": "#/$defs/unmatchedGroups"
         }
       }
     }
@@ -119,21 +97,6 @@
       "minItems": 1,
       "items": {
         "$ref": "#/$defs/timedCommand"
-      }
-    },
-    "unmatchedGroups": {
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["hooks"],
-        "properties": {
-          "hooks": {
-            "$ref": "#/$defs/timedCommands"
-          }
-        }
       }
     },
     "anyAgentGroups": {

@@ -19,8 +19,8 @@ Claude Code runs `SubagentStart` from `hooks/hooks.json` with
 `agent_type` is `arcade-operator` or a plugin-scoped name ending in
 `:arcade-operator`.
 
-Claude Code also runs `hooks/telemetry.mjs` from `hooks/hooks.json` on nine
-events. Rules for it:
+Claude Code also runs `hooks/telemetry.mjs` from `hooks/hooks.json` on five
+events ([docs/telemetry.md](docs/telemetry.md)). Rules for it:
 
 - No hook in `hooks/hooks.json` is `async`. Claude Code kills async hooks
   when a session exits, and an async hook's `systemMessage` goes to the
@@ -30,11 +30,9 @@ events. Rules for it:
 - Never do network I/O in the hook process. Hand each send to the detached
   `hooks/telemetry-send.mjs` so the hook returns in about 60 ms.
 - A new event property goes in the allowlist in `hooks/telemetry-events.mjs`
-  and in [docs/telemetry.md](docs/telemetry.md). Anything not on the
-  allowlist is dropped before sending.
-- Telemetry is left out of the Cursor manifest for now. Cursor waits on
-  almost every hook, so it would slow each tool call, and it passes the
-  user's email to every hook.
+  and in docs/telemetry.md. Anything not on the allowlist is dropped.
+- No telemetry in the Cursor manifest: Cursor waits on almost every hook
+  and passes the user's email to every hook.
 
 **Codex hooks are parked** on branch `cursor/park-codex-hooks-gro-353-f8ad`.
 Codex 0.154.0 and 0.155.1 parse `extensions.com.openai.hooks` (and the `.codex-plugin`

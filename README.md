@@ -49,8 +49,8 @@ the [install guides](docs/install/).
 | Client | MCP | Skills | Subagents | Commands | Rules | Hooks |
 | --- | :--: | :--: | :--: | :--: | :--: | :--: |
 | **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
-| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 9 |
-| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 9 |
+| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 6 |
+| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 6 |
 | **GitHub Copilot CLI** | ✅ | ✅ 2 | ✅ | — | — | — |
 | **VS Code** | ✅ | ✅ 2 | ✅ | — | — | — |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ 2 | — | — | — | — |
@@ -97,9 +97,8 @@ anything is sent, created, or deleted.
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
 - Privacy: tasks run through Arcade's hosted gateway and the apps you
   connect — [privacy policy](https://www.arcade.dev/privacy-policy). In
-  Claude Code the plugin also sends anonymous usage events (no prompt text,
-  file paths, or tool output) — [what's sent](docs/telemetry.md). Set
-  `ARCADE_PLUGIN_TELEMETRY=0` to turn them off.
+  Claude Code the plugin also sends [anonymous usage events](docs/telemetry.md);
+  set `ARCADE_PLUGIN_TELEMETRY=0` to turn them off.
 
 ## Develop
 

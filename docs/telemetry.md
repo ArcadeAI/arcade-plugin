@@ -13,29 +13,26 @@ Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 { "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
 ```
 
-`false`, `off`, and `no` also work. The plugin also sends nothing when
-`DO_NOT_TRACK=1` is set.
+`false`, `off`, and `no` also work, and so does `DO_NOT_TRACK=1`.
 
-For testing, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a different host
-instead of Arcade's PostHog.
+For testing, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a different host.
 
 ## Where it runs
 
-Only in Claude Code: the CLI, IDE extensions, the desktop app's Code tab,
-and Cowork. These are the hosts that run plugin hooks. claude.ai chat,
-Claude Desktop chat, Cursor, Codex, Copilot, VS Code, and other MCP clients
-send no plugin telemetry.
+Only in Claude Code (the CLI, IDE extensions, the desktop app's Code tab, and
+Cowork), because only these hosts run plugin hooks. Other clients send no
+plugin telemetry.
 
 ## What is stored on your machine
 
 Two files in the plugin's data folder (`~/.claude/plugins/data/<plugin id>/`):
 
-- `install-id`: a random ID created on first run. It is not tied to you or
-  your Arcade account.
+- `install-id`: a random ID created on first run, not tied to you or your
+  Arcade account.
 - `notice-shown`: marks that the first-run notice was shown.
 
-Nothing is sent until the notice has been shown. If the plugin can't read or
-write that folder, or Claude Code doesn't provide one, it sends nothing.
+Nothing is sent until the notice has been shown. If the plugin can't write
+that folder, or Claude Code doesn't provide one, it sends nothing.
 
 ## What is sent
 
@@ -57,21 +54,17 @@ Events and their extra properties:
 | Event | When | Extra properties |
 | --- | --- | --- |
 | `Plugin session started` | SessionStart | `source`: `startup` \| `resume` \| `clear` \| `compact` \| `fork` \| `other` |
-| `Plugin prompt submitted` | UserPromptSubmit, except background task results that Claude Code passes through the same hook | `looks_external`: boolean. `service_hints`: list of categories from the list below. `reminder_sent`: boolean. |
-| `Plugin tool called` | PostToolUse on MCP tools | `server`: `arcade` (this plugin's gateway) \| `other_arcade` (another connection exposing Arcade's gateway tools) \| `other`. `tool`: only for `arcade` and `other_arcade`; the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`. `service`: the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches a service Arcade covers. Names from other servers are never sent. |
+| `Plugin prompt submitted` | UserPromptSubmit, except background task results that Claude Code passes through the same hook | `could_use_arcade`: boolean. `service_hints`: service categories. `reminder_sent`: boolean. |
+| `Plugin tool called` | PostToolUse on MCP tools | `server`: `arcade` (this plugin's gateway) \| `other_arcade` (another connection exposing Arcade's gateway tools) \| `other`. `tool`: only for `arcade` and `other_arcade`; the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`. `service`: the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches one. |
 | `Plugin tool failed` | PostToolUseFailure on MCP tools | same as `Plugin tool called` |
-| `Plugin skill invoked` | PreToolUse on Skill | `skill`: `try-arcade` \| `scale-arcade` \| `other` |
-| `Plugin subagent started` | SubagentStart | `agent`: `arcade-operator` \| `other` |
 | `Plugin subagent stopped` | SubagentStop | `agent`: `arcade-operator` \| `other`. `status`: the operator's status (`completed` \| `needs_auth` \| `needs_confirmation` \| `needs_clarification` \| `failed` \| `unknown`), only for `arcade-operator`. |
-| `Plugin turn ended` | Stop | none |
-| `Plugin session ended` | SessionEnd | `reason`: the value Claude Code reports, if it is one of the documented reasons, otherwise `other` |
 
 Service categories: `email`, `calendar`, `chat`, `issues`, `docs`,
 `meetings`, `crm`, `code_hosting`, `analytics`, `storage`.
 
-`looks_external` means the prompt looks like a task for an outside app. A
-keyword list in `hooks/telemetry-classify.mjs` decides it on your machine.
-Only the boolean and the categories are sent.
+`could_use_arcade` is a local keyword guess (in
+`hooks/telemetry-classify.mjs`) at whether the prompt is a task Arcade could
+do: email, calendar, chat, and the other categories above.
 
 ## Never sent
 
@@ -79,7 +72,7 @@ Only the boolean and the categories are sent.
 - tool inputs or tool outputs
 - file paths, the working directory, or transcript paths
 - names of MCP servers other than Arcade's, or their tool names
-- names of subagents or skills other than Arcade's
+- names of subagents other than Arcade's
 - your email, username, hostname, repository, or Arcade account
 
 The plugin drops any property not listed on this page before sending.
@@ -89,35 +82,32 @@ We don't send it as a property and turn off location lookup.
 
 ## Reading the numbers
 
-Events from one turn share `turn`. Claude Code also runs a turn when a
-background task finishes; those turns have no `Plugin prompt submitted`, so
-leave out turns without one. Per turn:
+Group events into turns by `turn`. Background task results don't send
+`Plugin prompt submitted`, so leave out turns that have tool events but no
+prompt event. Per turn:
 
-- **Called when needed:** `looks_external` and at least one `Plugin tool called` with `server: arcade`.
+- **Called when needed:** `could_use_arcade` and at least one
+  `Plugin tool called` with `server: arcade`.
 - **Called through another Arcade connection:** the same, with
-  `server: other_arcade`. The plugin's rules say to use only its own server,
-  but Claude Code can hide the plugin's server when a claude.ai Arcade
-  connector points at the same gateway.
-- **Missed:** `looks_external` and no Arcade tool call. Broken down by: a
+  `server: other_arcade`. Claude Code can hide the plugin's server when a
+  claude.ai Arcade connector points at the same gateway.
+- **Missed:** `could_use_arcade` and no Arcade tool call. Broken down by: a
   different server was used for the same kind of service, auth was needed,
   an Arcade call failed, or nothing was called.
-- **Called unexpectedly:** not `looks_external`, but Arcade was called. This
-  also shows where the keyword list misses.
+- **Called unexpectedly:** not `could_use_arcade`, but Arcade was called.
+  This also shows where the keyword list misses.
 - **Not needed, not called:** everything else.
 
 An app tool called directly on another Arcade gateway (for example
 `Granola_ListMeetings` on a second gateway) looks the same as that app's own
 MCP server, so it counts as `other`.
 
-These numbers cover Claude Code only. The model's behavior on claude.ai,
-ChatGPT, and other hosts has to be measured offline.
-
 ## Classifier accuracy
 
 Measured against the labeled prompts in `test/fixtures/routing-prompts.json`:
 
-- Missed external asks: 6 of 55 (10.9%). Mostly asks with no app name,
-  like "move my 3pm to thursday".
+- Missed Arcade tasks: 6 of 55 (10.9%). Mostly asks with no app name, like
+  "move my 3pm to thursday".
 - False alarms on coding prompts: 4 of 56 (7.1%). Mostly code written *for*
   a service, like "fix the slack webhook integration test".
 

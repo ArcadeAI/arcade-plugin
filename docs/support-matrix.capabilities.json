@@ -43,18 +43,15 @@
       },
       "commands": 3,
       "hooks": {
-        "count": 9,
+        "count": 6,
         "manifest": "hooks/hooks.json",
         "events": [
           "SessionStart",
           "UserPromptSubmit",
           "SubagentStart",
-          "PreToolUse",
           "PostToolUse",
           "PostToolUseFailure",
-          "SubagentStop",
-          "Stop",
-          "SessionEnd"
+          "SubagentStop"
         ]
       }
     },

@@ -1,43 +1,16 @@
 /** Prompt checks shared by the per-turn reminder and telemetry. */
 
 // Short acknowledgements only — not action phrases like "fix it".
-export const CONTINUATION_WORDS = new Set([
-  "yes",
-  "y",
-  "yeah",
-  "yep",
-  "yup",
-  "no",
-  "nope",
-  "ok",
-  "okay",
-  "k",
-  "sure",
-  "please",
-  "pls",
-  "plz",
-  "thanks",
-  "thank",
-  "ty",
-  "continue",
-  "proceed",
-  "lgtm",
-  "done",
-  "perfect",
-  "great",
-  "good",
-  "cool",
-  "nice",
-  "right",
-  "correct",
-  "stop",
-  "wait",
-  "actually",
+const CONTINUATION_WORDS = new Set([
+  "yes", "y", "yeah", "yep", "yup", "no", "nope", "ok", "okay", "k", "sure",
+  "please", "pls", "plz", "thanks", "thank", "ty", "continue", "proceed",
+  "lgtm", "done", "perfect", "great", "good", "cool", "nice", "right",
+  "correct", "stop", "wait", "actually",
 ]);
 
-export const MAX_CONTINUATION_WORDS = 2;
+const MAX_CONTINUATION_WORDS = 2;
 
-export const isBareContinuation = (prompt) => {
+const isBareContinuation = (prompt) => {
   const words = prompt
     .toLowerCase()
     .replace(/[^a-z\s]/g, " ")
@@ -49,11 +22,8 @@ export const isBareContinuation = (prompt) => {
 
 // Claude Code sends background task results through UserPromptSubmit. The
 // user didn't write these.
-const TASK_NOTIFICATION = "<task-notification>";
-
 export const isTaskNotification = (prompt) =>
-  typeof prompt === "string" &&
-  prompt.trimStart().startsWith(TASK_NOTIFICATION);
+  typeof prompt === "string" && prompt.trimStart().startsWith("<task-notification>");
 
 /** True when user-prompt-submit.mjs sends the routing reminder. */
 export const shouldRemind = (prompt) =>

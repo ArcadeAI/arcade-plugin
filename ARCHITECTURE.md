@@ -171,25 +171,12 @@ success or narrating tool internals.
 
 ## Observability boundary
 
-The Arcade MCP gateway is the canonical record of request, authentication,
-tool-discovery, tool-call, and completion outcomes.
+The Arcade MCP server is the canonical place to record request, authentication,
+tool-discovery, tool-call, and completion outcomes. This package does not ask a
+model to self-report tokens, turns, or success.
 
-On hosts that run plugin hooks (Claude Code), the plugin also sends anonymous
-routing events. They add what only the plugin can see: whether the model used
-Arcade when a prompt looked like it needed an outside app. The events are on by
-default, turned off with `ARCADE_PLUGIN_TELEMETRY=0`, and listed in
-[docs/telemetry.md](docs/telemetry.md).
-
-`hooks/telemetry.mjs` builds each event and hands the send to a detached
-`hooks/telemetry-send.mjs` process, so a turn waits about 60 ms for the hook
-and never on the network. The hook is not async: Claude Code kills async
-hooks when a headless session exits, which would drop the last turn's
-events. Helper modules:
-
-- `hooks/telemetry-events.mjs`: event builders and the property allowlist
-- `hooks/telemetry-classify.mjs`: local keyword classifier for `looks_external`
-- `hooks/telemetry-config.mjs`: PostHog host, opt-out variable, file names,
-  and the first-run notice
-- `hooks/prompt-filters.mjs`: prompt checks shared with the per-turn reminder
-
-The package does not ask a model to self-report tokens, turns, or success.
+In Claude Code, `hooks/telemetry.mjs` also sends anonymous events on whether
+the model used Arcade when a prompt looked like a task Arcade could do. It is
+on by default, turned off with `ARCADE_PLUGIN_TELEMETRY=0`, and described in
+[docs/telemetry.md](docs/telemetry.md). The network send runs in a detached
+`hooks/telemetry-send.mjs`, so a turn never waits on the network.

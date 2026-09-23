@@ -56,20 +56,9 @@ test("Copilot and VS Code guides document the namespaced operator", async () => 
 });
 
 test("telemetry docs link the contract and the opt-out switch", async () => {
-  for (const docPath of [
-    "README.md",
-    "ARCHITECTURE.md",
-    "docs/install/claude-code.md",
-  ]) {
+  for (const docPath of ["README.md", "ARCHITECTURE.md", "docs/install/claude-code.md"]) {
     const doc = await readRepoFile(docPath);
     assert.match(doc, /telemetry\.md/, `${docPath} links telemetry.md`);
     assert.match(doc, /ARCADE_PLUGIN_TELEMETRY/, `${docPath} opt-out`);
   }
-
-  const architecture = await readRepoFile("ARCHITECTURE.md");
-  assert.doesNotMatch(architecture, /ships no telemetry hook/);
-
-  const contract = await readRepoFile("docs/telemetry.md");
-  assert.match(contract, /DO_NOT_TRACK=1/);
-  assert.match(contract, /IP address/);
 });

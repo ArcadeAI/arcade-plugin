@@ -12,7 +12,6 @@ import {
   NOTICE,
   NOTICE_FILE,
   OPT_OUT_ENV,
-  POSTHOG_KEY,
 } from "./telemetry-config.mjs";
 import { buildEvent } from "./telemetry-events.mjs";
 
@@ -91,7 +90,7 @@ const main = async () => {
   if (!existsSync(path.join(dir, NOTICE_FILE))) return;
 
   const event = buildEvent(input, { installId, os: process.platform });
-  if (!event || !POSTHOG_KEY) return;
+  if (!event) return;
   send(event);
 };
 

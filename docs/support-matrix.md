@@ -13,8 +13,8 @@ checked in CI.
 | Client | Tools | Skills | Subagent | Commands | Rule | Hooks | Install |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
 | **Cursor** | ✅ | 2 | ✅ | 3 | ✅ | ✅¹ | [guide](install/cursor.md) |
-| **Claude Code** | ✅ | 2 | ✅ | 3 | — | 9 | [guide](install/claude-code.md) |
-| **Claude Cowork / Code desktop** | ✅ | 2 | ✅ | 3 | — | 9 | [guide](install/claude-code.md) |
+| **Claude Code** | ✅ | 2 | ✅ | 3 | — | 6 | [guide](install/claude-code.md) |
+| **Claude Cowork / Code desktop** | ✅ | 2 | ✅ | 3 | — | 6 | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | 2 | ✅ | — | — | — | [guide](install/copilot.md) |
 | **VS Code** | ✅ | 2 | ✅ | — | — | — | [guide](install/vscode.md) |
 | **Codex / ChatGPT local runtime** | ✅ | 2 | — | — | — | — | [guide](install/codex.md) |
@@ -66,13 +66,10 @@ from the canonical operator, and `npm run generate:check` rejects drift.
 Claude's adapter uses `clients/claude/mcp.json` with `type: "http"`. Cursor
 infers transport from `url` in `clients/cursor/mcp.json`.
 
-Claude Code runs 9 hook events from `hooks/hooks.json`: `SessionStart`,
-`UserPromptSubmit`, `SubagentStart`, `PreToolUse`, `PostToolUse`,
-`PostToolUseFailure`, `SubagentStop`, `Stop`, and `SessionEnd`. The routing
-hooks use the first three. The telemetry hook uses all nine and sends
-anonymous usage events ([what's sent](telemetry.md)). Telemetry runs only in
-Claude Code: the CLI, IDE extensions, the desktop app's Code tab, and Cowork.
-No other client sends it.
+Claude Code runs `SessionStart`, `UserPromptSubmit`, and `SubagentStart` from
+`hooks/hooks.json` for routing. The telemetry hook runs on `SessionStart`,
+`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, and `SubagentStop`
+([what's sent](telemetry.md)). No other client sends telemetry.
 
 Copilot CLI and VS Code read Agent Plugins hooks only from
 `com.github.copilot/hooks/hooks.json`, which this plugin does not ship, so
