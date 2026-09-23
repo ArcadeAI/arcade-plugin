@@ -13,7 +13,7 @@ below have alternatives and verification steps.
 |---|---|
 | Claude Code | `npx plugins add ArcadeAI/arcade-plugin --target claude-code` |
 | Codex / ChatGPT | `codex plugin marketplace add ArcadeAI/arcade-plugin`, then `codex plugin add arcade@arcade` |
-| Cursor | `git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin`, then reload Cursor |
+| Cursor | Individual plans: `git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin`, then reload Cursor. Teams/Enterprise: an admin imports the repo as a team marketplace — see [cursor.md](cursor.md) |
 | VS Code | Command Palette → **Chat: Install Plugin From Source** → `https://github.com/ArcadeAI/arcade-plugin` |
 | GitHub Copilot CLI | `copilot plugin install ArcadeAI/arcade-plugin` |
 | Claude Desktop | Add `ArcadeAI/arcade-plugin` as a plugin marketplace — see [claude-desktop.md](claude-desktop.md) |
@@ -32,7 +32,7 @@ into each. Today it only finishes the job for some of them:
 | Claude Code | Installs and enables the plugin. Works. |
 | GitHub Copilot CLI | Runs `copilot plugin marketplace add` and `copilot plugin install`. |
 | Codex | Copies the plugin and enables it in `config.toml`, but `codex plugin list` shows it as not installed until you run `codex plugin add arcade@plugins-cli`. |
-| Cursor (macOS, Linux) | Writes into Claude Code's plugin folder (`~/.claude/plugins`), not Cursor's. Cursor only reads it with **Include third-party Plugins, Skills, and other configs** turned on, and then loads the Claude Code manifest instead of the Cursor adapter. |
+| Cursor (macOS, Linux) | Writes into Claude Code's plugin folder (`~/.claude/plugins`), not Cursor's. With **Include third-party Plugins, Skills, and other configs** off, Cursor doesn't load it at all; with it on, Cursor gets the Claude Code manifest instead of the Cursor adapter. |
 | VS Code | Adds a `chat.pluginLocations` entry pointing at a copy under `~/.cache/plugins/`, and does not turn on `chat.plugins.enabled`. |
 
 It also skips any client whose command-line tool (`cursor`, `code`, …) isn't on

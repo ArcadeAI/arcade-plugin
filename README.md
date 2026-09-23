@@ -34,13 +34,14 @@ codex plugin marketplace add ArcadeAI/arcade-plugin
 codex plugin add arcade@arcade
 ```
 
-**Cursor**
+**Cursor** (individual plans)
 
 ```bash
 git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin
 ```
 
-Then reload Cursor.
+Then reload Cursor. On Teams and Enterprise, an admin imports this repo as a
+team marketplace instead — see the [Cursor guide](docs/install/cursor.md).
 
 **VS Code:** Command Palette → **Chat: Install Plugin From Source** → paste
 `https://github.com/ArcadeAI/arcade-plugin`.
