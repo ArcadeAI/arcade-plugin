@@ -15,18 +15,12 @@ import {
   OPT_OUT_ENV,
 } from "./telemetry-config.mjs";
 import { buildEvent } from "./telemetry-events.mjs";
+import { readInput } from "./hook-hosts.mjs";
 
 const SENDER = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "telemetry-send.mjs",
 );
-
-const readStdin = async () => {
-  if (process.stdin.isTTY) return "";
-  let data = "";
-  for await (const chunk of process.stdin) data += chunk;
-  return data;
-};
 
 const OFF_VALUES = ["0", "false", "off", "no"];
 
@@ -80,7 +74,7 @@ const send = (/** @type {object} */ event) => {
 };
 
 const main = async () => {
-  const input = JSON.parse(await readStdin());
+  const input = await readInput();
   if (isOptedOut()) return;
 
   // Claude Code always sets this. Without it there is nowhere to keep the

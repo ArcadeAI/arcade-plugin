@@ -4,6 +4,8 @@
  * `--host <name>` so the script prints the output format that client reads.
  */
 
+import { EVENTS } from "./telemetry-contract.mjs";
+
 export const HOOK_TIMEOUT_SEC = 5;
 
 /**
@@ -17,12 +19,12 @@ export const HOOKS = [
   { script: "user-prompt-submit.mjs", event: "UserPromptSubmit" },
   { script: "subagent-start.mjs", event: "SubagentStart" },
   // Telemetry (docs/telemetry.md) reads Claude Code's hook input, so only
-  // Claude Code runs it. Tool events are limited to MCP tools.
-  ...["SessionStart", "UserPromptSubmit", "PostToolUse", "PostToolUseFailure", "SubagentStop"].map((event) => ({
+  // Claude Code runs it.
+  ...Object.values(EVENTS).map(({ hook, matcher }) => ({
     script: "telemetry.mjs",
-    event,
+    event: hook,
     hosts: ["claude-code"],
-    ...(event.startsWith("PostToolUse") ? { matcher: "mcp__.*" } : {}),
+    ...(matcher ? { matcher } : {}),
   })),
 ];
 

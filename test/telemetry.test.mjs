@@ -9,7 +9,7 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 import Ajv2020 from "ajv/dist/2020.js";
-import { HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
+import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { ARCADE_TOOL_PREFIX, EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
 import { buildEvent } from "../hooks/telemetry-events.mjs";
 import { NOTICE, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
@@ -18,7 +18,6 @@ const INSTALL_ID = "11111111-2222-3333-4444-555555555555";
 const OPTIONS = { installId: INSTALL_ID, os: "darwin" };
 const SESSION_ID = "raw-session-id-123";
 const PROMPT_ID = "raw-prompt-id-456";
-const ARCADE = "mcp__plugin_arcade_arcade__";
 const OPERATOR = "arcade:arcade-operator";
 
 const validateEvent = new Ajv2020({ allErrors: true }).compile(eventSchema());
@@ -100,19 +99,19 @@ test("buildEvent maps each hook input to the documented event", () => {
     ["UserPromptSubmit", { prompt: "ok" }, "Plugin prompt submitted",
       { could_use_arcade: false, service_hints: [], reminder_sent: false }],
     ["UserPromptSubmit", { prompt: "<task-notification>\n<status>completed</status> calendar" }, null],
-    [...tool(`${ARCADE}Gmail_ListEmails`), CALLED, { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
-    [...tool(`${ARCADE}System_ManageAuthorization`), CALLED, { server: "arcade", tool: "System_ManageAuthorization" }],
-    [...tool(`${ARCADE}Arcade_UseTool`, { tool_name: "GoogleCalendar.ListEvents" }), CALLED,
+    [...tool(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`), CALLED, { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
+    [...tool(`${ARCADE_TOOL_PREFIX}System_ManageAuthorization`), CALLED, { server: "arcade", tool: "System_ManageAuthorization" }],
+    [...tool(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, { tool_name: "GoogleCalendar.ListEvents" }), CALLED,
       { server: "arcade", tool: "Arcade_UseTool", service: "calendar" }],
-    [...tool(`${ARCADE}Arcade_UseTool`, { tool_name: "AcmeHR.RunPayroll" }), CALLED, { server: "arcade", tool: "Arcade_UseTool" }],
-    [...tool(`${ARCADE}AcmeHR_RunPayroll`), CALLED, { server: "arcade", tool: "other" }],
+    [...tool(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, { tool_name: "AcmeHR.RunPayroll" }), CALLED, { server: "arcade", tool: "Arcade_UseTool" }],
+    [...tool(`${ARCADE_TOOL_PREFIX}AcmeHR_RunPayroll`), CALLED, { server: "arcade", tool: "other" }],
     [...tool("mcp__claude_ai_Arcade_Production__Arcade_UseTool", { tool_name: "Slack_SendMessage" }), CALLED,
       { server: "other_arcade", tool: "Arcade_UseTool", service: "chat" }],
     [...tool("mcp__granola__Granola_ListMeetings"), CALLED, { server: "other", service: "meetings" }],
     [...tool("mcp__claude_ai_Gmail__search_threads"), CALLED, { server: "other", service: "email" }],
     [...tool("mcp__secret-server__DoThing"), CALLED, { server: "other" }],
     [...tool("Read"), null],
-    ["PostToolUseFailure", { tool_name: `${ARCADE}Slack_SendMessage` }, "Plugin tool failed",
+    ["PostToolUseFailure", { tool_name: `${ARCADE_TOOL_PREFIX}Slack_SendMessage` }, "Plugin tool failed",
       { server: "arcade", tool: "Slack_SendMessage", service: "chat" }],
     [...stop("Done.\n\nstatus: needs_auth\nsummary: sign in"), STOPPED, operator("needs_auth")],
     [...stop("**status:** needs_confirmation"), STOPPED, operator("needs_confirmation")],
@@ -171,7 +170,7 @@ test("buildEvent never leaks input text or raw ids, and sends only allowed keys"
     { hook_event_name: "UserPromptSubmit" },
     { hook_event_name: "PostToolUse", tool_name: "mcp__secret-server__DoThing" },
     { hook_event_name: "PostToolUseFailure", tool_name: "mcp__SECRET__Granola_ListMeetings" },
-    { hook_event_name: "PostToolUse", tool_name: `${ARCADE}Arcade_UseTool` },
+    { hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Arcade_UseTool` },
     { hook_event_name: "SubagentStop", agent_type: "SECRET-agent" },
     { hook_event_name: "SubagentStop", agent_type: OPERATOR },
   ];
@@ -214,10 +213,7 @@ test("the contract schema rejects events outside the contract", () => {
   for (const event of bad) assert.equal(validateEvent(event), false, JSON.stringify(event));
 });
 
-test("telemetry runs on exactly the hooks the contract names", () => {
-  const telemetryEvents = HOOKS.filter((hook) => hook.script === "telemetry.mjs").map((hook) => hook.event);
-  const contractHooks = Object.values(EVENTS).map((spec) => spec.hook);
-  assert.deepEqual([...telemetryEvents].sort(), [...contractHooks].sort());
+test("each contract event is built from its hook's input", () => {
   for (const [name, spec] of Object.entries(EVENTS)) {
     const input = hookInput({ hook_event_name: spec.hook, tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, prompt: "hi" });
     assert.equal(buildEvent(input, OPTIONS)?.event, name, spec.hook);
@@ -318,7 +314,7 @@ test("telemetry hook shows the notice once and posts each event from a detached 
 test("telemetry hook sends nothing when it must not", async () => {
   const server = await startServer();
   const sessionStart = JSON.stringify(hookInput({ hook_event_name: "SessionStart", source: "startup" }));
-  const toolCall = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE}Gmail_X` }));
+  const toolCall = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Gmail_X` }));
   const readOnly = process.platform !== "win32" && process.getuid?.() !== 0;
   // [label, stdin, env overrides, prepare data dir, data dir stays empty]
   const cases = [
