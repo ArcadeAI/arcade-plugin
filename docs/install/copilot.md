@@ -3,13 +3,14 @@
 ## Full plugin
 
 ```bash
-npx plugins add ArcadeAI/arcade-plugin --target github-copilot
+copilot plugin install ArcadeAI/arcade-plugin
 ```
 
-Native alternative:
+The cross-client CLI works too; it runs Copilot's own `copilot plugin`
+commands for you:
 
 ```bash
-copilot plugin install ArcadeAI/arcade-plugin
+npx plugins add ArcadeAI/arcade-plugin --target github-copilot
 ```
 
 Restart or `/restart` your Copilot session after install.

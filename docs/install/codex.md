@@ -31,7 +31,16 @@ fixes the loader. The hook adapter lives on branch
 
 ## Install
 
-**Cross-client CLI (stages the plugin and registers a local marketplace):**
+```bash
+codex plugin marketplace add ArcadeAI/arcade-plugin
+codex plugin add arcade@arcade
+```
+
+This uses Codex's own marketplace support and the repo's marketplace manifest.
+
+**Cross-client CLI.** `npx plugins add` alone caches the plugin and enables it
+in `config.toml`, but `codex plugin list` shows it as not installed and no MCP
+server loads until you finish with `codex plugin add`:
 
 ```bash
 npx plugins add ArcadeAI/arcade-plugin --target codex
@@ -43,16 +52,6 @@ From a local checkout:
 ```bash
 npx plugins add /path/to/arcade-plugin --target codex
 codex plugin add arcade@plugins-cli
-```
-
-`npx plugins add` alone caches the plugin and enables it in `config.toml`, but
-Codex still needs `codex plugin add` before skills show up in sessions.
-
-**OpenAI-native CLI (uses the repo's marketplace manifest):**
-
-```bash
-codex plugin marketplace add ArcadeAI/arcade-plugin
-codex plugin add arcade@arcade
 ```
 
 ## Verify

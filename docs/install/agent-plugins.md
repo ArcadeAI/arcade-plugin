@@ -9,14 +9,12 @@ https://api.arcade.dev/mcp/arcade
 That path is tools only.
 
 Clients that implement [Agent Plugins](https://agent-plugins.org) 1.0 can
-install the full plugin:
-
-```bash
-npx plugins add ArcadeAI/arcade-plugin
-```
-
-That loads `plugin.json`, `skills/`, and `mcp.json` — `try-arcade`,
-`scale-arcade`, and the gateway.
+load the full plugin — `plugin.json`, `skills/`, and `mcp.json`, which give you
+`try-arcade`, `scale-arcade`, and the gateway. Install it the way your client
+installs plugins; the [install guides](README.md) cover each supported client.
+The cross-client `npx plugins add ArcadeAI/arcade-plugin` doesn't finish the
+job for every client yet (see
+[About `npx plugins add`](README.md#about-npx-plugins-add)).
 
 The operator is not a portable Agent Plugins component. Claude Code and Cursor
 load the canonical file in `agents/`; Copilot CLI and VS Code load its generated

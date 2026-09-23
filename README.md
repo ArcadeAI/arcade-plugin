@@ -19,14 +19,44 @@ once in the browser without ever handing your agent a key.
 
 ### Full plugin
 
-#### Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT local runtime
+Each client has its own install. Use the one for yours.
+
+**Claude Code**
 
 ```bash
-npx plugins add ArcadeAI/arcade-plugin
+npx plugins add ArcadeAI/arcade-plugin --target claude-code
 ```
 
-Add `--target cursor` (or `claude-code`, `vscode`, `codex`, `github-copilot`) to
-install to one client. See [install guides](docs/install/) for details.
+**Codex / ChatGPT local runtime**
+
+```bash
+codex plugin marketplace add ArcadeAI/arcade-plugin
+codex plugin add arcade@arcade
+```
+
+**Cursor**
+
+```bash
+git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin
+```
+
+Then reload Cursor.
+
+**VS Code:** Command Palette → **Chat: Install Plugin From Source** → paste
+`https://github.com/ArcadeAI/arcade-plugin`.
+
+**GitHub Copilot CLI**
+
+```bash
+copilot plugin install ArcadeAI/arcade-plugin
+```
+
+Why not one `npx plugins add` for every client: as of `plugins` 1.3.4 it only
+does the whole job for Claude Code, and for Copilot CLI it hands off to
+Copilot's own `copilot plugin` commands. For Codex it stops before
+`codex plugin add`; for Cursor on macOS and Linux it writes into Claude Code's
+plugin folder instead of Cursor's; for VS Code it points a setting at a cache
+folder. Details are in the [install guides](docs/install/).
 
 ### Claude Desktop
 

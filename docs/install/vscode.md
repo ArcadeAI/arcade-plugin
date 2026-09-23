@@ -2,11 +2,15 @@
 
 ## Full plugin (recommended)
 
-```bash
-npx plugins add ArcadeAI/arcade-plugin --target vscode
+Command Palette → **Chat: Install Plugin From Source** → paste:
+
+```text
+https://github.com/ArcadeAI/arcade-plugin
 ```
 
-Enable agent plugins in VS Code if needed (`chat.plugins.enabled`).
+Enable agent plugins in VS Code if needed (`chat.plugins.enabled`). Reload the
+VS Code window after install and confirm the plugin under **Agent Plugins →
+Installed**.
 
 VS Code loads root `plugin.json` as an Agent Plugin: 2 skills, the gateway,
 and `arcade-operator` from `com.github.copilot/agents/`. It does not read the
@@ -15,16 +19,17 @@ and `arcade-operator` from `com.github.copilot/agents/`. It does not read the
 If you already installed the plugin via Copilot CLI, VS Code may auto-discover
 it from `~/.copilot/installed-plugins/`. Install in one place.
 
-### Alternative installs
+### Local checkout
 
-- **From GitHub in VS Code:** Command Palette → **Chat: Install Plugin From
-  Source** → `https://github.com/ArcadeAI/arcade-plugin`
-- **Local checkout:** `npx plugins add /absolute/path/to/arcade-plugin
-  --target vscode`, or add the absolute path to `chat.pluginLocations` in
-  settings (see [VS Code Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)).
+Add the absolute path of your checkout to `chat.pluginLocations` in settings
+(see [VS Code Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)).
 
-Reload the VS Code window after install. Confirm the plugin under **Agent
-Plugins → Installed**.
+### Why not `npx plugins add --target vscode`
+
+`plugins` 1.3.4 adds a `chat.pluginLocations` entry pointing at a copy under
+`~/.cache/plugins/`, so clearing that cache removes the plugin. It also doesn't
+turn on `chat.plugins.enabled`, and it only finds VS Code when the `code`
+shell command is on your `PATH`.
 
 ## Tools only (one click)
 

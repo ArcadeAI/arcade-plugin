@@ -2,35 +2,34 @@
 
 ## Full plugin (recommended)
 
+Clone this repository into Cursor's local plugin folder:
+
 ```bash
-npx plugins add ArcadeAI/arcade-plugin --target cursor
+git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin
 ```
 
-Reload the window if needed. Open **Customize** and confirm 2 skills, the
-`arcade-operator` agent, and the `arcade` MCP server.
-
-If Customize does not show the plugin after install, use the local copy path
-below. On macOS and Linux the cross-client CLI may stage under Claude's plugin
-cache instead of Cursor's plugin store.
-
-### Local checkout (reliable for development)
-
-Copy this repository to:
-
-```text
-~/.cursor/plugins/local/arcade-plugin
-```
+Reload Cursor (**Developer: Reload Window**), then open **Customize** and
+confirm 2 skills, the `arcade-operator` agent, and the `arcade` MCP server. To
+update later, run `git pull` in that folder and reload.
 
 Do not symlink to a folder outside `~/.cursor/plugins/local/` — Cursor ignores
-external symlink targets. Reload Cursor, then open **Customize** and confirm
-the plugin loaded.
+external symlink targets.
 
-Local plugin imports must be allowed (on Teams/Enterprise, that's an admin
-setting).
+Local plugin imports must be allowed (on Teams/Enterprise, that's the admin
+setting **Allow Local Plugin Imports**, off by default on Enterprise).
 
 Cursor reads `.cursor-plugin/plugin.json` first, so it loads `skills/`,
 `agents/`, and `clients/cursor/mcp.json` — not just the portable Agent
 Plugins core.
+
+### Why not `npx plugins add --target cursor`
+
+On macOS and Linux, `plugins` 1.3.4 does not write to Cursor's plugin folder.
+It installs into Claude Code's (`~/.claude/plugins`) and relies on Cursor
+reading that. Cursor only does when **Settings → Rules, Skills, Subagents →
+Include third-party Plugins, Skills, and other configs** is on, and even then
+it loads the Claude Code manifest, so the Cursor rule and Cursor hooks from
+`.cursor-plugin/` don't load.
 
 ## Tools only (one click)
 
