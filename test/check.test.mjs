@@ -29,7 +29,7 @@ test("hand-written files name the gateway from mcp.json", () => {
 // Clients load these default locations on their own, which would add a second
 // copy of the operator, gateway, or rule.
 test("no root folders that clients would load a second time", () => {
-  for (const name of ["agents", "rules", ".mcp.json", "hooks/hooks.json"]) {
+  for (const name of ["rules", ".mcp.json", "hooks/hooks.json"]) {
     assert.ok(!existsSync(path.join(ROOT, name)), `unexpected root ${name}`);
   }
 });

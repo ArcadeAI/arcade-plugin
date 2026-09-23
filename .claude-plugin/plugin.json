@@ -14,9 +14,6 @@
     "connected-apps"
   ],
   "version": "0.1.0",
-  "agents": [
-    "./com.github.copilot/agents/arcade-operator.agent.md"
-  ],
   "hooks": "./.claude-plugin/hooks.json",
   "mcpServers": {
     "arcade": {

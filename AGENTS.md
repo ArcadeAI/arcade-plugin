@@ -6,7 +6,7 @@ Client-specific files are generated. Edit the source, run `npm run generate`,
 then `npm run verify` (it fails if a generated file was edited by hand).
 [ARCHITECTURE.md](ARCHITECTURE.md) lists the sources; `.gitattributes` lists
 every fully generated file. `skills/try-arcade/SKILL.md` and
-`com.github.copilot/agents/arcade-operator.agent.md` are hand-written except
+`agents/arcade-operator.agent.md` are hand-written except
 for a marked rules block.
 
 - Routing rules: edit `hooks/routing-guidance.mjs`, never the rules text in
