@@ -14,5 +14,13 @@
     "connected-apps"
   ],
   "version": "0.1.0",
-  "mcpServers": "./clients/claude/mcp.json"
+  "agents": [
+    "./com.github.copilot/agents/arcade-operator.agent.md"
+  ],
+  "mcpServers": {
+    "arcade": {
+      "type": "http",
+      "url": "https://api.arcade.dev/mcp/arcade"
+    }
+  }
 }

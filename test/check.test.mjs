@@ -1,0 +1,44 @@
+// Checks for the hand-written files that `npm run generate` doesn't cover.
+
+import assert from "node:assert/strict";
+import Ajv2020 from "ajv/dist/2020.js";
+import { existsSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { test } from "node:test";
+import { SESSION_CONTEXT } from "../hooks/routing-guidance.mjs";
+import { readRepoFile, ROOT } from "./helpers.mjs";
+
+const plugin = JSON.parse(readRepoFile("plugin.json"));
+const endpoint = JSON.parse(readRepoFile("mcp.json")).mcpServers.arcade.url;
+const slug = new URL(plugin.repository).pathname.slice(1);
+
+test("plugin.json and mcp.json match the vendored Agent Plugins 1.0 schemas", () => {
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  for (const file of ["plugin.json", "mcp.json"]) {
+    const validate = ajv.compile(JSON.parse(readRepoFile(`schemas/agent-plugins/1.0.0/${file.replace(".json", ".schema.json")}`)));
+    assert.ok(validate(JSON.parse(readRepoFile(file))), `${file}: ${ajv.errorsText(validate.errors)}`);
+  }
+  assert.ok(plugin.extensions?.["com.openai"]?.interface?.displayName, "plugin.json: Codex displayName");
+});
+
+test("hand-written files name the gateway from mcp.json", () => {
+  assert.ok(readRepoFile("README.md").includes(endpoint), `README.md: must reference ${endpoint}`);
+  assert.ok(SESSION_CONTEXT.includes(new URL(endpoint).host), "routing rules must name the gateway host");
+});
+
+// Clients load these default locations on their own, which would add a second
+// copy of the operator, gateway, or rule.
+test("no root folders that clients would load a second time", () => {
+  for (const name of ["agents", "rules", ".mcp.json"]) {
+    assert.ok(!existsSync(path.join(ROOT, name)), `unexpected root ${name}`);
+  }
+});
+
+test("install docs name the repo and link every client page", () => {
+  const index = readRepoFile("docs/install/README.md");
+  assert.ok(index.includes(`npx plugins add ${slug}`));
+  assert.ok(readRepoFile("docs/install/claude-desktop.md").includes(`claude plugin marketplace add ${slug}`));
+  for (const page of readdirSync(path.join(ROOT, "docs/install"))) {
+    if (page !== "README.md") assert.ok(index.includes(`(${page})`), `${page} not linked from docs/install/README.md`);
+  }
+});

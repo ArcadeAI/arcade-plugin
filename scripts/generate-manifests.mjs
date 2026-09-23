@@ -1,291 +1,188 @@
 #!/usr/bin/env node
+// Writes every client-specific file from the sources listed in
+// ARCHITECTURE.md. `--check` fails instead of writing if anything is stale.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readVersion } from "./version.mjs";
-import { PLUGIN_DISPLAY_NAME } from "./constants.mjs";
 import {
-  GATEWAY_RULES_DELEGATE,
-  GATEWAY_RULES_PARENT,
-  SESSION_CONTEXT,
+  CURSOR_RULE,
+  OPERATOR_RULES,
+  SKILL_RULES,
 } from "../hooks/routing-guidance.mjs";
 import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-export const GENERATED_MANIFESTS = [
-  "clients/cursor/mcp.json",
-  "clients/claude/mcp.json",
-  ".cursor-plugin/plugin.json",
-  ".claude-plugin/plugin.json",
-  ".claude-plugin/marketplace.json",
-];
-
-export const GENERATED_PROJECTIONS = [
-  ...GENERATED_MANIFESTS,
-  "com.github.copilot/agents/arcade-operator.agent.md",
-  "clients/cursor/rules/arcade.mdc",
-  ...Object.values(HOSTS).map((host) => host.manifest),
-];
+// Copilot CLI and VS Code only load agents from this folder, so the one copy
+// of the operator lives here and Cursor and Claude Code are pointed at it.
+const AGENTS_DIR = "com.github.copilot/agents";
+const CURSOR_RULE_DIR = "clients/cursor/rules";
 
 /** Hand-written files that contain one generated block of routing rules. */
 export const FILES_WITH_GENERATED_RULES = {
-  "agents/arcade-operator.agent.md": GATEWAY_RULES_DELEGATE,
-  "skills/try-arcade/SKILL.md": GATEWAY_RULES_PARENT,
+  [`${AGENTS_DIR}/arcade-operator.agent.md`]: OPERATOR_RULES,
+  "skills/try-arcade/SKILL.md": SKILL_RULES,
 };
 
-export const RULES_BLOCK_BEGIN =
+/** Generated copy → hand-written source. Each skill folder has to work on its own. */
+export const COPIED_FILES = {
+  "skills/scale-arcade/references/arcade-docs.md": "skills/try-arcade/references/arcade-docs.md",
+};
+
+const RULES_BLOCK_BEGIN =
   "<!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->";
-export const RULES_BLOCK_END = "<!-- END generated -->";
+const RULES_BLOCK_END = "<!-- END generated -->";
 
-const COPILOT_AGENT_NOTE =
-  "<!-- Generated copy of agents/arcade-operator.agent.md by `npm run generate`. " +
-  "Copilot CLI and VS Code only load agents from com.github.copilot/agents/. " +
-  "Edit the source file, not this one. -->";
+const SEMVER = /^\d+\.\d+\.\d+(-[\w.-]+)?(\+[\w.-]+)?$/;
 
-// Keeps generated Markdown readable in diffs; hosts ignore the line breaks.
-const wrapText = (text, width = 78) => {
-  const lines = [];
-  let line = "";
-  for (const word of text.split(" ")) {
-    if (line && line.length + 1 + word.length > width) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = line ? `${line} ${word}` : word;
-    }
-  }
-  if (line) lines.push(line);
-  return lines.join("\n");
+export const parseVersion = (raw) => {
+  const version = raw.trim();
+  if (!SEMVER.test(version)) throw new Error(`invalid semver: ${version}`);
+  return version;
 };
 
-export const fillRulesBlock = (text, rules, relativePath) => {
+const readText = (root, path) => readFileSync(join(root, path), "utf8");
+const readJson = (root, path) => JSON.parse(readText(root, path));
+const serialize = (value) => `${JSON.stringify(value, null, 2)}\n`;
+
+const fillRulesBlock = (text, rules, path) => {
   const begin = text.indexOf(RULES_BLOCK_BEGIN);
   const end = text.indexOf(RULES_BLOCK_END);
-  if (begin === -1 || end === -1 || end < begin) {
-    throw new Error(`${relativePath} is missing the generated rules block markers`);
+  if (begin === -1 || end < begin) {
+    throw new Error(`${path} is missing the generated rules block markers`);
   }
-  return (
-    text.slice(0, begin + RULES_BLOCK_BEGIN.length) +
-    `\n${wrapText(rules)}\n` +
-    text.slice(end)
-  );
+  return `${text.slice(0, begin + RULES_BLOCK_BEGIN.length)}\n${rules}\n${text.slice(end)}`;
 };
 
 const hookCommand = (hostName, script) =>
   `node "\${${HOSTS[hostName].rootVariable}}/hooks/${script}" --host ${hostName}`;
 
-const hooksForHost = (hostName) =>
-  HOOKS.filter((hook) => hook.events[hostName]).map((hook) => ({
-    event: hook.events[hostName],
-    command: hookCommand(hostName, hook.script),
-  }));
 
-// Claude Code: { hooks: { Event: [{ matcher?, hooks: [{ type, command, timeout }] }] } }
-const buildClaudeHooks = () => {
+// Claude Code nests each command in a group: { hooks: { Event: [{ hooks: [entry] }] } }.
+// Copilot CLI and VS Code take the entries directly and need version 1.
+const buildHookManifest = (hostName) => {
   const hooks = {};
-  for (const { event, command } of hooksForHost("claude-code")) {
-    const matcher = HOSTS["claude-code"].matchers[event];
-    hooks[event] = [
-      {
-        ...(matcher ? { matcher } : {}),
-        hooks: [{ type: "command", command, timeout: HOOK_TIMEOUT_SEC }],
-      },
-    ];
+  for (const { event, script } of HOOKS) {
+    const entry = { type: "command", command: hookCommand(hostName, script), timeout: HOOK_TIMEOUT_SEC };
+    hooks[event] = HOSTS[hostName].format === "nested" ? [{ hooks: [entry] }] : [entry];
   }
-  return { hooks };
+  return HOSTS[hostName].format === "nested" ? { hooks } : { version: 1, hooks };
 };
 
-// Cursor: { version: 1, hooks: { event: [{ command, timeout }] } }
-const buildCursorHooks = () => {
-  const hooks = {};
-  for (const { event, command } of hooksForHost("cursor")) {
-    hooks[event] = [{ command, timeout: HOOK_TIMEOUT_SEC }];
+/** Every generated file and its contents, from the sources in `root`. */
+const buildFiles = (root) => {
+  const plugin = readJson(root, "plugin.json");
+  const version = parseVersion(readText(root, "VERSION"));
+  if (plugin.version !== version) {
+    throw new Error(`plugin.json version ${plugin.version} does not match VERSION ${version}`);
   }
-  return { version: 1, hooks };
-};
+  const { url } = readJson(root, "mcp.json").mcpServers.arcade;
+  const displayName = plugin.extensions["com.openai"].interface.displayName;
+  const { name, description, author, homepage, license, keywords, repository } = plugin;
+  const identity = { name, description, author, homepage, license, keywords, version };
 
-const HOOK_MANIFEST_BUILDERS = {
-  "claude-code": buildClaudeHooks,
-  cursor: buildCursorHooks,
-};
-
-const buildCursorRule = () =>
-  [
-    "---",
-    "description: Prefer Arcade for external service tasks",
-    "alwaysApply: true",
-    "---",
-    "",
-    "<!-- Generated from hooks/routing-guidance.mjs by `npm run generate`. Edit that file, not this one. -->",
-    "",
-    wrapText(SESSION_CONTEXT),
-    "",
-  ].join("\n");
-
-const addCopilotNote = (operatorText) => {
-  const frontmatterEnd = operatorText.indexOf("\n---\n", 4) + "\n---\n".length;
-  return (
-    operatorText.slice(0, frontmatterEnd) +
-    `\n${COPILOT_AGENT_NOTE}\n` +
-    operatorText.slice(frontmatterEnd)
-  );
-};
-
-const readJson = (root, relativePath) =>
-  JSON.parse(readFileSync(join(root, relativePath), "utf8"));
-
-const serialize = (value) => `${JSON.stringify(value, null, 2)}\n`;
-
-const identityFields = (portablePlugin) => {
-  const {
-    name,
-    description,
-    author,
-    homepage,
-    license,
-    keywords,
-  } = portablePlugin;
-  return { name, description, author, homepage, license, keywords };
-};
-
-const listingFields = () => ({ displayName: PLUGIN_DISPLAY_NAME });
-
-export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
-  if (portablePlugin.version !== version) {
-    throw new Error(
-      `plugin.json version ${portablePlugin.version} does not match VERSION ${version}`,
-    );
-  }
-
-  const gateway = portableMcp.mcpServers?.arcade;
-  if (!gateway?.url) {
-    throw new Error('mcp.json must define mcpServers.arcade.url');
-  }
-
-  const shared = { ...identityFields(portablePlugin), version };
-  const cursorMcp = {
-    mcpServers: {
-      arcade: { url: gateway.url },
-    },
-  };
-  const claudeMcp = {
-    mcpServers: {
-      arcade: { type: "http", url: gateway.url },
-    },
-  };
-  const cursorPlugin = {
-    ...shared,
-    ...listingFields(),
-    repository: portablePlugin.repository,
-    skills: "skills",
-    agents: "agents",
-    commands: "commands",
-    rules: "clients/cursor/rules",
-    hooks: "clients/cursor/hooks/hooks.json",
-    mcpServers: "clients/cursor/mcp.json",
-  };
-  const claudePlugin = {
-    ...shared,
-    mcpServers: "./clients/claude/mcp.json",
-  };
-  const marketplaceManifest = {
-    $schema: "https://json.schemastore.org/claude-code-marketplace.json",
-    name: portablePlugin.name,
-    description: "Install Arcade in Claude Desktop, Cowork, and Claude Code.",
-    version,
-    owner: portablePlugin.author,
-    plugins: [
-      {
-        name: portablePlugin.name,
-        displayName: PLUGIN_DISPLAY_NAME,
-        source: "./",
-        description: portablePlugin.description,
-        version,
-        author: portablePlugin.author,
-        homepage: portablePlugin.homepage,
-        repository: portablePlugin.repository,
-        license: portablePlugin.license,
-        keywords: portablePlugin.keywords,
-      },
+  const files = new Map([
+    [
+      ".cursor-plugin/plugin.json",
+      serialize({
+        ...identity,
+        displayName,
+        repository,
+        skills: "skills",
+        agents: AGENTS_DIR,
+        commands: "commands",
+        rules: CURSOR_RULE_DIR,
+        // Cursor infers the transport from the URL.
+        mcpServers: { arcade: { url } },
+      }),
     ],
-  };
-
-  return new Map([
-    ["clients/cursor/mcp.json", cursorMcp],
-    ["clients/claude/mcp.json", claudeMcp],
-    [".cursor-plugin/plugin.json", cursorPlugin],
-    [".claude-plugin/plugin.json", claudePlugin],
-    [".claude-plugin/marketplace.json", marketplaceManifest],
+    [
+      ".claude-plugin/plugin.json",
+      serialize({
+        ...identity,
+        agents: [`./${AGENTS_DIR}/arcade-operator.agent.md`],
+        // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
+        mcpServers: { arcade: { type: "http", url } },
+      }),
+    ],
+    [
+      ".claude-plugin/marketplace.json",
+      serialize({
+        $schema: "https://json.schemastore.org/claude-code-marketplace.json",
+        name,
+        // Marketplace listing text; not used by any other client.
+        description: "Install Arcade in Claude Desktop, Cowork, and Claude Code.",
+        owner: author,
+        // No version here: Claude Code takes it from .claude-plugin/plugin.json.
+        plugins: [
+          { name, displayName, source: "./", description, author, homepage, repository, license, keywords },
+        ],
+      }),
+    ],
+    [
+      `${CURSOR_RULE_DIR}/arcade.mdc`,
+      [
+        "---",
+        "description: Prefer Arcade for external service tasks",
+        "alwaysApply: true",
+        "---",
+        "",
+        "<!-- Generated from hooks/routing-guidance.mjs by `npm run generate`. Edit that file, not this one. -->",
+        "",
+        CURSOR_RULE,
+        "",
+      ].join("\n"),
+    ],
   ]);
-};
-
-const writeIfChanged = (root, relativePath, content, checkOnly) => {
-  const absolutePath = join(root, relativePath);
-  mkdirSync(dirname(absolutePath), { recursive: true });
-
-  if (checkOnly) {
-    const current = readFileSync(absolutePath, "utf8");
-    if (current !== content) {
-      throw new Error(`${relativePath} is out of date — run npm run generate`);
-    }
-    return;
-  }
-
-  writeFileSync(absolutePath, content, "utf8");
-};
-
-export function generateManifests({ check = false, root = ROOT } = {}) {
-  const version = readVersion(root);
-  const manifests = buildManifests({
-    portablePlugin: readJson(root, "plugin.json"),
-    portableMcp: readJson(root, "mcp.json"),
-    version,
-  });
-
-  for (const [path, value] of manifests) {
-    writeIfChanged(root, path, serialize(value), check);
-  }
-
-  for (const [path, rules] of Object.entries(FILES_WITH_GENERATED_RULES)) {
-    const current = readFileSync(join(root, path), "utf8");
-    writeIfChanged(root, path, fillRulesBlock(current, rules, path), check);
-  }
-
-  writeIfChanged(root, "clients/cursor/rules/arcade.mdc", buildCursorRule(), check);
 
   for (const [hostName, host] of Object.entries(HOSTS)) {
-    const manifest = HOOK_MANIFEST_BUILDERS[hostName]();
-    writeIfChanged(root, host.manifest, serialize(manifest), check);
+    files.set(host.manifest, serialize(buildHookManifest(hostName)));
   }
 
-  const operator = fillRulesBlock(
-    readFileSync(join(root, "agents/arcade-operator.agent.md"), "utf8"),
-    GATEWAY_RULES_DELEGATE,
-    "agents/arcade-operator.agent.md",
+  for (const [copy, source] of Object.entries(COPIED_FILES)) {
+    files.set(copy, readText(root, source));
+  }
+
+  // GitHub collapses linguist-generated files in pull request diffs.
+  files.set(
+    ".gitattributes",
+    [
+      "# Written by `npm run generate`. Lists every generated file.",
+      ...[...files.keys()].map((path) => `${path} linguist-generated=true`),
+      "",
+    ].join("\n"),
   );
-  writeIfChanged(
-    root,
-    "com.github.copilot/agents/arcade-operator.agent.md",
-    addCopilotNote(operator),
-    check,
-  );
 
-  return { version, projectionCount: GENERATED_PROJECTIONS.length };
-}
+  for (const [path, rules] of Object.entries(FILES_WITH_GENERATED_RULES)) {
+    files.set(path, fillRulesBlock(readText(root, path), rules, path));
+  }
 
-const isCli =
-  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
-if (isCli) {
+  return files;
+};
+
+export const generateManifests = ({ check = false, root = ROOT } = {}) => {
+  const files = buildFiles(root);
+  for (const [path, content] of files) {
+    const absolutePath = join(root, path);
+    if (check) {
+      if (readFileSync(absolutePath, "utf8") !== content) {
+        throw new Error(`${path} is out of date — run npm run generate`);
+      }
+      continue;
+    }
+    mkdirSync(dirname(absolutePath), { recursive: true });
+    writeFileSync(absolutePath, content, "utf8");
+  }
+  return files;
+};
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const check = process.argv.includes("--check");
   try {
-    const result = generateManifests({ check });
-    const mode = check ? "check" : "generate";
-    console.log(
-      `${mode}: ${result.projectionCount} host projections from portable sources (v${result.version})`,
-    );
+    const files = generateManifests({ check });
+    console.log(`${check ? "check" : "generate"}: ${files.size} files`);
   } catch (error) {
     console.error(error.message);
     process.exit(1);

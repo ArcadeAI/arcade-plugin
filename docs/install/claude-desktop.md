@@ -39,17 +39,6 @@ If you only want the gateway, skip the marketplace:
 https://api.arcade.dev/mcp/arcade
 ```
 
-Or merge
-[`clients/claude-desktop/claude_desktop_config.json`](../../clients/claude-desktop/claude_desktop_config.json)
-into your `claude_desktop_config.json` and restart Claude Desktop fully.
-The sample uses a pinned `mcp-remote` proxy to bridge to the hosted
-gateway.
-
-## Sign in
-
-No API keys. The first task that touches an app returns a sign-in link;
-approve it in the browser when prompted.
-
 ## First steps
 
 - "What's on my calendar tomorrow?"

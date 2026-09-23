@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "arcade": {
-      "type": "http",
-      "url": "https://api.arcade.dev/mcp/arcade"
-    }
-  }
-}

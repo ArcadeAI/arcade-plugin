@@ -17,9 +17,12 @@
   "displayName": "Arcade",
   "repository": "https://github.com/ArcadeAI/arcade-plugin",
   "skills": "skills",
-  "agents": "agents",
+  "agents": "com.github.copilot/agents",
   "commands": "commands",
   "rules": "clients/cursor/rules",
-  "hooks": "clients/cursor/hooks/hooks.json",
-  "mcpServers": "clients/cursor/mcp.json"
+  "mcpServers": {
+    "arcade": {
+      "url": "https://api.arcade.dev/mcp/arcade"
+    }
+  }
 }

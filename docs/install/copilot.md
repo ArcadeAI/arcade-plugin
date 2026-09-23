@@ -20,15 +20,9 @@ Copilot CLI reads the portable Agent Plugins components (`plugin.json`,
 `com.github.copilot/agents/arcade-operator.agent.md`. You get 2 skills, the
 gateway, and `arcade-operator`.
 
-Copilot and VS Code load plugin hooks only from
-`com.github.copilot/hooks/hooks.json`. Arcade lifecycle hooks live in
-`hooks/hooks.json` for Claude Code, so use the skills for routing guidance on
-Copilot CLI.
-
-## Sign in
-
-No API keys. The first task that touches an app returns a sign-in link;
-approve it in the browser when prompted.
+Hooks come from `com.github.copilot/hooks/hooks.json`: routing rules at
+session start and for subagents. Copilot CLI drops the output of prompt hooks
+from config files, so there's no per-prompt reminder here.
 
 ## First steps
 

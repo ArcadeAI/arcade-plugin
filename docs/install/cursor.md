@@ -32,28 +32,14 @@ Imports** (off by default on Enterprise). When it's off, Cursor ignores
 2. Each person opens **Customize**, finds **Arcade**, and selects **Install**.
 
 Either way, Cursor reads `.cursor-plugin/plugin.json` first, so it loads
-`skills/`, `agents/`, `clients/cursor/rules/`, and `clients/cursor/mcp.json` —
+`skills/`, the operator, the Cursor rule, and the gateway —
 not just the portable Agent Plugins core.
-
-### Why not `npx plugins add --target cursor`
-
-On macOS and Linux, `plugins` 1.3.4 does not write to Cursor's plugin folder.
-It installs into Claude Code's (`~/.claude/plugins`) and relies on Cursor
-reading that. Cursor only does when **Settings → Rules, Skills, Subagents →
-Include third-party Plugins, Skills, and other configs** is on; with it off,
-Cursor's log shows `claude=false` and Arcade doesn't load. Even with it on,
-Cursor would get the Claude Code manifest, not the Cursor rule and hooks.
 
 ## Tools only (one click)
 
 [![Install in Cursor](https://img.shields.io/badge/Cursor-one--click-000000)](https://cursor.com/install-mcp?name=arcade&config=eyJ1cmwiOiJodHRwczovL2FwaS5hcmNhZGUuZGV2L21jcC9hcmNhZGUifQ==)
 
 This adds the gateway only — no skills.
-
-## Sign in
-
-No API keys. The first task that touches an app returns a sign-in link;
-approve it in the browser when prompted.
 
 ## First steps
 

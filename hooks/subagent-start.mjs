@@ -1,56 +1,22 @@
 #!/usr/bin/env node
-// Claude Code SubagentStart hook: routing reminder for subagents other than
-// arcade-operator. Always exit 0.
+// Adds the routing rules to subagents. arcade-operator already has them in its
+// own instructions, so it is skipped. Always exits 0.
 
-import { hostFromArgs } from "./hook-hosts.mjs";
+import { hostFromArgs, printContext, readInput } from "./hook-hosts.mjs";
 import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 
+// Plugin agents can arrive scoped, e.g. "arcade:arcade-operator".
+const isOperator = (name) =>
+  typeof name === "string" &&
+  (name === "arcade-operator" || name.endsWith(":arcade-operator"));
+
 const host = hostFromArgs(process.argv);
-
-const OPERATOR_AGENT = "arcade-operator";
-
-const readStdin = async () => {
-  if (process.stdin.isTTY) return "";
-  let data = "";
-  try {
-    for await (const chunk of process.stdin) data += chunk;
-  } catch {
-    // No stdin.
-  }
-  return data;
-};
-
-const isArcadeOperator = (rawInput) => {
-  try {
-    const input = JSON.parse(rawInput);
-    const agentType = input.agent_type;
-    if (typeof agentType !== "string") return false;
-    return (
-      agentType === OPERATOR_AGENT || agentType.endsWith(`:${OPERATOR_AGENT}`)
-    );
-  } catch {
-    return false;
-  }
-};
-
-const emitResponse = () => {
-  if (!host) return;
-  try {
-    process.stdout.write(
-      JSON.stringify(host.contextOutput("SubagentStart", SUBAGENT_CONTEXT)),
-    );
-  } catch {
-    // Never block subagent startup on stdout failures.
-  }
-};
-
 try {
-  const rawInput = await readStdin();
-  if (!isArcadeOperator(rawInput)) {
-    emitResponse();
+  const input = await readInput();
+  if (host && !isOperator(input.agent_type)) {
+    printContext(host, "SubagentStart", SUBAGENT_CONTEXT);
   }
 } catch {
-  emitResponse();
+  // Never block a subagent.
 }
-
 process.exit(0);

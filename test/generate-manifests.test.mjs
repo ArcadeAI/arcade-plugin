@@ -1,163 +1,56 @@
 import assert from "node:assert/strict";
-import Ajv2020 from "ajv/dist/2020.js";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
-import {
-  GENERATED_PROJECTIONS,
-  generateManifests,
-} from "../scripts/generate-manifests.mjs";
-import { readVersion } from "../scripts/version.mjs";
-import { PLUGIN_DISPLAY_NAME } from "../scripts/constants.mjs";
-import { readRepoJson, ROOT } from "./helpers.mjs";
+import { generateManifests, parseVersion } from "../scripts/generate-manifests.mjs";
+import { makeFixture, readRepoFile } from "./helpers.mjs";
 
-const withoutCopilotNote = (text) =>
-  text.replace(/\n<!-- Generated copy of agents\/arcade-operator\.agent\.md[^\n]*-->\n/, "");
-
-const writeJson = (root, relativePath, value) => {
-  const target = join(root, relativePath);
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`);
-};
-
-const createFixture = async () => {
-  const root = mkdtempSync(join(tmpdir(), "arcade-manifests-"));
-  const version = readVersion(ROOT);
-  writeFileSync(join(root, "VERSION"), `${version}\n`);
-  writeJson(root, "plugin.json", await readRepoJson("plugin.json"));
-  writeJson(root, "mcp.json", await readRepoJson("mcp.json"));
-  for (const path of [
-    "agents/arcade-operator.agent.md",
-    "skills/try-arcade/SKILL.md",
-  ]) {
-    mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), readFileSync(join(ROOT, path), "utf8"));
-  }
-  return root;
-};
-
-test("generateManifests matches committed host manifests", async () => {
-  const version = readVersion(ROOT);
-  const result = generateManifests({ check: true });
-
-  assert.equal(result.version, version);
-  assert.equal(result.projectionCount, GENERATED_PROJECTIONS.length);
-
-  const portable = await readRepoJson("plugin.json");
-  assert.equal(portable.version, version);
-  const mcp = await readRepoJson("mcp.json");
-  assert.equal(mcp.mcpServers.arcade.type, "streamable-http");
-
-  const cursorMcp = await readRepoJson("clients/cursor/mcp.json");
-  assert.equal(cursorMcp.mcpServers.arcade.url, mcp.mcpServers.arcade.url);
-  assert.equal(cursorMcp.mcpServers.arcade.type, undefined);
-
-  const claudeMcp = await readRepoJson("clients/claude/mcp.json");
-  assert.equal(claudeMcp.mcpServers.arcade.type, "http");
-  assert.equal(claudeMcp.mcpServers.arcade.url, mcp.mcpServers.arcade.url);
-
-  const cursorPlugin = await readRepoJson(".cursor-plugin/plugin.json");
-  assert.equal(cursorPlugin.displayName, PLUGIN_DISPLAY_NAME);
-
-  assert.equal(
-    withoutCopilotNote(
-      readFileSync(
-        join(ROOT, "com.github.copilot/agents/arcade-operator.agent.md"),
-        "utf8",
-      ),
-    ),
-    readFileSync(join(ROOT, "agents/arcade-operator.agent.md"), "utf8"),
-  );
+test("committed generated files are current (run npm run generate if not)", () => {
+  generateManifests({ check: true });
 });
 
-test("generateManifests accepts prerelease versions through adapter schemas", async () => {
-  const root = await createFixture();
-  const prerelease = "1.2.3-rc.1";
-
-  try {
-    writeFileSync(join(root, "VERSION"), `${prerelease}\n`);
-    const plugin = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8"));
-    plugin.version = prerelease;
-    writeJson(root, "plugin.json", plugin);
-
-    generateManifests({ root });
-
-    const ajv = new Ajv2020({ allErrors: true, strict: false });
-    for (const [docPath, schemaPath] of [
-      [".cursor-plugin/plugin.json", "schemas/host-adapters/cursor-plugin.schema.json"],
-    ]) {
-      const doc = JSON.parse(readFileSync(join(root, docPath), "utf8"));
-      const schema = JSON.parse(readFileSync(join(ROOT, schemaPath), "utf8"));
-      const validate = ajv.compile(schema);
-      assert.equal(validate(doc), true, `${docPath}: ${JSON.stringify(validate.errors)}`);
-      assert.equal(doc.version, prerelease);
-    }
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+test("parseVersion accepts semver and rejects anything else", () => {
+  assert.equal(parseVersion("0.1.0\n"), "0.1.0");
+  assert.equal(parseVersion("1.2.3-rc.1"), "1.2.3-rc.1");
+  assert.throws(() => parseVersion("v0.1.0"), /invalid semver/);
 });
 
-test("generateManifests checks a temporary installed-artifact fixture", async () => {
-  const root = await createFixture();
-
+test("check mode fails on a hand edit to a generated file or rules block", () => {
+  const root = makeFixture();
   try {
     generateManifests({ root });
     generateManifests({ check: true, root });
 
-    const stalePath = join(root, ".cursor-plugin/plugin.json");
-    const stale = JSON.parse(readFileSync(stalePath, "utf8"));
-    stale.description = `${stale.description} stale`;
-    writeJson(root, ".cursor-plugin/plugin.json", stale);
-
-    assert.throws(
-      () => generateManifests({ check: true, root }),
-      /.cursor-plugin\/plugin.json is out of date/,
-    );
+    const manifest = join(root, ".cursor-plugin/plugin.json");
+    writeFileSync(manifest, `${readFileSync(manifest, "utf8")} `);
+    assert.throws(() => generateManifests({ check: true, root }), /\.cursor-plugin\/plugin\.json is out of date/);
 
     generateManifests({ root });
-    const agentProjection = join(
-      root,
-      "com.github.copilot/agents/arcade-operator.agent.md",
-    );
-    writeFileSync(
-      agentProjection,
-      `${readFileSync(agentProjection, "utf8")}stale\n`,
-    );
-
-    assert.throws(
-      () => generateManifests({ check: true, root }),
-      /com\.github\.copilot\/agents\/arcade-operator\.agent\.md is out of date/,
-    );
-
-    generateManifests({ root });
-    const skillPath = join(root, "skills/try-arcade/SKILL.md");
-    writeFileSync(
-      skillPath,
-      readFileSync(skillPath, "utf8").replace(
-        "use only arcade",
-        "use any Arcade server",
-      ),
-    );
-
-    assert.throws(
-      () => generateManifests({ check: true, root }),
-      /skills\/try-arcade\/SKILL\.md is out of date/,
-    );
+    const skill = join(root, "skills/try-arcade/SKILL.md");
+    writeFileSync(skill, readFileSync(skill, "utf8").replace("use only arcade", "use any server"));
+    assert.throws(() => generateManifests({ check: true, root }), /skills\/try-arcade\/SKILL\.md is out of date/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test(".gitattributes marks every generated file", () => {
-  const attributes = readFileSync(join(ROOT, ".gitattributes"), "utf8");
-  for (const path of GENERATED_PROJECTIONS) {
-    assert.match(attributes, new RegExp(`^${path.replaceAll(".", "\\.")} linguist-generated=true$`, "m"));
+// Mirrors what release-please does with release-please-config.json.
+test("a release-please version bump leaves generated files in sync", () => {
+  const root = makeFixture();
+  const config = JSON.parse(readRepoFile("release-please-config.json")).packages["."];
+  try {
+    generateManifests({ root });
+    writeFileSync(join(root, config["version-file"]), "9.9.9\n");
+    for (const { path, jsonpath } of config["extra-files"]) {
+      const file = join(root, path);
+      const document = JSON.parse(readFileSync(file, "utf8"));
+      const keys = jsonpath.replace(/^\$\./, "").replace(/\[(\d+)\]/g, ".$1").split(".");
+      const last = keys.pop();
+      keys.reduce((node, key) => node[key], document)[last] = "9.9.9";
+      writeFileSync(file, `${JSON.stringify(document, null, 2)}\n`);
+    }
+    generateManifests({ check: true, root });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
