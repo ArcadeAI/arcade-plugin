@@ -36,14 +36,3 @@ export const VENDORED_SCHEMAS = {
   [PLUGIN_SCHEMA]: "schemas/agent-plugins/1.0.0/plugin.schema.json",
   [MCP_SCHEMA]: "schemas/agent-plugins/1.0.0/mcp.schema.json",
 };
-
-/** Claude Code SessionStart sources matched by hooks/hooks.json. */
-export const SESSION_START_SOURCES = [
-  "startup",
-  "resume",
-  "clear",
-  "compact",
-  "fork",
-];
-export const SESSION_START_MATCHER = SESSION_START_SOURCES.join("|");
-export const HOOK_COMMAND_TIMEOUT_SEC = 5;

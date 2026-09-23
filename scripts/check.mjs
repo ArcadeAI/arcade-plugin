@@ -11,7 +11,6 @@ import {
   CI_NODE_VERSION,
   ENDPOINT,
   GATEWAY_HOST,
-  HOOK_COMMAND_TIMEOUT_SEC,
   INSTALL_SLUG,
   MCP_REMOTE_PACKAGE,
   MCP_SCHEMA,
@@ -19,7 +18,6 @@ import {
   PLUGINS_CLI_VERSION,
   PLUGIN_DISPLAY_NAME,
   PLUGIN_SCHEMA,
-  SESSION_START_MATCHER,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
 
@@ -204,36 +202,6 @@ for (const routingFile of [
   if (!content.includes(GATEWAY_HOST)) {
     fail(`${routingFile}: must reference plugin gateway ${GATEWAY_HOST}`);
   }
-}
-
-const cursorHooks = read("clients/cursor/hooks/hooks.json");
-if (!cursorHooks.includes("${CURSOR_PLUGIN_ROOT}")) {
-  fail("clients/cursor/hooks/hooks.json: must use ${CURSOR_PLUGIN_ROOT}");
-}
-if (cursorHooks.includes("node ./hooks/")) {
-  fail("clients/cursor/hooks/hooks.json: must not use project-relative ./hooks/ paths");
-}
-
-const claudeHooks = read("hooks/hooks.json");
-if (!claudeHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
-  fail('hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}');
-}
-if (!claudeHooks.includes("hooks/session-start.mjs")) {
-  fail("hooks/hooks.json: must reference hooks/session-start.mjs");
-}
-if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
-  fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
-}
-if (!claudeHooks.includes(`"matcher": "${SESSION_START_MATCHER}"`)) {
-  fail(
-    `hooks/hooks.json: SessionStart must match ${SESSION_START_MATCHER.replaceAll("|", ", ")}`,
-  );
-}
-if (!claudeHooks.includes("hooks/subagent-start.mjs")) {
-  fail("hooks/hooks.json: must reference hooks/subagent-start.mjs");
-}
-if (!claudeHooks.includes('"matcher": "*"')) {
-  fail('hooks/hooks.json: SubagentStart must use matcher "*"');
 }
 
 const marketplace = json[".claude-plugin/marketplace.json"];

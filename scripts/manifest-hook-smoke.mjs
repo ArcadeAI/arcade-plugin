@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { HOSTS } from "../hooks/hook-hosts.mjs";
 
 const readJson = (root, relativePath) =>
   JSON.parse(readFileSync(path.join(root, relativePath), "utf8"));
@@ -25,9 +26,7 @@ export const extractHookCommands = (hooksJson) => {
 
 export const MANIFEST_HOOK_ADAPTERS = [
   {
-    name: "claude",
-    manifest: "hooks/hooks.json",
-    rootToken: "CLAUDE_PLUGIN_ROOT",
+    name: "claude-code",
     stdinByEvent: {
       SessionStart: JSON.stringify({
         hook_event_name: "SessionStart",
@@ -46,8 +45,6 @@ export const MANIFEST_HOOK_ADAPTERS = [
   },
   {
     name: "cursor",
-    manifest: "clients/cursor/hooks/hooks.json",
-    rootToken: "CURSOR_PLUGIN_ROOT",
     stdinByEvent: {
       sessionStart: JSON.stringify({
         hook_event_name: "sessionStart",
@@ -72,19 +69,20 @@ export const runManifestHookSmoke = (root) => {
   const errors = [];
 
   for (const adapter of MANIFEST_HOOK_ADAPTERS) {
-    const hooksJson = readJson(root, adapter.manifest);
+    const { manifest, rootVariable } = HOSTS[adapter.name];
+    const hooksJson = readJson(root, manifest);
     const commands = extractHookCommands(hooksJson);
 
     for (const { event, command } of commands) {
       const stdin = adapter.stdinByEvent[event];
       if (stdin === undefined) {
         errors.push(
-          `${adapter.name}: missing stdin fixture for ${event} in ${adapter.manifest}`,
+          `${adapter.name}: missing stdin fixture for ${event} in ${manifest}`,
         );
         continue;
       }
 
-      const resolved = command.replaceAll(`\${${adapter.rootToken}}`, root);
+      const resolved = command.replaceAll(`\${${rootVariable}}`, root);
       if (resolved.includes("${")) {
         errors.push(
           `${adapter.name}: unresolved path token in ${event} command: ${command}`,

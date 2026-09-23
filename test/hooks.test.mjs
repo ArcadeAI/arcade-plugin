@@ -51,56 +51,47 @@ test("routing guidance distinguishes auth from gateway failures", async () => {
   }
 });
 
-test("session-start emits Cursor shape with shared guidance", () => {
-  const result = runHook(
-    "session-start.mjs",
-    '{"session_id":"cursor-session","is_background_agent":false,"composer_mode":"agent"}',
-  );
-  assert.equal(result.status, 0, result.stderr);
-  const out = JSON.parse(result.stdout.trim());
-  assert.ok(out.additional_context);
-  assertValidOutput(cursorOutputSchema, result.stdout, "cursor-minimal");
-  for (const phrase of CONTEXT_PHRASES) {
-    assert.match(out.additional_context, new RegExp(phrase));
-  }
-});
-
-test("session-start emits Cursor shape for schema-conformant stdin", () => {
+test("session-start emits Cursor format with --host cursor", () => {
   const result = runHook(
     "session-start.mjs",
     JSON.stringify({
       hook_event_name: "sessionStart",
       conversation_id: "conv-1",
-      cursor_version: "1.0.0",
-      workspace_roots: ["/repo"],
       session_id: "s1",
       is_background_agent: false,
-      composer_mode: "agent",
     }),
+    {},
+    ["--host", "cursor"],
   );
   assert.equal(result.status, 0, result.stderr);
-  assertValidOutput(cursorOutputSchema, result.stdout, "cursor-full");
-});
-
-test("session-start uses hook_event_name to detect Cursor", () => {
-  const result = runHook(
-    "session-start.mjs",
-    '{"hook_event_name":"sessionStart","session_id":"s1"}',
-  );
-  assert.equal(result.status, 0, result.stderr);
+  assertValidOutput(cursorOutputSchema, result.stdout, "cursor");
   const out = JSON.parse(result.stdout.trim());
-  assert.ok(out.additional_context);
   assert.equal(out.hookSpecificOutput, undefined);
+  for (const phrase of CONTEXT_PHRASES) {
+    assert.match(out.additional_context, new RegExp(phrase));
+  }
 });
 
-test("session-start does not treat a shared session_id as Cursor", () => {
+test("hooks print nothing for an unknown host", () => {
+  for (const script of ["session-start.mjs", "user-prompt-submit.mjs", "subagent-start.mjs"]) {
+    const result = runHook(
+      script,
+      '{"prompt":"What is on my calendar?","agent_type":"review"}',
+      {},
+      ["--host", "not-a-host"],
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "", script);
+  }
+});
+
+test("user-prompt-submit skips background task results", () => {
   const result = runHook(
-    "session-start.mjs",
-    '{"session_id":"claude-session"}',
+    "user-prompt-submit.mjs",
+    JSON.stringify({ prompt: "<task-notification>\n<task-id>abc</task-id>\n</task-notification>" }),
   );
   assert.equal(result.status, 0, result.stderr);
-  const out = JSON.parse(result.stdout.trim());
-  assert.equal(out.hookSpecificOutput.hookEventName, "SessionStart");
+  assert.equal(result.stdout, "");
 });
 
 test("session-start emits Claude shape with shared guidance", () => {

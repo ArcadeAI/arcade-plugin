@@ -10,6 +10,7 @@ import {
   GATEWAY_RULES_PARENT,
   SESSION_CONTEXT,
 } from "../hooks/routing-guidance.mjs";
+import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -25,6 +26,7 @@ export const GENERATED_PROJECTIONS = [
   ...GENERATED_MANIFESTS,
   "com.github.copilot/agents/arcade-operator.agent.md",
   "clients/cursor/rules/arcade.mdc",
+  ...Object.values(HOSTS).map((host) => host.manifest),
 ];
 
 /** Hand-written files that contain one generated block of routing rules. */
@@ -69,6 +71,44 @@ export const fillRulesBlock = (text, rules, relativePath) => {
     `\n${wrapText(rules)}\n` +
     text.slice(end)
   );
+};
+
+const hookCommand = (hostName, script) =>
+  `node "\${${HOSTS[hostName].rootVariable}}/hooks/${script}" --host ${hostName}`;
+
+const hooksForHost = (hostName) =>
+  HOOKS.filter((hook) => hook.events[hostName]).map((hook) => ({
+    event: hook.events[hostName],
+    command: hookCommand(hostName, hook.script),
+  }));
+
+// Claude Code: { hooks: { Event: [{ matcher?, hooks: [{ type, command, timeout }] }] } }
+const buildClaudeHooks = () => {
+  const hooks = {};
+  for (const { event, command } of hooksForHost("claude-code")) {
+    const matcher = HOSTS["claude-code"].matchers[event];
+    hooks[event] = [
+      {
+        ...(matcher ? { matcher } : {}),
+        hooks: [{ type: "command", command, timeout: HOOK_TIMEOUT_SEC }],
+      },
+    ];
+  }
+  return { hooks };
+};
+
+// Cursor: { version: 1, hooks: { event: [{ command, timeout }] } }
+const buildCursorHooks = () => {
+  const hooks = {};
+  for (const { event, command } of hooksForHost("cursor")) {
+    hooks[event] = [{ command, timeout: HOOK_TIMEOUT_SEC }];
+  }
+  return { version: 1, hooks };
+};
+
+const HOOK_MANIFEST_BUILDERS = {
+  "claude-code": buildClaudeHooks,
+  cursor: buildCursorHooks,
 };
 
 const buildCursorRule = () =>
@@ -214,6 +254,11 @@ export function generateManifests({ check = false, root = ROOT } = {}) {
   }
 
   writeIfChanged(root, "clients/cursor/rules/arcade.mdc", buildCursorRule(), check);
+
+  for (const [hostName, host] of Object.entries(HOSTS)) {
+    const manifest = HOOK_MANIFEST_BUILDERS[hostName]();
+    writeIfChanged(root, host.manifest, serialize(manifest), check);
+  }
 
   const operator = fillRulesBlock(
     readFileSync(join(root, "agents/arcade-operator.agent.md"), "utf8"),

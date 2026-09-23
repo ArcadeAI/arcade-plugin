@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { SESSION_START_MATCHER } from "../scripts/constants.mjs";
+import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
 
 const pathExists = async (relativePath) => {
@@ -55,7 +55,7 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
   }
   assert.equal(
     hooks.hooks.SessionStart[0].matcher,
-    SESSION_START_MATCHER,
+    HOSTS["claude-code"].matchers.SessionStart,
   );
   assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 });
