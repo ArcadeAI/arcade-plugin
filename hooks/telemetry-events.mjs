@@ -40,6 +40,7 @@ const COMMON_PROPERTIES = [
   "os",
   "$process_person_profile",
   "$geoip_disable",
+  "$ip",
 ];
 
 export const ALLOWED_PROPERTIES = {
@@ -164,6 +165,9 @@ export const buildEvent = (input, { installId, os }) => {
     os: oneOf(os, OS_NAMES, "other"),
     $process_person_profile: false,
     $geoip_disable: true,
+    // PostHog stores the request's IP unless the event sets one. Null and ""
+    // are replaced; a fixed placeholder is kept.
+    $ip: "0.0.0.0",
   };
   if (typeof input.session_id === "string") {
     properties.session = shortHash(installId, input.session_id);

@@ -123,6 +123,7 @@ test("buildEvent maps each hook input to the documented event", () => {
       os: "darwin",
       $process_person_profile: false,
       $geoip_disable: true,
+      $ip: "0.0.0.0",
       session: hash16(SESSION_ID),
     };
     if (event !== "Plugin session started") properties.turn = hash16(PROMPT_ID);
@@ -162,7 +163,7 @@ test("buildEvent never leaks input text or raw ids, and sends only allowed keys"
     const serialized = JSON.stringify(event);
     assert.doesNotMatch(serialized, /secret|DoThing/i, serialized);
     const allowed = [
-      "session", "turn", "host", "plugin_version", "os", "$process_person_profile", "$geoip_disable",
+      "session", "turn", "host", "plugin_version", "os", "$process_person_profile", "$geoip_disable", "$ip",
       ...ALLOWED_PROPERTIES[event.event],
     ];
     assert.ok(Object.keys(event.properties).every((key) => allowed.includes(key)), serialized);

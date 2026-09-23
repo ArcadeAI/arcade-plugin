@@ -48,6 +48,7 @@ Every event has these properties:
 | `os` | `darwin`, `linux`, `win32`, or `other` |
 | `$process_person_profile` | `false` |
 | `$geoip_disable` | `true` |
+| `$ip` | `0.0.0.0`, so PostHog stores this instead of your real IP address |
 
 Events and their extra properties:
 
@@ -77,8 +78,9 @@ do: email, calendar, chat, and the other categories above.
 
 The plugin drops any property not listed on this page before sending.
 
-PostHog receives the IP address the request comes from, like any web request.
-We don't send it as a property and turn off location lookup.
+PostHog sees the IP address the request comes from, like any web request, but
+doesn't store it: every event sets `$ip` to `0.0.0.0`, and location lookup is
+off.
 
 ## Reading the numbers
 
