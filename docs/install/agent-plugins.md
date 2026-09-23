@@ -16,9 +16,10 @@ The cross-client `npx plugins add ArcadeAI/arcade-plugin` doesn't finish the
 job for every client yet (see
 [About `npx plugins add`](README.md#about-npx-plugins-add)).
 
-The operator is not a portable Agent Plugins component. Copilot CLI, VS Code,
-Cursor, and Claude Code all load it from `com.github.copilot/agents/`. Other
-clients run the same loop in the parent skill.
+The operator is not a portable Agent Plugins component. Cursor, Claude Code,
+and Cowork load it from `agents/`; Copilot CLI and VS Code load a generated copy
+from `com.github.copilot/agents/`. Other clients run the same loop in the
+parent skill.
 
 ## First steps
 

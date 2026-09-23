@@ -55,7 +55,8 @@ Files a client needs at its own path are generated from shared sources (see
 | Skills | `skills/` | every client with skills |
 | MCP server | `mcp.json` | VS Code, Copilot CLI, Codex |
 | MCP server | inline in `.cursor-plugin/plugin.json` / `.claude-plugin/plugin.json` | Cursor / Claude Code |
-| Operator | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code, Cursor, Claude Code |
+| Operator | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Cowork |
+| Operator (generated copy) | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code |
 | Commands | `commands/arcade-*.md` | Cursor, Claude Code |
 | Rule | `clients/cursor/rules/arcade.mdc` | Cursor |
 | Marketplace | `.claude-plugin/marketplace.json` | Claude Desktop, Cowork, Claude Code |

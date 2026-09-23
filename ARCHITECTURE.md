@@ -11,15 +11,15 @@ edited by hand. The package ships no credentials.
 | `hooks/routing-guidance.mjs` | the routing rules, as sentences |
 | `hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
 | `hooks/telemetry-contract.mjs` | every telemetry event, property, and allowed value; the tables in `docs/telemetry.md` |
-| `com.github.copilot/agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
+| `agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
 | `skills/` | the skills, outside the generated rules block in try-arcade |
 
 `scripts/generate-manifests.mjs` writes every generated file; the generated
 `.gitattributes` lists them (GitHub collapses them in diffs).
 
-- The operator lives under `com.github.copilot/agents/` because Copilot CLI
-  and VS Code only load agents from there. Cursor and Claude Code are pointed
-  at the same file.
+- The operator lives at `agents/arcade-operator.agent.md`, the only place both
+  Claude Code and Cowork accept. Copilot CLI and VS Code only read
+  `com.github.copilot/agents/`, so the generator copies it there.
 - Each hook command passes `--host <name>`; the script prints the output
   format that client reads.
 - Codex doesn't run plugin hooks for Agent Plugins packages yet; see

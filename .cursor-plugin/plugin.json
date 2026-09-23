@@ -17,7 +17,7 @@
   "displayName": "Arcade",
   "repository": "https://github.com/ArcadeAI/arcade-plugin",
   "skills": "skills",
-  "agents": "com.github.copilot/agents",
+  "agents": "agents",
   "commands": "commands",
   "rules": "clients/cursor/rules",
   "hooks": "clients/cursor/hooks/hooks.json",

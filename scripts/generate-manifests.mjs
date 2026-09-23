@@ -15,23 +15,26 @@ import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Copilot CLI and VS Code only load agents from this folder, so the one copy
-// of the operator lives here and Cursor and Claude Code are pointed at it.
-const AGENTS_DIR = "com.github.copilot/agents";
+// Claude Code and Cowork only accept the operator at the default agents/ path
+// (the CLI wants .md paths in "agents", Cowork wants folders). Copilot CLI and
+// VS Code only read com.github.copilot/agents/, so that folder gets a copy.
+const OPERATOR = "agents/arcade-operator.agent.md";
 const CURSOR_RULE_DIR = "clients/cursor/rules";
 
 /** Hand-written files that contain one generated block of routing rules. */
 export const FILES_WITH_GENERATED_RULES = {
-  [`${AGENTS_DIR}/arcade-operator.agent.md`]: OPERATOR_RULES,
+  [OPERATOR]: OPERATOR_RULES,
   "skills/try-arcade/SKILL.md": SKILL_RULES,
 };
 
 /** Hand-written files whose event tables are generated from hooks/telemetry-contract.mjs. */
 export const FILES_WITH_GENERATED_TABLES = [TELEMETRY_DOC];
 
-/** Generated copy → hand-written source. Each skill folder has to work on its own. */
+/** Generated copy → source. */
 export const COPIED_FILES = {
+  // Each skill folder has to work on its own.
   "skills/scale-arcade/references/arcade-docs.md": "skills/try-arcade/references/arcade-docs.md",
+  "com.github.copilot/agents/arcade-operator.agent.md": OPERATOR,
 };
 
 const RULES_BLOCK_BEGIN =
@@ -100,7 +103,7 @@ const buildFiles = (root) => {
         displayName,
         repository,
         skills: "skills",
-        agents: AGENTS_DIR,
+        agents: "agents",
         commands: "commands",
         rules: CURSOR_RULE_DIR,
         hooks: HOSTS.cursor.manifest,
@@ -112,7 +115,6 @@ const buildFiles = (root) => {
       ".claude-plugin/plugin.json",
       serialize({
         ...identity,
-        agents: [`./${AGENTS_DIR}/arcade-operator.agent.md`],
         hooks: `./${HOSTS["claude-code"].manifest}`,
         // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
         mcpServers: { arcade: { type: "http", url } },
@@ -153,7 +155,8 @@ const buildFiles = (root) => {
   }
 
   for (const [copy, source] of Object.entries(COPIED_FILES)) {
-    files.set(copy, readText(root, source));
+    const rules = FILES_WITH_GENERATED_RULES[source];
+    files.set(copy, rules ? fillRulesBlock(readText(root, source), rules, source) : readText(root, source));
   }
 
   // GitHub collapses linguist-generated files in pull request diffs.
