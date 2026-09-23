@@ -4,41 +4,47 @@
 > use and evaluation. For org rollout (Okta, project gateways, tool policy),
 > use the `scale-arcade` skill and the [Arcade dashboard](https://app.arcade.dev).
 
-## Quick install (recommended)
+## Quick install
 
-If your agent supports [Agent Plugins](https://agent-plugins.org), install
-from GitHub with one command. The CLI auto-detects Cursor, Claude Code, Codex,
-VS Code, and other supported tools on your machine:
+Each client has its own install; use the one for yours. The per-client guides
+below have alternatives and verification steps.
+
+| Client | Install |
+|---|---|
+| Claude Code | `npx plugins add ArcadeAI/arcade-plugin --target claude-code` |
+| Codex / ChatGPT | `codex plugin marketplace add ArcadeAI/arcade-plugin`, then `codex plugin add arcade@arcade` |
+| Cursor | Individual plans: `git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin`, then reload Cursor. Teams/Enterprise: an admin imports the repo as a team marketplace — see [cursor.md](cursor.md) |
+| VS Code | Command Palette → **Chat: Install Plugin From Source** → `https://github.com/ArcadeAI/arcade-plugin` |
+| GitHub Copilot CLI | `copilot plugin install ArcadeAI/arcade-plugin` |
+| Claude Desktop | Add `ArcadeAI/arcade-plugin` as a plugin marketplace — see [claude-desktop.md](claude-desktop.md) |
+
+After install, reload your agent or start a new session. The first external
+service task returns a browser sign-in link — approve it when prompted.
+
+### About `npx plugins add`
+
+The cross-client CLI ([`plugins`](https://www.npmjs.com/package/plugins),
+checked at 1.3.4) auto-detects clients by their command-line tools and installs
+into each. Today it only finishes the job for some of them:
+
+| Client | What `npx plugins add` does |
+|---|---|
+| Claude Code | Installs and enables the plugin. Works. |
+| GitHub Copilot CLI | Runs `copilot plugin marketplace add` and `copilot plugin install`. |
+| Codex | Copies the plugin and enables it in `config.toml`, but `codex plugin list` shows it as not installed until you run `codex plugin add arcade@plugins-cli`. |
+| Cursor (macOS, Linux) | Writes into Claude Code's plugin folder (`~/.claude/plugins`), not Cursor's. With **Include third-party Plugins, Skills, and other configs** off, Cursor doesn't load it at all; with it on, Cursor gets the Claude Code manifest instead of the Cursor adapter. |
+| VS Code | Adds a `chat.pluginLocations` entry pointing at a copy under `~/.cache/plugins/`, and does not turn on `chat.plugins.enabled`. |
+
+It also skips any client whose command-line tool (`cursor`, `code`, …) isn't on
+your `PATH`.
+
+For developing this repo, install a local checkout into Claude Code, or preview
+what the CLI would install:
 
 ```bash
-npx plugins add ArcadeAI/arcade-plugin
-```
-
-Install to one tool only:
-
-```bash
-npx plugins add ArcadeAI/arcade-plugin --target cursor
-npx plugins add ArcadeAI/arcade-plugin --target claude-code
-npx plugins add ArcadeAI/arcade-plugin --target codex
-npx plugins add ArcadeAI/arcade-plugin --target vscode
-```
-
-From a local checkout while developing:
-
-```bash
-npx plugins add /path/to/arcade-plugin
-```
-
-Dry run (see what would install, without writing files):
-
-```bash
+npx plugins add /path/to/arcade-plugin --target claude-code
 npx plugins discover ArcadeAI/arcade-plugin
 ```
-
-After install, reload your agent or start a new session if needed. Codex also
-needs `codex plugin add arcade@plugins-cli` after `npx plugins add --target
-codex` — see [codex.md](codex.md). The first external service task returns a
-browser sign-in link — approve it when prompted.
 
 ## Tools only
 

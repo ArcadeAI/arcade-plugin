@@ -3,28 +3,28 @@
 This file is for agents editing **arcade-plugin** itself. End-user routing
 rules live in skills and `clients/cursor/rules/arcade.mdc`.
 
-## Hook adapter discipline
+## Generated files
 
-Hook **scripts** are shared under `hooks/*.mjs`. Hook **manifests** (`hooks.json`)
-are per-host adapters, same as MCP configs and Cursor rules.
+Most client-specific files are generated. Edit the source, then run
+`npm run generate`; `npm run verify` fails if a generated file was edited by
+hand. [ARCHITECTURE.md](ARCHITECTURE.md#sources-and-generated-files) lists
+the sources and outputs, and `.gitattributes` lists every generated file.
 
-| Host | Manifest | Declared in |
-| --- | --- | --- |
-| Claude Code | `hooks/hooks.json` | default discovery |
-| Cursor | `clients/cursor/hooks/hooks.json` | `.cursor-plugin/plugin.json` |
+- Routing rules: `hooks/routing-guidance.mjs`. Never edit the rules text in
+  the Cursor rule, arcade-operator, or try-arcade directly.
+- Hooks: `hooks/hook-hosts.mjs` lists each hook script and the event name each
+  host uses for it. Add a hook or a host there; don't write `hooks.json` by
+  hand.
 
-Claude Code runs `SubagentStart` from `hooks/hooks.json` with
-`${CLAUDE_PLUGIN_ROOT}` so built-in subagents get routing guidance when
-`arcade-operator` is not used. `hooks/subagent-start.mjs` skips injection when
-`agent_type` is `arcade-operator` or a plugin-scoped name ending in
-`:arcade-operator`.
+`hooks/subagent-start.mjs` skips injection when `agent_type` is
+`arcade-operator` or a plugin-scoped name ending in `:arcade-operator`.
 
-Claude Code also runs `hooks/telemetry.mjs` from `hooks/hooks.json` on five
-events ([docs/telemetry.md](docs/telemetry.md)). Rules for it:
+Claude Code also runs `hooks/telemetry.mjs` on five events ([docs/telemetry.md](docs/telemetry.md)). Rules for it:
 
-- No hook in `hooks/hooks.json` is `async`. Claude Code kills async hooks
-  when a session exits, and an async hook's `systemMessage` goes to the
-  model instead of the user. `scripts/check.mjs` enforces this.
+- No hook is `async`. Claude Code kills async hooks when a session exits,
+  and an async hook's `systemMessage` goes to the model instead of the
+  user. The generator never writes `async`, and `npm run verify` fails on a
+  hand-edited `hooks.json`.
 - `telemetry.mjs` prints nothing except the one-time notice on
   `SessionStart`.
 - Never do network I/O in the hook process. Hand each send to the detached
@@ -37,14 +37,10 @@ events ([docs/telemetry.md](docs/telemetry.md)). Rules for it:
   which the property allowlist would have to keep out.
 
 **Codex hooks are parked** on branch `cursor/park-codex-hooks-gro-353-f8ad`.
-Codex 0.154.0 and 0.155.1 parse `extensions.com.openai.hooks` (and the `.codex-plugin`
-fallback) but the loader discards them for `AgentPlugin` format
+Codex 0.154.0 and 0.155.1 parse `extensions.com.openai.hooks` but the loader discards them for `AgentPlugin` format
 ([`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956);
 [openai/codex#37027](https://github.com/openai/codex/pull/37027),
 [openai/codex#39895](https://github.com/openai/codex/issues/39895)). Do not
 drop root `$schema` to force hooks; that breaks Agent Plugins conformance.
-
-`scripts/check.mjs` enforces this split. Run `npm run verify` after editing a
-hook manifest.
 
 More context: [ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate).

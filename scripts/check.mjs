@@ -7,18 +7,10 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  AUTH_MARKERS,
-  PROMPT_REMINDER,
-  ROUTING_MARKERS,
-  SESSION_CONTEXT,
-  SUBAGENT_CONTEXT,
-} from "../hooks/routing-guidance.mjs";
-import {
   CLAUDE_CODE_CLI_VERSION,
   CI_NODE_VERSION,
   ENDPOINT,
   GATEWAY_HOST,
-  HOOK_COMMAND_TIMEOUT_SEC,
   INSTALL_SLUG,
   MCP_REMOTE_PACKAGE,
   MCP_SCHEMA,
@@ -26,10 +18,8 @@ import {
   PLUGINS_CLI_VERSION,
   PLUGIN_DISPLAY_NAME,
   PLUGIN_SCHEMA,
-  SESSION_START_MATCHER,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
-import { validateCodexFallbackManifest } from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -68,11 +58,9 @@ for (const required of [
   "schemas/host-adapters/claude-hooks.schema.json",
   "schemas/host-adapters/cursor-hooks.schema.json",
   "schemas/host-adapters/cursor-plugin.schema.json",
-  "schemas/host-adapters/codex-fallback-plugin.schema.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
-  ".codex-plugin/plugin.json",
   "com.github.copilot/agents/arcade-operator.agent.md",
 ]) {
   if (!existsSync(join(ROOT, required))) {
@@ -95,11 +83,6 @@ if (portable) {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
   }
   const openAiInterface = portable.extensions?.["com.openai"]?.interface;
-  if (openAiInterface?.displayName !== PLUGIN_DISPLAY_NAME) {
-    fail(
-      `plugin.json: extensions.com.openai.interface.displayName must be "${PLUGIN_DISPLAY_NAME}"`,
-    );
-  }
   if (!openAiInterface?.shortDescription) {
     fail("plugin.json: extensions.com.openai.interface.shortDescription is required");
   }
@@ -221,63 +204,6 @@ for (const routingFile of [
   }
 }
 
-const cursorHooks = read("clients/cursor/hooks/hooks.json");
-if (!cursorHooks.includes("${CURSOR_PLUGIN_ROOT}")) {
-  fail("clients/cursor/hooks/hooks.json: must use ${CURSOR_PLUGIN_ROOT}");
-}
-if (cursorHooks.includes("node ./hooks/")) {
-  fail("clients/cursor/hooks/hooks.json: must not use project-relative ./hooks/ paths");
-}
-
-const claudeHooks = read("hooks/hooks.json");
-if (!claudeHooks.includes("${CLAUDE_PLUGIN_ROOT}")) {
-  fail('hooks/hooks.json: must use ${CLAUDE_PLUGIN_ROOT}');
-}
-if (!claudeHooks.includes("hooks/session-start.mjs")) {
-  fail("hooks/hooks.json: must reference hooks/session-start.mjs");
-}
-if (!claudeHooks.includes("hooks/user-prompt-submit.mjs")) {
-  fail("hooks/hooks.json: must reference hooks/user-prompt-submit.mjs");
-}
-if (!claudeHooks.includes(`"matcher": "${SESSION_START_MATCHER}"`)) {
-  fail(
-    `hooks/hooks.json: SessionStart must match ${SESSION_START_MATCHER.replaceAll("|", ", ")}`,
-  );
-}
-if (!claudeHooks.includes("hooks/subagent-start.mjs")) {
-  fail("hooks/hooks.json: must reference hooks/subagent-start.mjs");
-}
-if (!claudeHooks.includes('"matcher": "*"')) {
-  fail('hooks/hooks.json: SubagentStart must use matcher "*"');
-}
-// Telemetry runs once on each event it reports and on no other event.
-const TELEMETRY_COMMAND = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs"';
-const TELEMETRY_EVENTS = [
-  "SessionStart",
-  "UserPromptSubmit",
-  "PostToolUse",
-  "PostToolUseFailure",
-  "SubagentStop",
-];
-for (const [event, groups] of Object.entries(json["hooks/hooks.json"]?.hooks ?? {})) {
-  const hooks = groups.flatMap((group) => group.hooks ?? []);
-  const telemetryRuns = hooks.filter((hook) => hook.command === TELEMETRY_COMMAND).length;
-  const expectedRuns = TELEMETRY_EVENTS.includes(event) ? 1 : 0;
-  if (telemetryRuns !== expectedRuns) {
-    fail(`hooks/hooks.json: ${event} must run ${TELEMETRY_COMMAND} ${expectedRuns} time(s)`);
-  }
-  // Claude Code kills async hooks at session exit and sends an async hook's
-  // systemMessage to the model instead of the user.
-  if (hooks.some((hook) => "async" in hook)) {
-    fail(`hooks/hooks.json: ${event} hooks must not be async`);
-  }
-}
-
-const codexManifest = json[".codex-plugin/plugin.json"];
-if (codexManifest) {
-  validateCodexFallbackManifest(codexManifest, portable, fail);
-}
-
 const marketplace = json[".claude-plugin/marketplace.json"];
 if (marketplace) {
   if (marketplace.name !== "arcade") {
@@ -302,24 +228,6 @@ if (!read("clients/claude-desktop/claude_desktop_config.json").includes(MCP_REMO
   fail(`clients/claude-desktop/claude_desktop_config.json: must pin ${MCP_REMOTE_PACKAGE}`);
 }
 
-const cursorRule = read("clients/cursor/rules/arcade.mdc");
-for (const marker of [...ROUTING_MARKERS, ...AUTH_MARKERS]) {
-  if (!cursorRule.includes(marker)) {
-    fail(`clients/cursor/rules/arcade.mdc: missing routing marker "${marker}"`);
-  }
-}
-
-for (const [label, surface, markers] of [
-  ["SESSION_CONTEXT", SESSION_CONTEXT, [...ROUTING_MARKERS, ...AUTH_MARKERS]],
-  ["PROMPT_REMINDER", PROMPT_REMINDER, ROUTING_MARKERS],
-  ["SUBAGENT_CONTEXT", SUBAGENT_CONTEXT, [...ROUTING_MARKERS, ...AUTH_MARKERS]],
-]) {
-  for (const marker of markers) {
-    if (!surface.includes(marker)) {
-      fail(`routing-guidance.mjs ${label}: missing routing marker "${marker}"`);
-    }
-  }
-}
 if (!read("README.md").includes(`npx plugins add ${INSTALL_SLUG}`)) {
   fail(`README.md: must document npx plugins add ${INSTALL_SLUG}`);
 }

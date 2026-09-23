@@ -33,7 +33,7 @@ test("smoke allows empty stdout from the telemetry hook only", () => {
     writeFileSync(path.join(root, "clients/cursor/hooks/hooks.json"), '{"hooks":{}}');
 
     assert.deepEqual(runManifestHookSmoke(root), [
-      "claude: SessionStart produced empty stdout",
+      "claude-code: SessionStart produced empty stdout",
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });

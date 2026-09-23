@@ -5,51 +5,27 @@ description: Help people complete real work in email, calendar, Slack, issues, d
 
 # Try Arcade
 
-Use the **Arcade plugin** MCP connection only — not any other Arcade MCP
-servers the user may have installed for local development or other gateways.
+Use the **Arcade plugin** MCP connection
+(`https://api.arcade.dev/mcp/arcade`) for the requested outcome. Check the
+gateway before discovery or delegation.
 
-- **MCP server name:** `arcade` (from this plugin)
-- **Gateway:** `https://api.arcade.dev/mcp/arcade` (this plugin)
+## Gateway rules
 
-Call `Arcade_SelectTools`, `Arcade_UseTool`, and related tools **only on the
-`arcade` MCP server** registered by this plugin. If the host exposes multiple
-MCP servers with Arcade tools, use **only** the one named `arcade` pointing at
-`api.arcade.dev`. Do not fall back to another server.
-
-If the `arcade` server is missing, unavailable, or failing, report the setup or
-connection error and tell the user to check plugin install and MCP settings
-(`/mcp` in Claude Code). Do not describe that as an authentication problem or
-use a different Arcade connector instead.
-
-In Cursor, the plugin gateway may appear as `plugin-arcade-arcade` instead of
-`arcade`. Treat it as the same server when it points at `api.arcade.dev`.
-
-## Gateway authentication
-
-Before discovery or delegation, check that the plugin gateway is available and
-authenticated. If the plugin namespace is present and its status explicitly
-shows `needsAuth` or it exposes zero tools, stop immediately.
-
-Tell the user to authenticate the Arcade connection in this host's MCP settings.
-Do not call `mcp_auth` in a loop or poll. Do not continue the task through
-another path.
-
-## No substitutes
-
-When the user asked to use Arcade — or the task is an external-service outcome
-routed here — do **not** complete it through:
-
-- another MCP server (Linear, Slack, Gmail, or a different Arcade gateway);
-- a shell CLI or local tool (for example `gh` or curl);
-- a built-in search or direct API call.
-
-Surface `needs_auth` as an authentication blocker. Surface `failed` with its
-actual setup or tool error; an Arcade-local troubleshooting step or
-schema-informed retry is still allowed. Only use another connector when the
-user explicitly chooses that path after you explain Arcade is blocked.
-
-Use this gateway to complete the requested outcome. Keep tool discovery and API
-details out of the conversation.
+<!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
+Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). If
+more than one MCP server exposes Arcade tools, use only arcade. In Cursor it
+can appear as plugin-arcade-arcade; that is the same gateway. If the gateway
+explicitly shows needsAuth, or its plugin namespace is present but has zero
+tools, the Arcade connection needs authentication in this host's MCP settings.
+A missing, unavailable, or failing gateway is a setup or connection failure,
+not an authentication problem. For authentication, stop and ask the user to
+authenticate it; do not poll or retry auth in a loop. For a setup or
+connection failure, report the actual error and ask the user to check the
+plugin and MCP settings. Never fall back to another connector: do not finish
+the task through another MCP server, a CLI such as gh or curl, a built-in
+search, or a direct API, unless the user explicitly chooses that after hearing
+Arcade is blocked. Troubleshooting or retrying on Arcade itself is fine.
+<!-- END generated -->
 
 If the host requires you to say what you're using, say it in one short clause:
 "I'm using Arcade" or "I'll use Arcade for this." Then continue. Do not

@@ -33,7 +33,6 @@ test("host adapter schemas accept the same semver grammar as parseVersion", asyn
 
   for (const schemaPath of [
     "schemas/host-adapters/cursor-plugin.schema.json",
-    "schemas/host-adapters/codex-fallback-plugin.schema.json",
   ]) {
     const schema = await readRepoJson(schemaPath);
     const versionPattern = schema.properties.version.pattern;
@@ -52,7 +51,6 @@ test("VERSIONED_MANIFESTS covers every generated plugin manifest", () => {
     ".cursor-plugin/plugin.json",
     ".claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
-    ".codex-plugin/plugin.json",
   ]);
 });
 

@@ -2,8 +2,11 @@
 // Per-turn reminder for Claude-format clients. Cursor uses an always-apply
 // rule instead. Always exit 0.
 
+import { hostFromArgs } from "./hook-hosts.mjs";
 import { shouldRemind } from "./prompt-filters.mjs";
 import { PROMPT_REMINDER } from "./routing-guidance.mjs";
+
+const host = hostFromArgs(process.argv);
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -24,14 +27,9 @@ try {
   } catch {
     // Unparseable input: stay silent.
   }
-  if (shouldRemind(prompt)) {
+  if (host && shouldRemind(prompt)) {
     process.stdout.write(
-      JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "UserPromptSubmit",
-          additionalContext: PROMPT_REMINDER,
-        },
-      }),
+      JSON.stringify(host.contextOutput("UserPromptSubmit", PROMPT_REMINDER)),
     );
   }
 } catch {

@@ -18,7 +18,8 @@ export const GATEWAY_HOST = new URL(ENDPOINT).host;
 export const MCP_REMOTE_VERSION = "0.1.38";
 export const MCP_REMOTE_PACKAGE = `mcp-remote@${MCP_REMOTE_VERSION}`;
 export const INSTALL_SLUG = "ArcadeAI/arcade-plugin";
-export const PLUGIN_DISPLAY_NAME = "Arcade";
+export const PLUGIN_DISPLAY_NAME =
+  portablePlugin.extensions["com.openai"].interface.displayName;
 export const PLUGIN_SCHEMA = portablePlugin.$schema;
 export const MCP_SCHEMA = portableMcp.$schema;
 export const TRIAL_DASHBOARD_URL =
@@ -35,14 +36,3 @@ export const VENDORED_SCHEMAS = {
   [PLUGIN_SCHEMA]: "schemas/agent-plugins/1.0.0/plugin.schema.json",
   [MCP_SCHEMA]: "schemas/agent-plugins/1.0.0/mcp.schema.json",
 };
-
-/** Claude Code SessionStart sources matched by hooks/hooks.json. */
-export const SESSION_START_SOURCES = [
-  "startup",
-  "resume",
-  "clear",
-  "compact",
-  "fork",
-];
-export const SESSION_START_MATCHER = SESSION_START_SOURCES.join("|");
-export const HOOK_COMMAND_TIMEOUT_SEC = 5;

@@ -15,8 +15,7 @@ skills and MCP, but not custom agent roles yet
 **Lifecycle hooks are not active on Codex today.** On Codex 0.154.0 and
 0.155.1 (latest stable as of 2026-09-22, with the same check still on `main`), a root `plugin.json` with the Agent Plugins `$schema` causes the
 loader to discard plugin hooks even when they are declared correctly in
-`extensions.com.openai` or `.codex-plugin/plugin.json`. The manifest parser
-reads those paths; [`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956)
+`extensions.com.openai`. The manifest parser reads that path; [`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956)
 returns empty `hook_sources` for `AgentPlugin` format. That gate landed in
 [openai/codex#37027](https://github.com/openai/codex/pull/37027); see
 [openai/codex#39895](https://github.com/openai/codex/issues/39895).
@@ -31,7 +30,16 @@ fixes the loader. The hook adapter lives on branch
 
 ## Install
 
-**Cross-client CLI (stages the plugin and registers a local marketplace):**
+```bash
+codex plugin marketplace add ArcadeAI/arcade-plugin
+codex plugin add arcade@arcade
+```
+
+This uses Codex's own marketplace support and the repo's marketplace manifest.
+
+**Cross-client CLI.** `npx plugins add` alone caches the plugin and enables it
+in `config.toml`, but `codex plugin list` shows it as not installed and no MCP
+server loads until you finish with `codex plugin add`:
 
 ```bash
 npx plugins add ArcadeAI/arcade-plugin --target codex
@@ -43,16 +51,6 @@ From a local checkout:
 ```bash
 npx plugins add /path/to/arcade-plugin --target codex
 codex plugin add arcade@plugins-cli
-```
-
-`npx plugins add` alone caches the plugin and enables it in `config.toml`, but
-Codex still needs `codex plugin add` before skills show up in sessions.
-
-**OpenAI-native CLI (uses the repo's marketplace manifest):**
-
-```bash
-codex plugin marketplace add ArcadeAI/arcade-plugin
-codex plugin add arcade@arcade
 ```
 
 ## Verify
@@ -68,10 +66,9 @@ codex plugin add arcade@arcade
    for explicit skill invocation.
 
 Listing metadata such as the **Arcade** display name lives in
-`extensions.com.openai.interface` on the portable manifest. Current Codex reads
-the root `plugin.json` and ignores `.codex-plugin/plugin.json`. The generated
-fallback mirrors the `interface` object and sets `mcpServers` to `./mcp.json`
-for older loaders, which otherwise look only for `.mcp.json`.
+`extensions.com.openai.interface` on the portable manifest. Codex reads the
+root `plugin.json`; a Codex version that doesn't falls back to
+`.claude-plugin/plugin.json`, which also loads the skills and MCP server.
 
 ## Sign in
 

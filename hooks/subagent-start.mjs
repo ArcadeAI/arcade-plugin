@@ -2,7 +2,10 @@
 // Claude Code SubagentStart hook: routing reminder for subagents other than
 // arcade-operator. Always exit 0.
 
+import { hostFromArgs } from "./hook-hosts.mjs";
 import { isOperatorAgentType, SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
+
+const host = hostFromArgs(process.argv);
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -24,14 +27,10 @@ const isArcadeOperator = (rawInput) => {
 };
 
 const emitResponse = () => {
+  if (!host) return;
   try {
     process.stdout.write(
-      JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "SubagentStart",
-          additionalContext: SUBAGENT_CONTEXT,
-        },
-      }),
+      JSON.stringify(host.contextOutput("SubagentStart", SUBAGENT_CONTEXT)),
     );
   } catch {
     // Never block subagent startup on stdout failures.

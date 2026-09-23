@@ -17,10 +17,6 @@ const HOST_CONTRACTS = [
     ".cursor-plugin/plugin.json",
     "schemas/host-adapters/cursor-plugin.schema.json",
   ],
-  [
-    ".codex-plugin/plugin.json",
-    "schemas/host-adapters/codex-fallback-plugin.schema.json",
-  ],
 ];
 
 const readJson = async (relativePath) =>

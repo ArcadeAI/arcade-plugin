@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { SESSION_START_MATCHER } from "../scripts/constants.mjs";
+import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { readRepoFile, readRepoJson, ROOT } from "./helpers.mjs";
 
 const pathExists = async (relativePath) => {
@@ -69,24 +69,19 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
   }
   assert.equal(
     hooks.hooks.SessionStart[0].matcher,
-    SESSION_START_MATCHER,
+    HOSTS["claude-code"].matchers.SessionStart,
   );
   assert.equal(hooks.hooks.SubagentStart[0].matcher, "*");
 });
 
 test("portable manifest exposes Codex listing metadata", async () => {
   const portable = await readRepoJson("plugin.json");
-  const fallback = await readRepoJson(".codex-plugin/plugin.json");
 
   assert.equal(portable.extensions?.["com.openai"]?.hooks, undefined);
   assert.equal(
     portable.extensions?.["com.openai"]?.interface?.displayName,
     "Arcade",
   );
-  assert.deepEqual(fallback.interface, portable.extensions?.["com.openai"]?.interface);
-  assert.equal(fallback.hooks, undefined);
-  assert.equal(fallback.skills, undefined);
-  assert.equal(fallback.mcpServers, "./mcp.json");
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
   assert.equal(await pathExists("mcp.json"), true);
 });
@@ -105,8 +100,10 @@ test(".claude-plugin MCP adapter path exists", async () => {
 });
 
 test("Copilot agent projection matches the canonical operator", async () => {
+  const copy = await readRepoFile("com.github.copilot/agents/arcade-operator.agent.md");
+  assert.match(copy, /Generated copy of agents\/arcade-operator\.agent\.md/);
   assert.equal(
-    await readRepoFile("com.github.copilot/agents/arcade-operator.agent.md"),
+    copy.replace(/\n<!-- Generated copy of[^\n]*-->\n/, ""),
     await readRepoFile("agents/arcade-operator.agent.md"),
   );
 });

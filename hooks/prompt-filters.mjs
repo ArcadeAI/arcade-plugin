@@ -1,4 +1,4 @@
-/** Prompt checks shared by the per-turn reminder and telemetry. */
+/** Decides which user prompts get the per-turn routing reminder. */
 
 // Short acknowledgements only — not action phrases like "fix it".
 const CONTINUATION_WORDS = new Set([
@@ -25,7 +25,6 @@ const isBareContinuation = (prompt) => {
 export const isTaskNotification = (prompt) =>
   typeof prompt === "string" && prompt.trimStart().startsWith("<task-notification>");
 
-/** True when user-prompt-submit.mjs sends the routing reminder. */
 export const shouldRemind = (prompt) =>
   typeof prompt === "string" &&
   prompt.trim() !== "" &&
