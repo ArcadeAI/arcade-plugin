@@ -243,6 +243,13 @@ test("every generated telemetry command runs and exits quietly with telemetry of
   }
 });
 
+test("no client but Claude Code runs telemetry", () => {
+  for (const [hostName, { manifest }] of Object.entries(HOSTS)) {
+    if (hostName === "claude-code") continue;
+    assert.ok(!readRepoFile(manifest).includes("/hooks/telemetry.mjs"), manifest);
+  }
+});
+
 test("only the detached sender does network I/O", () => {
   const hookFiles = readdirSync(path.join(ROOT, "hooks")).filter((file) => file.endsWith(".mjs"));
   for (const file of hookFiles) {
