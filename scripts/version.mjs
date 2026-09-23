@@ -14,7 +14,6 @@ export const VERSIONED_MANIFESTS = [
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
-  ".codex-plugin/plugin.json",
 ];
 
 export const SEMVER_PATTERN = String.raw`^\d+\.\d+\.\d+(-[\w.-]+)?(\+[\w.-]+)?$`;

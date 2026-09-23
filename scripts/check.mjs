@@ -22,7 +22,6 @@ import {
   SESSION_START_MATCHER,
   VENDORED_SCHEMAS,
 } from "./constants.mjs";
-import { validateCodexFallbackManifest } from "./openai-extension.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -61,11 +60,9 @@ for (const required of [
   "schemas/host-adapters/claude-hooks.schema.json",
   "schemas/host-adapters/cursor-hooks.schema.json",
   "schemas/host-adapters/cursor-plugin.schema.json",
-  "schemas/host-adapters/codex-fallback-plugin.schema.json",
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
-  ".codex-plugin/plugin.json",
   "com.github.copilot/agents/arcade-operator.agent.md",
 ]) {
   if (!existsSync(join(ROOT, required))) {
@@ -88,11 +85,6 @@ if (portable) {
     fail('plugin.json: repository must be "https://github.com/ArcadeAI/arcade-plugin"');
   }
   const openAiInterface = portable.extensions?.["com.openai"]?.interface;
-  if (openAiInterface?.displayName !== PLUGIN_DISPLAY_NAME) {
-    fail(
-      `plugin.json: extensions.com.openai.interface.displayName must be "${PLUGIN_DISPLAY_NAME}"`,
-    );
-  }
   if (!openAiInterface?.shortDescription) {
     fail("plugin.json: extensions.com.openai.interface.shortDescription is required");
   }
@@ -242,11 +234,6 @@ if (!claudeHooks.includes("hooks/subagent-start.mjs")) {
 }
 if (!claudeHooks.includes('"matcher": "*"')) {
   fail('hooks/hooks.json: SubagentStart must use matcher "*"');
-}
-
-const codexManifest = json[".codex-plugin/plugin.json"];
-if (codexManifest) {
-  validateCodexFallbackManifest(codexManifest, portable, fail);
 }
 
 const marketplace = json[".claude-plugin/marketplace.json"];

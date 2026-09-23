@@ -62,17 +62,12 @@ test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", as
 
 test("portable manifest exposes Codex listing metadata", async () => {
   const portable = await readRepoJson("plugin.json");
-  const fallback = await readRepoJson(".codex-plugin/plugin.json");
 
   assert.equal(portable.extensions?.["com.openai"]?.hooks, undefined);
   assert.equal(
     portable.extensions?.["com.openai"]?.interface?.displayName,
     "Arcade",
   );
-  assert.deepEqual(fallback.interface, portable.extensions?.["com.openai"]?.interface);
-  assert.equal(fallback.hooks, undefined);
-  assert.equal(fallback.skills, undefined);
-  assert.equal(fallback.mcpServers, "./mcp.json");
   assert.equal(await pathExists("skills/try-arcade/SKILL.md"), true);
   assert.equal(await pathExists("mcp.json"), true);
 });

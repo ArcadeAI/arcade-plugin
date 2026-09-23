@@ -6,10 +6,6 @@ import { fileURLToPath } from "node:url";
 import { readVersion } from "./version.mjs";
 import { PLUGIN_DISPLAY_NAME } from "./constants.mjs";
 import {
-  CODEX_FALLBACK_MCP_PATH,
-  readOpenAiInterface,
-} from "./openai-extension.mjs";
-import {
   GATEWAY_RULES_DELEGATE,
   GATEWAY_RULES_PARENT,
   SESSION_CONTEXT,
@@ -23,7 +19,6 @@ export const GENERATED_MANIFESTS = [
   ".cursor-plugin/plugin.json",
   ".claude-plugin/plugin.json",
   ".claude-plugin/marketplace.json",
-  ".codex-plugin/plugin.json",
 ];
 
 export const GENERATED_PROJECTIONS = [
@@ -155,19 +150,6 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
     ...shared,
     mcpServers: "./clients/claude/mcp.json",
   };
-  const openAiInterface = readOpenAiInterface(portablePlugin);
-  if (!openAiInterface?.displayName) {
-    throw new Error(
-      "plugin.json must define extensions.com.openai.interface.displayName",
-    );
-  }
-  // Codex's .codex-plugin format only looks for ".mcp.json" by default, so the
-  // fallback has to point at the portable mcp.json explicitly.
-  const codexPlugin = {
-    ...shared,
-    mcpServers: CODEX_FALLBACK_MCP_PATH,
-    interface: openAiInterface,
-  };
   const marketplaceManifest = {
     $schema: "https://json.schemastore.org/claude-code-marketplace.json",
     name: portablePlugin.name,
@@ -196,7 +178,6 @@ export const buildManifests = ({ portablePlugin, portableMcp, version }) => {
     [".cursor-plugin/plugin.json", cursorPlugin],
     [".claude-plugin/plugin.json", claudePlugin],
     [".claude-plugin/marketplace.json", marketplaceManifest],
-    [".codex-plugin/plugin.json", codexPlugin],
   ]);
 };
 

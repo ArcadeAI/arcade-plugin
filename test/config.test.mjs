@@ -50,7 +50,6 @@ const releaseExtraFiles = [
   [".claude-plugin/plugin.json", "$.version"],
   [".claude-plugin/marketplace.json", "$.version"],
   [".claude-plugin/marketplace.json", "$.plugins[0].version"],
-  [".codex-plugin/plugin.json", "$.version"],
 ];
 
 const setJsonPath = (document, jsonPath, value) => {
