@@ -10,7 +10,8 @@ const HOOKS_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const POSTHOG_HOST =
   process.env.ARCADE_PLUGIN_TELEMETRY_HOST || "https://p.arcade.dev";
 
-// Public, client-side key for the Production project.
+// Public, client-side key for the staging project. Replace with the
+// Production key before release.
 export const POSTHOG_KEY = "phc_g7OuFqZEAVwIgRdtnZkjvBpy9weQ1f9VJW6YP1SzQRF";
 
 export const OPT_OUT_ENV = "ARCADE_PLUGIN_TELEMETRY";
