@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { shouldRemind } from "../hooks/prompt-filters.mjs";
+import { PROMPT_REMINDER } from "../hooks/routing-guidance.mjs";
 import { readRepoFile, ROOT, runHook } from "./helpers.mjs";
 
 // Exactly what each client should receive, from its hook docs. Every client in
@@ -70,5 +71,33 @@ test("hooks exit 0 and print nothing without a known --host", () => {
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stdout, "", `${script} ${args.join(" ")}`);
     }
+  }
+});
+
+// Which hooks each client runs, and why, from real runs and client source.
+// Change this only with new evidence from the client.
+const EXPECTED_EVENTS = {
+  "claude-code": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
+  // Cursor's CLI doesn't load the plugin's always-apply rule, so the session
+  // hook is the only way it gets the full rules. Its prompt and subagent hooks
+  // can't add context.
+  cursor: ["sessionStart"],
+  // Copilot CLI drops prompt-hook output from config files.
+  copilot: ["SessionStart", "SubagentStart"],
+};
+
+test("each client runs exactly the hooks it can use", () => {
+  assert.deepEqual(Object.keys(EXPECTED_EVENTS).sort(), Object.keys(HOSTS).sort());
+  for (const [hostName, { manifest }] of Object.entries(HOSTS)) {
+    const events = Object.keys(JSON.parse(readRepoFile(manifest)).hooks);
+    assert.deepEqual(events.sort(), [...EXPECTED_EVENTS[hostName]].sort(), hostName);
+  }
+});
+
+// Cowork runs the prompt hook but not the session-start text, so this reminder
+// is the only routing text its main conversation gets. Keep the core rules in it.
+test("the per-prompt reminder keeps the core routing rules", () => {
+  for (const phrase of [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/]) {
+    assert.match(PROMPT_REMINDER, phrase);
   }
 });
