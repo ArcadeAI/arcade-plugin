@@ -28,9 +28,16 @@ Claude Code also runs `hooks/telemetry.mjs` on five events ([docs/telemetry.md](
 - `telemetry.mjs` prints nothing except the one-time notice on
   `SessionStart`.
 - Never do network I/O in the hook process. Hand each send to the detached
-  `hooks/telemetry-send.mjs` so the hook returns in about 60 ms.
-- A new event property goes in the allowlist in `hooks/telemetry-events.mjs`
-  and in docs/telemetry.md. Anything not on the allowlist is dropped.
+  `hooks/telemetry-send.mjs` so the hook returns in about 60 ms. A test fails
+  if any other hook file calls `fetch` or imports a network module.
+- `hooks/telemetry-contract.mjs` defines every event, property, and allowed
+  value. Add or change one there only: the builder sends nothing else,
+  `npm run generate` writes the tables in docs/telemetry.md from it, the
+  tests check every built event against its JSON Schema, and the telemetry
+  events in `hooks/hook-hosts.mjs` must match its hooks.
+- Telemetry files start with `// @ts-check`; `npm run typecheck` runs `tsc`
+  over them. Nothing is compiled: hooks run as plain `.mjs` on the user's
+  own Node.
 - No telemetry in the Cursor manifest yet. Cursor has no way for a hook to
   show the user a message (so no first-run notice) and no plugin data
   folder for the install ID. It also passes the user's email to every hook,

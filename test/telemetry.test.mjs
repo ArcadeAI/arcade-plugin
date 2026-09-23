@@ -8,7 +8,11 @@ import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
 import { runHook, ROOT } from "./helpers.mjs";
-import { ALLOWED_PROPERTIES, buildEvent } from "../hooks/telemetry-events.mjs";
+import Ajv2020 from "ajv/dist/2020.js";
+import { HOOKS } from "../hooks/hook-hosts.mjs";
+import { ARCADE_TOOL_PREFIX, EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
+import { buildEvent } from "../hooks/telemetry-events.mjs";
+import { MCP_SERVER_NAME } from "../scripts/constants.mjs";
 import { NOTICE, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
 
 const INSTALL_ID = "11111111-2222-3333-4444-555555555555";
@@ -17,6 +21,11 @@ const SESSION_ID = "raw-session-id-123";
 const PROMPT_ID = "raw-prompt-id-456";
 const ARCADE = "mcp__plugin_arcade_arcade__";
 const OPERATOR = "arcade:arcade-operator";
+
+const validateEvent = new Ajv2020({ allErrors: true }).compile(eventSchema());
+const assertMatchesContract = (event, label = JSON.stringify(event)) => {
+  assert.equal(validateEvent(event), true, `${label}: ${JSON.stringify(validateEvent.errors)}`);
+};
 
 const hash16 = (id) =>
   createHash("sha256").update(`${INSTALL_ID}:${id}`).digest("hex").slice(0, 16);
@@ -128,6 +137,7 @@ test("buildEvent maps each hook input to the documented event", () => {
     };
     if (event !== "Plugin session started") properties.turn = hash16(PROMPT_ID);
     assert.deepEqual(built, { event, distinct_id: INSTALL_ID, properties }, label);
+    assertMatchesContract(built, label);
   }
 
   const onFreebsd = buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, os: "freebsd" });
@@ -162,12 +172,57 @@ test("buildEvent never leaks input text or raw ids, and sends only allowed keys"
     const event = buildEvent({ ...secrets, ...fields }, OPTIONS);
     const serialized = JSON.stringify(event);
     assert.doesNotMatch(serialized, /secret|DoThing/i, serialized);
-    const allowed = [
-      "session", "turn", "host", "plugin_version", "os", "$process_person_profile", "$geoip_disable", "$ip",
-      ...ALLOWED_PROPERTIES[event.event],
-    ];
-    assert.ok(Object.keys(event.properties).every((key) => allowed.includes(key)), serialized);
+    assertMatchesContract(event);
   }
+});
+
+test("every labeled prompt builds an event that matches the contract", async () => {
+  const prompts = JSON.parse(readFileSync(path.join(ROOT, "test/fixtures/routing-prompts.json"), "utf8"));
+  for (const { prompt } of prompts) {
+    assertMatchesContract(buildEvent(hookInput({ hook_event_name: "UserPromptSubmit", prompt }), OPTIONS), prompt);
+  }
+});
+
+test("the contract schema rejects events outside the contract", () => {
+  const good = buildEvent(hookInput({ hook_event_name: "PostToolUse", tool_name: "mcp__granola__Granola_ListMeetings" }), OPTIONS);
+  const withProperties = (changes) => ({ ...good, properties: { ...good.properties, ...changes } });
+  const bad = [
+    withProperties({ prompt: "text" }),
+    withProperties({ server: "somewhere" }),
+    withProperties({ tool: "Granola_ListMeetings" }),
+    withProperties({ session: SESSION_ID }),
+    withProperties({ $ip: "203.0.113.7" }),
+    { ...good, event: "Plugin something else" },
+    { ...good, distinct_id: "teal@arcade.dev" },
+  ];
+  const otherAgent = buildEvent(hookInput({ hook_event_name: "SubagentStop", agent_type: "general-purpose" }), OPTIONS);
+  bad.push({ ...otherAgent, properties: { ...otherAgent.properties, status: "completed" } });
+  assertMatchesContract(good);
+  for (const event of bad) assert.equal(validateEvent(event), false, JSON.stringify(event));
+});
+
+test("telemetry runs on exactly the hooks the contract names", () => {
+  const telemetry = HOOKS.find((hook) => hook.script === "telemetry.mjs");
+  const contractHooks = Object.values(EVENTS).map((spec) => spec.hook);
+  assert.deepEqual([...telemetry.events["claude-code"]].sort(), [...contractHooks].sort());
+  for (const [name, spec] of Object.entries(EVENTS)) {
+    const input = hookInput({ hook_event_name: spec.hook, tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, prompt: "hi" });
+    assert.equal(buildEvent(input, OPTIONS)?.event, name, spec.hook);
+  }
+});
+
+test("only the detached sender does network I/O", () => {
+  const hookFiles = readdirSync(path.join(ROOT, "hooks")).filter((file) => file.endsWith(".mjs"));
+  for (const file of hookFiles) {
+    if (file === "telemetry-send.mjs") continue;
+    const source = readFileSync(path.join(ROOT, "hooks", file), "utf8");
+    assert.doesNotMatch(source, /\bfetch\s*\(|["']node:(?:http|https|http2|net|tls|dgram)["']/, file);
+  }
+});
+
+test("the Arcade tool prefix matches the plugin and MCP server names", () => {
+  const plugin = JSON.parse(readFileSync(path.join(ROOT, "plugin.json"), "utf8"));
+  assert.equal(ARCADE_TOOL_PREFIX, `mcp__plugin_${plugin.name}_${MCP_SERVER_NAME}__`);
 });
 
 test("telemetry hook shows the notice once and posts each event from a detached sender", async () => {

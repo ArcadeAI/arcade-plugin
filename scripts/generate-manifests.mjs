@@ -11,6 +11,7 @@ import {
   SESSION_CONTEXT,
 } from "../hooks/routing-guidance.mjs";
 import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
+import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -258,6 +259,9 @@ export function generateManifests({ check = false, root = ROOT } = {}) {
   }
 
   writeIfChanged(root, "clients/cursor/rules/arcade.mdc", buildCursorRule(), check);
+
+  const telemetryDoc = readFileSync(join(root, TELEMETRY_DOC), "utf8");
+  writeIfChanged(root, TELEMETRY_DOC, fillTelemetryTables(telemetryDoc), check);
 
   for (const [hostName, host] of Object.entries(HOSTS)) {
     const manifest = HOOK_MANIFEST_BUILDERS[hostName]();

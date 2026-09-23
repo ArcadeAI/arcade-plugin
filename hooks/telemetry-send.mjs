@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 // Detached sender started by telemetry.mjs. Posts one event to PostHog, no
 // retries. Always exit 0.
 

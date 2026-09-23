@@ -1,3 +1,4 @@
+// @ts-check
 /** Telemetry constants. The event contract is docs/telemetry.md. */
 
 import { readFileSync } from "node:fs";

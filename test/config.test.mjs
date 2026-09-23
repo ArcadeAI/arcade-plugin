@@ -89,6 +89,7 @@ test("a release-style version bump leaves generated manifests in sync", async ()
       "mcp.json",
       "agents/arcade-operator.agent.md",
       "skills/try-arcade/SKILL.md",
+      "docs/telemetry.md",
     ]) {
       if (file.includes("/")) {
         mkdirSync(dirname(join(root, file)), { recursive: true });

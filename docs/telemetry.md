@@ -37,6 +37,7 @@ that folder, or Claude Code doesn't provide one, it sends nothing.
 
 ## What is sent
 
+<!-- BEGIN generated from hooks/telemetry-contract.mjs by `npm run generate`; edit that file, not this block -->
 Every event has these properties:
 
 | Property | Value |
@@ -46,7 +47,7 @@ Every event has these properties:
 | `turn` | `sha256(install_id + ":" + prompt_id)`, first 16 hex characters (not on `Plugin session started`) |
 | `host` | `claude-code` |
 | `plugin_version` | from `VERSION` |
-| `os` | `darwin`, `linux`, `win32`, or `other` |
+| `os` | `darwin` \| `linux` \| `win32` \| `other` |
 | `$process_person_profile` | `false` |
 | `$geoip_disable` | `true` |
 | `$ip` | `0.0.0.0`, so PostHog stores this instead of your real IP address |
@@ -55,14 +56,14 @@ Events and their extra properties:
 
 | Event | When | Extra properties |
 | --- | --- | --- |
-| `Plugin session started` | SessionStart | `source`: `startup` \| `resume` \| `clear` \| `compact` \| `fork` \| `other` |
-| `Plugin prompt submitted` | UserPromptSubmit, except background task results that Claude Code passes through the same hook | `could_use_arcade`: boolean. `service_hints`: service categories. `reminder_sent`: boolean. |
-| `Plugin tool called` | PostToolUse on MCP tools | `server`: `arcade` (this plugin's gateway) \| `other_arcade` (another connection exposing Arcade's gateway tools) \| `other`. `tool`: only for `arcade` and `other_arcade`; the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`. `service`: the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches one. |
-| `Plugin tool failed` | PostToolUseFailure on MCP tools | same as `Plugin tool called` |
-| `Plugin subagent stopped` | SubagentStop | `agent`: `arcade-operator` \| `other`. `status`: the operator's status (`completed` \| `needs_auth` \| `needs_confirmation` \| `needs_clarification` \| `failed` \| `unknown`), only for `arcade-operator`. |
+| `Plugin session started` | SessionStart | `source`: `startup` \| `resume` \| `clear` \| `compact` \| `fork` \| `other`. |
+| `Plugin prompt submitted` | UserPromptSubmit, except background task results that Claude Code passes through the same hook | `could_use_arcade`: boolean, a local keyword guess (see below). `service_hints`: service categories the prompt mentions. `reminder_sent`: boolean, whether the routing reminder was added. |
+| `Plugin tool called` | PostToolUse, on MCP tools | `server`: `arcade` (this plugin's gateway) \| `other_arcade` (another connection exposing Arcade's gateway tools) \| `other`. `tool`: only for `arcade` and `other_arcade`: the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`. `service`: the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches one. |
+| `Plugin tool failed` | PostToolUseFailure, on MCP tools | `server`: `arcade` (this plugin's gateway) \| `other_arcade` (another connection exposing Arcade's gateway tools) \| `other`. `tool`: only for `arcade` and `other_arcade`: the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`. `service`: the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches one. |
+| `Plugin subagent stopped` | SubagentStop | `agent`: `arcade-operator` \| `other`. `status`: only for `arcade-operator`: the status line of its final report, `completed` \| `needs_auth` \| `needs_confirmation` \| `needs_clarification` \| `failed` \| `unknown`. |
 
-Service categories: `email`, `calendar`, `chat`, `issues`, `docs`,
-`meetings`, `crm`, `code_hosting`, `analytics`, `storage`.
+Service categories: `email`, `calendar`, `chat`, `issues`, `docs`, `meetings`, `crm`, `code_hosting`, `analytics`, `storage`.
+<!-- END generated telemetry tables -->
 
 `could_use_arcade` is a local keyword guess (in
 `hooks/telemetry-classify.mjs`) at whether the prompt is a task Arcade could

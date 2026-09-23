@@ -36,6 +36,7 @@ const createFixture = async () => {
   for (const path of [
     "agents/arcade-operator.agent.md",
     "skills/try-arcade/SKILL.md",
+    "docs/telemetry.md",
   ]) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), readFileSync(join(ROOT, path), "utf8"));

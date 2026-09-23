@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 // Claude Code telemetry hook. Sends the anonymous events described in
 // docs/telemetry.md. Always exit 0.
 
@@ -37,24 +38,28 @@ const isOptedOut = () => {
 
 // "wx" fails if the file exists, so two hooks racing on first run can't
 // create two different values.
+/**
+ * @param {string} file
+ * @param {string} value
+ */
 const createIfMissing = (file, value) => {
   try {
     writeFileSync(file, value, { flag: "wx" });
     return true;
   } catch (error) {
-    if (error.code === "EEXIST") return false;
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "EEXIST") return false;
     throw error;
   }
 };
 
-const readInstallId = (dir) => {
+const readInstallId = (/** @type {string} */ dir) => {
   mkdirSync(dir, { recursive: true });
   const file = path.join(dir, INSTALL_ID_FILE);
   createIfMissing(file, randomUUID());
   return readFileSync(file, "utf8").trim();
 };
 
-const showNoticeOnce = (dir) => {
+const showNoticeOnce = (/** @type {string} */ dir) => {
   const created = createIfMissing(
     path.join(dir, NOTICE_FILE),
     new Date().toISOString(),
@@ -62,7 +67,7 @@ const showNoticeOnce = (dir) => {
   if (created) process.stdout.write(JSON.stringify({ systemMessage: NOTICE }));
 };
 
-const send = (event) => {
+const send = (/** @type {object} */ event) => {
   // Claude Code kills hook processes when the session exits, so the network
   // call runs in a detached child that can outlive this hook.
   const child = spawn(process.execPath, [SENDER, JSON.stringify(event)], {

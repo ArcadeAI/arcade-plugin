@@ -181,4 +181,6 @@ In Claude Code, `hooks/telemetry.mjs` also sends anonymous events on whether
 the model used Arcade when a prompt looked like a task Arcade could do. It is
 on by default, turned off with `ARCADE_PLUGIN_TELEMETRY=0`, and described in
 [docs/telemetry.md](docs/telemetry.md). The network send runs in a detached
-`hooks/telemetry-send.mjs`, so a turn never waits on the network.
+`hooks/telemetry-send.mjs`, so a turn never waits on the network. Every event
+and property is defined once, in `hooks/telemetry-contract.mjs`; the docs
+tables are generated from it and the tests validate built events against it.

@@ -1,9 +1,13 @@
+// @ts-check
 /** Guesses, on the user's machine, whether a prompt is a task Arcade could do. */
+
+import { SERVICE_CATEGORIES } from "./telemetry-contract.mjs";
 
 // Words like "issue", "PR", "branch", "schedule", "event", "channel", and
 // "docs" are common in coding prompts, so generic words only count inside a
 // phrase that points at a person's own apps ("my calendar", "in linear").
-const KEYWORDS = {
+/** Keyword phrases per category in SERVICE_CATEGORIES. @type {Record<string, string[]>} */
+export const KEYWORDS = {
   email: [
     "gmail", "outlook", "my inbox", "check my email", "my emails",
     "unread email", "unread emails", "send an email", "draft an email",
@@ -48,8 +52,6 @@ const KEYWORDS = {
   ],
 };
 
-export const SERVICE_CATEGORIES = Object.keys(KEYWORDS);
-
 // Removed before matching: they contain a service keyword but mean something
 // else in a coding prompt.
 const NOT_SERVICES = [
@@ -60,18 +62,20 @@ const NOT_SERVICES = [
 // "Slack-style", "notion-like": a comparison, not a request to use the app.
 const STYLE_WORD = /\b\w+-(?:style|like)\b/g;
 
-const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegex = (/** @type {string} */ text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const wordsRegex = (phrases, flags = "") =>
+const wordsRegex = (/** @type {string[]} */ phrases, flags = "") =>
   new RegExp(`\\b(?:${phrases.map(escapeRegex).join("|")})\\b`, flags);
 
 const NOT_SERVICES_REGEX = wordsRegex(NOT_SERVICES, "g");
 
+/** @type {[string, RegExp][]} */
 const CATEGORY_REGEXES = SERVICE_CATEGORIES.map((category) => [
   category,
   wordsRegex(KEYWORDS[category]),
 ]);
 
+/** @param {unknown} prompt */
 export const classifyPrompt = (prompt) => {
   if (typeof prompt !== "string") {
     return { couldUseArcade: false, serviceHints: [] };
@@ -88,7 +92,8 @@ export const classifyPrompt = (prompt) => {
 };
 
 // Arcade toolkit name (the part before the first "_", lowercased) → category.
-const TOOLKIT_SERVICES = {
+/** @type {Record<string, string>} */
+export const TOOLKIT_SERVICES = {
   gmail: "email", outlookmail: "email",
   googlecalendar: "calendar", outlookcalendar: "calendar",
   slack: "chat", discord: "chat",
@@ -101,6 +106,7 @@ const TOOLKIT_SERVICES = {
   googledrive: "storage", dropbox: "storage", sharepoint: "storage", onedrive: "storage",
 };
 
+/** @param {unknown} toolkit */
 export const serviceForToolkit = (toolkit) => {
   if (typeof toolkit !== "string") return null;
   const name = toolkit.toLowerCase();
@@ -109,6 +115,7 @@ export const serviceForToolkit = (toolkit) => {
 
 // Accepts "Gmail_ListEmails" (MCP tool names) and "Gmail.ListEmails"
 // (the tool_name passed to Arcade_UseTool).
+/** @param {unknown} toolName */
 export const serviceForToolName = (toolName) => {
   if (typeof toolName !== "string") return null;
   const separator = toolName.search(/[_.]/);

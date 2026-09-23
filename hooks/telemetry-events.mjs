@@ -1,6 +1,7 @@
+// @ts-check
 /**
  * Turns Claude Code hook input into a telemetry event. Pure: no I/O.
- * Every property sent is listed in docs/telemetry.md.
+ * What may be sent is defined in telemetry-contract.mjs.
  */
 
 import { createHash } from "node:crypto";
@@ -11,55 +12,52 @@ import {
   serviceForToolkit,
   serviceForToolName,
 } from "./telemetry-classify.mjs";
+import {
+  allowedProperties,
+  ARCADE_TOOL_PREFIX,
+  GATEWAY_TOOLS,
+  OPERATOR_STATUSES,
+  OS_NAMES,
+  SESSION_SOURCES,
+} from "./telemetry-contract.mjs";
 import { PLUGIN_VERSION } from "./telemetry-config.mjs";
 
-const ARCADE_TOOL_PREFIX = "mcp__plugin_arcade_arcade__";
-
-// Tools every Arcade gateway exposes. Seeing one on another server means the
-// model used a different Arcade connection than this plugin's.
-const GATEWAY_TOOLS = [
-  "Arcade_ListApps",
-  "Arcade_SelectTools",
-  "Arcade_UseTool",
-  "System_ManageAuthorization",
-];
-
-const SESSION_SOURCES = ["startup", "resume", "clear", "compact", "fork"];
-const OS_NAMES = ["darwin", "linux", "win32"];
+/** @typedef {Record<string, any>} HookInput Claude Code hook stdin. */
 
 // Matches the operator's report line, e.g. "status: needs_auth", with or
-// without markdown around it.
-const OPERATOR_STATUS =
-  /^[^\w\n]*status[^\w\n]*(completed|needs_auth|needs_confirmation|needs_clarification|failed)\b/im;
+// without markdown around it. "unknown" is what we send when none matches.
+const OPERATOR_STATUS = new RegExp(
+  `^[^\\w\\n]*status[^\\w\\n]*(${OPERATOR_STATUSES.filter((s) => s !== "unknown").join("|")})\\b`,
+  "im",
+);
 
-const COMMON_PROPERTIES = [
-  "session",
-  "turn",
-  "host",
-  "plugin_version",
-  "os",
-  "$process_person_profile",
-  "$geoip_disable",
-  "$ip",
-];
-
-export const ALLOWED_PROPERTIES = {
-  "Plugin session started": ["source"],
-  "Plugin prompt submitted": ["could_use_arcade", "service_hints", "reminder_sent"],
-  "Plugin tool called": ["server", "tool", "service"],
-  "Plugin tool failed": ["server", "tool", "service"],
-  "Plugin subagent stopped": ["agent", "status"],
-};
-
+/**
+ * @param {string} installId
+ * @param {string} id
+ */
 const shortHash = (installId, id) =>
   createHash("sha256").update(`${installId}:${id}`).digest("hex").slice(0, 16);
 
+/**
+ * @param {unknown} value
+ * @param {readonly string[]} allowed
+ * @param {string} fallback
+ */
 const oneOf = (value, allowed, fallback) =>
-  allowed.includes(value) ? value : fallback;
+  typeof value === "string" && allowed.includes(value) ? value : fallback;
 
+/**
+ * @param {Record<string, string>} properties
+ * @param {string | null | undefined} service
+ */
 const withService = (properties, service) =>
   service ? { ...properties, service } : properties;
 
+/**
+ * @param {string} server
+ * @param {string} tool
+ * @param {HookInput | undefined} toolInput
+ */
 const arcadeToolProperties = (server, tool, toolInput) => {
   // Arcade_UseTool names the app tool in its input, e.g. "Gmail.ListEmails".
   const service =
@@ -67,10 +65,14 @@ const arcadeToolProperties = (server, tool, toolInput) => {
       ? serviceForToolName(toolInput?.tool_name)
       : serviceForToolName(tool);
   // Custom toolkit names could be private, so only public names are sent.
-  const isPublic = GATEWAY_TOOLS.includes(tool) || service !== null;
+  const isPublic = /** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool) || service !== null;
   return withService({ server, tool: isPublic ? tool : "other" }, service);
 };
 
+/**
+ * @param {unknown} toolName
+ * @param {HookInput | undefined} toolInput
+ */
 const toolProperties = (toolName, toolInput) => {
   if (typeof toolName !== "string" || !toolName.startsWith("mcp__")) {
     return null;
@@ -80,7 +82,7 @@ const toolProperties = (toolName, toolInput) => {
   if (toolName.startsWith(ARCADE_TOOL_PREFIX)) {
     return arcadeToolProperties("arcade", tool, toolInput);
   }
-  if (GATEWAY_TOOLS.includes(tool)) {
+  if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
     return arcadeToolProperties("other_arcade", tool, toolInput);
   }
   // Some connectors name the service in the server, not the tool, e.g.
@@ -91,12 +93,12 @@ const toolProperties = (toolName, toolInput) => {
   return withService({ server: "other" }, service);
 };
 
-const operatorStatus = (message) => {
+const operatorStatus = (/** @type {unknown} */ message) => {
   const match = typeof message === "string" && message.match(OPERATOR_STATUS);
   return match ? match[1].toLowerCase() : "unknown";
 };
 
-const promptProperties = (prompt) => {
+const promptProperties = (/** @type {unknown} */ prompt) => {
   const { couldUseArcade, serviceHints } = classifyPrompt(prompt);
   return {
     could_use_arcade: couldUseArcade,
@@ -105,7 +107,11 @@ const promptProperties = (prompt) => {
   };
 };
 
-/** Returns [event name, extra properties], or null for untracked input. */
+/**
+ * Returns [event name, extra properties], or null for untracked input.
+ * @param {HookInput} input
+ * @returns {[string, Record<string, unknown>] | null}
+ */
 const eventFor = (input) => {
   switch (input.hook_event_name) {
     case "SessionStart":
@@ -140,9 +146,14 @@ const eventFor = (input) => {
   }
 };
 
+/**
+ * @param {string} event
+ * @param {Record<string, unknown>} properties
+ */
 const keepAllowed = (event, properties) => {
+  /** @type {Record<string, unknown>} */
   const kept = {};
-  for (const key of [...COMMON_PROPERTIES, ...ALLOWED_PROPERTIES[event]]) {
+  for (const key of allowedProperties(event)) {
     if (properties[key] !== undefined) kept[key] = properties[key];
   }
   return kept;
@@ -150,7 +161,9 @@ const keepAllowed = (event, properties) => {
 
 /**
  * Builds `{ event, distinct_id, properties }` from hook stdin, or returns null
- * when the input is not something docs/telemetry.md tracks.
+ * when the input is not something the contract tracks.
+ * @param {HookInput | null | undefined} input
+ * @param {{ installId: string, os: string }} options
  */
 export const buildEvent = (input, { installId, os }) => {
   if (!input || typeof input !== "object") return null;
@@ -158,6 +171,7 @@ export const buildEvent = (input, { installId, os }) => {
   if (!found) return null;
   const [event, extra] = found;
 
+  /** @type {Record<string, unknown>} */
   const properties = {
     ...extra,
     host: "claude-code",
@@ -172,7 +186,7 @@ export const buildEvent = (input, { installId, os }) => {
   if (typeof input.session_id === "string") {
     properties.session = shortHash(installId, input.session_id);
   }
-  if (typeof input.prompt_id === "string" && event !== "Plugin session started") {
+  if (typeof input.prompt_id === "string") {
     properties.turn = shortHash(installId, input.prompt_id);
   }
 

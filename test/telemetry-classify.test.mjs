@@ -1,19 +1,32 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  SERVICE_CATEGORIES,
   classifyPrompt,
+  KEYWORDS,
   serviceForToolName,
+  TOOLKIT_SERVICES,
 } from "../hooks/telemetry-classify.mjs";
+import { SERVICE_CATEGORIES } from "../hooks/telemetry-contract.mjs";
 import { readRepoJson } from "./helpers.mjs";
 
 const fixtures = await readRepoJson("test/fixtures/routing-prompts.json");
 
+test("classifier tables and labeled prompts use only the contract's categories", () => {
+  assert.deepEqual(Object.keys(KEYWORDS).sort(), [...SERVICE_CATEGORIES].sort());
+  for (const [toolkit, category] of Object.entries(TOOLKIT_SERVICES)) {
+    assert.ok(SERVICE_CATEGORIES.includes(category), `${toolkit}: ${category}`);
+  }
+  for (const row of fixtures) {
+    assert.deepEqual(Object.keys(row).sort(), ["categories", "couldUseArcade", "prompt"], row.prompt);
+    assert.equal(typeof row.prompt, "string");
+    assert.equal(typeof row.couldUseArcade, "boolean");
+    for (const category of row.categories) {
+      assert.ok(SERVICE_CATEGORIES.includes(category), `${row.prompt}: ${category}`);
+    }
+  }
+});
+
 test("classifyPrompt returns sorted known categories and never throws", () => {
-  assert.deepEqual(SERVICE_CATEGORIES, [
-    "email", "calendar", "chat", "issues", "docs",
-    "meetings", "crm", "code_hosting", "analytics", "storage",
-  ]);
   assert.deepEqual(classifyPrompt("check slack and my calendar, then slack again"), {
     couldUseArcade: true,
     serviceHints: ["calendar", "chat"],
