@@ -3,14 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node scripts/check.mjs",
     "generate": "node scripts/generate-manifests.mjs",
-    "generate:check": "node scripts/generate-manifests.mjs --check",
     "test": "node --test",
-    "validate:schemas": "node scripts/validate-schemas.mjs",
     "verify:discover": "plugins discover .",
-    "verify:claude": "claude plugin validate . --strict",
-    "verify": "npm run check && npm run generate:check && npm run validate:schemas && npm run typecheck && npm test && npm run verify:discover && npm run verify:claude",
+    "verify:claude": "claude plugin validate . --strict && claude plugin validate .claude-plugin/plugin.json --strict",
+    "verify": "npm run typecheck && npm test && npm run verify:discover && npm run verify:claude",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {

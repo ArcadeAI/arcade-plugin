@@ -20,9 +20,8 @@ npx plugins add ArcadeAI/arcade-plugin --target claude-code
 Verify with `claude plugin list` or **`/plugin`**, then **`/reload-plugins`**
 if the session was already open.
 
-Claude Code reads `.claude-plugin/plugin.json`. Skills and `arcade-operator`
-come from the default `skills/` and `agents/` folders. The gateway comes
-from `clients/claude/mcp.json` (`type: "http"`).
+Claude Code reads `.claude-plugin/plugin.json` (skills, the operator, and the
+gateway) and `hooks/hooks.json`.
 
 The same folder works in Claude Cowork / Claude Code desktop once the plugin
 is enabled there. In Claude Desktop Chat, add this GitHub repo as a
@@ -35,11 +34,6 @@ If your host has other Arcade MCP connectors too, Claude may pick the wrong one
 (same tool names, different gateway). In `/mcp`, confirm **`arcade`** is
 connected and prefer disabling other Arcade connectors while testing this
 plugin.
-
-## Sign in
-
-No API keys. The first task that touches an app returns a sign-in link;
-approve it in the browser when prompted.
 
 ## Telemetry
 

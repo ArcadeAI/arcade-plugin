@@ -1,13 +1,8 @@
-# Written by `npm run generate` from plugin.json, mcp.json,
-# agents/arcade-operator.agent.md, hooks/routing-guidance.mjs, and
-# hooks/hook-hosts.mjs.
-# GitHub collapses these in pull request diffs.
+# Written by `npm run generate`. Lists every generated file.
+.cursor-plugin/plugin.json linguist-generated=true
 .claude-plugin/plugin.json linguist-generated=true
 .claude-plugin/marketplace.json linguist-generated=true
-.cursor-plugin/plugin.json linguist-generated=true
-clients/claude/mcp.json linguist-generated=true
-clients/cursor/mcp.json linguist-generated=true
 clients/cursor/rules/arcade.mdc linguist-generated=true
-com.github.copilot/agents/arcade-operator.agent.md linguist-generated=true
 hooks/hooks.json linguist-generated=true
-clients/cursor/hooks/hooks.json linguist-generated=true
+com.github.copilot/hooks/hooks.json linguist-generated=true
+skills/scale-arcade/references/arcade-docs.md linguist-generated=true

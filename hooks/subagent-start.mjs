@@ -1,49 +1,17 @@
 #!/usr/bin/env node
-// Claude Code SubagentStart hook: routing reminder for subagents other than
-// arcade-operator. Always exit 0.
+// Adds the routing rules to subagents. arcade-operator already has them in its
+// own instructions, so it is skipped. Always exits 0.
 
-import { hostFromArgs } from "./hook-hosts.mjs";
+import { hostFromArgs, printContext, readInput } from "./hook-hosts.mjs";
 import { isOperatorAgentType, SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 
 const host = hostFromArgs(process.argv);
-
-const readStdin = async () => {
-  if (process.stdin.isTTY) return "";
-  let data = "";
-  try {
-    for await (const chunk of process.stdin) data += chunk;
-  } catch {
-    // No stdin.
-  }
-  return data;
-};
-
-const isArcadeOperator = (rawInput) => {
-  try {
-    return isOperatorAgentType(JSON.parse(rawInput).agent_type);
-  } catch {
-    return false;
-  }
-};
-
-const emitResponse = () => {
-  if (!host) return;
-  try {
-    process.stdout.write(
-      JSON.stringify(host.contextOutput("SubagentStart", SUBAGENT_CONTEXT)),
-    );
-  } catch {
-    // Never block subagent startup on stdout failures.
-  }
-};
-
 try {
-  const rawInput = await readStdin();
-  if (!isArcadeOperator(rawInput)) {
-    emitResponse();
+  const input = await readInput();
+  if (host && !isOperatorAgentType(input.agent_type)) {
+    printContext(host, "SubagentStart", SUBAGENT_CONTEXT);
   }
 } catch {
-  emitResponse();
+  // Never block a subagent.
 }
-
 process.exit(0);

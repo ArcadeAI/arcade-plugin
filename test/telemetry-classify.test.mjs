@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { classifyPrompt, KEYWORDS, serviceForToolName } from "../hooks/telemetry-classify.mjs";
 import { SERVICE_CATEGORIES, TOOLKIT_SERVICES } from "../hooks/telemetry-contract.mjs";
-import { readRepoJson } from "./helpers.mjs";
+import { readRepoFile } from "./helpers.mjs";
 
-const fixtures = await readRepoJson("test/fixtures/routing-prompts.json");
+const fixtures = JSON.parse(readRepoFile("test/fixtures/routing-prompts.json"));
 
 test("classifier tables and labeled prompts use only the contract's categories", () => {
   assert.deepEqual(Object.keys(KEYWORDS).sort(), [...SERVICE_CATEGORIES].sort());

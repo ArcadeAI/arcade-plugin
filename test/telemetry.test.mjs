@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
@@ -7,12 +7,11 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { runHook, ROOT } from "./helpers.mjs";
+import { readRepoFile, ROOT } from "./helpers.mjs";
 import Ajv2020 from "ajv/dist/2020.js";
-import { HOOKS } from "../hooks/hook-hosts.mjs";
+import { HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
 import { ARCADE_TOOL_PREFIX, EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
 import { buildEvent } from "../hooks/telemetry-events.mjs";
-import { MCP_SERVER_NAME } from "../scripts/constants.mjs";
 import { NOTICE, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
 
 const INSTALL_ID = "11111111-2222-3333-4444-555555555555";
@@ -26,6 +25,14 @@ const validateEvent = new Ajv2020({ allErrors: true }).compile(eventSchema());
 const assertMatchesContract = (event, label = JSON.stringify(event)) => {
   assert.equal(validateEvent(event), true, `${label}: ${JSON.stringify(validateEvent.errors)}`);
 };
+
+// Runs telemetry.mjs the way hooks.json does, with the given environment.
+const runHook = (script, stdin, env) =>
+  spawnSync(process.execPath, [path.join(ROOT, "hooks", script), "--host", "claude-code"], {
+    input: stdin,
+    encoding: "utf8",
+    env: { ...process.env, ...env },
+  });
 
 const hash16 = (id) =>
   createHash("sha256").update(`${INSTALL_ID}:${id}`).digest("hex").slice(0, 16);
@@ -208,12 +215,31 @@ test("the contract schema rejects events outside the contract", () => {
 });
 
 test("telemetry runs on exactly the hooks the contract names", () => {
-  const telemetry = HOOKS.find((hook) => hook.script === "telemetry.mjs");
+  const telemetryEvents = HOOKS.filter((hook) => hook.script === "telemetry.mjs").map((hook) => hook.event);
   const contractHooks = Object.values(EVENTS).map((spec) => spec.hook);
-  assert.deepEqual([...telemetry.events["claude-code"]].sort(), [...contractHooks].sort());
+  assert.deepEqual([...telemetryEvents].sort(), [...contractHooks].sort());
   for (const [name, spec] of Object.entries(EVENTS)) {
     const input = hookInput({ hook_event_name: spec.hook, tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, prompt: "hi" });
     assert.equal(buildEvent(input, OPTIONS)?.event, name, spec.hook);
+  }
+});
+
+test("every generated telemetry command runs and exits quietly with telemetry off", () => {
+  const { manifest, rootVariable } = HOSTS["claude-code"];
+  const commands = Object.values(JSON.parse(readRepoFile(manifest)).hooks)
+    .flatMap((groups) => groups.flatMap((group) => group.hooks))
+    .map((hook) => hook.command)
+    .filter((command) => command.includes("/hooks/telemetry.mjs"));
+  assert.equal(commands.length, Object.keys(EVENTS).length);
+  for (const command of commands) {
+    const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
+      shell: true,
+      input: JSON.stringify(hookInput({ hook_event_name: "SessionStart" })),
+      encoding: "utf8",
+      env: { ...process.env, ARCADE_PLUGIN_TELEMETRY: "0" },
+    });
+    assert.equal(result.status, 0, `${command}: ${result.stderr}`);
+    assert.equal(result.stdout, "", command);
   }
 });
 
@@ -238,9 +264,21 @@ test("every telemetry file is type-checked", () => {
   }
 });
 
+test("the docs point to docs/telemetry.md and name the off switch", () => {
+  for (const file of ["README.md", "ARCHITECTURE.md", "docs/install/claude-code.md"]) {
+    const text = readRepoFile(file);
+    assert.match(text, /telemetry\.md/, file);
+    assert.match(text, /ARCADE_PLUGIN_TELEMETRY/, file);
+  }
+  const contract = readRepoFile("docs/telemetry.md");
+  assert.match(contract, /DO_NOT_TRACK=1/);
+  assert.match(contract, /IP address/);
+});
+
 test("the Arcade tool prefix matches the plugin and MCP server names", () => {
-  const plugin = JSON.parse(readFileSync(path.join(ROOT, "plugin.json"), "utf8"));
-  assert.equal(ARCADE_TOOL_PREFIX, `mcp__plugin_${plugin.name}_${MCP_SERVER_NAME}__`);
+  const plugin = JSON.parse(readRepoFile("plugin.json"));
+  const [server] = Object.keys(JSON.parse(readRepoFile("mcp.json")).mcpServers);
+  assert.equal(ARCADE_TOOL_PREFIX, `mcp__plugin_${plugin.name}_${server}__`);
 });
 
 test("telemetry hook shows the notice once and posts each event from a detached sender", async () => {

@@ -1,66 +1,77 @@
 /**
- * The hooks this plugin runs and the hosts that run them. `npm run generate`
- * writes each host's hooks.json from this table. Every hook command passes
- * `--host <name>` so the script prints the output format that host reads.
+ * The hooks this plugin runs and the clients that run them. `npm run generate`
+ * writes each client's hooks.json from this table. Every hook command passes
+ * `--host <name>` so the script prints the output format that client reads.
+ *
+ * Cursor has no entry: its always-apply rule already carries the full rules,
+ * and its prompt and subagent hooks can't add context.
  */
 
 export const HOOK_TIMEOUT_SEC = 5;
 
-/** One entry per hook script: the event name, or names, each host uses to call it. */
+/**
+ * One entry per hook script and event. Every client below uses the same
+ * PascalCase event name, and the script prints that name in its output.
+ * `hosts` limits an entry to some clients; `matcher` is passed to Claude Code.
+ */
 export const HOOKS = [
-  {
-    script: "session-start.mjs",
-    events: { "claude-code": "SessionStart", cursor: "sessionStart" },
-  },
-  {
-    script: "user-prompt-submit.mjs",
-    events: { "claude-code": "UserPromptSubmit" },
-  },
-  {
-    script: "subagent-start.mjs",
-    events: { "claude-code": "SubagentStart" },
-  },
-  {
+  { script: "session-start.mjs", event: "SessionStart" },
+  // Copilot CLI drops this hook's output; VS Code and Claude Code use it.
+  { script: "user-prompt-submit.mjs", event: "UserPromptSubmit" },
+  { script: "subagent-start.mjs", event: "SubagentStart" },
+  // Telemetry (docs/telemetry.md) reads Claude Code's hook input, so only
+  // Claude Code runs it. Tool events are limited to MCP tools.
+  ...["SessionStart", "UserPromptSubmit", "PostToolUse", "PostToolUseFailure", "SubagentStop"].map((event) => ({
     script: "telemetry.mjs",
-    events: {
-      "claude-code": [
-        "SessionStart",
-        "UserPromptSubmit",
-        "PostToolUse",
-        "PostToolUseFailure",
-        "SubagentStop",
-      ],
-    },
-  },
+    event,
+    hosts: ["claude-code"],
+    ...(event.startsWith("PostToolUse") ? { matcher: "mcp__.*" } : {}),
+  })),
 ];
 
 export const HOSTS = {
   "claude-code": {
     manifest: "hooks/hooks.json",
+    format: "nested",
     rootVariable: "CLAUDE_PLUGIN_ROOT",
-    // Events without an entry run on every occurrence.
-    matchers: {
-      SessionStart: "startup|resume|clear|compact|fork",
-      SubagentStart: "*",
-      PostToolUse: "mcp__.*",
-      PostToolUseFailure: "mcp__.*",
-      SubagentStop: "*",
-    },
     contextOutput: (eventName, text) => ({
       hookSpecificOutput: { hookEventName: eventName, additionalContext: text },
     }),
   },
-  cursor: {
-    manifest: "clients/cursor/hooks/hooks.json",
-    rootVariable: "CURSOR_PLUGIN_ROOT",
-    matchers: {},
-    contextOutput: (_eventName, text) => ({ additional_context: text }),
+  // Copilot CLI and VS Code both read this file. PascalCase event names put
+  // Copilot CLI in its VS Code-compatible mode (snake_case input). Copilot CLI
+  // reads the top-level additionalContext and VS Code reads
+  // hookSpecificOutput; each ignores the other.
+  copilot: {
+    manifest: "com.github.copilot/hooks/hooks.json",
+    format: "flat",
+    rootVariable: "PLUGIN_ROOT",
+    contextOutput: (eventName, text) => ({
+      additionalContext: text,
+      hookSpecificOutput: { hookEventName: eventName, additionalContext: text },
+    }),
   },
 };
 
-/** The host named by `--host`, Claude Code when absent, null when unknown. */
+/** The client named by `--host`, or null if it's missing or unknown. */
 export const hostFromArgs = (argv) => {
   const flag = argv.indexOf("--host");
-  const name = flag === -1 ? "claude-code" : argv[flag + 1];
-  return HOSTS[name] ?? null;
+  return flag === -1 ? null : (HOSTS[argv[flag + 1]] ?? null);
+};
+
+/** The hook's JSON input, or {} if there is none or it doesn't parse. */
+export const readInput = async () => {
+  if (process.stdin.isTTY) return {};
+  let data = "";
+  try {
+    for await (const chunk of process.stdin) data += chunk;
+    return JSON.parse(data) ?? {};
+  } catch {
+    return {};
+  }
+};
+
+/** Adds text to the model's context in the format `host` reads. */
+export const printContext = (host, eventName, text) => {
+  process.stdout.write(JSON.stringify(host.contextOutput(eventName, text)));
 };

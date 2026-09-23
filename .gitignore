@@ -3,6 +3,5 @@
 .env
 .env.*
 node_modules/
-clients/claude-desktop/*.mcpb
 docs/internal/
 docs/research/

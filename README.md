@@ -17,52 +17,9 @@ once in the browser without ever handing your agent a key.
 
 ## Install
 
-### Full plugin
-
-Each client has its own install. Use the one for yours.
-
-**Claude Code**
-
-```bash
-npx plugins add ArcadeAI/arcade-plugin --target claude-code
-```
-
-**Codex / ChatGPT local runtime**
-
-```bash
-codex plugin marketplace add ArcadeAI/arcade-plugin
-codex plugin add arcade@arcade
-```
-
-**Cursor** (individual plans)
-
-```bash
-git clone https://github.com/ArcadeAI/arcade-plugin ~/.cursor/plugins/local/arcade-plugin
-```
-
-Then reload Cursor. On Teams and Enterprise, an admin imports this repo as a
-team marketplace instead — see the [Cursor guide](docs/install/cursor.md).
-
-**VS Code:** Command Palette → **Chat: Install Plugin From Source** → paste
-`https://github.com/ArcadeAI/arcade-plugin`.
-
-**GitHub Copilot CLI**
-
-```bash
-copilot plugin install ArcadeAI/arcade-plugin
-```
-
-Why not one `npx plugins add` for every client: as of `plugins` 1.3.4 it only
-does the whole job for Claude Code, and for Copilot CLI it hands off to
-Copilot's own `copilot plugin` commands. For Codex it stops before
-`codex plugin add`; for Cursor on macOS and Linux it writes into Claude Code's
-plugin folder instead of Cursor's; for VS Code it points a setting at a cache
-folder. Details are in the [install guides](docs/install/).
-
-### Claude Desktop
-
-Add this repository as a plugin marketplace, then install Arcade.
-[Guide →](docs/install/claude-desktop.md)
+Each client installs differently; the [install guide](docs/install/README.md)
+has the one command for yours (Claude Code, Codex, Cursor, VS Code, Copilot
+CLI, Claude Desktop).
 
 ### Tools only
 
@@ -77,30 +34,9 @@ the [install guides](docs/install/).
 
 ## What each client gets
 
-| Client | MCP | Skills | Subagents | Commands | Rules | Hooks |
-| --- | :--: | :--: | :--: | :--: | :--: | :--: |
-| **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
-| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 6 |
-| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 6 |
-| **GitHub Copilot CLI** | ✅ | ✅ 2 | ✅ | — | — | — |
-| **VS Code** | ✅ | ✅ 2 | ✅ | — | — | — |
-| **Codex / ChatGPT local runtime** | ✅ | ✅ 2 | — | — | — | — |
-| **OpenCode** | ✅ | — | — | — | — | — |
-| **Claude Desktop** | ✅ | ✅ 2 | — | — | — | — |
-| **Any MCP client** | ✅ | — | — | — | — | — |
-
-Skills are `try-arcade` and `scale-arcade`. The operator is
-`arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
-`/arcade-status`. Cursor also gets an always-on rule and a session hook.
-Claude Code and Cowork get session, per-turn, and subagent hooks, plus
-anonymous telemetry hooks. Copilot CLI and VS Code
-load the operator from their namespaced adapter. Codex and the ChatGPT local
-runtime get MCP and skills; lifecycle hooks are blocked on Codex 0.154.0 and 0.155.1 for
-Agent Plugin packages ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
-Use `@Arcade` or the bundled skills for routing. Web installation does not
-deploy hook scripts. Claude Desktop Chat
-loads tools and skills from the plugin marketplace. Full detail is
-in the [support matrix](docs/support-matrix.md).
+Every client gets the Arcade gateway. How much of the rest it loads (skills,
+the `arcade-operator` subagent, commands, hooks) depends on the client; see
+the [support matrix](docs/support-matrix.md).
 
 ## Try it
 
@@ -133,25 +69,22 @@ anything is sent, created, or deleted.
 
 ## Develop
 
-Agents editing this repo should read [AGENTS.md](AGENTS.md) for hook adapter
-rules. [ARCHITECTURE.md](ARCHITECTURE.md) covers the full contract and layout.
+Agents editing this repo should read [AGENTS.md](AGENTS.md).
+[ARCHITECTURE.md](ARCHITECTURE.md) lists the source files and what is
+generated from them.
 
 ```bash
 npm ci
 npm run verify
 ```
 
-`verify` runs structural checks, generated-manifest drift checks, JSON Schema
-validation, hook and manifest tests (including running each hook manifest
-command), `plugins discover`, and `claude plugin validate` (pinned in
-`package.json` devDependencies; CI uses Node 22.23.2).
+`verify` runs the tests (hand-written file checks, a stale-generated-file
+check, and every hook command in every client's manifest), then
+`plugins discover` and `claude plugin validate`.
 
-CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
-Pull requests finish with a **`complete`** job that aggregates workflow jobs,
-waits for **`Cursor Bugbot`** to finish with **`success`**, and follows the
-aggregate pattern in
-[evantahler/botholomew](https://github.com/evantahler/botholomew/blob/main/.github/workflows/ci.yml).
-Use **`complete`** as the only required status check in branch protection.
+CI runs the same steps (`.github/workflows/check.yml`). On pull requests the
+**`complete`** job also waits for Cursor Bugbot; make `complete` the only
+required status check.
 
 ## Release
 

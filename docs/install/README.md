@@ -18,8 +18,8 @@ below have alternatives and verification steps.
 | GitHub Copilot CLI | `copilot plugin install ArcadeAI/arcade-plugin` |
 | Claude Desktop | Add `ArcadeAI/arcade-plugin` as a plugin marketplace — see [claude-desktop.md](claude-desktop.md) |
 
-After install, reload your agent or start a new session. The first external
-service task returns a browser sign-in link — approve it when prompted.
+After install, reload your agent or start a new session. No API keys: the
+first task that touches an app returns a browser sign-in link.
 
 ### About `npx plugins add`
 
@@ -55,11 +55,11 @@ https://api.arcade.dev/mcp/arcade
 ```
 
 **Claude Desktop:** add `ArcadeAI/arcade-plugin` as a plugin marketplace
-(see [claude-desktop.md](claude-desktop.md)). A custom connector or the
-sample config is the tools-only fallback.
+(see [claude-desktop.md](claude-desktop.md)). A custom connector with the URL above is
+the tools-only fallback.
 
-Cursor and VS Code also have one-click MCP install links in the
-[README](../README.md).
+Cursor and VS Code also have one-click MCP install links in
+[cursor.md](cursor.md) and [vscode.md](vscode.md).
 
 ## Per-client guides
 

@@ -1,6 +1,6 @@
 /**
  * Arcade routing rules. This file is the only place the rules are written.
- * The hooks import these strings at runtime, and `npm run generate` copies
+ * The hooks import these strings, and `npm run generate` copies
  * them into the Cursor rule, arcade-operator, and the try-arcade skill.
  */
 
@@ -30,45 +30,48 @@ const AUTH_ACTION_DELEGATE =
 const NO_SUBSTITUTES =
   "Never fall back to another connector: do not finish the task through " +
   "another MCP server, a CLI such as gh or curl, a built-in search, or a " +
-  "direct API, unless the user explicitly chooses that after hearing Arcade " +
-  "is blocked. Troubleshooting or retrying on Arcade itself is fine.";
+  "direct API. Troubleshooting or retrying on Arcade itself is fine.";
+
+// Only the conversation that talks to the user can offer this choice.
+const USER_MAY_CHOOSE =
+  "Use another path only if the user explicitly chooses it after hearing " +
+  "Arcade is blocked.";
 
 const DELEGATION =
-  "For external service tasks, use try-arcade first. For team or org " +
-  "rollout, use scale-arcade. When arcade-operator is available, delegate the " +
-  "bounded external service task to it instead of calling Arcade tools " +
-  "directly.";
+  "For external service tasks (email, calendar, chat, docs, issues, CRM), " +
+  "use try-arcade first. For team or org rollout, use scale-arcade. When " +
+  "arcade-operator is available, delegate the bounded external service task " +
+  "to it instead of calling Arcade tools directly.";
 
 const PRIVACY = "Keep tool discovery and tool names out of the conversation.";
 
 const join = (...sentences) => sentences.join(" ");
 
-/** Rules for a conversation that talks to the user. */
-export const GATEWAY_RULES_PARENT = join(
-  GATEWAY,
-  AUTH_DEFINITION,
-  AUTH_ACTION_PARENT,
-  NO_SUBSTITUTES,
-);
+const PARENT_RULES = [GATEWAY, AUTH_DEFINITION, AUTH_ACTION_PARENT, NO_SUBSTITUTES, USER_MAY_CHOOSE];
+const DELEGATE_RULES = [GATEWAY, AUTH_DEFINITION, AUTH_ACTION_DELEGATE, NO_SUBSTITUTES];
 
-/** Rules for an agent that reports to a parent instead of the user. */
-export const GATEWAY_RULES_DELEGATE = join(
-  GATEWAY,
-  AUTH_DEFINITION,
-  AUTH_ACTION_DELEGATE,
-  NO_SUBSTITUTES,
-);
+// Generated into the try-arcade skill, arcade-operator, and the Cursor rule.
+export const SKILL_RULES = join(...PARENT_RULES);
+export const OPERATOR_RULES = join(...DELEGATE_RULES);
+export const CURSOR_RULE = join(...PARENT_RULES, DELEGATION, PRIVACY);
 
-export const SESSION_CONTEXT = join(GATEWAY_RULES_PARENT, DELEGATION, PRIVACY);
+// Printed by the hooks.
+export const SESSION_CONTEXT = CURSOR_RULE;
 
-// Sent on most user turns, so it leaves out the authentication rules. Those
-// come from SESSION_CONTEXT, try-arcade, and arcade-operator.
-export const PROMPT_REMINDER = join(GATEWAY, NO_SUBSTITUTES, DELEGATION, PRIVACY);
+// Sent on most user turns, so it is one short paragraph. The full rules come
+// from SESSION_CONTEXT, try-arcade, and arcade-operator.
+export const PROMPT_REMINDER =
+  'For external app tasks, use try-arcade (or arcade-operator when available) ' +
+  'through the "arcade" MCP server only, and scale-arcade for team rollout. ' +
+  "Don't fall back to another connector, CLI, or API unless the user " +
+  "explicitly chooses that.";
 
+// Subagents can't start arcade-operator themselves, so they get try-arcade
+// without the delegation sentence.
 export const SUBAGENT_CONTEXT = join(
   "This subagent shares the parent session.",
-  GATEWAY_RULES_DELEGATE,
-  DELEGATION,
+  ...DELEGATE_RULES,
+  "For external service tasks, use try-arcade.",
   PRIVACY,
 );
 

@@ -1,53 +1,27 @@
 # Agent guidance for this repository
 
-This file is for agents editing **arcade-plugin** itself. End-user routing
-rules live in skills and `clients/cursor/rules/arcade.mdc`.
+For agents editing **arcade-plugin** itself.
 
-## Generated files
+Client-specific files are generated. Edit the source, run `npm run generate`,
+then `npm run verify` (it fails if a generated file was edited by hand).
+[ARCHITECTURE.md](ARCHITECTURE.md) lists the sources; `.gitattributes` lists
+every generated file.
 
-Most client-specific files are generated. Edit the source, then run
-`npm run generate`; `npm run verify` fails if a generated file was edited by
-hand. [ARCHITECTURE.md](ARCHITECTURE.md#sources-and-generated-files) lists
-the sources and outputs, and `.gitattributes` lists every generated file.
-
-- Routing rules: `hooks/routing-guidance.mjs`. Never edit the rules text in
-  the Cursor rule, arcade-operator, or try-arcade directly.
-- Hooks: `hooks/hook-hosts.mjs` lists each hook script and the event name each
-  host uses for it. Add a hook or a host there; don't write `hooks.json` by
-  hand.
-
-`hooks/subagent-start.mjs` skips injection when `agent_type` is
-`arcade-operator` or a plugin-scoped name ending in `:arcade-operator`.
-
-Claude Code also runs `hooks/telemetry.mjs` on five events ([docs/telemetry.md](docs/telemetry.md)). Rules for it:
-
-- No hook is `async`. Claude Code kills async hooks when a session exits,
-  and an async hook's `systemMessage` goes to the model instead of the
-  user. The generator never writes `async`, and `npm run verify` fails on a
-  hand-edited `hooks.json`.
-- `telemetry.mjs` prints nothing except the one-time notice on
-  `SessionStart`.
-- Never do network I/O in the hook process. Hand each send to the detached
-  `hooks/telemetry-send.mjs` so the hook returns in about 60 ms. A test fails
-  if any other hook file calls `fetch` or imports a network module.
-- `hooks/telemetry-contract.mjs` defines every event, property, and allowed
-  value. Add or change one there only: the builder sends nothing else,
-  `npm run generate` writes the tables in docs/telemetry.md from it, the
-  tests check every built event against its JSON Schema, and the telemetry
-  events in `hooks/hook-hosts.mjs` must match its hooks.
-- Telemetry files start with `// @ts-check`; `npm run typecheck` runs `tsc`
-  over them. Nothing is compiled: hooks run as plain `.mjs` on the user's
-  own Node.
-- No telemetry in the Cursor manifest yet. Cursor has no way for a hook to
-  show the user a message (so no first-run notice) and no plugin data
-  folder for the install ID. It also passes the user's email to every hook,
-  which the property allowlist would have to keep out.
-
-**Codex hooks are parked** on branch `cursor/park-codex-hooks-gro-353-f8ad`.
-Codex 0.154.0 and 0.155.1 parse `extensions.com.openai.hooks` but the loader discards them for `AgentPlugin` format
-([`loader.rs` L954–956](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core-plugins/src/loader.rs#L954-L956);
-[openai/codex#37027](https://github.com/openai/codex/pull/37027),
-[openai/codex#39895](https://github.com/openai/codex/issues/39895)). Do not
-drop root `$schema` to force hooks; that breaks Agent Plugins conformance.
-
-More context: [ARCHITECTURE.md](ARCHITECTURE.md#portable-contract--generate--validate).
+- Routing rules: edit `hooks/routing-guidance.mjs`, never the rules text in
+  the Cursor rule, arcade-operator, or try-arcade.
+- Hooks: add a hook or a client in `hooks/hook-hosts.mjs`, never in a
+  `hooks.json`.
+- Telemetry: `hooks/telemetry-contract.mjs` defines every event, property,
+  and allowed value; change them there only. The builder sends nothing else,
+  `npm run generate` writes the tables in `docs/telemetry.md`, and the tests
+  check every built event against its schema and the telemetry rows in
+  `hooks/hook-hosts.mjs` against its hooks. `telemetry.mjs` prints nothing
+  but the one-time notice, and only `telemetry-send.mjs` may touch the
+  network (a test enforces both). Telemetry files start with `// @ts-check`
+  and `npm run typecheck` runs `tsc` on them; nothing is compiled.
+- Telemetry runs in Claude Code only. It reads Claude Code's hook input and
+  keeps its install ID in Claude Code's plugin data folder; Copilot CLI and
+  VS Code need their own input mapping and a place for the ID first.
+- Codex hooks are blocked upstream ([docs/install/codex.md](docs/install/codex.md)).
+  Don't remove the root `$schema` to force them; that breaks Agent Plugins
+  conformance.
