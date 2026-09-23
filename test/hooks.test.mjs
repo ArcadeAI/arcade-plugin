@@ -177,6 +177,14 @@ test("user-prompt-submit suppresses one-word acknowledgements", () => {
   assert.equal(result.stdout.trim(), "");
 });
 
+test("user-prompt-submit suppresses background task results", () => {
+  const prompt =
+    "  <task-notification>\n<status>completed</status> calendar meeting";
+  const result = runHook("user-prompt-submit.mjs", JSON.stringify({ prompt }));
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "");
+});
+
 test("subagent-start emits Claude shape with shared guidance", () => {
   const result = runHook(
     "subagent-start.mjs",

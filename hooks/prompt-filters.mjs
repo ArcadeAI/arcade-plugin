@@ -47,8 +47,17 @@ export const isBareContinuation = (prompt) => {
   return words.every((word) => CONTINUATION_WORDS.has(word));
 };
 
+// Claude Code sends background task results through UserPromptSubmit. The
+// user didn't write these.
+const TASK_NOTIFICATION = "<task-notification>";
+
+export const isTaskNotification = (prompt) =>
+  typeof prompt === "string" &&
+  prompt.trimStart().startsWith(TASK_NOTIFICATION);
+
 /** True when user-prompt-submit.mjs sends the routing reminder. */
 export const shouldRemind = (prompt) =>
   typeof prompt === "string" &&
   prompt.trim() !== "" &&
+  !isTaskNotification(prompt) &&
   !isBareContinuation(prompt);

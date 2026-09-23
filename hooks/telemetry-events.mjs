@@ -4,7 +4,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { shouldRemind } from "./prompt-filters.mjs";
+import { isTaskNotification, shouldRemind } from "./prompt-filters.mjs";
 import { isOperatorAgentType } from "./routing-guidance.mjs";
 import {
   classifyPrompt,
@@ -24,9 +24,6 @@ const GATEWAY_TOOLS = [
   "Arcade_UseTool",
   "System_ManageAuthorization",
 ];
-
-// Claude Code sends background task results through UserPromptSubmit.
-const TASK_NOTIFICATION = "<task-notification>";
 
 const SESSION_SOURCES = ["startup", "resume", "clear", "compact", "fork"];
 
@@ -151,9 +148,7 @@ const eventFor = (input) => {
         { source: oneOf(input.source, SESSION_SOURCES, "other") },
       ];
     case "UserPromptSubmit":
-      if (String(input.prompt).trimStart().startsWith(TASK_NOTIFICATION)) {
-        return null;
-      }
+      if (isTaskNotification(input.prompt)) return null;
       return ["Plugin prompt submitted", promptProperties(input.prompt)];
     case "PostToolUse": {
       const extra = toolProperties(input.tool_name, input.tool_input);
