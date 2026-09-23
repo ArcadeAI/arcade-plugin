@@ -122,9 +122,12 @@ test("support matrix markdown hook counts match capabilities data", async () => 
   const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
   const matrix = await readRepoFile("docs/support-matrix.md");
 
+  const claudeHookCount = capabilities.clients["claude-code"].hooks.count;
   const rows = {
     cursor: /\*\*Cursor\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*✅\s*\|\s*✅¹\s*\|/,
-    "claude-code": /\*\*Claude Code\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*✅\s*\|\s*3\s*\|\s*—\s*\|\s*3\s*\|/,
+    "claude-code": new RegExp(
+      `\\*\\*Claude Code\\*\\*.*?\\|\\s*✅\\s*\\|\\s*2\\s*\\|\\s*✅\\s*\\|\\s*3\\s*\\|\\s*—\\s*\\|\\s*${claudeHookCount}\\s*\\|`,
+    ),
     codex: /\*\*Codex \/ ChatGPT local runtime\*\*.*?\|\s*✅\s*\|\s*2\s*\|\s*—\s*\|\s*—\s*\|\s*—\s*\|\s*—\s*\|/,
   };
 
@@ -134,6 +137,14 @@ test("support matrix markdown hook counts match capabilities data", async () => 
     if (hooks?.count) {
       assert.equal(typeof hooks.count, "number");
     }
+  }
+});
+
+test("hook counts equal the number of wired events", async () => {
+  const capabilities = await readRepoJson("docs/support-matrix.capabilities.json");
+  for (const [clientId, client] of Object.entries(capabilities.clients)) {
+    if (!client.hooks) continue;
+    assert.equal(client.hooks.count, client.hooks.events.length, `${clientId} hook count`);
   }
 });
 

@@ -65,6 +65,13 @@ for (const required of [
   "agents",
   "commands",
   "hooks/hooks.json",
+  "hooks/telemetry.mjs",
+  "hooks/telemetry-events.mjs",
+  "hooks/telemetry-send.mjs",
+  "hooks/telemetry-config.mjs",
+  "hooks/telemetry-classify.mjs",
+  "hooks/prompt-filters.mjs",
+  "docs/telemetry.md",
   "schemas/host-adapters/claude-hooks.schema.json",
   "schemas/host-adapters/cursor-hooks.schema.json",
   "schemas/host-adapters/cursor-plugin.schema.json",
@@ -249,6 +256,31 @@ if (!claudeHooks.includes("hooks/subagent-start.mjs")) {
 }
 if (!claudeHooks.includes('"matcher": "*"')) {
   fail('hooks/hooks.json: SubagentStart must use matcher "*"');
+}
+if (!claudeHooks.includes("hooks/telemetry.mjs")) {
+  fail("hooks/hooks.json: must reference hooks/telemetry.mjs");
+}
+
+const TELEMETRY_COMMAND = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs"';
+for (const [event, groups] of Object.entries(json["hooks/hooks.json"]?.hooks ?? {})) {
+  const telemetryHooks = groups
+    .flatMap((group) => group.hooks ?? [])
+    .filter((hook) => hook.command?.includes("hooks/telemetry.mjs"));
+  if (telemetryHooks.length !== 1) {
+    fail(`hooks/hooks.json: ${event} must run hooks/telemetry.mjs exactly once`);
+  }
+  for (const hook of telemetryHooks) {
+    if (hook.command !== TELEMETRY_COMMAND) {
+      fail(`hooks/hooks.json: ${event} telemetry command must be ${TELEMETRY_COMMAND}`);
+    }
+  }
+  // Claude Code kills async hooks at session exit and sends an async
+  // systemMessage to the model instead of the user.
+  for (const hook of groups.flatMap((group) => group.hooks ?? [])) {
+    if ("async" in hook) {
+      fail(`hooks/hooks.json: ${event} hooks must not be async`);
+    }
+  }
 }
 
 const codexManifest = json[".codex-plugin/plugin.json"];

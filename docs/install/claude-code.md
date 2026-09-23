@@ -41,6 +41,16 @@ plugin.
 No API keys. The first task that touches an app returns a sign-in link;
 approve it in the browser when prompted.
 
+## Telemetry
+
+The plugin sends anonymous usage events so Arcade can see whether the model
+uses Arcade when a task needs it. [What's sent](../telemetry.md). To turn it
+off, add this to Claude Code's `settings.json`:
+
+```json
+{ "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
+```
+
 ## First steps
 
 - "What's on my calendar tomorrow?"

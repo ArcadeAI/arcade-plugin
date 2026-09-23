@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 const readJson = (root, relativePath) =>
@@ -36,11 +37,55 @@ export const MANIFEST_HOOK_ADAPTERS = [
       }),
       UserPromptSubmit: JSON.stringify({
         hook_event_name: "UserPromptSubmit",
+        session_id: "claude-smoke-1",
+        prompt_id: "claude-smoke-prompt-1",
         prompt: "What is on my calendar tomorrow?",
       }),
       SubagentStart: JSON.stringify({
         hook_event_name: "SubagentStart",
+        session_id: "claude-smoke-1",
+        prompt_id: "claude-smoke-prompt-1",
         agent_type: "review",
+      }),
+      PreToolUse: JSON.stringify({
+        hook_event_name: "PreToolUse",
+        session_id: "claude-smoke-1",
+        prompt_id: "claude-smoke-prompt-1",
+        tool_name: "Skill",
+        tool_input: { skill: "arcade:try-arcade" },
+      }),
+      PostToolUse: JSON.stringify({
+        hook_event_name: "PostToolUse",
+        session_id: "claude-smoke-1",
+        prompt_id: "claude-smoke-prompt-1",
+        tool_name: "mcp__plugin_arcade_arcade__Gmail_ListEmails",
+        tool_input: {},
+        tool_response: {},
+      }),
+      PostToolUseFailure: JSON.stringify({
+        hook_event_name: "PostToolUseFailure",
+        session_id: "claude-smoke-1",
+        prompt_id: "claude-smoke-prompt-1",
+        tool_name: "mcp__plugin_arcade_arcade__Gmail_ListEmails",
+        tool_input: {},
+        error: "authorization required",
+      }),
+      SubagentStop: JSON.stringify({
+        hook_event_name: "SubagentStop",
+        session_id: "claude-smoke-1",
+        prompt_id: "claude-smoke-prompt-1",
+        agent_type: "arcade:arcade-operator",
+        last_assistant_message: "status: completed",
+      }),
+      Stop: JSON.stringify({
+        hook_event_name: "Stop",
+        session_id: "claude-smoke-1",
+        prompt_id: "claude-smoke-prompt-1",
+      }),
+      SessionEnd: JSON.stringify({
+        hook_event_name: "SessionEnd",
+        session_id: "claude-smoke-1",
+        reason: "other",
       }),
     },
   },
@@ -68,7 +113,22 @@ const pluginRootEnv = (root) => ({
   CURSOR_PLUGIN_ROOT: root,
 });
 
+// Port 9 (discard) on loopback, so telemetry never reaches the network.
+const telemetryEnv = (dataDir) => ({
+  ARCADE_PLUGIN_TELEMETRY_HOST: "http://127.0.0.1:9",
+  CLAUDE_PLUGIN_DATA: dataDir,
+});
+
 export const runManifestHookSmoke = (root) => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), "arcade-hook-smoke-"));
+  try {
+    return runAdapters(root, dataDir);
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+};
+
+const runAdapters = (root, dataDir) => {
   const errors = [];
 
   for (const adapter of MANIFEST_HOOK_ADAPTERS) {
@@ -97,7 +157,7 @@ export const runManifestHookSmoke = (root) => {
         input: stdin,
         encoding: "utf8",
         cwd: root,
-        env: { ...process.env, ...pluginRootEnv(root) },
+        env: { ...process.env, ...pluginRootEnv(root), ...telemetryEnv(dataDir) },
       });
 
       if (result.status !== 0) {
@@ -106,6 +166,9 @@ export const runManifestHookSmoke = (root) => {
         );
         continue;
       }
+
+      // Telemetry prints nothing on most events; the routing hooks must always print.
+      if (command.includes("hooks/telemetry.mjs")) continue;
 
       if (!result.stdout.trim()) {
         errors.push(`${adapter.name}: ${event} produced empty stdout`);

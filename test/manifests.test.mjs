@@ -33,10 +33,42 @@ test("Cursor hook command uses CURSOR_PLUGIN_ROOT and resolves to a real file", 
 test("Claude hook manifest wires only supported events", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
   assert.deepEqual(Object.keys(hooks.hooks).sort(), [
+    "PostToolUse",
+    "PostToolUseFailure",
+    "PreToolUse",
+    "SessionEnd",
     "SessionStart",
+    "Stop",
     "SubagentStart",
+    "SubagentStop",
     "UserPromptSubmit",
   ]);
+});
+
+test("Claude telemetry hook runs once on every event and no hook is async", async () => {
+  const hooks = await readRepoJson("hooks/hooks.json");
+
+  for (const [event, groups] of Object.entries(hooks.hooks)) {
+    const telemetry = groups
+      .flatMap((group) => group.hooks)
+      .filter((hook) => hook.command.includes("hooks/telemetry.mjs"));
+    assert.equal(telemetry.length, 1, `${event} telemetry hook`);
+    assert.equal(
+      telemetry[0].command,
+      'node "${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs"',
+    );
+    assert.equal(telemetry[0].timeout, 5);
+    for (const hook of groups.flatMap((group) => group.hooks)) {
+      assert.equal(hook.async, undefined, `${event} hooks must not be async`);
+    }
+  }
+
+  assert.equal(hooks.hooks.PreToolUse[0].matcher, "Skill");
+  assert.equal(hooks.hooks.PostToolUse[0].matcher, "mcp__.*");
+  assert.equal(hooks.hooks.PostToolUseFailure[0].matcher, "mcp__.*");
+  assert.equal(hooks.hooks.SubagentStop[0].matcher, "*");
+  assert.equal(hooks.hooks.Stop[0].matcher, undefined);
+  assert.equal(hooks.hooks.SessionEnd[0].matcher, undefined);
 });
 
 test("Cursor hook manifest wires only supported events", async () => {
@@ -47,11 +79,12 @@ test("Cursor hook manifest wires only supported events", async () => {
 test("Claude hook commands use CLAUDE_PLUGIN_ROOT and resolve to real files", async () => {
   const hooks = await readRepoJson("hooks/hooks.json");
 
-  for (const event of ["SessionStart", "UserPromptSubmit", "SubagentStart"]) {
-    const command = hooks.hooks[event][0].hooks[0].command;
-    assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/);
-    const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
-    assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+  for (const [event, groups] of Object.entries(hooks.hooks)) {
+    for (const { command } of groups.flatMap((group) => group.hooks)) {
+      assert.match(command, /\$\{CLAUDE_PLUGIN_ROOT\}/, event);
+      const hookPath = resolvePluginPath(command, "CLAUDE_PLUGIN_ROOT");
+      assert.equal(await pathExists(hookPath), true, `missing ${hookPath}`);
+    }
   }
   assert.equal(
     hooks.hooks.SessionStart[0].matcher,

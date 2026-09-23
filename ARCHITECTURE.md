@@ -90,6 +90,7 @@ arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
 ├── CHANGELOG.md
 ├── docs/
 │   ├── support-matrix.md               what each client loads
+│   ├── telemetry.md                    anonymous events sent from Claude Code
 │   └── install/                        one page per client
 │
 ├── skills/                             from outcome, or invoked by name
@@ -154,7 +155,7 @@ it follows the same Arcade discovery and execution loop itself.
 │  https://api.arcade.dev/mcp/arcade                           │
 │                                                              │
 │  only external capability boundary                           │
-│  canonical telemetry lives here, not in the plugin           │
+│  canonical tool-call records live here                       │
 └──────────────────────────────────────────────────────────────┘
                 │
                 ▼
@@ -170,8 +171,25 @@ success or narrating tool internals.
 
 ## Observability boundary
 
-The Arcade MCP server is the canonical place to record request, authentication,
-tool-discovery, tool-call, and completion outcomes. This package does not ask a
-model to self-report tokens, turns, or success, and it ships no telemetry hook.
-If a host-specific hook later adds supplemental signals, it must be explicit,
-opt-in, and documented as non-portable.
+The Arcade MCP gateway is the canonical record of request, authentication,
+tool-discovery, tool-call, and completion outcomes.
+
+On hosts that run plugin hooks (Claude Code), the plugin also sends anonymous
+routing events. They add what only the plugin can see: whether the model used
+Arcade when a prompt looked like it needed an outside app. The events are on by
+default, turned off with `ARCADE_PLUGIN_TELEMETRY=0`, and listed in
+[docs/telemetry.md](docs/telemetry.md).
+
+`hooks/telemetry.mjs` builds each event and hands the send to a detached
+`hooks/telemetry-send.mjs` process, so a turn waits about 60 ms for the hook
+and never on the network. The hook is not async: Claude Code kills async
+hooks when a headless session exits, which would drop the last turn's
+events. Helper modules:
+
+- `hooks/telemetry-events.mjs`: event builders and the property allowlist
+- `hooks/telemetry-classify.mjs`: local keyword classifier for `looks_external`
+- `hooks/telemetry-config.mjs`: PostHog host, opt-out variable, file names,
+  and the first-run notice
+- `hooks/prompt-filters.mjs`: prompt checks shared with the per-turn reminder
+
+The package does not ask a model to self-report tokens, turns, or success.

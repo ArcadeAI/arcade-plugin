@@ -53,3 +53,10 @@ export const ROUTING_MARKERS = [
  * (checked in CI).
  */
 export const AUTH_MARKERS = ["needsAuth", "setup or connection failure"];
+
+const OPERATOR_AGENT = "arcade-operator";
+
+/** True for arcade-operator, bare or plugin-scoped (e.g. "arcade:arcade-operator"). */
+export const isOperatorAgentType = (agentType) =>
+  typeof agentType === "string" &&
+  (agentType === OPERATOR_AGENT || agentType.endsWith(`:${OPERATOR_AGENT}`));

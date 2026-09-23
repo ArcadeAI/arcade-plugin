@@ -43,9 +43,19 @@
       },
       "commands": 3,
       "hooks": {
-        "count": 3,
+        "count": 9,
         "manifest": "hooks/hooks.json",
-        "events": ["SessionStart", "UserPromptSubmit", "SubagentStart"]
+        "events": [
+          "SessionStart",
+          "UserPromptSubmit",
+          "SubagentStart",
+          "PreToolUse",
+          "PostToolUse",
+          "PostToolUseFailure",
+          "SubagentStop",
+          "Stop",
+          "SessionEnd"
+        ]
       }
     },
     "claude-cowork-code-desktop": {

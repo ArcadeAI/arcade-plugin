@@ -49,8 +49,8 @@ the [install guides](docs/install/).
 | Client | MCP | Skills | Subagents | Commands | Rules | Hooks |
 | --- | :--: | :--: | :--: | :--: | :--: | :--: |
 | **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
-| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 3 |
-| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 3 |
+| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 9 |
+| **Claude Cowork / Code desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 9 |
 | **GitHub Copilot CLI** | ✅ | ✅ 2 | ✅ | — | — | — |
 | **VS Code** | ✅ | ✅ 2 | ✅ | — | — | — |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ 2 | — | — | — | — |
@@ -61,7 +61,8 @@ the [install guides](docs/install/).
 Skills are `try-arcade` and `scale-arcade`. The operator is
 `arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
 `/arcade-status`. Cursor also gets an always-on rule and a session hook.
-Claude Code and Cowork get session, per-turn, and subagent hooks. Copilot CLI and VS Code
+Claude Code and Cowork get session, per-turn, and subagent hooks, plus
+anonymous telemetry hooks. Copilot CLI and VS Code
 load the operator from their namespaced adapter. Codex and the ChatGPT local
 runtime get MCP and skills; lifecycle hooks are blocked on Codex 0.154.0 and 0.155.1 for
 Agent Plugin packages ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
@@ -95,7 +96,10 @@ anything is sent, created, or deleted.
   identity, and tool policy (see `scale-arcade`).
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
 - Privacy: tasks run through Arcade's hosted gateway and the apps you
-  connect — [privacy policy](https://www.arcade.dev/privacy-policy).
+  connect — [privacy policy](https://www.arcade.dev/privacy-policy). In
+  Claude Code the plugin also sends anonymous usage events (no prompt text,
+  file paths, or tool output) — [what's sent](docs/telemetry.md). Set
+  `ARCADE_PLUGIN_TELEMETRY=0` to turn them off.
 
 ## Develop
 

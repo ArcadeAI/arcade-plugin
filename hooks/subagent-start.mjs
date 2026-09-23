@@ -2,9 +2,7 @@
 // Claude Code SubagentStart hook: routing reminder for subagents other than
 // arcade-operator. Always exit 0.
 
-import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
-
-const OPERATOR_AGENT = "arcade-operator";
+import { isOperatorAgentType, SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 
 const readStdin = async () => {
   if (process.stdin.isTTY) return "";
@@ -19,12 +17,7 @@ const readStdin = async () => {
 
 const isArcadeOperator = (rawInput) => {
   try {
-    const input = JSON.parse(rawInput);
-    const agentType = input.agent_type;
-    if (typeof agentType !== "string") return false;
-    return (
-      agentType === OPERATOR_AGENT || agentType.endsWith(`:${OPERATOR_AGENT}`)
-    );
+    return isOperatorAgentType(JSON.parse(rawInput).agent_type);
   } catch {
     return false;
   }

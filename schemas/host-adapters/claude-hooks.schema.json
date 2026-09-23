@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ArcadeAI/arcade-plugin/schemas/host-adapters/claude-hooks.schema.json",
   "title": "Arcade Claude hook adapter contract",
-  "$comment": "Repository-owned contract for the documented Claude hook subset used here. Source checked 2026-09-17: https://code.claude.com/docs/en/hooks",
+  "$comment": "Repository-owned contract for the documented Claude hook subset used here. Source checked 2026-09-23: https://code.claude.com/docs/en/hooks",
   "type": "object",
   "additionalProperties": false,
   "required": ["hooks"],
@@ -10,7 +10,17 @@
     "hooks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
+      "required": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "SubagentStart",
+        "PreToolUse",
+        "PostToolUse",
+        "PostToolUseFailure",
+        "SubagentStop",
+        "Stop",
+        "SessionEnd"
+      ],
       "properties": {
         "SessionStart": {
           "type": "array",
@@ -31,22 +41,43 @@
           }
         },
         "UserPromptSubmit": {
+          "$ref": "#/$defs/unmatchedGroups"
+        },
+        "SubagentStart": {
+          "$ref": "#/$defs/anyAgentGroups"
+        },
+        "PreToolUse": {
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["hooks"],
+            "required": ["matcher", "hooks"],
             "properties": {
+              "matcher": {
+                "const": "Skill"
+              },
               "hooks": {
                 "$ref": "#/$defs/timedCommands"
               }
             }
           }
         },
-        "SubagentStart": {
-          "$ref": "#/$defs/subagentStart"
+        "PostToolUse": {
+          "$ref": "#/$defs/mcpToolGroups"
+        },
+        "PostToolUseFailure": {
+          "$ref": "#/$defs/mcpToolGroups"
+        },
+        "SubagentStop": {
+          "$ref": "#/$defs/anyAgentGroups"
+        },
+        "Stop": {
+          "$ref": "#/$defs/unmatchedGroups"
+        },
+        "SessionEnd": {
+          "$ref": "#/$defs/unmatchedGroups"
         }
       }
     }
@@ -90,7 +121,22 @@
         "$ref": "#/$defs/timedCommand"
       }
     },
-    "subagentStart": {
+    "unmatchedGroups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["hooks"],
+        "properties": {
+          "hooks": {
+            "$ref": "#/$defs/timedCommands"
+          }
+        }
+      }
+    },
+    "anyAgentGroups": {
       "type": "array",
       "minItems": 1,
       "maxItems": 1,
@@ -101,6 +147,24 @@
         "properties": {
           "matcher": {
             "const": "*"
+          },
+          "hooks": {
+            "$ref": "#/$defs/timedCommands"
+          }
+        }
+      }
+    },
+    "mcpToolGroups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["matcher", "hooks"],
+        "properties": {
+          "matcher": {
+            "const": "mcp__.*"
           },
           "hooks": {
             "$ref": "#/$defs/timedCommands"
