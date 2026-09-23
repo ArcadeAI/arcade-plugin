@@ -68,6 +68,9 @@ const buildHookManifest = (hostName) => {
     const entry = { type: "command", command: hookCommand(hostName, script), timeout: HOOK_TIMEOUT_SEC };
     if (HOSTS[hostName].format === "nested") {
       hooks[name] ??= [{ ...(matcher ? { matcher } : {}), hooks: [] }];
+      if (hooks[name][0].matcher !== matcher) {
+        throw new Error(`${script}: hooks on ${name} must share one matcher`);
+      }
       hooks[name][0].hooks.push(entry);
     } else {
       hooks[name] ??= [];
