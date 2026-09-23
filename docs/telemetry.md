@@ -19,9 +19,10 @@ For testing, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a different host.
 
 ## Where it runs
 
-Only in Claude Code (the CLI, IDE extensions, the desktop app's Code tab, and
-Cowork), because only these hosts run plugin hooks. Other clients send no
-plugin telemetry.
+Only in Claude Code: the CLI, IDE extensions, the desktop app's Code tab, and
+Cowork. Other clients send no plugin telemetry. claude.ai and ChatGPT chat
+don't run plugin hooks at all; Codex drops hooks for Agent Plugins packages;
+Cursor and Copilot aren't wired up yet.
 
 ## What is stored on your machine
 

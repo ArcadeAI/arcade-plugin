@@ -31,8 +31,10 @@ events ([docs/telemetry.md](docs/telemetry.md)). Rules for it:
   `hooks/telemetry-send.mjs` so the hook returns in about 60 ms.
 - A new event property goes in the allowlist in `hooks/telemetry-events.mjs`
   and in docs/telemetry.md. Anything not on the allowlist is dropped.
-- No telemetry in the Cursor manifest: Cursor waits on almost every hook
-  and passes the user's email to every hook.
+- No telemetry in the Cursor manifest yet. Cursor has no way for a hook to
+  show the user a message (so no first-run notice) and no plugin data
+  folder for the install ID. It also passes the user's email to every hook,
+  which the property allowlist would have to keep out.
 
 **Codex hooks are parked** on branch `cursor/park-codex-hooks-gro-353-f8ad`.
 Codex 0.154.0 and 0.155.1 parse `extensions.com.openai.hooks` (and the `.codex-plugin`
