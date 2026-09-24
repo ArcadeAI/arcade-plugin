@@ -56,10 +56,10 @@ Every event has these properties:
 | Property | Value |
 | --- | --- |
 | `distinct_id` | the same value as `session` |
-| `session` | `sha256(session_id)`, first 16 hex characters, where `session_id` is Claude Code's random ID for the session |
-| `turn` | `sha256(session_id + ":" + prompt_id)`, first 16 hex characters (not on `Plugin session started`) |
+| `session` | `sha256(session_id)`, first 16 hex characters, where `session_id` is the client's random ID for the session |
+| `turn` | `sha256(session_id + ":" + prompt_id)`, first 16 hex characters; Claude Code only, because Copilot CLI has no prompt ID (not on `Plugin session started`) |
 | `arcade_used_before` | whether an Arcade tool call had succeeded on this machine before this event (from the `arcade-used` file) |
-| `host` | `claude-code` |
+| `host` | `claude-code` \| `copilot-cli` |
 | `plugin_version` | from `VERSION` |
 | `os` | `darwin` \| `linux` \| `win32` \| `other` |
 | `$process_person_profile` | `false` |
@@ -70,11 +70,11 @@ Events and their extra properties:
 
 | Event | When | Extra properties |
 | --- | --- | --- |
-| `Plugin session started` | SessionStart | `source`: `startup` \| `resume` \| `clear` \| `compact` \| `fork` \| `other`. |
-| `Plugin prompt submitted` | UserPromptSubmit, except background task results that Claude Code passes through the same hook | `could_use_arcade`: boolean, a local keyword guess (see below). `service_hints`: service categories the prompt mentions. `reminder_sent`: boolean, whether the routing reminder was added. |
+| `Plugin session started` | SessionStart | `source`: `startup` \| `resume` \| `clear` \| `compact` \| `fork` \| `new` \| `other`. |
+| `Plugin prompt submitted` | UserPromptSubmit, except background task results that Claude Code passes through the same hook. In Copilot CLI a subagent's own prompt also sends it | `could_use_arcade`: boolean, a local keyword guess (see below). `service_hints`: service categories the prompt mentions. `reminder_sent`: boolean, whether the routing reminder was added (always `false` in Copilot CLI). |
 | `Plugin tool called` | PostToolUse, on MCP tools | `server`: `arcade` (this plugin's gateway) \| `other_arcade` (another connection exposing Arcade's gateway tools) \| `other`. `tool`: only for `arcade` and `other_arcade`: the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`. `service`: the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches one. |
 | `Plugin tool failed` | PostToolUseFailure, on MCP tools | `server`: `arcade` (this plugin's gateway) \| `other_arcade` (another connection exposing Arcade's gateway tools) \| `other`. `tool`: only for `arcade` and `other_arcade`: the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`. `service`: the service category, when the tool, the app tool passed to `Arcade_UseTool`, or the server name matches one. |
-| `Plugin subagent stopped` | SubagentStop | `agent`: `arcade-operator` \| `other`. `status`: only for `arcade-operator`: the status line of its final report, `completed` \| `needs_auth` \| `needs_confirmation` \| `needs_clarification` \| `failed` \| `unknown`. |
+| `Plugin subagent stopped` | SubagentStop | `agent`: `arcade-operator` \| `other`. `status`: only for `arcade-operator`: the status line of its final report, `completed` \| `needs_auth` \| `needs_confirmation` \| `needs_clarification` \| `failed` \| `unknown`. `subagent_session`: `sha256(agent_id)`, first 16 hex characters. In Copilot CLI the subagent's own events carry this as `session`. |
 
 Service categories: `email`, `calendar`, `chat`, `issues`, `docs`, `meetings`, `crm`, `code_hosting`, `analytics`, `storage`.
 <!-- END generated telemetry tables -->

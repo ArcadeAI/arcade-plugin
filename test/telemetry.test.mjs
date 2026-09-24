@@ -10,11 +10,12 @@ import { after, test } from "node:test";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 import Ajv2020 from "ajv/dist/2020.js";
 import { HOSTS } from "../hooks/hook-hosts.mjs";
-import { ARCADE_TOOL_PREFIX, EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
-import { buildEvent } from "../hooks/telemetry-events.mjs";
+import { ARCADE_TOOL_PREFIX, COPILOT_ARCADE_SERVER, EVENTS, eventSchema, TELEMETRY_HOSTS } from "../hooks/telemetry-contract.mjs";
+import { buildEvent, HOST_INPUT } from "../hooks/telemetry-events.mjs";
 import { EVENT_ENV, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
 
-const OPTIONS = { os: "darwin", arcadeUsedBefore: false };
+const OPTIONS = { host: "claude-code", os: "darwin", arcadeUsedBefore: false };
+const COPILOT_OPTIONS = { ...OPTIONS, host: "copilot-cli" };
 const SESSION_ID = "raw-session-id-123";
 const PROMPT_ID = "raw-prompt-id-456";
 const OPERATOR = "arcade:arcade-operator";
@@ -25,8 +26,8 @@ const assertMatchesContract = (event, label = JSON.stringify(event)) => {
 };
 
 // Runs telemetry.mjs the way hooks.json does, with the given environment.
-const runHook = (script, stdin, env) =>
-  spawnSync(process.execPath, [path.join(ROOT, "hooks", script), "--host", "claude-code"], {
+const runHook = (script, stdin, env, hostName = "claude-code") =>
+  spawnSync(process.execPath, [path.join(ROOT, "hooks", script), "--host", hostName], {
     input: stdin,
     encoding: "utf8",
     env: { ...process.env, ...env },
@@ -54,8 +55,32 @@ const hookEnv = (dataDir, host, extra = {}) => ({
   DO_NOT_TRACK: "",
   DISABLE_TELEMETRY: "",
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "",
+  COPILOT_PLUGIN_DATA: "",
+  COPILOT_OFFLINE: "",
   ...extra,
 });
+
+const copilotEnv = (dataDir, host, extra = {}) =>
+  hookEnv(dataDir, host, { CLAUDE_PLUGIN_DATA: "", COPILOT_PLUGIN_DATA: dataDir, ...extra });
+
+// Copilot CLI hook input, with the keys measured from copilot 1.0.88.
+const COPILOT_SESSION_ID = "dd3beb80-4471-4513-99a4-a57d3d7c08df";
+const COPILOT_SUBAGENT_ID = "57946be7-1a73-40ca-a042-abb0f68d9445";
+const copilotInput = (fields) => ({
+  session_id: COPILOT_SESSION_ID,
+  timestamp: "2026-09-24T21:27:02.743Z",
+  cwd: "/Users/someone/private-repo",
+  ...fields,
+});
+
+// Every telemetry hook entry in a generated manifest, nested or flat.
+const telemetryCommands = (manifest) =>
+  Object.values(JSON.parse(readRepoFile(manifest)).hooks)
+    .flatMap((entries) => entries.flatMap((entry) => entry.hooks ?? [entry]))
+    .map((hook) => hook.command)
+    .filter((command) => command.includes("/hooks/telemetry.mjs"));
+
+const telemetryHostNames = () => Object.keys(HOSTS).filter((name) => HOSTS[name].telemetry);
 
 const startServer = async () => {
   const requests = [];
@@ -118,6 +143,10 @@ test("buildEvent maps each hook input to the documented event", () => {
     [...stop("status: exploded"), STOPPED, operator("unknown")],
     [...stop(undefined), STOPPED, operator("unknown")],
     ["SubagentStop", { agent_type: "general-purpose", last_assistant_message: "status: completed" }, STOPPED, { agent: "other" }],
+    ["SubagentStop", { agent_type: OPERATOR, agent_id: "agent-1", last_assistant_message: "status: completed" }, STOPPED,
+      { ...operator("completed"), subagent_session: hash16("agent-1") }],
+    ["SubagentStop", { agent_type: "general-purpose", agent_id: "agent-2" }, STOPPED, { agent: "other", subagent_session: hash16("agent-2") }],
+    ["SubagentStop", { agent_type: "general-purpose", agent_id: "" }, STOPPED, { agent: "other" }],
     ["SubagentStart", { agent_type: OPERATOR }, null],
     ["Stop", {}, null],
   ];
@@ -151,6 +180,107 @@ test("buildEvent maps each hook input to the documented event", () => {
   assert.equal(buildEvent({ hook_event_name: "SessionStart", source: "startup" }, OPTIONS), null, "no session_id");
   const usedBefore = buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, arcadeUsedBefore: true });
   assert.equal(usedBefore.properties.arcade_used_before, true);
+  for (const host of ["cursor", "copilot", "toString", ""]) {
+    assert.equal(buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, host }), null, `host ${host}`);
+  }
+});
+
+test("buildEvent maps Copilot CLI hook input to the documented event", () => {
+  const CALLED = "Plugin tool called";
+  const FAILED = "Plugin tool failed";
+  const STOPPED = "Plugin subagent stopped";
+  const result = { result_type: "success", text_result_for_llm: '["Gmail","Slack","Calendar"]' };
+  const tool = (name, toolInput = {}) => ["PostToolUse", { tool_name: name, tool_input: toolInput, tool_result: result }];
+  const stop = (fields) => ["SubagentStop", {
+    transcript_path: `/Users/someone/.copilot/session-state/${COPILOT_SESSION_ID}/events.jsonl`,
+    agent_id: COPILOT_SUBAGENT_ID,
+    agent_type: OPERATOR,
+    agent_name: OPERATOR,
+    agent_display_name: "arcade-operator",
+    stop_reason: "end_turn",
+    ...fields,
+  }];
+  const subagentSession = hash16(COPILOT_SUBAGENT_ID);
+  // [hook, extra input, event, extra properties]; a null event means nothing is sent.
+  const cases = [
+    ["SessionStart", { source: "new", initial_prompt: "Call the arcade list_apps tool." }, "Plugin session started", { source: "new" }],
+    ["SessionStart", { source: "startup" }, "Plugin session started", { source: "startup" }],
+    ["UserPromptSubmit", { prompt: "What is on my calendar tomorrow?" }, "Plugin prompt submitted",
+      { could_use_arcade: true, service_hints: ["calendar"], reminder_sent: false }],
+    [...tool("arcade-Gmail_ListEmails"), CALLED, { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
+    [...tool("arcade-Arcade_UseTool", { tool_name: "GoogleCalendar.ListEvents" }), CALLED,
+      { server: "arcade", tool: "Arcade_UseTool", service: "calendar" }],
+    [...tool("arcade-AcmeHR_RunPayroll"), CALLED, { server: "arcade", tool: "other" }],
+    [...tool("arcade-list_apps", { q: "" }), CALLED, { server: "arcade", tool: "other" }],
+    [...tool("arcade-staging-Arcade_UseTool"), CALLED, { server: "other_arcade", tool: "Arcade_UseTool" }],
+    [...tool("granola-Granola_ListMeetings"), CALLED, { server: "other", service: "meetings" }],
+    [...tool("github-mcp-server-get_issue"), CALLED, { server: "other", service: "code_hosting" }],
+    [...tool("secret-server-DoThing"), CALLED, { server: "other" }],
+    [...tool("Bash", { command: "echo done" }), null],
+    [...tool("Agent", { agent_type: OPERATOR }), null],
+    [...tool("-Gmail_ListEmails"), null],
+    [...tool("arcade-"), null],
+    ["PostToolUseFailure", { tool_name: "arcade-error_tool", tool_input: {},
+      error: "MCP server 'arcade': Something went wrong in the upstream service" }, FAILED, { server: "arcade", tool: "other" }],
+    ["PostToolUseFailure", { tool_name: "arcade-Slack_SendMessage", tool_input: {}, error: "MCP request failed" }, FAILED,
+      { server: "arcade", tool: "Slack_SendMessage", service: "chat" }],
+    [...stop({ last_assistant_message: "Completed: I used arcade-list_apps once.\n\nNo blockers or questions." }), STOPPED,
+      { agent: "arcade-operator", status: "unknown", subagent_session: subagentSession }],
+    [...stop({ last_assistant_message: "Done.\n\nstatus: completed" }), STOPPED,
+      { agent: "arcade-operator", status: "completed", subagent_session: subagentSession }],
+    [...stop({ agent_type: "general-purpose", agent_name: "general-purpose" }), STOPPED,
+      { agent: "other", subagent_session: subagentSession }],
+    ["PreToolUse", { tool_name: "arcade-list_apps", tool_input: {} }, null],
+    ["Stop", { stop_reason: "end_turn", stop_hook_active: false }, null],
+  ];
+
+  const session = hash16(COPILOT_SESSION_ID);
+  for (const [hook, fields, event, extra] of cases) {
+    const label = `${hook} ${JSON.stringify(fields)}`;
+    const built = buildEvent(copilotInput({ hook_event_name: hook, ...fields }), COPILOT_OPTIONS);
+    if (event === null) {
+      assert.equal(built, null, label);
+      continue;
+    }
+    const properties = {
+      ...extra,
+      host: "copilot-cli",
+      plugin_version: PLUGIN_VERSION,
+      os: "darwin",
+      $process_person_profile: false,
+      $geoip_disable: true,
+      $ip: "0.0.0.0",
+      arcade_used_before: false,
+      session,
+    };
+    assert.deepEqual(built, { event, distinct_id: session, properties }, label);
+    assertMatchesContract(built, label);
+  }
+
+  // SubagentStart sends camelCase keys and no hook_event_name.
+  const subagentStart = {
+    sessionId: COPILOT_SESSION_ID,
+    timestamp: 1790285282793,
+    cwd: "/Users/someone/private-repo",
+    agentName: OPERATOR,
+    agentDisplayName: "arcade-operator",
+  };
+  assert.equal(buildEvent(subagentStart, COPILOT_OPTIONS), null);
+
+  // Copilot has no prompt_id; a stray one still gives no turn.
+  const withPromptId = buildEvent(copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "hi", prompt_id: "p1" }), COPILOT_OPTIONS);
+  assert.equal(withPromptId.properties.turn, undefined);
+
+  // The subagent's own events carry its session ID, which the parent's
+  // SubagentStop names as agent_id.
+  const subagentPrompt = buildEvent(
+    copilotInput({ hook_event_name: "UserPromptSubmit", session_id: COPILOT_SUBAGENT_ID, prompt: "Complete todo listing-arcade-apps" }),
+    COPILOT_OPTIONS,
+  );
+  const [, stopFields] = stop({ last_assistant_message: "status: completed" });
+  const parentStop = buildEvent(copilotInput({ hook_event_name: "SubagentStop", ...stopFields }), COPILOT_OPTIONS);
+  assert.equal(parentStop.properties.subagent_session, subagentPrompt.properties.session);
+  assert.notEqual(parentStop.properties.session, subagentPrompt.properties.session);
 });
 
 test("buildEvent never leaks input text or raw ids, and sends only allowed keys", () => {
@@ -178,6 +308,43 @@ test("buildEvent never leaks input text or raw ids, and sends only allowed keys"
   ];
   for (const fields of inputs) {
     const event = buildEvent({ ...secrets, ...fields }, OPTIONS);
+    const serialized = JSON.stringify(event);
+    assert.doesNotMatch(serialized, /secret|DoThing/i, serialized);
+    assertMatchesContract(event);
+  }
+});
+
+test("buildEvent never leaks Copilot CLI input text or raw ids", () => {
+  const secrets = {
+    session_id: "SECRET-session-id",
+    timestamp: "2026-09-24T21:27:02.743Z",
+    cwd: "/SECRET/cwd",
+    transcript_path: "/SECRET/session-state/events.jsonl",
+    prompt: "SECRET prompt text about my calendar",
+    initial_prompt: "SECRET initial prompt about my calendar",
+    tool_input: { query: "SECRET tool input", tool_name: "SECRET_Tool" },
+    tool_result: { result_type: "success", text_result_for_llm: "SECRET tool output" },
+    error: "MCP server 'SECRET': SECRET error text",
+    agent_id: "SECRET-agent-id",
+    agent_name: "SECRET-agent-name",
+    agent_display_name: "SECRET agent",
+    last_assistant_message: "SECRET final report\nstatus: completed",
+    stop_reason: "SECRET",
+  };
+  const inputs = [
+    { hook_event_name: "SessionStart", source: "SECRET-source" },
+    { hook_event_name: "UserPromptSubmit" },
+    { hook_event_name: "PostToolUse", tool_name: "SECRET-server-DoThing" },
+    { hook_event_name: "PostToolUse", tool_name: "SECRET-Granola_ListMeetings" },
+    { hook_event_name: "PostToolUseFailure", tool_name: "SECRET-Arcade_UseTool" },
+    { hook_event_name: "PostToolUse", tool_name: "arcade-SECRET_Tool" },
+    { hook_event_name: "PostToolUse", tool_name: "arcade-Arcade_UseTool" },
+    { hook_event_name: "SubagentStop", agent_type: "SECRET-agent" },
+    { hook_event_name: "SubagentStop", agent_type: OPERATOR },
+  ];
+  for (const fields of inputs) {
+    const event = buildEvent({ ...secrets, ...fields }, COPILOT_OPTIONS);
+    assert.notEqual(event, null, JSON.stringify(fields));
     const serialized = JSON.stringify(event);
     assert.doesNotMatch(serialized, /secret|DoThing/i, serialized);
     assertMatchesContract(event);
@@ -216,36 +383,61 @@ test("the contract schema rejects events outside the contract", () => {
 });
 
 test("each contract event is built from its hook's input", () => {
-  for (const [name, spec] of Object.entries(EVENTS)) {
-    const input = hookInput({ hook_event_name: spec.hook, tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, prompt: "hi" });
-    assert.equal(buildEvent(input, OPTIONS)?.event, name, spec.hook);
+  const arcadeTools = { "claude-code": `${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, "copilot-cli": `${COPILOT_ARCADE_SERVER}-Gmail_ListEmails` };
+  for (const host of TELEMETRY_HOSTS) {
+    for (const [name, spec] of Object.entries(EVENTS)) {
+      const input = hookInput({ hook_event_name: spec.hook, tool_name: arcadeTools[host], prompt: "hi" });
+      assert.equal(buildEvent(input, { ...OPTIONS, host })?.event, name, `${host} ${spec.hook}`);
+    }
   }
 });
 
 test("every generated telemetry command runs and exits quietly with telemetry off", () => {
-  const { manifest, rootVariable } = HOSTS["claude-code"];
-  const commands = Object.values(JSON.parse(readRepoFile(manifest)).hooks)
-    .flatMap((groups) => groups.flatMap((group) => group.hooks))
-    .map((hook) => hook.command)
-    .filter((command) => command.includes("/hooks/telemetry.mjs"));
-  assert.equal(commands.length, Object.keys(EVENTS).length);
-  for (const command of commands) {
-    const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
-      shell: true,
-      input: JSON.stringify(hookInput({ hook_event_name: "SessionStart" })),
-      encoding: "utf8",
-      env: { ...process.env, ARCADE_PLUGIN_TELEMETRY: "0" },
-    });
-    assert.equal(result.status, 0, `${command}: ${result.stderr}`);
-    assert.equal(result.stdout, "", command);
+  for (const hostName of telemetryHostNames()) {
+    const { manifest, rootVariable } = HOSTS[hostName];
+    const commands = telemetryCommands(manifest);
+    assert.equal(commands.length, Object.keys(EVENTS).length, manifest);
+    for (const command of commands) {
+      const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
+        shell: true,
+        input: JSON.stringify(hookInput({ hook_event_name: "SessionStart" })),
+        encoding: "utf8",
+        env: { ...process.env, ARCADE_PLUGIN_TELEMETRY: "0" },
+      });
+      assert.equal(result.status, 0, `${command}: ${result.stderr}`);
+      assert.equal(result.stdout, "", command);
+    }
   }
 });
 
-test("no client but Claude Code runs telemetry", () => {
-  for (const [hostName, { manifest }] of Object.entries(HOSTS)) {
-    if (hostName === "claude-code") continue;
-    assert.ok(!readRepoFile(manifest).includes("/hooks/telemetry.mjs"), manifest);
+test("exactly the hosts with a telemetry entry run telemetry", () => {
+  assert.ok(!HOSTS.cursor.telemetry, "Cursor's hook input carries the user's email");
+  for (const [hostName, { manifest, telemetry }] of Object.entries(HOSTS)) {
+    const commands = telemetryCommands(manifest);
+    assert.equal(commands.length > 0, Boolean(telemetry), manifest);
+    for (const command of commands) assert.ok(command.includes(`--host ${hostName}`), command);
   }
+});
+
+test("each client's telemetry host is a contract host, and each contract host has a client", () => {
+  const clientHosts = telemetryHostNames().map((name) => HOSTS[name].telemetry.host);
+  assert.deepEqual([...clientHosts].sort(), [...TELEMETRY_HOSTS].sort());
+  assert.deepEqual(Object.keys(HOST_INPUT).sort(), [...TELEMETRY_HOSTS].sort());
+});
+
+test("only clients that run the prompt hook report a reminder", () => {
+  for (const hostName of telemetryHostNames()) {
+    const { manifest, telemetry } = HOSTS[hostName];
+    const runsPromptHook = readRepoFile(manifest).includes("/hooks/user-prompt-submit.mjs");
+    assert.equal(HOST_INPUT[telemetry.host].promptReminder, runsPromptHook, hostName);
+  }
+});
+
+test("the Copilot MCP tool matcher picks out server tools, not built-in ones", () => {
+  // Copilot CLI compiles a matcher as ^(?:matcher)$ against the tool name.
+  const matcher = new RegExp(`^(?:${HOSTS.copilot.mcpToolMatcher})$`);
+  for (const name of ["arcade-Arcade_UseTool", "github-mcp-server-get_issue"]) assert.match(name, matcher);
+  for (const name of ["Bash", "Agent", "view"]) assert.doesNotMatch(name, matcher);
 });
 
 test("only the detached sender does network I/O", () => {
@@ -280,12 +472,17 @@ test("the docs point to docs/telemetry.md and name the off switch", () => {
   assert.match(contract, /DISABLE_TELEMETRY/);
   assert.match(contract, /CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC/);
   assert.match(contract, /IP address/);
+  assert.match(contract, /COPILOT_OFFLINE/);
+  const copilotInstall = readRepoFile("docs/install/copilot.md");
+  assert.match(copilotInstall, /telemetry\.md/);
+  assert.match(copilotInstall, /ARCADE_PLUGIN_TELEMETRY/);
 });
 
 test("the Arcade tool prefix matches the plugin and MCP server names", () => {
   const plugin = JSON.parse(readRepoFile("plugin.json"));
   const [server] = Object.keys(JSON.parse(readRepoFile("mcp.json")).mcpServers);
   assert.equal(ARCADE_TOOL_PREFIX, `mcp__plugin_${plugin.name}_${server}__`);
+  assert.equal(COPILOT_ARCADE_SERVER, server);
 });
 
 test("telemetry hook prints nothing and posts each event from a detached sender", async () => {
@@ -359,6 +556,8 @@ test("telemetry hook sends nothing when it must not", async () => {
     ["Claude Code's CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=false", sessionStart,
       { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "false" }, () => {}, true],
     ["no CLAUDE_PLUGIN_DATA", sessionStart, { CLAUDE_PLUGIN_DATA: "" }, () => {}, true],
+    ["relative CLAUDE_PLUGIN_DATA", sessionStart, { CLAUDE_PLUGIN_DATA: "relative/data" }, () => {}, true],
+    ["only COPILOT_PLUGIN_DATA", sessionStart, { CLAUDE_PLUGIN_DATA: "", COPILOT_PLUGIN_DATA: os.tmpdir() }, () => {}, true],
     ["invalid input", "not-json", {}, () => {}, false],
   ];
   try {
@@ -370,6 +569,82 @@ test("telemetry hook sends nothing when it must not", async () => {
       assert.equal(result.stdout, "", label);
       if (staysEmpty) assert.deepEqual(readdirSync(dataDir), [], label);
     }
+    await sleep(1000);
+    assert.deepEqual(server.requests, []);
+  } finally {
+    await server.close();
+  }
+});
+
+test("Copilot telemetry hook posts events and keeps arcade-used in COPILOT_PLUGIN_DATA", async () => {
+  const server = await startServer();
+  try {
+    const dataDir = makeTempDir();
+    const arcadeCall = JSON.stringify(copilotInput({
+      hook_event_name: "PostToolUse",
+      tool_name: "arcade-Gmail_ListEmails",
+      tool_input: {},
+      tool_result: { result_type: "success", text_result_for_llm: "private inbox" },
+    }));
+    const sessionStart = JSON.stringify(copilotInput({ hook_event_name: "SessionStart", source: "new", initial_prompt: "private prompt" }));
+
+    const first = runHook("telemetry.mjs", arcadeCall, copilotEnv(dataDir, server.url), "copilot");
+    assert.equal(first.status, 0, first.stderr);
+    assert.equal(first.stdout, "");
+    assert.equal(readFileSync(path.join(dataDir, "arcade-used"), "utf8"), "true");
+    // Claude Code's switches don't apply to Copilot, and COPILOT_OFFLINE off values leave it on.
+    for (const extra of [{ COPILOT_OFFLINE: "false" }, { COPILOT_OFFLINE: "0" }, { DISABLE_TELEMETRY: "1" }]) {
+      const result = runHook("telemetry.mjs", sessionStart, copilotEnv(dataDir, server.url, extra), "copilot");
+      assert.equal(result.stdout, "", JSON.stringify(extra));
+    }
+
+    await waitForRequests(server.requests, 4);
+    assert.equal(server.requests.length, 4);
+    const bodies = server.requests.map((request) => JSON.parse(request.body));
+    for (const body of bodies) {
+      assert.equal(body.distinct_id, hash16(COPILOT_SESSION_ID));
+      assert.equal(body.properties.host, "copilot-cli");
+      assert.equal(body.properties.turn, undefined);
+      assertMatchesContract({ event: body.event, distinct_id: body.distinct_id, properties: body.properties });
+    }
+    const called = bodies.find((body) => body.event === "Plugin tool called");
+    assert.equal(called.properties.server, "arcade");
+    assert.equal(called.properties.tool, "Gmail_ListEmails");
+    assert.equal(called.properties.arcade_used_before, false);
+    const starts = bodies.filter((body) => body.event === "Plugin session started");
+    assert.deepEqual(starts.map((body) => body.properties.arcade_used_before), [true, true, true]);
+    for (const request of server.requests) {
+      assert.doesNotMatch(request.body, new RegExp(`${COPILOT_SESSION_ID}|private|${dataDir}`));
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("Copilot telemetry hook sends nothing when it must not", async () => {
+  const server = await startServer();
+  const arcadeCall = JSON.stringify(copilotInput({ hook_event_name: "PostToolUse", tool_name: "arcade-Gmail_ListEmails" }));
+  // [label, env overrides]
+  const cases = [
+    ["COPILOT_OFFLINE=true", { COPILOT_OFFLINE: "true" }],
+    ["COPILOT_OFFLINE=1", { COPILOT_OFFLINE: "1" }],
+    ["ARCADE_PLUGIN_TELEMETRY=0", { ARCADE_PLUGIN_TELEMETRY: "0" }],
+    ["DO_NOT_TRACK=1", { DO_NOT_TRACK: "1" }],
+    ["no COPILOT_PLUGIN_DATA", { COPILOT_PLUGIN_DATA: "" }],
+    ["relative COPILOT_PLUGIN_DATA", { COPILOT_PLUGIN_DATA: "relative/data" }],
+  ];
+  try {
+    for (const [label, extra] of cases) {
+      const dataDir = makeTempDir();
+      const result = runHook("telemetry.mjs", arcadeCall, copilotEnv(dataDir, server.url, extra), "copilot");
+      assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+      assert.equal(result.stdout, "", label);
+      assert.deepEqual(readdirSync(dataDir), [], label);
+    }
+    const dataDir = makeTempDir();
+    const result = runHook("telemetry.mjs", arcadeCall, hookEnv(dataDir, server.url), "copilot");
+    assert.equal(result.stdout, "");
+    assert.deepEqual(readdirSync(dataDir), [], "--host copilot with only CLAUDE_PLUGIN_DATA");
     await sleep(1000);
     assert.deepEqual(server.requests, []);
   } finally {
