@@ -61,8 +61,10 @@ export const FILE_SOURCES = {
   ...Object.fromEntries(
     Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"]]),
   ),
-  // Claude Code's hook list also gets the telemetry events from the contract.
+  // The hook lists of clients that run telemetry also get the telemetry events
+  // from the contract.
   [HOSTS["claude-code"].manifest]: ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
+  [HOSTS.copilot.manifest]: ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
   "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
   // A copy of the operator with its rules block filled in.
   "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR, "hooks/routing-guidance.mjs"],
@@ -123,33 +125,57 @@ const fillRulesBlock = (text, rules, path) => {
   return `${text.slice(0, begin + RULES_BLOCK_BEGIN.length)}\n${rules}\n${text.slice(end)}`;
 };
 
-const hookCommand = (hostName, script) =>
-  `node "\${${HOSTS[hostName].rootVariable}}/hooks/${script}" --host ${hostName}`;
-
+/**
+ * The command fields of one hook entry. With `runOnlyIfScriptExists`, the
+ * command runs the script only if the file is there, so a client that leaves
+ * the root variable unset (VS Code) gets exit 0 and no output. `powershell`
+ * is intended for Windows (not verified); it has no double quotes because VS
+ * Code is expected to pass it as one argument to `powershell.exe -Command`.
+ */
+const hookCommandFields = (hostName, script) => {
+  const { rootVariable, runOnlyIfScriptExists } = HOSTS[hostName];
+  const scriptPath = `\${${rootVariable}}/hooks/${script}`;
+  const command = `node "${scriptPath}" --host ${hostName}`;
+  if (!runOnlyIfScriptExists) return { command };
+  const psPath = `($env:${rootVariable} + '/hooks/${script}')`;
+  return {
+    command: `if [ -f "${scriptPath}" ]; then ${command}; fi`,
+    powershell: `if ($env:${rootVariable} -and (Test-Path -LiteralPath ${psPath})) { node ${psPath} --host ${hostName} }`,
+  };
+};
 
 // Claude Code nests each command in a group: { hooks: { Event: [{ matcher, hooks: [entry] }] } },
 // with one group per event and matcher. Cursor, Copilot CLI, and VS Code take
 // the entries directly and need version 1.
 export const buildHookManifest = (hostName, hookRows = HOOKS) => {
-  const nested = HOSTS[hostName].format === "nested";
+  const host = HOSTS[hostName];
+  const nested = host.format === "nested";
   const hooks = {};
   for (const hook of hookRows) {
     if (hook.hosts && !hook.hosts.includes(hostName)) continue;
-    const name = HOSTS[hostName].events ? HOSTS[hostName].events[hook.event] : hook.event;
+    const name = host.events ? host.events[hook.event] : hook.event;
     if (!name) continue;
+    const matcher = hook.mcpToolsOnly ? host.mcpToolMatcher : hook.matcher;
+    if (hook.mcpToolsOnly && !matcher) throw new Error(`${hostName} has no mcpToolMatcher for ${hook.script} on ${name}`);
     hooks[name] ??= [];
     if (!nested) {
       if (hook.if || hook.extraArgs) {
         throw new Error(`${hook.script} entry for ${hostName} has if or extra args, which the flat format does not support`);
       }
-      hooks[name].push({ type: "command", command: hookCommand(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC });
+      const entry = { type: "command", ...hookCommandFields(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC };
+      hooks[name].push({ ...entry, ...(matcher ? { matcher } : {}) });
       continue;
     }
-    const command = [hookCommand(hostName, hook.script), ...(hook.extraArgs ?? [])].join(" ");
-    const entry = { type: "command", ...(hook.if ? { if: hook.if } : {}), command, timeout: HOOK_TIMEOUT_SEC };
-    let group = hooks[name].find((existing) => existing.matcher === hook.matcher);
+    const { command } = hookCommandFields(hostName, hook.script);
+    const entry = {
+      type: "command",
+      ...(hook.if ? { if: hook.if } : {}),
+      command: [command, ...(hook.extraArgs ?? [])].join(" "),
+      timeout: HOOK_TIMEOUT_SEC,
+    };
+    let group = hooks[name].find((existing) => existing.matcher === matcher);
     if (!group) {
-      group = { ...(hook.matcher ? { matcher: hook.matcher } : {}), hooks: [] };
+      group = { ...(matcher ? { matcher } : {}), hooks: [] };
       hooks[name].push(group);
     }
     group.hooks.push(entry);

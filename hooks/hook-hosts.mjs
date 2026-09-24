@@ -9,44 +9,14 @@ import { EVENTS } from "./telemetry-contract.mjs";
 export const HOOK_TIMEOUT_SEC = 5;
 
 /**
- * One entry per hook command. The event is Claude Code's name for it; a client
- * with an `events` map uses its own names and only gets the events it lists.
- * `hosts` limits an entry to some clients. `matcher`, `if`, and `extraArgs`
- * are Claude Code only: `if` is a permission rule such as "Bash(gh *)" that
- * keeps the hook from starting for other commands, and `extraArgs` are added
- * to the command.
+ * Each client that runs plugin hooks. `mcpToolMatcher` matches that client's
+ * MCP tool names. `runOnlyIfScriptExists` makes each command check for its
+ * script first. A client with `telemetry` runs telemetry.mjs: `dataVariable`
+ * names the environment variable that holds the plugin's data folder, and
+ * `optOutSwitches` are the client's own settings that turn telemetry off.
+ * `anyValue: true` means any non-empty value turns it off; `anyValue: false`
+ * means any value except empty, 0, false, off, or no does.
  */
-const telemetryEntries = [];
-for (const { hook, matcher, bashClis } of Object.values(EVENTS)) {
-  telemetryEntries.push({
-    script: "telemetry.mjs",
-    event: hook,
-    hosts: ["claude-code"],
-    ...(matcher ? { matcher } : {}),
-  });
-  if (bashClis) {
-    for (const cli of bashClis) {
-      telemetryEntries.push({
-        script: "telemetry.mjs",
-        event: hook,
-        hosts: ["claude-code"],
-        matcher: "Bash",
-        "if": `Bash(${cli} *)`,
-        extraArgs: ["--cli", cli],
-      });
-    }
-  }
-}
-
-export const HOOKS = [
-  { script: "session-start.mjs", event: "SessionStart" },
-  { script: "user-prompt-submit.mjs", event: "UserPromptSubmit" },
-  { script: "subagent-start.mjs", event: "SubagentStart" },
-  // Telemetry (docs/telemetry.md) reads Claude Code's hook input, so only
-  // Claude Code runs it.
-  ...telemetryEntries,
-];
-
 export const HOSTS = {
   "claude-code": {
     // Not hooks/hooks.json: Cursor falls back to that default path and would
@@ -54,6 +24,16 @@ export const HOSTS = {
     manifest: ".claude-plugin/hooks.json",
     format: "nested",
     rootVariable: "CLAUDE_PLUGIN_ROOT",
+    mcpToolMatcher: "mcp__.*",
+    telemetry: {
+      host: "claude-code",
+      dataVariable: "CLAUDE_PLUGIN_DATA",
+      // Claude Code treats any non-empty value as set, including "0" and "false".
+      optOutSwitches: [
+        { name: "DISABLE_TELEMETRY", anyValue: true },
+        { name: "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", anyValue: true },
+      ],
+    },
     contextOutput: (eventName, text) => ({
       hookSpecificOutput: { hookEventName: eventName, additionalContext: text },
     }),
@@ -72,20 +52,78 @@ export const HOSTS = {
   // Copilot CLI. PascalCase names put it in its VS Code-compatible mode
   // (snake_case SessionStart input; SubagentStart still sends camelCase
   // agentName in 1.0.88); it drops prompt-hook output, so there's no prompt hook.
-  // VS Code reads this file too but doesn't expand ${PLUGIN_ROOT} for Agent
-  // Plugins hooks or pass their output to the model (pluginParsers.ts,
-  // copilotPluginConverters.ts on microsoft/vscode main, 2026-09).
+  // It names MCP tools `<server>-<tool>`; built-in tools have no hyphen.
+  // VS Code reads this file too but doesn't set or expand ${PLUGIN_ROOT} for
+  // Agent Plugins hooks (pluginParsers.ts on microsoft/vscode main, 2026-09),
+  // so each command checks that its script exists and otherwise exits 0
+  // without output.
   copilot: {
     manifest: "com.github.copilot/hooks/hooks.json",
     format: "flat",
     rootVariable: "PLUGIN_ROOT",
-    events: { SessionStart: "SessionStart", SubagentStart: "SubagentStart" },
+    mcpToolMatcher: ".+-.+",
+    runOnlyIfScriptExists: true,
+    events: {
+      SessionStart: "SessionStart",
+      SubagentStart: "SubagentStart",
+      UserPromptSubmit: "UserPromptSubmit",
+      PostToolUse: "PostToolUse",
+      PostToolUseFailure: "PostToolUseFailure",
+      SubagentStop: "SubagentStop",
+    },
+    telemetry: {
+      host: "copilot-cli",
+      dataVariable: "COPILOT_PLUGIN_DATA",
+      // Copilot documents "true" and doesn't say which other values it
+      // accepts, so any value that isn't clearly off counts.
+      optOutSwitches: [{ name: "COPILOT_OFFLINE", anyValue: false }],
+    },
     contextOutput: (eventName, text) => ({
       additionalContext: text,
       hookSpecificOutput: { hookEventName: eventName, additionalContext: text },
     }),
   },
 };
+
+/**
+ * One entry per hook command. The event is Claude Code's name for it; a client
+ * with an `events` map uses its own names and only gets the events it lists.
+ * `hosts` limits an entry to some clients. `mcpToolsOnly` limits a tool event
+ * to MCP tools, using each client's `mcpToolMatcher`. An entry's own
+ * `matcher`, `if`, and `extraArgs` are Claude Code only: `if` is a
+ * permission rule such as "Bash(gh *)" that keeps the hook from starting for
+ * other commands, and `extraArgs` are added to the command.
+ */
+const telemetryHosts = Object.keys(HOSTS).filter((name) => HOSTS[name].telemetry);
+const telemetryEntries = [];
+for (const { hook, mcpToolsOnly, claudeCodeOnly, matcher, bashClis } of Object.values(EVENTS)) {
+  telemetryEntries.push({
+    script: "telemetry.mjs",
+    event: hook,
+    hosts: claudeCodeOnly ? ["claude-code"] : telemetryHosts,
+    ...(mcpToolsOnly ? { mcpToolsOnly } : {}),
+    ...(matcher ? { matcher } : {}),
+  });
+  for (const cli of bashClis ?? []) {
+    telemetryEntries.push({
+      script: "telemetry.mjs",
+      event: hook,
+      hosts: ["claude-code"],
+      matcher: "Bash",
+      "if": `Bash(${cli} *)`,
+      extraArgs: ["--cli", cli],
+    });
+  }
+}
+
+export const HOOKS = [
+  { script: "session-start.mjs", event: "SessionStart" },
+  // Copilot CLI drops prompt-hook output, so only Claude Code runs this one.
+  { script: "user-prompt-submit.mjs", event: "UserPromptSubmit", hosts: ["claude-code"] },
+  { script: "subagent-start.mjs", event: "SubagentStart" },
+  // Telemetry (docs/telemetry.md) runs only in the clients with a `telemetry` entry.
+  ...telemetryEntries,
+];
 
 /** The client named by `--host`, or null if it's missing or unknown. */
 export const hostFromArgs = (argv) => {

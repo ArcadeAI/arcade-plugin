@@ -19,8 +19,8 @@ export const SERVICE_CATEGORIES = /** @type {const} */ ([
   "storage",
 ]);
 
-export const TELEMETRY_HOSTS = /** @type {const} */ (["claude-code"]);
-export const SESSION_SOURCES = /** @type {const} */ (["startup", "resume", "clear", "compact", "fork", "other"]);
+export const TELEMETRY_HOSTS = /** @type {const} */ (["claude-code", "copilot-cli"]);
+export const SESSION_SOURCES = /** @type {const} */ (["startup", "resume", "clear", "compact", "fork", "new", "other"]);
 export const OS_NAMES = /** @type {const} */ (["darwin", "linux", "win32", "other"]);
 export const SERVERS = /** @type {const} */ (["arcade", "other_arcade", "other"]);
 export const AGENTS = /** @type {const} */ (["arcade-operator", "other"]);
@@ -52,6 +52,9 @@ export const CLI_SERVICES = { gh: "code_hosting", glab: "code_hosting" };
 
 /** Tool name prefix for this plugin's own gateway: plugin "arcade", MCP server "arcade". */
 export const ARCADE_TOOL_PREFIX = "mcp__plugin_arcade_arcade__";
+
+/** Copilot CLI names MCP tools `<server>-<tool>`; this is this plugin's server key in mcp.json. */
+export const COPILOT_ARCADE_SERVER = "arcade";
 
 // Tools every Arcade gateway exposes. Seeing one on another server means the
 // model used a different Arcade connection than this plugin's.
@@ -95,11 +98,11 @@ const list = (/** @type {readonly string[]} */ values) => values.map((value) => 
 export const COMMON_PROPERTIES = {
   session: {
     schema: HASH,
-    doc: "`sha256(session_id)`, first 16 hex characters, where `session_id` is Claude Code's random ID for the session",
+    doc: "`sha256(session_id)`, first 16 hex characters, where `session_id` is the client's random ID for the session",
   },
   turn: {
     schema: HASH,
-    doc: '`sha256(session_id + ":" + prompt_id)`, first 16 hex characters (not on `Plugin session started`)',
+    doc: '`sha256(session_id + ":" + prompt_id)`, first 16 hex characters; Claude Code only, because Copilot CLI has no prompt ID (not on `Plugin session started`)',
   },
   arcade_used_before: {
     schema: { type: "boolean" },
@@ -207,11 +210,14 @@ const BUILTIN_TOOL_RULES = [
   },
 ];
 
-const BUILTIN_TOOL_WHEN = `on \`WebFetch\` and \`WebSearch\`, and on \`Bash\` commands that run ${list(BASH_CLIS)}`;
+const BUILTIN_TOOL_WHEN = `Claude Code only, on \`WebFetch\` and \`WebSearch\`, and on \`Bash\` commands that run ${list(BASH_CLIS)}`;
 
 /**
  * @typedef {object} EventSpec
  * @property {string} hook The Claude Code hook that sends it.
+ * @property {boolean} [mcpToolsOnly] Runs only on MCP tools, using each client's `mcpToolMatcher`.
+ * @property {boolean} [claudeCodeOnly] Runs only in Claude Code, because
+ *   `matcher` and `bashClis` use Claude Code's built-in tool names.
  * @property {string} [matcher] Claude Code's matcher for that hook.
  * @property {readonly string[]} [bashClis] Programs whose Bash commands also
  *   send this event. Each gets its own hook entry with an `if` condition, so
@@ -234,20 +240,20 @@ export const EVENTS = {
   },
   "Plugin prompt submitted": {
     hook: "UserPromptSubmit",
-    when: "except background task results that Claude Code passes through the same hook",
+    when: "except background task results that Claude Code passes through the same hook. In Copilot CLI a subagent's own prompt also sends it",
     properties: {
       could_use_arcade: { schema: { type: "boolean" }, doc: "boolean, a local keyword guess (see below)" },
       service_hints: {
         schema: { type: "array", items: enumOf(SERVICE_CATEGORIES), uniqueItems: true },
         doc: "service categories the prompt mentions",
       },
-      reminder_sent: { schema: { type: "boolean" }, doc: "boolean, whether the routing reminder was added" },
+      reminder_sent: { schema: { type: "boolean" }, doc: "boolean, whether the routing reminder was added (always `false` in Copilot CLI)" },
     },
     required: ["could_use_arcade", "service_hints", "reminder_sent"],
   },
   "Plugin tool called": {
     hook: "PostToolUse",
-    matcher: "mcp__.*",
+    mcpToolsOnly: true,
     when: "on MCP tools",
     properties: TOOL_CALLED_PROPERTIES,
     required: ["server"],
@@ -255,7 +261,7 @@ export const EVENTS = {
   },
   "Plugin tool failed": {
     hook: "PostToolUseFailure",
-    matcher: "mcp__.*",
+    mcpToolsOnly: true,
     when: "on MCP tools",
     properties: TOOL_FAILED_PROPERTIES,
     required: ["server", "failure_kind"],
@@ -263,6 +269,7 @@ export const EVENTS = {
   },
   "Plugin built-in tool called": {
     hook: "PostToolUse",
+    claudeCodeOnly: true,
     matcher: "WebFetch|WebSearch",
     bashClis: BASH_CLIS,
     when: BUILTIN_TOOL_WHEN,
@@ -272,6 +279,7 @@ export const EVENTS = {
   },
   "Plugin built-in tool failed": {
     hook: "PostToolUseFailure",
+    claudeCodeOnly: true,
     matcher: "WebFetch|WebSearch",
     bashClis: BASH_CLIS,
     when: BUILTIN_TOOL_WHEN,
@@ -287,6 +295,10 @@ export const EVENTS = {
       status: {
         schema: enumOf(OPERATOR_STATUSES),
         doc: `only for \`arcade-operator\`: the status line of its final report, ${list(OPERATOR_STATUSES)}`,
+      },
+      subagent_session: {
+        schema: HASH,
+        doc: "`sha256(agent_id)`, first 16 hex characters. In Copilot CLI the subagent's own events carry this as `session`",
       },
     },
     required: ["agent"],

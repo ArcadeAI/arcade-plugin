@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Turns Claude Code hook input into a telemetry event. Pure: no I/O.
+ * Turns Claude Code or Copilot CLI hook input into a telemetry event. Pure: no I/O.
  * What may be sent is defined in telemetry-contract.mjs.
  */
 
@@ -18,6 +18,7 @@ import {
   ARCADE_TOOL_PREFIX,
   BASH_CLIS,
   CLI_SERVICES,
+  COPILOT_ARCADE_SERVER,
   GATEWAY_TOOLS,
   OPERATOR_STATUSES,
   OS_NAMES,
@@ -26,7 +27,7 @@ import {
 import { PLUGIN_VERSION } from "./telemetry-config.mjs";
 import { authNeeded, failureKind } from "./telemetry-failures.mjs";
 
-/** @typedef {Record<string, any>} HookInput Claude Code hook stdin. */
+/** @typedef {Record<string, any>} HookInput Hook stdin. */
 
 // Matches the operator's report line, e.g. "status: needs_auth", with or
 // without markdown around it. "unknown" is what we send when none matches.
@@ -35,7 +36,7 @@ const OPERATOR_STATUS = new RegExp(
   "im",
 );
 
-// Claude Code's session ID is random, new for each session, and never sent,
+// The client's session ID is random, new for each session, and never sent,
 // so it works as the salt: nothing links one session's hashes to another's.
 const shortHash = (/** @type {string} */ text) =>
   createHash("sha256").update(text).digest("hex").slice(0, 16);
@@ -75,7 +76,7 @@ const arcadeToolProperties = (server, tool, toolInput) => {
  * @param {unknown} toolName
  * @param {HookInput | undefined} toolInput
  */
-const toolProperties = (toolName, toolInput) => {
+const claudeToolProperties = (toolName, toolInput) => {
   if (typeof toolName !== "string" || !toolName.startsWith("mcp__")) {
     return null;
   }
@@ -114,27 +115,89 @@ const builtinToolProperties = (toolName, toolInput, cli) => {
   return withService({ tool: "Bash", cli }, CLI_SERVICES[cli]);
 };
 
+/**
+ * @param {unknown} toolName
+ * @param {HookInput | undefined} toolInput
+ */
+const copilotToolProperties = (toolName, toolInput) => {
+  if (typeof toolName !== "string") return null;
+  // Arcade tool names never contain "-", so the last one ends the server name.
+  const splitAt = toolName.lastIndexOf("-");
+  // Built-in tools (Bash, Agent) have no server prefix.
+  if (splitAt <= 0 || splitAt === toolName.length - 1) return null;
+  const server = toolName.slice(0, splitAt);
+  const tool = toolName.slice(splitAt + 1);
+  if (server === COPILOT_ARCADE_SERVER) {
+    return arcadeToolProperties("arcade", tool, toolInput);
+  }
+  if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
+    return arcadeToolProperties("other_arcade", tool, toolInput);
+  }
+  const serverParts = server.split(/[^A-Za-z0-9]+/);
+  const service =
+    serviceForToolName(tool) ?? serverParts.map(serviceForToolkit).find(Boolean);
+  return withService({ server: "other" }, service);
+};
+
+/**
+ * @typedef {object} HostInput
+ * @property {(toolName: unknown, toolInput: HookInput | undefined) => Record<string, string> | null} toolProperties
+ * @property {(input: HookInput) => unknown} toolResponse The tool's result, read only by authNeeded.
+ * @property {boolean} builtinTools Whether WebFetch, WebSearch, and Bash calls send built-in tool events.
+ * @property {boolean} promptReminder Whether the client runs user-prompt-submit.mjs.
+ * @property {boolean} subagentSession Whether to include subagent_session on SubagentStop events.
+ */
+
+/** How each TELEMETRY_HOSTS value's hook input is read. @type {Record<string, HostInput>} */
+export const HOST_INPUT = {
+  "claude-code": {
+    toolProperties: claudeToolProperties,
+    toolResponse: (input) => input.tool_response,
+    builtinTools: true,
+    promptReminder: true,
+    subagentSession: false,
+  },
+  // Copilot CLI drops prompt-hook output, so it has no reminder hook. No
+  // built-in tool hooks are generated for it.
+  "copilot-cli": {
+    toolProperties: copilotToolProperties,
+    toolResponse: (input) => input.tool_result?.text_result_for_llm,
+    builtinTools: false,
+    promptReminder: false,
+    subagentSession: true,
+  },
+};
+
 const operatorStatus = (/** @type {unknown} */ message) => {
   const match = typeof message === "string" && message.match(OPERATOR_STATUS);
   return match ? match[1].toLowerCase() : "unknown";
 };
 
-const promptProperties = (/** @type {unknown} */ prompt) => {
+/**
+ * @param {unknown} prompt
+ * @param {HostInput} hostInput
+ */
+const promptProperties = (prompt, hostInput) => {
   const { couldUseArcade, serviceHints } = classifyPrompt(prompt);
   return {
     could_use_arcade: couldUseArcade,
     service_hints: serviceHints,
-    reminder_sent: shouldRemind(prompt),
+    reminder_sent: hostInput.promptReminder && shouldRemind(prompt),
   };
 };
+
+// The parent's SubagentStop names the subagent's session ID as agent_id.
+const subagentSession = (/** @type {unknown} */ agentId) =>
+  typeof agentId === "string" && agentId !== "" ? { subagent_session: shortHash(agentId) } : {};
 
 /**
  * Returns [event name, extra properties], or null for untracked input.
  * @param {HookInput} input
+ * @param {HostInput} hostInput
  * @param {string | undefined} cli
  * @returns {[string, Record<string, unknown>] | null}
  */
-const eventFor = (input, cli) => {
+const eventFor = (input, hostInput, cli) => {
   switch (input.hook_event_name) {
     case "SessionStart":
       return [
@@ -143,35 +206,38 @@ const eventFor = (input, cli) => {
       ];
     case "UserPromptSubmit":
       if (isTaskNotification(input.prompt)) return null;
-      return ["Plugin prompt submitted", promptProperties(input.prompt)];
+      return ["Plugin prompt submitted", promptProperties(input.prompt, hostInput)];
     case "PostToolUse": {
-      const builtin = builtinToolProperties(input.tool_name, input.tool_input, cli);
+      const builtin = hostInput.builtinTools && builtinToolProperties(input.tool_name, input.tool_input, cli);
       if (builtin) return ["Plugin built-in tool called", builtin];
-      const extra = toolProperties(input.tool_name, input.tool_input);
+      const extra = hostInput.toolProperties(input.tool_name, input.tool_input);
       if (!extra) return null;
       if (extra.tool === "System_ManageAuthorization") {
-        return ["Plugin tool called", { ...extra, auth_needed: authNeeded(input.tool_response) }];
+        return ["Plugin tool called", { ...extra, auth_needed: authNeeded(hostInput.toolResponse(input)) }];
       }
       return ["Plugin tool called", extra];
     }
     case "PostToolUseFailure": {
-      const builtin = builtinToolProperties(input.tool_name, input.tool_input, cli);
+      const builtin = hostInput.builtinTools && builtinToolProperties(input.tool_name, input.tool_input, cli);
       if (builtin) return ["Plugin built-in tool failed", builtin];
-      const extra = toolProperties(input.tool_name, input.tool_input);
+      const extra = hostInput.toolProperties(input.tool_name, input.tool_input);
       if (!extra) return null;
       return ["Plugin tool failed", { ...extra, failure_kind: failureKind(input.error, input.is_interrupt) }];
     }
-    case "SubagentStop":
+    case "SubagentStop": {
+      const session = hostInput.subagentSession ? subagentSession(input.agent_id) : {};
       if (!isOperatorAgentType(input.agent_type)) {
-        return ["Plugin subagent stopped", { agent: "other" }];
+        return ["Plugin subagent stopped", { agent: "other", ...session }];
       }
       return [
         "Plugin subagent stopped",
         {
           agent: "arcade-operator",
           status: operatorStatus(input.last_assistant_message),
+          ...session,
         },
       ];
+    }
     default:
       return null;
   }
@@ -192,22 +258,24 @@ const keepAllowed = (event, properties) => {
 
 /**
  * Builds `{ event, distinct_id, properties }` from hook stdin, or returns null
- * when the input is not something the contract tracks.
+ * when the input is not something the contract tracks or the host is unknown.
  * @param {HookInput | null | undefined} input
- * @param {{ os: string, arcadeUsedBefore: boolean, cli?: string }} options `cli` is the
- *   hook command's `--cli` argument, set only on Bash entries.
+ * @param {{ host: string, os: string, arcadeUsedBefore: boolean, cli?: string }} options
+ *   `cli` is the hook command's `--cli` argument, set only on Bash entries.
  */
-export const buildEvent = (input, { os, arcadeUsedBefore, cli }) => {
+export const buildEvent = (input, { host, os, arcadeUsedBefore, cli }) => {
+  if (!Object.hasOwn(HOST_INPUT, host)) return null;
+  const hostInput = HOST_INPUT[host];
   if (!input || typeof input !== "object") return null;
   if (typeof input.session_id !== "string" || input.session_id === "") return null;
-  const found = eventFor(input, cli);
+  const found = eventFor(input, hostInput, cli);
   if (!found) return null;
   const [event, extra] = found;
 
   /** @type {Record<string, unknown>} */
   const properties = {
     ...extra,
-    host: "claude-code",
+    host,
     plugin_version: PLUGIN_VERSION,
     os: oneOf(os, OS_NAMES, "other"),
     $process_person_profile: false,

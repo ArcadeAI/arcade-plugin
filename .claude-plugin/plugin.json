@@ -1,6 +1,6 @@
 {
   "name": "arcade",
-  "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key. In Claude Code it also sends usage events with no lasting ID (no prompt text or app data); set ARCADE_PLUGIN_TELEMETRY=0 to turn them off.",
+  "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key. In Claude Code and Copilot CLI it also sends usage events with no lasting ID (no prompt text or app data); set ARCADE_PLUGIN_TELEMETRY=0 to turn them off.",
   "author": {
     "name": "Arcade.dev",
     "url": "https://arcade.dev"

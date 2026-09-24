@@ -20,7 +20,7 @@ const EXPECTED_SOURCES = {
   ".gitattributes": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
   ".claude-plugin/hooks.json": ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
   "clients/cursor/hooks/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
-  "com.github.copilot/hooks/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  "com.github.copilot/hooks/hooks.json": ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
   "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
   "com.github.copilot/agents/arcade-operator.agent.md": ["agents/arcade-operator.agent.md", "hooks/routing-guidance.mjs"],
   "agents/arcade-operator.agent.md": ["hooks/routing-guidance.mjs"],
