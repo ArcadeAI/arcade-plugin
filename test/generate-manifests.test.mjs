@@ -10,6 +10,26 @@ import {
 } from "../scripts/generate-manifests.mjs";
 import { makeFixture, readRepoFile } from "./helpers.mjs";
 
+// A second copy of FILE_SOURCES on purpose, so a change to a file's sources must change this test too.
+const EXPECTED_SOURCES = {
+  ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  ".claude-plugin/marketplace.json": ["plugin.json", "scripts/generate-manifests.mjs"],
+  "clients/cursor/rules/arcade.mdc": ["hooks/routing-guidance.mjs", "scripts/generate-manifests.mjs"],
+  ".gitattributes": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  ".claude-plugin/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  "clients/cursor/hooks/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  "com.github.copilot/hooks/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
+  "com.github.copilot/agents/arcade-operator.agent.md": ["agents/arcade-operator.agent.md", "hooks/routing-guidance.mjs"],
+  "agents/arcade-operator.agent.md": ["hooks/routing-guidance.mjs"],
+  "skills/try-arcade/SKILL.md": ["hooks/routing-guidance.mjs"],
+};
+
+test("FILE_SOURCES lists the expected sources for every generated path", () => {
+  assert.deepEqual(FILE_SOURCES, EXPECTED_SOURCES);
+});
+
 test("committed generated files are current (run npm run generate if not)", () => {
   generateManifests({ check: true });
 });
@@ -18,6 +38,7 @@ test("check mode fails with a source-naming error when a generated file is hand-
   const root = makeFixture();
   try {
     const files = generateManifests({ root });
+    assert.deepEqual([...files.keys()].sort(), Object.keys(EXPECTED_SOURCES).sort());
 
     for (const path of files.keys()) {
       // Reset to clean state before each edit.
@@ -31,11 +52,18 @@ test("check mode fails with a source-naming error when a generated file is hand-
         writeFileSync(fullPath, `${readFileSync(fullPath, "utf8")} `);
       }
 
-      const sources = FILE_SOURCES[path];
       assert.throws(
         () => generateManifests({ check: true, root }),
-        (err) => [path, ...sources].every((s) => err.message.includes(s)),
-        `check should name path and all its sources for: ${path}`,
+        (err) => {
+          for (const s of [path, ...EXPECTED_SOURCES[path]]) {
+            assert.ok(err.message.includes(s), `error for ${path} should name ${s}: ${err.message}`);
+          }
+          assert.ok(
+            err.message.includes("Run npm run generate"),
+            `error for ${path} should say to run npm run generate: ${err.message}`,
+          );
+          return true;
+        },
       );
     }
 
@@ -55,7 +83,7 @@ test("check mode fails with a source-naming error when a generated file is hand-
   }
 });
 
-test("buildFiles throws when a generated path has no FILE_SOURCES entry", () => {
+test("requireSources throws when a generated path has no FILE_SOURCES entry", () => {
   const incomplete = { ...FILE_SOURCES };
   delete incomplete[".gitattributes"];
   assert.throws(

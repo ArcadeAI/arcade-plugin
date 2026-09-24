@@ -26,15 +26,11 @@ export const FILES_WITH_GENERATED_RULES = {
   "skills/try-arcade/SKILL.md": SKILL_RULES,
 };
 
-/**
- * Generated copy → array of source paths.
- * Values are single-element arrays so that spreading into FILE_SOURCES
- * gives the same array format as all other entries.
- */
+/** Generated copy → the file it is copied from. */
 export const COPIED_FILES = {
   // Each skill folder has to work on its own.
-  "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
-  "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR],
+  "skills/scale-arcade/references/arcade-docs.md": "skills/try-arcade/references/arcade-docs.md",
+  "com.github.copilot/agents/arcade-operator.agent.md": OPERATOR,
 };
 
 /**
@@ -44,22 +40,28 @@ export const COPIED_FILES = {
  * entry here — buildFiles throws if one is missing.
  */
 export const FILE_SOURCES = {
-  // plugin.json and mcp.json supply identity and the gateway URL;
-  // VERSION supplies the version; the script itself writes the fixed
-  // skills/agents/commands/rules/hooks paths.
-  ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "scripts/generate-manifests.mjs"],
-  // The script writes the fixed hooks type and mcpServers transport type.
-  ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "scripts/generate-manifests.mjs"],
-  // The script writes the fixed marketplace description.
-  ".claude-plugin/marketplace.json": ["plugin.json", "VERSION", "scripts/generate-manifests.mjs"],
-  [`${CURSOR_RULE_DIR}/arcade.mdc`]: ["hooks/routing-guidance.mjs"],
-  ".gitattributes": ["scripts/generate-manifests.mjs"],
-  // Manifest paths come from HOSTS; keys here match host.manifest values.
-  ...Object.fromEntries(Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs"]])),
-  // Copied files: value is a single-element array containing the source path.
-  ...COPIED_FILES,
-  // Files with a generated rules block.
-  ...Object.fromEntries(Object.keys(FILES_WITH_GENERATED_RULES).map((p) => [p, ["hooks/routing-guidance.mjs"]])),
+  // plugin.json and mcp.json supply identity and the gateway URL; VERSION
+  // supplies the version; hook-hosts.mjs supplies the hooks manifest path; the
+  // script writes the fixed skills/agents/commands/rules paths.
+  ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  // The script writes the mcpServers transport type.
+  ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  // The script writes the marketplace description. There is no version field.
+  ".claude-plugin/marketplace.json": ["plugin.json", "scripts/generate-manifests.mjs"],
+  // The script writes the frontmatter and the header comment.
+  [`${CURSOR_RULE_DIR}/arcade.mdc`]: ["hooks/routing-guidance.mjs", "scripts/generate-manifests.mjs"],
+  // The hook manifest paths in the list come from hook-hosts.mjs.
+  ".gitattributes": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  // hook-hosts.mjs supplies the events, scripts, and timeout; the script writes
+  // the version, entry type, nesting, and command template.
+  ...Object.fromEntries(
+    Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"]]),
+  ),
+  "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
+  // A copy of the operator with its rules block filled in.
+  "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR, "hooks/routing-guidance.mjs"],
+  [OPERATOR]: ["hooks/routing-guidance.mjs"],
+  "skills/try-arcade/SKILL.md": ["hooks/routing-guidance.mjs"],
 };
 
 /** Formats an array of source paths as a human-readable list. */
@@ -207,7 +209,7 @@ const buildFiles = (root) => {
     files.set(host.manifest, serialize(buildHookManifest(hostName)));
   }
 
-  for (const [copy, [source]] of Object.entries(COPIED_FILES)) {
+  for (const [copy, source] of Object.entries(COPIED_FILES)) {
     const rules = FILES_WITH_GENERATED_RULES[source];
     files.set(copy, rules ? fillRulesBlock(readText(root, source), rules, source) : readText(root, source));
   }
