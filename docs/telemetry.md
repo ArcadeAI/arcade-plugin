@@ -192,6 +192,10 @@ subagent's `session`.
   event's `subagent_session`. The model wrote those prompts.
 - Count a subagent session's tool events toward the parent turn that contains
   the matching `Plugin subagent stopped`.
+
+Copilot names MCP tools `<server>-<tool>` with no plugin prefix, so any MCP
+server the user named `arcade` counts as `server: arcade`, not just this
+plugin's.
 - Leave out sessions with a prompt but no `Plugin session started` and no
   matching `subagent_session`. These are subagents that never stopped.
 
