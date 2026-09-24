@@ -8,40 +8,44 @@ browser. The rows differ in how much of this plugin the client can load.
 
 | Client | Tools | Skills | Subagent | Commands | Rule | Hooks | Install |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
-| **Cursor** | ✅ | ✅ | ✅ | ✅⁶ | ✅ | ✅¹ | [guide](install/cursor.md) |
+| **Cursor IDE / Cloud Agents** | ✅ | ✅ | ✅ | ✅ | ✅ | —¹ | [guide](install/cursor.md) |
+| **Cursor CLI** | ✅ | ✅ | ✅ | ✅ | — | ✅² | [guide](install/cursor.md) |
 | **Claude Code** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
-| **Claude Cowork / Code desktop** | ✅ | ✅ | ✅ | ✅ | — | ✅⁵ | [guide](install/claude-code.md) |
-| **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅² | [guide](install/copilot.md) |
-| **VS Code** | ✅ | ✅ | ✅ | — | — | —⁴ | [guide](install/vscode.md) |
-| **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | —³ | [guide](install/codex.md) |
+| **Claude Cowork / Code desktop** | ✅ | ✅ | ✅ | ✅ | — | partial³ | [guide](install/claude-code.md) |
+| **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅⁴ | [guide](install/copilot.md) |
+| **VS Code** | ✅ | ✅ | ✅ | — | — | —⁵ | [guide](install/vscode.md) |
+| **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | —⁶ | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | ✅ | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
 
 Hooks add the routing rules at session start, to each prompt, and to
-subagents. The files are `.claude-plugin/hooks.json` (Claude Code),
-`clients/cursor/hooks/hooks.json` (Cursor), and
+subagents (partial = not all three fire). The files are
+`.claude-plugin/hooks.json` (Claude Code),
+`clients/cursor/hooks/hooks.json` (Cursor CLI), and
 `com.github.copilot/hooks/hooks.json` (Copilot CLI).
 
-¹ Cursor CLI only, at session start. The Cursor IDE (3.21.18) and Cloud
-Agents don't run plugin hooks, so they get the rule and the skill. Cursor's
-prompt and subagent hooks can't add context, and the CLI doesn't load the
-always-apply rule.
-² Copilot CLI drops the output of prompt hooks from config files, so it gets
-session and subagent hooks only.
-³ Blocked upstream; see [codex.md](install/codex.md).
-⁴ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
-`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet.
-⁵ Cowork runs the prompt and subagent hooks but doesn't add the session-start
+¹ The IDE (3.21.18) and Cloud Agents don't run plugin hooks; the always-apply
+rule carries the full session rules. The IDE lists commands on the plugin page
+but not in the `/` menu; other plugins' commands don't appear there either.
+Cloud Agents run repo/team/enterprise hooks, not plugin hooks; they get the
+rule and the skill.
+² Session hook only. The CLI runs the session hook (full rules) but doesn't
+load the always-apply rule.
+³ Cowork runs the prompt and subagent hooks but doesn't add the session-start
 text, so its main conversation gets the short reminder and the skill, not the
 full rules. The desktop Code tab runs all three.
-⁶ The Cursor IDE (3.21.18) lists the commands on the plugin page but not in
-the `/` menu. Other plugins' commands don't show there either.
+⁴ Copilot CLI drops the output of prompt hooks from config files, so it gets
+session and subagent hooks only.
+⁵ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
+`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet.
+⁶ Blocked upstream; see [codex.md](install/codex.md).
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
-`arcade-operator`. In Cursor the commands are `/arcade-apps`, `/arcade-connect`,
-and `/arcade-status`. In Claude Code they appear as `/arcade:arcade-apps`,
-`/arcade:arcade-connect`, and `/arcade:arcade-status`.
+`arcade-operator`. In Cursor the commands are `/arcade-apps`,
+`/arcade-connect`, and `/arcade-status`. In Claude Code they appear as
+`/arcade:arcade-apps`, `/arcade:arcade-connect`, and
+`/arcade:arcade-status`.
 
 Only skills and MCP servers are portable component types in
 [Agent Plugins](https://agent-plugins.org) 1.0. Commands, the operator,
@@ -61,7 +65,7 @@ Files a client needs at its own path are generated from shared sources (see
 | Operator | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Cowork |
 | Operator (generated copy) | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code |
 | Commands | `commands/arcade-*.md` | Cursor, Claude Code, Cowork |
-| Rule | `clients/cursor/rules/arcade.mdc` | Cursor |
+| Rule | `clients/cursor/rules/arcade.mdc` | Cursor IDE / Cloud Agents |
 | Marketplace | `.claude-plugin/marketplace.json` | Claude Desktop, Cowork, Claude Code, Codex |
 | Codex listing | `plugin.json` → `extensions.com.openai.interface` | Codex |
 
