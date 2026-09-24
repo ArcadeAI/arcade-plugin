@@ -120,14 +120,14 @@ const copilotToolProperties = (toolName, toolInput) => {
  * @typedef {object} HostInput
  * @property {(toolName: unknown, toolInput: HookInput | undefined) => Record<string, string> | null} toolProperties
  * @property {boolean} promptReminder Whether the client runs user-prompt-submit.mjs.
- * @property {boolean} hasPromptId Whether the hook input carries a prompt_id for `turn`.
+ * @property {boolean} subagentSession Whether to include subagent_session on SubagentStop events.
  */
 
 /** How each TELEMETRY_HOSTS value's hook input is read. @type {Record<string, HostInput>} */
 export const HOST_INPUT = {
-  "claude-code": { toolProperties: claudeToolProperties, promptReminder: true, hasPromptId: true },
+  "claude-code": { toolProperties: claudeToolProperties, promptReminder: true, subagentSession: false },
   // Copilot CLI drops prompt-hook output, so it has no reminder hook.
-  "copilot-cli": { toolProperties: copilotToolProperties, promptReminder: false, hasPromptId: false },
+  "copilot-cli": { toolProperties: copilotToolProperties, promptReminder: false, subagentSession: true },
 };
 
 const operatorStatus = (/** @type {unknown} */ message) => {
@@ -176,18 +176,20 @@ const eventFor = (input, hostInput) => {
       const extra = hostInput.toolProperties(input.tool_name, input.tool_input);
       return extra && ["Plugin tool failed", extra];
     }
-    case "SubagentStop":
+    case "SubagentStop": {
+      const session = hostInput.subagentSession ? subagentSession(input.agent_id) : {};
       if (!isOperatorAgentType(input.agent_type)) {
-        return ["Plugin subagent stopped", { agent: "other", ...subagentSession(input.agent_id) }];
+        return ["Plugin subagent stopped", { agent: "other", ...session }];
       }
       return [
         "Plugin subagent stopped",
         {
           agent: "arcade-operator",
           status: operatorStatus(input.last_assistant_message),
-          ...subagentSession(input.agent_id),
+          ...session,
         },
       ];
+    }
     default:
       return null;
   }
@@ -236,7 +238,7 @@ export const buildEvent = (input, { host, os, arcadeUsedBefore }) => {
   };
   const session = shortHash(input.session_id);
   properties.session = session;
-  if (hostInput.hasPromptId && typeof input.prompt_id === "string") {
+  if (typeof input.prompt_id === "string") {
     properties.turn = shortHash(`${input.session_id}:${input.prompt_id}`);
   }
 

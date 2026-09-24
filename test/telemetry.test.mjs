@@ -107,6 +107,10 @@ const waitForRequests = async (requests, count) => {
   while (requests.length < count && Date.now() < deadline) await sleep(50);
 };
 
+const POWERSHELL = (process.platform === "win32" ? ["pwsh", "powershell.exe"] : ["pwsh"]).find(
+  (exe) => !spawnSync(exe, ["-NoProfile", "-NonInteractive", "-Command", "exit 0"]).error,
+);
+
 test("buildEvent maps each hook input to the documented event", () => {
   const CALLED = "Plugin tool called";
   const STOPPED = "Plugin subagent stopped";
@@ -143,9 +147,8 @@ test("buildEvent maps each hook input to the documented event", () => {
     [...stop("status: exploded"), STOPPED, operator("unknown")],
     [...stop(undefined), STOPPED, operator("unknown")],
     ["SubagentStop", { agent_type: "general-purpose", last_assistant_message: "status: completed" }, STOPPED, { agent: "other" }],
-    ["SubagentStop", { agent_type: OPERATOR, agent_id: "agent-1", last_assistant_message: "status: completed" }, STOPPED,
-      { ...operator("completed"), subagent_session: hash16("agent-1") }],
-    ["SubagentStop", { agent_type: "general-purpose", agent_id: "agent-2" }, STOPPED, { agent: "other", subagent_session: hash16("agent-2") }],
+    ["SubagentStop", { agent_type: OPERATOR, agent_id: "agent-1", last_assistant_message: "status: completed" }, STOPPED, operator("completed")],
+    ["SubagentStop", { agent_type: "general-purpose", agent_id: "agent-2" }, STOPPED, { agent: "other" }],
     ["SubagentStop", { agent_type: "general-purpose", agent_id: "" }, STOPPED, { agent: "other" }],
     ["SubagentStart", { agent_type: OPERATOR }, null],
     ["Stop", {}, null],
@@ -183,6 +186,9 @@ test("buildEvent maps each hook input to the documented event", () => {
   for (const host of ["cursor", "copilot", "toString", ""]) {
     assert.equal(buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, host }), null, `host ${host}`);
   }
+  // Claude Code SubagentStop events carry no subagent_session, matching ef0db55.
+  const ccStop = buildEvent(hookInput({ hook_event_name: "SubagentStop", agent_type: OPERATOR, agent_id: "agent-x" }), OPTIONS);
+  assert.equal(ccStop.properties.subagent_session, undefined, "Claude Code SubagentStop has no subagent_session");
 });
 
 test("buildEvent maps Copilot CLI hook input to the documented event", () => {
@@ -266,10 +272,6 @@ test("buildEvent maps Copilot CLI hook input to the documented event", () => {
     agentDisplayName: "arcade-operator",
   };
   assert.equal(buildEvent(subagentStart, COPILOT_OPTIONS), null);
-
-  // Copilot has no prompt_id; a stray one still gives no turn.
-  const withPromptId = buildEvent(copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "hi", prompt_id: "p1" }), COPILOT_OPTIONS);
-  assert.equal(withPromptId.properties.turn, undefined);
 
   // The subagent's own events carry its session ID, which the parent's
   // SubagentStop names as agent_id.
@@ -643,10 +645,17 @@ test("Copilot telemetry hook sends nothing when it must not", async () => {
       assert.equal(result.stdout, "", label);
       assert.deepEqual(readdirSync(dataDir), [], label);
     }
-    const dataDir = makeTempDir();
-    const result = runHook("telemetry.mjs", arcadeCall, hookEnv(dataDir, server.url), "copilot");
+    const dataDir2 = makeTempDir();
+    const result = runHook("telemetry.mjs", arcadeCall, hookEnv(dataDir2, server.url), "copilot");
     assert.equal(result.stdout, "");
-    assert.deepEqual(readdirSync(dataDir), [], "--host copilot with only CLAUDE_PLUGIN_DATA");
+    assert.deepEqual(readdirSync(dataDir2), [], "--host copilot with only CLAUDE_PLUGIN_DATA");
+    // Opted out with install-id present: install-id deleted, nothing sent.
+    const dataDir3 = makeTempDir();
+    writeFileSync(path.join(dataDir3, "install-id"), "11111111-2222-3333-4444-555555555555");
+    const result2 = runHook("telemetry.mjs", arcadeCall, copilotEnv(dataDir3, server.url, { ARCADE_PLUGIN_TELEMETRY: "0" }), "copilot");
+    assert.equal(result2.status, 0, result2.stderr);
+    assert.equal(result2.stdout, "", "opted out, with an old install-id to delete (copilot)");
+    assert.deepEqual(readdirSync(dataDir3), [], "opted out, with an old install-id to delete (copilot)");
     await sleep(1000);
     assert.deepEqual(server.requests, []);
   } finally {
@@ -674,5 +683,56 @@ test("hook returns at once and the sender gives up on a host that never answers"
     assert.ok(elapsed >= 900 && elapsed < 3000, `sender timeout was ${elapsed} ms`);
   } finally {
     silent.close();
+  }
+});
+
+test("Copilot telemetry powershell command skips arcade-operator and sends exactly one event", { skip: !POWERSHELL && "pwsh not found" }, async () => {
+  const manifest = JSON.parse(readRepoFile("com.github.copilot/hooks/hooks.json"));
+  const psCwd = mkdtempSync(path.join(os.tmpdir(), "arcade-ps-"));
+  const runPs = (script, inputStr, env) =>
+    spawnSync(String(POWERSHELL), ["-NoProfile", "-NonInteractive", "-Command", script], {
+      cwd: psCwd,
+      input: inputStr,
+      encoding: "utf8",
+      env: { ...process.env, ...env },
+    });
+
+  // SubagentStart powershell: arcade-operator should produce no output.
+  const subagentStartPs = manifest.hooks.SubagentStart[0].powershell;
+  const arcadeOperatorStart = JSON.stringify({
+    sessionId: COPILOT_SESSION_ID,
+    timestamp: 1790285282793,
+    cwd: "/Users/someone/private-repo",
+    agentName: OPERATOR,
+    agentDisplayName: "arcade-operator",
+  });
+  const skipped = runPs(subagentStartPs, arcadeOperatorStart, { PLUGIN_ROOT: ROOT, COPILOT_PLUGIN_DATA: "" });
+  assert.equal(skipped.status, 0, `SubagentStart skip: ${skipped.stderr}`);
+  assert.equal(skipped.stdout, "", "arcade-operator SubagentStart: no output");
+
+  // Telemetry powershell: SessionStart should send exactly one request.
+  const telemetryPs = manifest.hooks.SessionStart.find((e) => e.powershell?.includes("telemetry.mjs"))?.powershell;
+  assert.ok(telemetryPs, "SessionStart has a telemetry powershell command");
+  const server = await startServer();
+  try {
+    const dataDir = makeTempDir();
+    const sessionStart = JSON.stringify(copilotInput({ hook_event_name: "SessionStart", source: "new" }));
+    const sent = runPs(telemetryPs, sessionStart, {
+      PLUGIN_ROOT: ROOT,
+      COPILOT_PLUGIN_DATA: dataDir,
+      ARCADE_PLUGIN_TELEMETRY_HOST: server.url,
+      ARCADE_PLUGIN_TELEMETRY: "",
+      DO_NOT_TRACK: "",
+      COPILOT_OFFLINE: "",
+    });
+    assert.equal(sent.status, 0, `telemetry powershell: ${sent.stderr}`);
+    assert.equal(sent.stdout, "", "telemetry powershell: no stdout");
+    await waitForRequests(server.requests, 1);
+    assert.equal(server.requests.length, 1, "exactly one request arrived");
+    const body = JSON.parse(server.requests[0].body);
+    assert.equal(body.event, "Plugin session started");
+    assert.equal(body.properties.host, "copilot-cli");
+  } finally {
+    await server.close();
   }
 });

@@ -28,10 +28,12 @@ nothing, so VS Code relies on the skills.
 
 ## Telemetry
 
-The plugin sends a small set of usage events (session start, tool calls, and
-subagent stops) to help us see whether the model uses Arcade when a task needs
-it. No prompt text or personal data is included. See [docs/telemetry.md](../telemetry.md)
-for the full list of what is sent.
+The plugin sends a small set of usage events (session start, prompts, tool
+calls, and subagent stops) to help us see whether the model uses Arcade when a
+task needs it. For prompts, a yes/no guess at whether Arcade is relevant and
+service category hints are sent — not the prompt text. No personal data is
+included. See [docs/telemetry.md](../telemetry.md) for the full list of what
+is sent.
 
 To turn it off, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
 `copilot`:

@@ -129,8 +129,8 @@ const fillRulesBlock = (text, rules, path) => {
  * The command fields of one hook entry. With `runOnlyIfScriptExists`, the
  * command runs the script only if the file is there, so a client that leaves
  * the root variable unset (VS Code) gets exit 0 and no output. `powershell`
- * is the Windows form; it has no double quotes because VS Code passes it as
- * one argument to `powershell.exe -Command`.
+ * is intended for Windows (not verified); it has no double quotes because VS
+ * Code is expected to pass it as one argument to `powershell.exe -Command`.
  */
 const hookCommandFields = (hostName, script) => {
   const { rootVariable, runOnlyIfScriptExists } = HOSTS[hostName];
