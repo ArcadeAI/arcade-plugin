@@ -23,7 +23,9 @@
         "shortDescription": "Your agent, every app you've connected.",
         "developerName": "Arcade.dev",
         "category": "Productivity",
-        "websiteURL": "https://arcade.dev"
+        "websiteURL": "https://arcade.dev",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
       }
     }
   }
