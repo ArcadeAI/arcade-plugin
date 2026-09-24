@@ -26,45 +26,72 @@ export const FILES_WITH_GENERATED_RULES = {
   "skills/try-arcade/SKILL.md": SKILL_RULES,
 };
 
-/** Generated copy → source. */
+/**
+ * Generated copy → array of source paths.
+ * Values are single-element arrays so that spreading into FILE_SOURCES
+ * gives the same array format as all other entries.
+ */
 export const COPIED_FILES = {
   // Each skill folder has to work on its own.
-  "skills/scale-arcade/references/arcade-docs.md": "skills/try-arcade/references/arcade-docs.md",
-  "com.github.copilot/agents/arcade-operator.agent.md": OPERATOR,
+  "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
+  "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR],
 };
 
 /**
- * Source description for each generated or partially-generated path. Used in
- * error messages so a person who hand-edits a generated file knows what to
- * edit instead. Every path that buildFiles adds to its output map must have an
+ * Source files for each generated or partially-generated path. Used in error
+ * messages so a person who hand-edits a generated file knows what to edit
+ * instead. Every path that buildFiles adds to its output map must have an
  * entry here — buildFiles throws if one is missing.
  */
 export const FILE_SOURCES = {
-  ".cursor-plugin/plugin.json": "plugin.json, mcp.json, and VERSION",
-  ".claude-plugin/plugin.json": "plugin.json, mcp.json, and VERSION",
-  ".claude-plugin/marketplace.json": "plugin.json and VERSION",
-  [`${CURSOR_RULE_DIR}/arcade.mdc`]: "hooks/routing-guidance.mjs",
-  ".gitattributes": "scripts/generate-manifests.mjs",
+  // plugin.json and mcp.json supply identity and the gateway URL;
+  // VERSION supplies the version; the script itself writes the fixed
+  // skills/agents/commands/rules/hooks paths.
+  ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "scripts/generate-manifests.mjs"],
+  // The script writes the fixed hooks type and mcpServers transport type.
+  ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "scripts/generate-manifests.mjs"],
+  // The script writes the fixed marketplace description.
+  ".claude-plugin/marketplace.json": ["plugin.json", "VERSION", "scripts/generate-manifests.mjs"],
+  [`${CURSOR_RULE_DIR}/arcade.mdc`]: ["hooks/routing-guidance.mjs"],
+  ".gitattributes": ["scripts/generate-manifests.mjs"],
   // Manifest paths come from HOSTS; keys here match host.manifest values.
-  ...Object.fromEntries(Object.values(HOSTS).map((h) => [h.manifest, "hooks/hook-hosts.mjs"])),
-  // Copied files: value is the source path.
-  ...Object.fromEntries(Object.entries(COPIED_FILES).map(([copy, src]) => [copy, src])),
-  // Files with a generated rules block: source is hooks/routing-guidance.mjs.
-  ...Object.fromEntries(Object.keys(FILES_WITH_GENERATED_RULES).map((p) => [p, "hooks/routing-guidance.mjs"])),
+  ...Object.fromEntries(Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs"]])),
+  // Copied files: value is a single-element array containing the source path.
+  ...COPIED_FILES,
+  // Files with a generated rules block.
+  ...Object.fromEntries(Object.keys(FILES_WITH_GENERATED_RULES).map((p) => [p, ["hooks/routing-guidance.mjs"]])),
+};
+
+/** Formats an array of source paths as a human-readable list. */
+const joinSources = (sources) => {
+  if (sources.length === 1) return sources[0];
+  if (sources.length === 2) return `${sources[0]} and ${sources[1]}`;
+  return `${sources.slice(0, -1).join(", ")}, and ${sources.at(-1)}`;
+};
+
+/**
+ * Throws if `path` has no entry in `fileSources`. Exported so tests can call
+ * it directly with an incomplete sources map.
+ */
+export const requireSources = (path, fileSources) => {
+  if (!(path in fileSources)) {
+    throw new Error(
+      `${path} has no entry in FILE_SOURCES — add one in scripts/generate-manifests.mjs next to where it is built`,
+    );
+  }
 };
 
 /** Returns the error message to throw when `path` is out of date on disk. */
 const outOfDateError = (path) => {
   if (path in FILES_WITH_GENERATED_RULES) {
-    return `${path}: the rules block is generated from hooks/routing-guidance.mjs — edit that file and run npm run generate`;
+    return `${path}: the rules block is out of date. Run npm run generate. If you edited the block by hand, make the change in hooks/routing-guidance.mjs instead.`;
   }
-  const src = FILE_SOURCES[path];
+  const sources = FILE_SOURCES[path];
+  const joined = joinSources(sources);
   if (path in COPIED_FILES) {
-    return `${path} is a copy of ${src} — edit that file and run npm run generate`;
+    return `${path} is out of date. Run npm run generate. If you edited ${path} by hand, make the change in ${joined} instead (this file is a copy).`;
   }
-  // Use "those" for multiple sources (the source string lists multiple files).
-  const plural = /,| and /.test(src);
-  return `${path} is generated from ${src} — edit ${plural ? "those" : "that file"} and run npm run generate`;
+  return `${path} is out of date. Run npm run generate. If you edited ${path} by hand, make the change in ${joined} instead.`;
 };
 
 const RULES_BLOCK_BEGIN =
@@ -180,7 +207,7 @@ const buildFiles = (root) => {
     files.set(host.manifest, serialize(buildHookManifest(hostName)));
   }
 
-  for (const [copy, source] of Object.entries(COPIED_FILES)) {
+  for (const [copy, [source]] of Object.entries(COPIED_FILES)) {
     const rules = FILES_WITH_GENERATED_RULES[source];
     files.set(copy, rules ? fillRulesBlock(readText(root, source), rules, source) : readText(root, source));
   }
@@ -201,11 +228,7 @@ const buildFiles = (root) => {
 
   // Every output must have a source entry so error messages can name it.
   for (const path of files.keys()) {
-    if (!(path in FILE_SOURCES)) {
-      throw new Error(
-        `${path} has no entry in FILE_SOURCES — add one in scripts/generate-manifests.mjs next to where it is built`,
-      );
-    }
+    requireSources(path, FILE_SOURCES);
   }
 
   return files;

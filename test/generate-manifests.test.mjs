@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { generateManifests } from "../scripts/generate-manifests.mjs";
+import {
+  FILE_SOURCES,
+  FILES_WITH_GENERATED_RULES,
+  generateManifests,
+  requireSources,
+} from "../scripts/generate-manifests.mjs";
 import { makeFixture, readRepoFile } from "./helpers.mjs";
 
 test("committed generated files are current (run npm run generate if not)", () => {
@@ -12,50 +17,51 @@ test("committed generated files are current (run npm run generate if not)", () =
 test("check mode fails with a source-naming error when a generated file is hand-edited", () => {
   const root = makeFixture();
   try {
-    generateManifests({ root });
+    const files = generateManifests({ root });
 
-    // Each case: edit a file in the fixture, expect an error that names the source.
-    const cases = [
-      {
-        desc: "Cursor manifest",
-        edit: (r) => { const p = join(r, ".cursor-plugin/plugin.json"); writeFileSync(p, `${readFileSync(p, "utf8")} `); },
-        pattern: /\.cursor-plugin\/plugin\.json is generated from plugin\.json, mcp\.json, and VERSION/,
-      },
-      {
-        desc: "hooks.json",
-        edit: (r) => rmSync(join(r, "com.github.copilot/hooks/hooks.json")),
-        pattern: /com\.github\.copilot\/hooks\/hooks\.json is generated from hooks\/hook-hosts\.mjs/,
-      },
-      {
-        desc: "Cursor rule",
-        edit: (r) => { const p = join(r, "clients/cursor/rules/arcade.mdc"); writeFileSync(p, `${readFileSync(p, "utf8")} `); },
-        pattern: /clients\/cursor\/rules\/arcade\.mdc is generated from hooks\/routing-guidance\.mjs/,
-      },
-      {
-        desc: "Copilot operator copy",
-        edit: (r) => { const p = join(r, "com.github.copilot/agents/arcade-operator.agent.md"); writeFileSync(p, `${readFileSync(p, "utf8")} `); },
-        pattern: /com\.github\.copilot\/agents\/arcade-operator\.agent\.md is a copy of agents\/arcade-operator\.agent\.md/,
-      },
-      {
-        desc: "rules block in try-arcade/SKILL.md",
-        edit: (r) => { const p = join(r, "skills/try-arcade/SKILL.md"); writeFileSync(p, readFileSync(p, "utf8").replace("use only arcade", "use any server")); },
-        pattern: /skills\/try-arcade\/SKILL\.md: the rules block is generated from hooks\/routing-guidance\.mjs/,
-      },
-      {
-        desc: ".gitattributes stale entry",
-        edit: (r) => writeFileSync(join(r, ".gitattributes"), `${readFileSync(join(r, ".gitattributes"), "utf8")}old/file.json linguist-generated=true\n`),
-        pattern: /old\/file\.json is no longer generated/,
-      },
-    ];
-
-    for (const { edit, pattern } of cases) {
+    for (const path of files.keys()) {
+      // Reset to clean state before each edit.
       generateManifests({ root });
-      edit(root);
-      assert.throws(() => generateManifests({ check: true, root }), pattern);
+
+      const fullPath = join(root, path);
+      if (path in FILES_WITH_GENERATED_RULES) {
+        // Edit inside the block so the rules-block path is specifically tested.
+        writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("use only arcade", "use any server"));
+      } else {
+        writeFileSync(fullPath, `${readFileSync(fullPath, "utf8")} `);
+      }
+
+      const sources = FILE_SOURCES[path];
+      assert.throws(
+        () => generateManifests({ check: true, root }),
+        (err) => [path, ...sources].every((s) => err.message.includes(s)),
+        `check should name path and all its sources for: ${path}`,
+      );
     }
+
+    // Stale .gitattributes entry: a path that was once generated but no longer
+    // is, left in the committed .gitattributes. Different error path from above.
+    generateManifests({ root });
+    writeFileSync(
+      join(root, ".gitattributes"),
+      `${readFileSync(join(root, ".gitattributes"), "utf8")}old/file.json linguist-generated=true\n`,
+    );
+    assert.throws(
+      () => generateManifests({ check: true, root }),
+      /old\/file\.json is no longer generated/,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("buildFiles throws when a generated path has no FILE_SOURCES entry", () => {
+  const incomplete = { ...FILE_SOURCES };
+  delete incomplete[".gitattributes"];
+  assert.throws(
+    () => requireSources(".gitattributes", incomplete),
+    /\.gitattributes has no entry in FILE_SOURCES/,
+  );
 });
 
 // Mirrors what release-please does with release-please-config.json.
