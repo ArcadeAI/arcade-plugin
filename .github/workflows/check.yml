@@ -10,9 +10,16 @@ permissions:
   contents: read
 
 jobs:
+  # One job per step of `npm run verify`, so each client's check reports on
+  # its own and one failure doesn't skip the rest.
   check:
+    name: ${{ matrix.script }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [test, "verify:claude", "verify:cursor", "verify:codex", "verify:copilot"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -26,8 +33,7 @@ jobs:
       - name: Install dev dependencies
         run: npm ci
 
-      - name: Verify plugin (local gate)
-        run: npm run verify
+      - run: npm run ${{ matrix.script }}
 
   complete:
     runs-on: ubuntu-latest
