@@ -90,7 +90,7 @@ model to self-report tokens, turns, or success.
 
 In Claude Code, `hooks/telemetry.mjs` also sends usage events on whether the
 model used Arcade when a prompt looked like a task Arcade could do. They carry
-a random install ID, not the user's name, email, or Arcade account. It is on by
+a hash of the session ID and no ID that lasts across sessions. It is on by
 default, turned off with `ARCADE_PLUGIN_TELEMETRY=0` or Claude Code's own
 `DISABLE_TELEMETRY`, and described in
 [docs/telemetry.md](docs/telemetry.md). The network send runs in a detached

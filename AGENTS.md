@@ -23,8 +23,9 @@ for a marked rules block.
   network (a test enforces both). Telemetry files start with `// @ts-check`
   and `npm run typecheck` runs `tsc` on them; nothing is compiled.
 - Telemetry runs in Claude Code only. It reads Claude Code's hook input and
-  keeps its install ID in Claude Code's plugin data folder; Cursor, Copilot
-  CLI, and VS Code need their own input mapping and a place for the ID first.
+  keeps its one file, the `arcade-used` flag, in Claude Code's plugin data
+  folder. Nothing that lasts across sessions is sent. Cursor, Copilot CLI, and
+  VS Code need their own input mapping and a place for the flag first.
 - Codex hooks are blocked upstream ([docs/install/codex.md](docs/install/codex.md)).
   Don't remove the root `$schema` to force them; that breaks Agent Plugins
   conformance.

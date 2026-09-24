@@ -4,12 +4,11 @@
 // docs/telemetry.md. Always exit 0.
 
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { EVENT_ENV, INSTALL_ID_FILE, OPT_OUT_ENV } from "./telemetry-config.mjs";
-import { buildEvent } from "./telemetry-events.mjs";
+import { ARCADE_USED_FILE, EVENT_ENV, OLD_INSTALL_ID_FILE, OPT_OUT_ENV } from "./telemetry-config.mjs";
+import { buildEvent, isArcadeCall } from "./telemetry-events.mjs";
 import { readInput } from "./hook-hosts.mjs";
 
 const SENDER = path.join(
@@ -31,27 +30,17 @@ const isOptedOut = () => {
   return CLAUDE_CODE_SWITCHES.some((name) => (process.env[name] ?? "") !== "");
 };
 
-// "wx" fails if the file exists, so two hooks racing on first run can't
-// create two different values.
-/**
- * @param {string} file
- * @param {string} value
- */
-const createIfMissing = (file, value) => {
+const readArcadeUsed = (/** @type {string} */ dir) => {
   try {
-    writeFileSync(file, value, { flag: "wx", mode: 0o600 });
-    return true;
-  } catch (error) {
-    if (/** @type {NodeJS.ErrnoException} */ (error).code === "EEXIST") return false;
-    throw error;
+    return readFileSync(path.join(dir, ARCADE_USED_FILE), "utf8").trim() === "true";
+  } catch {
+    return false;
   }
 };
 
-const readInstallId = (/** @type {string} */ dir) => {
+const markArcadeUsed = (/** @type {string} */ dir) => {
   mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, INSTALL_ID_FILE);
-  createIfMissing(file, randomUUID());
-  return readFileSync(file, "utf8").trim();
+  writeFileSync(path.join(dir, ARCADE_USED_FILE), "true", { mode: 0o600 });
 };
 
 const send = (/** @type {object} */ event) => {
@@ -74,14 +63,15 @@ const main = async () => {
   if (isOptedOut()) return;
 
   // Claude Code always sets this. Without it there is nowhere to keep the
-  // install ID, so nothing is sent.
+  // arcade-used flag, so nothing is sent.
   const dir = process.env.CLAUDE_PLUGIN_DATA;
   if (!dir) return;
-  const installId = readInstallId(dir);
-  if (!installId) return;
+  rmSync(path.join(dir, OLD_INSTALL_ID_FILE), { force: true });
 
-  const event = buildEvent(input, { installId, os: process.platform });
+  const arcadeUsedBefore = readArcadeUsed(dir);
+  const event = buildEvent(input, { os: process.platform, arcadeUsedBefore });
   if (!event) return;
+  if (!arcadeUsedBefore && isArcadeCall(event)) markArcadeUsed(dir);
   send(event);
 };
 

@@ -14,7 +14,7 @@ export const buildTelemetryTables = () => {
   const common = [
     "| Property | Value |",
     "| --- | --- |",
-    "| `distinct_id` | the random install ID |",
+    "| `distinct_id` | the same value as `session` |",
     ...Object.entries(COMMON_PROPERTIES).map(([key, { doc }]) => `| ${code(key)} | ${doc} |`),
   ];
   const events = [
