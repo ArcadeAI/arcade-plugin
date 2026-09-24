@@ -6,6 +6,8 @@ export const MCP_SERVER_NAME = "arcade";
 export const MCP_REMOTE_VERSION = "0.1.38";
 export const MCP_REMOTE_PACKAGE = `mcp-remote@${MCP_REMOTE_VERSION}`;
 export const INSTALL_SLUG = "ArcadeAI/arcade-plugin";
+export const PLUGIN_DISPLAY_NAME = "Arcade";
+export const PLUGIN_LOGO = "assets/logo.png";
 export const PLUGIN_SCHEMA =
   "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
 export const MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
