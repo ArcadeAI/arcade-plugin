@@ -60,7 +60,7 @@ Files a client needs at its own path are generated from shared sources (see
 | MCP server | inline in `.cursor-plugin/plugin.json` / `.claude-plugin/plugin.json` | Cursor / Claude Code |
 | Operator | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Cowork |
 | Operator (generated copy) | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code |
-| Commands | `commands/arcade-*.md` | Cursor, Claude Code |
+| Commands | `commands/arcade-*.md` | Cursor, Claude Code, Cowork |
 | Rule | `clients/cursor/rules/arcade.mdc` | Cursor |
 | Marketplace | `.claude-plugin/marketplace.json` | Claude Desktop, Cowork, Claude Code, Codex |
 | Codex listing | `plugin.json` → `extensions.com.openai.interface` | Codex |

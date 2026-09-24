@@ -105,15 +105,15 @@ test("each client runs exactly the hooks it can use", () => {
 });
 
 // Each client gets its routing rules from one of these texts, and some get
-// only one: Cowork's main conversation gets only the per-prompt reminder, and
+// only one: Cowork's main conversation gets only the per-prompt reminder and the skill, and
 // the Cursor IDE gets only the rule and the skill. Keep the core rules in each.
 const CORE_RULES = {
   PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/]],
   CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/, /plugin-arcade-arcade/]],
-  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /Never fall back to another connector/]],
-  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /Never fall back to another connector/, /explicitly chooses/]],
-  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /Never fall back to another connector/]],
-  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /Never fall back to another connector/]],
+  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /Never fall back to another connector/, /needsAuth/, /Keep tool discovery/]],
+  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /Never fall back to another connector/, /explicitly chooses/, /needsAuth/]],
+  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /Never fall back to another connector/, /needsAuth/]],
+  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /Never fall back to another connector/, /needsAuth/, /Keep tool discovery/]],
 };
 
 test("every routing text keeps the core routing rules", () => {
