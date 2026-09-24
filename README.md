@@ -48,6 +48,10 @@ the [support matrix](docs/support-matrix.md).
 - `/try-arcade` or `/scale-arcade`
 - `/arcade-status` — check the gateway, sign-in, and connected apps
 - `/arcade-connect google` — connect an app ahead of time
+- `/arcade-apps` — see or disconnect connected apps
+
+Commands work in Cursor, Claude Code, and Cowork. The Cursor IDE doesn't list
+them in the `/` menu; see the [support matrix](docs/support-matrix.md).
 
 Your assistant speaks intent to Arcade. You see the useful result, a sign-in
 link when an app isn't connected yet, and a confirmation prompt before

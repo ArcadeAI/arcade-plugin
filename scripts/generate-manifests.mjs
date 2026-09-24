@@ -30,11 +30,80 @@ export const FILES_WITH_GENERATED_RULES = {
 /** Hand-written files whose event tables are generated from hooks/telemetry-contract.mjs. */
 export const FILES_WITH_GENERATED_TABLES = [TELEMETRY_DOC];
 
-/** Generated copy → source. */
+/** Generated copy → the file it is copied from. */
 export const COPIED_FILES = {
   // Each skill folder has to work on its own.
   "skills/scale-arcade/references/arcade-docs.md": "skills/try-arcade/references/arcade-docs.md",
   "com.github.copilot/agents/arcade-operator.agent.md": OPERATOR,
+};
+
+/**
+ * Source files for each generated or partially-generated path. Used in error
+ * messages so a person who hand-edits a generated file knows what to edit
+ * instead. Every path that buildFiles adds to its output map must have an
+ * entry here — buildFiles throws if one is missing.
+ */
+export const FILE_SOURCES = {
+  // plugin.json and mcp.json supply identity and the gateway URL; VERSION
+  // supplies the version; hook-hosts.mjs supplies the hooks manifest path; the
+  // script writes the fixed skills/agents/commands/rules paths.
+  ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  // The script writes the mcpServers transport type.
+  ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  // The script writes the marketplace description. There is no version field.
+  ".claude-plugin/marketplace.json": ["plugin.json", "scripts/generate-manifests.mjs"],
+  // The script writes the frontmatter and the header comment.
+  [`${CURSOR_RULE_DIR}/arcade.mdc`]: ["hooks/routing-guidance.mjs", "scripts/generate-manifests.mjs"],
+  // The hook manifest paths in the list come from hook-hosts.mjs.
+  ".gitattributes": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  // hook-hosts.mjs supplies the events, scripts, and timeout; the script writes
+  // the version, entry type, nesting, and command template.
+  ...Object.fromEntries(
+    Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"]]),
+  ),
+  // Claude Code's hook list also gets the telemetry events from the contract.
+  [HOSTS["claude-code"].manifest]: ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
+  "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
+  // A copy of the operator with its rules block filled in.
+  "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR, "hooks/routing-guidance.mjs"],
+  [OPERATOR]: ["hooks/routing-guidance.mjs"],
+  "skills/try-arcade/SKILL.md": ["hooks/routing-guidance.mjs"],
+  [TELEMETRY_DOC]: ["hooks/telemetry-contract.mjs"],
+};
+
+/** Formats an array of source paths as a human-readable list. */
+const joinSources = (sources) => {
+  if (sources.length === 1) return sources[0];
+  if (sources.length === 2) return `${sources[0]} and ${sources[1]}`;
+  return `${sources.slice(0, -1).join(", ")}, and ${sources.at(-1)}`;
+};
+
+/**
+ * Throws if `path` has no entry in `fileSources`. Exported so tests can call
+ * it directly with an incomplete sources map.
+ */
+export const requireSources = (path, fileSources) => {
+  if (!(path in fileSources)) {
+    throw new Error(
+      `${path} has no entry in FILE_SOURCES — add one in scripts/generate-manifests.mjs next to where it is built`,
+    );
+  }
+};
+
+/** Returns the error message to throw when `path` is out of date on disk. */
+const outOfDateError = (path) => {
+  if (path in FILES_WITH_GENERATED_RULES) {
+    return `${path}: the rules block is out of date. Run npm run generate. If you edited the block by hand, make the change in hooks/routing-guidance.mjs instead.`;
+  }
+  if (FILES_WITH_GENERATED_TABLES.includes(path)) {
+    return `${path}: the telemetry tables are out of date. Run npm run generate. If you edited the tables by hand, make the change in hooks/telemetry-contract.mjs instead.`;
+  }
+  const sources = FILE_SOURCES[path];
+  const joined = joinSources(sources);
+  if (path in COPIED_FILES) {
+    return `${path} is out of date. Run npm run generate. If you edited ${path} by hand, make the change in ${joined} instead (this file is a copy).`;
+  }
+  return `${path} is out of date. Run npm run generate. If you edited ${path} by hand, make the change in ${joined} instead.`;
 };
 
 const RULES_BLOCK_BEGIN =
@@ -133,8 +202,8 @@ const buildFiles = (root) => {
       serialize({
         $schema: "https://json.schemastore.org/claude-code-marketplace.json",
         name,
-        // Marketplace listing text; not used by any other client.
-        description: "Install Arcade in Claude Desktop, Cowork, and Claude Code.",
+        // Marketplace listing text. Codex also installs from this marketplace.
+        description: "Install Arcade in Claude Desktop, Cowork, Claude Code, and Codex.",
         owner: author,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
@@ -185,6 +254,11 @@ const buildFiles = (root) => {
     files.set(path, fillTelemetryTables(readText(root, path)));
   }
 
+  // Every output must have a source entry so error messages can name it.
+  for (const path of files.keys()) {
+    requireSources(path, FILE_SOURCES);
+  }
+
   return files;
 };
 
@@ -204,7 +278,7 @@ export const generateManifests = ({ check = false, root = ROOT } = {}) => {
     const absolutePath = join(root, path);
     if (check) {
       if (!existsSync(absolutePath) || readFileSync(absolutePath, "utf8") !== content) {
-        throw new Error(`${path} is out of date — run npm run generate`);
+        throw new Error(outOfDateError(path));
       }
       continue;
     }

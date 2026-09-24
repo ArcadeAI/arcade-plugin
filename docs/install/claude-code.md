@@ -20,8 +20,10 @@ npx plugins add ArcadeAI/arcade-plugin --target claude-code
 Verify with `claude plugin list` or **`/plugin`**, then **`/reload-plugins`**
 if the session was already open.
 
-Claude Code reads `.claude-plugin/plugin.json`, which points at the skills,
-the operator, the gateway, and `.claude-plugin/hooks.json`.
+Claude Code reads `.claude-plugin/plugin.json` for the gateway and
+`.claude-plugin/hooks.json`. Skills, `arcade-operator`, and commands load from
+the default `skills/`, `agents/`, and `commands/` folders. The manifest has no
+`agents` field on purpose: Cowork rejects the `.md` paths the CLI needs.
 
 The same folder works in Claude Cowork / Claude Code desktop once the plugin
 is enabled there. In Claude Desktop Chat, add this GitHub repo as a

@@ -40,8 +40,9 @@ export const HOSTS = {
     }),
   },
   // Cursor's CLI doesn't load the plugin's always-apply rule, so the session
-  // hook carries the full rules and the rule is the short reminder. Cursor's
-  // prompt and subagent hooks can't add context.
+  // hook carries the full rules. The IDE and Cloud Agents don't run plugin
+  // hooks, so they rely on the always-apply rule, which is the full session
+  // rules. Cursor's prompt and subagent hooks can't add context.
   cursor: {
     manifest: "clients/cursor/hooks/hooks.json",
     format: "flat",
