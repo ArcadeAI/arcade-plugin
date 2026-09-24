@@ -30,7 +30,7 @@ const AUTH_ACTION_DELEGATE =
   "return failed with the actual error.";
 
 const NO_SUBSTITUTES =
-  "Once a task is going through Arcade, don't finish it through another MCP " +
+  "Once a task is going through Arcade, don't move any part of it to another MCP " +
   "server, a CLI such as gh or curl, a built-in search, or a direct API. " +
   "Troubleshooting or retrying on Arcade itself is fine.";
 
@@ -64,7 +64,7 @@ export const SESSION_CONTEXT = join(...PARENT_RULES, DELEGATION, PRIVACY);
 export const PROMPT_REMINDER =
   'For external app tasks, use try-arcade (or arcade-operator when available) ' +
   'through the "arcade" MCP server only, and scale-arcade for team rollout. ' +
-  "Once a task is going through Arcade, don't switch to another connector, " +
+  "Once a task is going through Arcade, don't move any part of it to another connector, " +
   "CLI, or API unless the user explicitly chooses that.";
 
 // Cursor's always-apply rule. The Cursor IDE and Cloud Agents don't run plugin
