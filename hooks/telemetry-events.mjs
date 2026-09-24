@@ -12,15 +12,19 @@ import {
   serviceForToolkit,
   serviceForToolName,
 } from "./telemetry-classify.mjs";
+import { commandUsesCli } from "./telemetry-commands.mjs";
 import {
   allowedProperties,
   ARCADE_TOOL_PREFIX,
+  BASH_CLIS,
+  CLI_SERVICES,
   GATEWAY_TOOLS,
   OPERATOR_STATUSES,
   OS_NAMES,
   SESSION_SOURCES,
 } from "./telemetry-contract.mjs";
 import { PLUGIN_VERSION } from "./telemetry-config.mjs";
+import { authNeeded, failureKind } from "./telemetry-failures.mjs";
 
 /** @typedef {Record<string, any>} HookInput Claude Code hook stdin. */
 
@@ -93,6 +97,25 @@ const toolProperties = (toolName, toolInput) => {
   return withService({ server: "other" }, service);
 };
 
+/**
+ * Properties for a WebFetch, WebSearch, or listed-CLI Bash call, or null to
+ * send nothing. Only the tool name and the CLI name are read into the event;
+ * the command, its description, URLs, and queries never are.
+ * @param {unknown} toolName
+ * @param {HookInput | undefined} toolInput
+ * @param {string | undefined} cli
+ */
+const builtinToolProperties = (toolName, toolInput, cli) => {
+  if (toolName === "WebFetch" || toolName === "WebSearch") return { tool: toolName };
+  if (toolName !== "Bash" || typeof cli !== "string") return null;
+  if (!(/** @type {readonly string[]} */ (BASH_CLIS).includes(cli))) return null;
+  // `cli` comes from the hook entry's `if` condition. Checking the command as
+  // well keeps a client that ignores `if` from reporting every CLI on every
+  // Bash call.
+  if (!commandUsesCli(toolInput?.command, cli)) return null;
+  return withService({ tool: "Bash", cli }, CLI_SERVICES[cli]);
+};
+
 const operatorStatus = (/** @type {unknown} */ message) => {
   const match = typeof message === "string" && message.match(OPERATOR_STATUS);
   return match ? match[1].toLowerCase() : "unknown";
@@ -110,9 +133,10 @@ const promptProperties = (/** @type {unknown} */ prompt) => {
 /**
  * Returns [event name, extra properties], or null for untracked input.
  * @param {HookInput} input
+ * @param {string | undefined} cli
  * @returns {[string, Record<string, unknown>] | null}
  */
-const eventFor = (input) => {
+const eventFor = (input, cli) => {
   switch (input.hook_event_name) {
     case "SessionStart":
       return [
@@ -123,12 +147,21 @@ const eventFor = (input) => {
       if (isTaskNotification(input.prompt)) return null;
       return ["Plugin prompt submitted", promptProperties(input.prompt)];
     case "PostToolUse": {
+      const builtin = builtinToolProperties(input.tool_name, input.tool_input, cli);
+      if (builtin) return ["Plugin built-in tool called", builtin];
       const extra = toolProperties(input.tool_name, input.tool_input);
-      return extra && ["Plugin tool called", extra];
+      if (!extra) return null;
+      if (extra.tool === "System_ManageAuthorization") {
+        return ["Plugin tool called", { ...extra, auth_needed: authNeeded(input.tool_response) }];
+      }
+      return ["Plugin tool called", extra];
     }
     case "PostToolUseFailure": {
+      const builtin = builtinToolProperties(input.tool_name, input.tool_input, cli);
+      if (builtin) return ["Plugin built-in tool failed", builtin];
       const extra = toolProperties(input.tool_name, input.tool_input);
-      return extra && ["Plugin tool failed", extra];
+      if (!extra) return null;
+      return ["Plugin tool failed", { ...extra, failure_kind: failureKind(input.error, input.is_interrupt) }];
     }
     case "SubagentStop":
       if (!isOperatorAgentType(input.agent_type)) {
@@ -163,11 +196,12 @@ const keepAllowed = (event, properties) => {
  * Builds `{ event, distinct_id, properties }` from hook stdin, or returns null
  * when the input is not something the contract tracks.
  * @param {HookInput | null | undefined} input
- * @param {{ installId: string, os: string }} options
+ * @param {{ installId: string, os: string, cli?: string }} options `cli` is the
+ *   hook command's `--cli` argument, set only on Bash entries.
  */
-export const buildEvent = (input, { installId, os }) => {
+export const buildEvent = (input, { installId, os, cli }) => {
   if (!input || typeof input !== "object") return null;
-  const found = eventFor(input);
+  const found = eventFor(input, cli);
   if (!found) return null;
   const [event, extra] = found;
 

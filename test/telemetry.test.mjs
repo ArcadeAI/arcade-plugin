@@ -26,8 +26,8 @@ const assertMatchesContract = (event, label = JSON.stringify(event)) => {
 };
 
 // Runs telemetry.mjs the way hooks.json does, with the given environment.
-const runHook = (script, stdin, env) =>
-  spawnSync(process.execPath, [path.join(ROOT, "hooks", script), "--host", "claude-code"], {
+const runHook = (script, stdin, env, extraArgs = []) =>
+  spawnSync(process.execPath, [path.join(ROOT, "hooks", script), "--host", "claude-code", ...extraArgs], {
     input: stdin,
     encoding: "utf8",
     env: { ...process.env, ...env },
@@ -42,6 +42,33 @@ const hookInput = (fields) => ({
   cwd: "/Users/someone/private-repo",
   ...fields,
 });
+
+// The full event buildEvent should return for hookInput() fields.
+const expectedEvent = (event, extra) => {
+  const properties = {
+    ...extra,
+    host: "claude-code",
+    plugin_version: PLUGIN_VERSION,
+    os: "darwin",
+    $process_person_profile: false,
+    $geoip_disable: true,
+    $ip: "0.0.0.0",
+    session: hash16(SESSION_ID),
+  };
+  if (event !== "Plugin session started") properties.turn = hash16(PROMPT_ID);
+  return { event, distinct_id: INSTALL_ID, properties };
+};
+
+// Text of a System_ManageAuthorization `status` answer, as tool_response.
+const authStatusResponse = (statuses) => [
+  {
+    type: "text",
+    text: JSON.stringify({
+      message: statuses.includes("authorization_required") ? "Not yet authorized: dropbox." : "All authorized.",
+      providers: statuses.map((status, index) => ({ provider: `provider${index}`, status })),
+    }),
+  },
+];
 
 const TEMP_ROOT = mkdtempSync(path.join(os.tmpdir(), "arcade-telemetry-"));
 const makeTempDir = () => mkdtempSync(path.join(TEMP_ROOT, "data-"));
@@ -85,8 +112,12 @@ const waitForRequests = async (requests, count) => {
 
 test("buildEvent maps each hook input to the documented event", () => {
   const CALLED = "Plugin tool called";
+  const FAILED = "Plugin tool failed";
   const STOPPED = "Plugin subagent stopped";
+  const SIGN_IN = `${ARCADE_TOOL_PREFIX}System_ManageAuthorization`;
   const tool = (name, toolInput) => ["PostToolUse", { tool_name: name, tool_input: toolInput }];
+  const failed = (name, error, fields = {}) => ["PostToolUseFailure", { tool_name: name, error, ...fields }];
+  const signInCheck = (name, statuses) => ["PostToolUse", { tool_name: name, tool_response: authStatusResponse(statuses) }];
   const stop = (message) => ["SubagentStop", { agent_type: OPERATOR, last_assistant_message: message }];
   const operator = (status) => ({ agent: "arcade-operator", status });
   // [hook, extra input, event, extra properties]; a null event means nothing is sent.
@@ -99,7 +130,15 @@ test("buildEvent maps each hook input to the documented event", () => {
       { could_use_arcade: false, service_hints: [], reminder_sent: false }],
     ["UserPromptSubmit", { prompt: "<task-notification>\n<status>completed</status> calendar" }, null],
     [...tool(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`), CALLED, { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
-    [...tool(`${ARCADE_TOOL_PREFIX}System_ManageAuthorization`), CALLED, { server: "arcade", tool: "System_ManageAuthorization" }],
+    [...tool(SIGN_IN), CALLED, { server: "arcade", tool: "System_ManageAuthorization", auth_needed: false }],
+    [...signInCheck(SIGN_IN, ["authorized", "authorization_required"]), CALLED,
+      { server: "arcade", tool: "System_ManageAuthorization", auth_needed: true }],
+    [...signInCheck(SIGN_IN, ["authorized"]), CALLED,
+      { server: "arcade", tool: "System_ManageAuthorization", auth_needed: false }],
+    [...signInCheck("mcp__claude_ai_Arcade__System_ManageAuthorization", ["authorization_required"]), CALLED,
+      { server: "other_arcade", tool: "System_ManageAuthorization", auth_needed: true }],
+    [...signInCheck(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, ["authorization_required"]), CALLED,
+      { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
     [...tool(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, { tool_name: "GoogleCalendar.ListEvents" }), CALLED,
       { server: "arcade", tool: "Arcade_UseTool", service: "calendar" }],
     [...tool(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, { tool_name: "AcmeHR.RunPayroll" }), CALLED, { server: "arcade", tool: "Arcade_UseTool" }],
@@ -110,8 +149,21 @@ test("buildEvent maps each hook input to the documented event", () => {
     [...tool("mcp__claude_ai_Gmail__search_threads"), CALLED, { server: "other", service: "email" }],
     [...tool("mcp__secret-server__DoThing"), CALLED, { server: "other" }],
     [...tool("Read"), null],
-    ["PostToolUseFailure", { tool_name: `${ARCADE_TOOL_PREFIX}Slack_SendMessage` }, "Plugin tool failed",
-      { server: "arcade", tool: "Slack_SendMessage", service: "chat" }],
+    ["PostToolUseFailure", { tool_name: `${ARCADE_TOOL_PREFIX}Slack_SendMessage` }, FAILED,
+      { server: "arcade", tool: "Slack_SendMessage", service: "chat", failure_kind: "tool_error" }],
+    [...failed(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`,
+      '{"message":"The tool was not executed because it requires authorization.","authorization_url":"https://example.com/auth"}'),
+      FAILED, { server: "arcade", tool: "Gmail_ListEmails", service: "email", failure_kind: "auth_required" }],
+    [...failed(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, 'MCP server "plugin:arcade:arcade" session expired',
+      { tool_input: { tool_name: "Gmail.ListEmails" } }),
+      FAILED, { server: "arcade", tool: "Arcade_UseTool", service: "email", failure_kind: "session_expired" }],
+    [...failed(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, "Connection closed"),
+      FAILED, { server: "arcade", tool: "Gmail_ListEmails", service: "email", failure_kind: "unreachable" }],
+    [...failed(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, "Connection closed", { is_interrupt: true }),
+      FAILED, { server: "arcade", tool: "Gmail_ListEmails", service: "email", failure_kind: "interrupted" }],
+    [...failed("mcp__secret-server__DoThing", "Error POSTing to endpoint: internal error"),
+      FAILED, { server: "other", failure_kind: "http_error" }],
+    [...failed("Read", "File does not exist."), null],
     [...stop("Done.\n\nstatus: needs_auth\nsummary: sign in"), STOPPED, operator("needs_auth")],
     [...stop("**status:** needs_confirmation"), STOPPED, operator("needs_confirmation")],
     [...stop("- status: `needs_clarification`"), STOPPED, operator("needs_clarification")],
@@ -130,24 +182,52 @@ test("buildEvent maps each hook input to the documented event", () => {
       assert.equal(built, null, label);
       continue;
     }
-    const properties = {
-      ...extra,
-      host: "claude-code",
-      plugin_version: PLUGIN_VERSION,
-      os: "darwin",
-      $process_person_profile: false,
-      $geoip_disable: true,
-      $ip: "0.0.0.0",
-      session: hash16(SESSION_ID),
-    };
-    if (event !== "Plugin session started") properties.turn = hash16(PROMPT_ID);
-    assert.deepEqual(built, { event, distinct_id: INSTALL_ID, properties }, label);
+    assert.deepEqual(built, expectedEvent(event, extra), label);
     assertMatchesContract(built, label);
   }
 
   const onFreebsd = buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, os: "freebsd" });
   assert.equal(onFreebsd.properties.os, "other");
   assert.equal(buildEvent(null, OPTIONS), null);
+});
+
+test("buildEvent reports web tools, and Bash only for a listed CLI the command runs", () => {
+  // [hook, tool name, tool input, --cli value, extra properties]; null means nothing is sent.
+  const cases = [
+    ["PostToolUse", "WebFetch", { url: "https://example.com", prompt: "summarize" }, undefined, { tool: "WebFetch" }],
+    ["PostToolUse", "WebSearch", { query: "weather" }, undefined, { tool: "WebSearch" }],
+    ["PostToolUseFailure", "WebFetch", { url: "https://invalid.invalid" }, undefined, { tool: "WebFetch" }],
+    ["PostToolUse", "WebFetch", { url: "https://example.com" }, "gh", { tool: "WebFetch" }],
+    ["PostToolUse", "Bash", { command: "gh --version" }, "gh", { tool: "Bash", cli: "gh", service: "code_hosting" }],
+    ["PostToolUse", "Bash", { command: "glab mr list" }, "glab", { tool: "Bash", cli: "glab", service: "code_hosting" }],
+    ["PostToolUse", "Bash", { command: "cd . && curl --version" }, "curl", { tool: "Bash", cli: "curl" }],
+    ["PostToolUse", "Bash", { command: "GH_PAGER=cat gh --version" }, "gh", { tool: "Bash", cli: "gh", service: "code_hosting" }],
+    ["PostToolUse", "Bash", { command: "osascript -e 'tell app \"Mail\"'" }, "osascript", { tool: "Bash", cli: "osascript" }],
+    ["PostToolUseFailure", "Bash", { command: "gh pr view 1" }, "gh", { tool: "Bash", cli: "gh", service: "code_hosting" }],
+    // A client that ignores `if` runs every Bash entry; only the CLI the command runs is sent.
+    ["PostToolUse", "Bash", { command: "gh --version" }, "curl", null],
+    ["PostToolUse", "Bash", { command: "echo hi" }, "gh", null],
+    ["PostToolUse", "Bash", { command: "echo gh" }, "gh", null],
+    ["PostToolUse", "Bash", { command: "ghost" }, "gh", null],
+    ["PostToolUse", "Bash", { command: "/opt/homebrew/bin/gh --version" }, "gh", null],
+    ["PostToolUse", "Bash", { command: 'python -c "gh"' }, "gh", null],
+    ["PostToolUse", "Bash", { command: "python" }, "python", null],
+    ["PostToolUse", "Bash", { command: "gh --version" }, undefined, null],
+    ["PostToolUse", "Bash", {}, "gh", null],
+    ["PostToolUse", "Bash", undefined, "gh", null],
+  ];
+  for (const [hook, toolName, toolInput, cli, extra] of cases) {
+    const label = `${hook} ${toolName} ${JSON.stringify(toolInput)} --cli ${cli}`;
+    const input = hookInput({ hook_event_name: hook, tool_name: toolName, tool_input: toolInput });
+    const built = buildEvent(input, { ...OPTIONS, cli });
+    if (extra === null) {
+      assert.equal(built, null, label);
+      continue;
+    }
+    const event = hook === "PostToolUse" ? "Plugin built-in tool called" : "Plugin built-in tool failed";
+    assert.deepEqual(built, expectedEvent(event, extra), label);
+    assertMatchesContract(built, label);
+  }
 });
 
 test("buildEvent never leaks input text or raw ids, and sends only allowed keys", () => {
@@ -172,9 +252,32 @@ test("buildEvent never leaks input text or raw ids, and sends only allowed keys"
     { hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Arcade_UseTool` },
     { hook_event_name: "SubagentStop", agent_type: "SECRET-agent" },
     { hook_event_name: "SubagentStop", agent_type: OPERATOR },
+    {
+      hook_event_name: "PostToolUse",
+      tool_name: "Bash",
+      tool_input: { command: "GH_TOKEN=SECRET gh api /repos/SECRET/private", description: "SECRET description" },
+    },
+    {
+      hook_event_name: "PostToolUseFailure",
+      tool_name: "Bash",
+      tool_input: { command: "cd /SECRET && gh pr view SECRET", description: "SECRET description" },
+    },
+    { hook_event_name: "PostToolUse", tool_name: "WebFetch", tool_input: { url: "https://SECRET.example.com/?t=SECRET", prompt: "SECRET" } },
+    { hook_event_name: "PostToolUseFailure", tool_name: "WebSearch", tool_input: { query: "SECRET search" } },
+    {
+      hook_event_name: "PostToolUseFailure",
+      tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails`,
+      error: '{"message":"SECRET requires authorization","authorization_url":"https://example.com/SECRET"}',
+    },
+    {
+      hook_event_name: "PostToolUse",
+      tool_name: `${ARCADE_TOOL_PREFIX}System_ManageAuthorization`,
+      tool_response: [{ type: "text", text: '{"message":"Not yet authorized: SECRET","status":"authorization_required"}' }],
+    },
   ];
   for (const fields of inputs) {
-    const event = buildEvent({ ...secrets, ...fields }, OPTIONS);
+    // With --cli gh the Bash inputs build an event, so their fields are checked too.
+    const event = buildEvent({ ...secrets, ...fields }, { ...OPTIONS, cli: "gh" });
     const serialized = JSON.stringify(event);
     assert.doesNotMatch(serialized, /secret|DoThing/i, serialized);
     assertMatchesContract(event);
@@ -208,33 +311,60 @@ test("the contract schema rejects events outside the contract", () => {
   const { status: _status, ...withoutStatus } = operatorStop.properties;
   bad.push({ ...operatorStop, properties: withoutStatus });
   bad.push(withProperties({ plugin_version: "latest" }));
-  assertMatchesContract(good);
+  bad.push(withProperties({ auth_needed: true }));
+  bad.push(withProperties({ server: "arcade", tool: "Gmail_ListEmails", auth_needed: false }));
+
+  const signIn = buildEvent(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}System_ManageAuthorization` }), OPTIONS);
+  const { auth_needed: _authNeeded, ...withoutAuthNeeded } = signIn.properties;
+  bad.push({ ...signIn, properties: withoutAuthNeeded });
+  bad.push({ ...signIn, properties: { ...signIn.properties, auth_needed: "yes" } });
+
+  const toolFailed = buildEvent(hookInput({ hook_event_name: "PostToolUseFailure", tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails` }), OPTIONS);
+  const { failure_kind: _failureKind, ...withoutFailureKind } = toolFailed.properties;
+  bad.push({ ...toolFailed, properties: withoutFailureKind });
+  bad.push({ ...toolFailed, properties: { ...toolFailed.properties, failure_kind: "rate_limited" } });
+  bad.push({ ...toolFailed, properties: { ...toolFailed.properties, auth_needed: true } });
+
+  const webFetch = buildEvent(hookInput({ hook_event_name: "PostToolUse", tool_name: "WebFetch" }), OPTIONS);
+  const bash = buildEvent(hookInput({ hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "gh pr list" } }), { ...OPTIONS, cli: "gh" });
+  const curl = buildEvent(hookInput({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "curl x" } }), { ...OPTIONS, cli: "curl" });
+  const { cli: _cli, ...bashWithoutCli } = bash.properties;
+  const { service: _service, ...bashWithoutService } = bash.properties;
+  bad.push(
+    { ...webFetch, properties: { ...webFetch.properties, cli: "gh" } },
+    { ...webFetch, properties: { ...webFetch.properties, service: "code_hosting" } },
+    { ...webFetch, properties: { ...webFetch.properties, tool: "Read" } },
+    { ...webFetch, properties: { ...webFetch.properties, url: "https://example.com" } },
+    { ...bash, properties: bashWithoutCli },
+    { ...bash, properties: bashWithoutService },
+    { ...bash, properties: { ...bash.properties, cli: "python" } },
+    { ...bash, properties: { ...bash.properties, service: "email" } },
+    { ...bash, properties: { ...bash.properties, command: "gh pr list" } },
+    { ...curl, properties: { ...curl.properties, service: "code_hosting" } },
+    { ...curl, properties: { ...curl.properties, failure_kind: "tool_error" } },
+  );
+
+  for (const event of [good, signIn, toolFailed, webFetch, bash, curl]) assertMatchesContract(event);
   for (const event of bad) assert.equal(validateEvent(event), false, JSON.stringify(event));
 });
 
 test("each contract event is built from its hook's input", () => {
   for (const [name, spec] of Object.entries(EVENTS)) {
-    const input = hookInput({ hook_event_name: spec.hook, tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, prompt: "hi" });
+    const toolName = spec.matcher === "mcp__.*" ? `${ARCADE_TOOL_PREFIX}Gmail_ListEmails` : spec.matcher?.split("|")[0];
+    const input = hookInput({ hook_event_name: spec.hook, tool_name: toolName, prompt: "hi" });
     assert.equal(buildEvent(input, OPTIONS)?.event, name, spec.hook);
   }
 });
 
-test("every generated telemetry command runs and exits quietly with telemetry off", () => {
-  const { manifest, rootVariable } = HOSTS["claude-code"];
-  const commands = Object.values(JSON.parse(readRepoFile(manifest)).hooks)
-    .flatMap((groups) => groups.flatMap((group) => group.hooks))
-    .map((hook) => hook.command)
-    .filter((command) => command.includes("/hooks/telemetry.mjs"));
-  assert.equal(commands.length, Object.keys(EVENTS).length);
-  for (const command of commands) {
-    const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
-      shell: true,
-      input: JSON.stringify(hookInput({ hook_event_name: "SessionStart" })),
-      encoding: "utf8",
-      env: { ...process.env, ARCADE_PLUGIN_TELEMETRY: "0" },
-    });
-    assert.equal(result.status, 0, `${command}: ${result.stderr}`);
-    assert.equal(result.stdout, "", command);
+test("every CLI with a Bash hook entry builds an event from its own command", () => {
+  for (const [name, spec] of Object.entries(EVENTS)) {
+    for (const cli of spec.bashClis ?? []) {
+      const input = hookInput({ hook_event_name: spec.hook, tool_name: "Bash", tool_input: { command: `${cli} --version` } });
+      const built = buildEvent(input, { ...OPTIONS, cli });
+      assert.equal(built?.event, name, `${spec.hook} ${cli}`);
+      assert.equal(built.properties.cli, cli);
+      assertMatchesContract(built);
+    }
   }
 });
 
@@ -250,7 +380,12 @@ test("only the detached sender does network I/O", () => {
   for (const file of hookFiles) {
     if (file === "telemetry-send.mjs") continue;
     const source = readFileSync(path.join(ROOT, "hooks", file), "utf8");
-    assert.doesNotMatch(source, /\bfetch\b|["'](?:node:)?(?:http|https|http2|net|tls|dgram|dns)["']/, file);
+    // Module names only, after `from`, `import`, or `require`: "http" is also a CLI name in the contract.
+    assert.doesNotMatch(
+      source,
+      /\bfetch\b|\b(?:from|import|require)\s*\(?\s*["'](?:node:)?(?:http|https|http2|net|tls|dgram|dns)["']/,
+      file,
+    );
   }
 });
 
@@ -309,6 +444,35 @@ test("telemetry hook prints nothing and posts each event from a detached sender"
     assert.ok(!Number.isNaN(Date.parse(body.timestamp)));
     assert.equal(body.properties.os, process.platform);
     assert.doesNotMatch(request.body, new RegExp(`${SESSION_ID}|${PROMPT_ID}|private-repo`));
+  } finally {
+    await server.close();
+  }
+});
+
+test("telemetry hook reads --cli and posts a Bash event without the command", async () => {
+  const server = await startServer();
+  try {
+    const env = hookEnv(makeTempDir(), server.url);
+    const bash = (command) =>
+      JSON.stringify(hookInput({
+        hook_event_name: "PostToolUse",
+        tool_name: "Bash",
+        tool_input: { command, description: "List private-repo pull requests" },
+      }));
+
+    assert.equal(runHook("telemetry.mjs", bash("echo private-repo"), env, ["--cli", "gh"]).stdout, "");
+    assert.equal(runHook("telemetry.mjs", bash("gh pr list --repo someone/private-repo"), env, ["--cli", "gh"]).stdout, "");
+
+    await waitForRequests(server.requests, 1);
+    await sleep(500);
+    assert.equal(server.requests.length, 1);
+    const [request] = server.requests;
+    const body = JSON.parse(request.body);
+    assert.equal(body.event, "Plugin built-in tool called");
+    assert.equal(body.properties.tool, "Bash");
+    assert.equal(body.properties.cli, "gh");
+    assert.equal(body.properties.service, "code_hosting");
+    assert.doesNotMatch(request.body, /private-repo|pr list|--repo/);
   } finally {
     await server.close();
   }

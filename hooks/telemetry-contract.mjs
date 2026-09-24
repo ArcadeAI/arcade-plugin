@@ -32,6 +32,23 @@ export const OPERATOR_STATUSES = /** @type {const} */ ([
   "failed",
   "unknown",
 ]);
+export const FAILURE_KINDS = /** @type {const} */ ([
+  "auth_required",
+  "session_expired",
+  "unreachable",
+  "timeout",
+  "http_error",
+  "interrupted",
+  "tool_error",
+]);
+export const BUILTIN_TOOLS = /** @type {const} */ (["Bash", "WebFetch", "WebSearch"]);
+
+// Programs that reach an outside service from Bash. A Bash call sends an event
+// only when one of its commands starts with one of these.
+export const BASH_CLIS = /** @type {const} */ (["gh", "glab", "curl", "wget", "http", "osascript"]);
+
+/** @type {Record<string, typeof SERVICE_CATEGORIES[number]>} */
+export const CLI_SERVICES = { gh: "code_hosting", glab: "code_hosting" };
 
 /** Tool name prefix for this plugin's own gateway: plugin "arcade", MCP server "arcade". */
 export const ARCADE_TOOL_PREFIX = "mcp__plugin_arcade_arcade__";
@@ -128,10 +145,72 @@ const TOOL_RULES = [
   { if: { properties: { server: enumOf(["arcade", "other_arcade"]) } }, then: { required: ["tool"] } },
 ];
 
+const TOOL_CALLED_PROPERTIES = {
+  ...TOOL_PROPERTIES,
+  auth_needed: {
+    schema: { type: "boolean" },
+    doc: "only for `System_ManageAuthorization`: whether its answer says a service still needs sign-in",
+  },
+};
+
+const TOOL_CALLED_RULES = [
+  ...TOOL_RULES,
+  {
+    if: { required: ["tool"], properties: { tool: { const: "System_ManageAuthorization" } } },
+    then: { required: ["auth_needed"] },
+    else: { not: { required: ["auth_needed"] } },
+  },
+];
+
+const TOOL_FAILED_PROPERTIES = {
+  ...TOOL_PROPERTIES,
+  failure_kind: {
+    schema: enumOf(FAILURE_KINDS),
+    doc: `picked on your machine from the error message; the message is not sent: ${list(FAILURE_KINDS)}`,
+  },
+};
+
+const CLI_SERVICE_VALUES = [...new Set(Object.values(CLI_SERVICES))];
+
+const BUILTIN_TOOL_PROPERTIES = {
+  tool: { schema: enumOf(BUILTIN_TOOLS), doc: list(BUILTIN_TOOLS) },
+  cli: {
+    schema: enumOf(BASH_CLIS),
+    doc: `only for \`Bash\`: the program the command runs, ${list(BASH_CLIS)}`,
+  },
+  service: {
+    schema: enumOf(CLI_SERVICE_VALUES),
+    doc: `the program's service category, only for ${list(Object.keys(CLI_SERVICES))}: ${list(CLI_SERVICE_VALUES)}`,
+  },
+};
+
+// A Bash call always names its program, and nothing else does. The service
+// comes only from CLI_SERVICES.
+const BUILTIN_TOOL_RULES = [
+  {
+    if: { properties: { tool: { const: "Bash" } } },
+    then: { required: ["cli"] },
+    else: { not: { required: ["cli"] } },
+  },
+  ...Object.entries(CLI_SERVICES).map(([cli, service]) => ({
+    if: { required: ["cli"], properties: { cli: { const: cli } } },
+    then: { required: ["service"], properties: { service: { const: service } } },
+  })),
+  {
+    if: { required: ["cli"], properties: { cli: enumOf(Object.keys(CLI_SERVICES)) } },
+    else: { not: { required: ["service"] } },
+  },
+];
+
+const BUILTIN_TOOL_WHEN = `on \`WebFetch\` and \`WebSearch\`, and on \`Bash\` commands that run ${list(BASH_CLIS)}`;
+
 /**
  * @typedef {object} EventSpec
  * @property {string} hook The Claude Code hook that sends it.
  * @property {string} [matcher] Claude Code's matcher for that hook.
+ * @property {readonly string[]} [bashClis] Programs whose Bash commands also
+ *   send this event. Each gets its own hook entry with an `if` condition, so
+ *   other Bash commands don't start the hook.
  * @property {string} when Extra conditions, for docs/telemetry.md.
  * @property {Record<string, Property>} properties Properties beyond COMMON_PROPERTIES.
  * @property {string[]} required
@@ -165,17 +244,35 @@ export const EVENTS = {
     hook: "PostToolUse",
     matcher: "mcp__.*",
     when: "on MCP tools",
-    properties: TOOL_PROPERTIES,
+    properties: TOOL_CALLED_PROPERTIES,
     required: ["server"],
-    rules: TOOL_RULES,
+    rules: TOOL_CALLED_RULES,
   },
   "Plugin tool failed": {
     hook: "PostToolUseFailure",
     matcher: "mcp__.*",
     when: "on MCP tools",
-    properties: TOOL_PROPERTIES,
-    required: ["server"],
+    properties: TOOL_FAILED_PROPERTIES,
+    required: ["server", "failure_kind"],
     rules: TOOL_RULES,
+  },
+  "Plugin built-in tool called": {
+    hook: "PostToolUse",
+    matcher: "WebFetch|WebSearch",
+    bashClis: BASH_CLIS,
+    when: BUILTIN_TOOL_WHEN,
+    properties: BUILTIN_TOOL_PROPERTIES,
+    required: ["tool"],
+    rules: BUILTIN_TOOL_RULES,
+  },
+  "Plugin built-in tool failed": {
+    hook: "PostToolUseFailure",
+    matcher: "WebFetch|WebSearch",
+    bashClis: BASH_CLIS,
+    when: BUILTIN_TOOL_WHEN,
+    properties: BUILTIN_TOOL_PROPERTIES,
+    required: ["tool"],
+    rules: BUILTIN_TOOL_RULES,
   },
   "Plugin subagent stopped": {
     hook: "SubagentStop",

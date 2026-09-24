@@ -128,28 +128,68 @@ const hookCommand = (hostName, script) =>
 
 
 // Claude Code nests each command in a group: { hooks: { Event: [{ hooks: [entry] }] } }.
+// For Claude Code, each event may have two groups: one for non-Bash matchers (combined
+// with "|") and one for Bash (with per-CLI "if" conditions). Scripts that share an event
+// and matcher go in one group; a second non-Bash entry from the same script extends the
+// combined matcher rather than adding a duplicate command.
 // Cursor, Copilot CLI, and VS Code take the entries directly and need version 1.
-// Scripts that share an event run from one group, so a second script on an
-// event doesn't replace the first.
 const buildHookManifest = (hostName) => {
-  const hooks = {};
-  for (const { event, script, hosts, matcher } of HOOKS) {
-    if (hosts && !hosts.includes(hostName)) continue;
-    const name = HOSTS[hostName].events ? HOSTS[hostName].events[event] : event;
-    if (!name) continue;
-    const entry = { type: "command", command: hookCommand(hostName, script), timeout: HOOK_TIMEOUT_SEC };
-    if (HOSTS[hostName].format === "nested") {
-      hooks[name] ??= [{ ...(matcher ? { matcher } : {}), hooks: [] }];
-      if (hooks[name][0].matcher !== matcher) {
-        throw new Error(`${script}: hooks on ${name} must share one matcher`);
+  if (HOSTS[hostName].format === "nested") {
+    // main: the combined non-Bash group; bash: the Bash-only group.
+    /** @type {Record<string, { main: {matcher?: string, hooks: object[]} | null, bash: {matcher: string, hooks: object[]} | null }>} */
+    const groups = {};
+    for (const hook of HOOKS) {
+      if (hook.hosts && !hook.hosts.includes(hostName)) continue;
+      const name = HOSTS[hostName].events ? HOSTS[hostName].events[hook.event] : hook.event;
+      if (!name) continue;
+      const cmd = hook.extraArgs
+        ? `${hookCommand(hostName, hook.script)} ${hook.extraArgs.join(" ")}`
+        : hookCommand(hostName, hook.script);
+      const entry = {
+        type: "command",
+        ...(hook["if"] ? { "if": hook["if"] } : {}),
+        command: cmd,
+        timeout: HOOK_TIMEOUT_SEC,
+      };
+      groups[name] ??= { main: null, bash: null };
+      if (hook.matcher === "Bash") {
+        if (!groups[name].bash) groups[name].bash = { matcher: "Bash", hooks: [] };
+        groups[name].bash.hooks.push(entry);
+      } else {
+        if (!groups[name].main) {
+          groups[name].main = { ...(hook.matcher ? { matcher: hook.matcher } : {}), hooks: [entry] };
+        } else {
+          // Extend the combined matcher.
+          if (hook.matcher) {
+            const existing = groups[name].main.matcher;
+            groups[name].main.matcher = existing ? `${existing}|${hook.matcher}` : hook.matcher;
+          }
+          // Skip duplicate commands (two events with the same script on the same hook).
+          if (!groups[name].main.hooks.some((e) => e.command === entry.command && !entry["if"])) {
+            groups[name].main.hooks.push(entry);
+          }
+        }
       }
-      hooks[name][0].hooks.push(entry);
-    } else {
-      hooks[name] ??= [];
-      hooks[name].push(entry);
     }
+    const hooks = Object.fromEntries(
+      Object.entries(groups).map(([name, { main, bash }]) => [
+        name,
+        [main, bash].filter(Boolean),
+      ]),
+    );
+    return { hooks };
   }
-  return HOSTS[hostName].format === "nested" ? { hooks } : { version: 1, hooks };
+
+  const hooks = {};
+  for (const hook of HOOKS) {
+    if (hook.hosts && !hook.hosts.includes(hostName)) continue;
+    const name = HOSTS[hostName].events ? HOSTS[hostName].events[hook.event] : hook.event;
+    if (!name) continue;
+    const entry = { type: "command", command: hookCommand(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC };
+    hooks[name] ??= [];
+    hooks[name].push(entry);
+  }
+  return { version: 1, hooks };
 };
 
 /** Every generated file and its contents, from the sources in `root`. */

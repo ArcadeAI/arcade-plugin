@@ -48,6 +48,12 @@ const createIfMissing = (file, value) => {
   }
 };
 
+// Bash hook entries pass `--cli <name>`; buildEvent checks the value.
+const cliFromArgs = (/** @type {string[]} */ argv) => {
+  const flag = argv.indexOf("--cli");
+  return flag === -1 ? undefined : argv[flag + 1];
+};
+
 const readInstallId = (/** @type {string} */ dir) => {
   mkdirSync(dir, { recursive: true });
   const file = path.join(dir, INSTALL_ID_FILE);
@@ -81,7 +87,7 @@ const main = async () => {
   const installId = readInstallId(dir);
   if (!installId) return;
 
-  const event = buildEvent(input, { installId, os: process.platform });
+  const event = buildEvent(input, { installId, os: process.platform, cli: cliFromArgs(process.argv) });
   if (!event) return;
   send(event);
 };

@@ -45,7 +45,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "mcp__.*",
+        "matcher": "mcp__.*|WebFetch|WebSearch",
         "hooks": [
           {
             "type": "command",
@@ -53,15 +53,97 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(gh *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli gh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(glab *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli glab",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(curl *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli curl",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(wget *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli wget",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(http *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli http",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(osascript *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli osascript",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "mcp__.*",
+        "matcher": "mcp__.*|WebFetch|WebSearch",
         "hooks": [
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(gh *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli gh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(glab *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli glab",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(curl *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli curl",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(wget *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli wget",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(http *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli http",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(osascript *)",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code --cli osascript",
             "timeout": 5
           }
         ]

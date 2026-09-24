@@ -14,18 +14,35 @@ export const HOOK_TIMEOUT_SEC = 5;
  * lists. `hosts` limits an entry to some clients; `matcher` is passed to Claude
  * Code.
  */
+const telemetryEntries = [];
+for (const { hook, matcher, bashClis } of Object.values(EVENTS)) {
+  telemetryEntries.push({
+    script: "telemetry.mjs",
+    event: hook,
+    hosts: /** @type {string[]} */ (["claude-code"]),
+    ...(matcher ? { matcher } : {}),
+  });
+  if (bashClis) {
+    for (const cli of bashClis) {
+      telemetryEntries.push({
+        script: "telemetry.mjs",
+        event: hook,
+        hosts: /** @type {string[]} */ (["claude-code"]),
+        matcher: "Bash",
+        "if": `Bash(${cli} *)`,
+        extraArgs: /** @type {string[]} */ (["--cli", cli]),
+      });
+    }
+  }
+}
+
 export const HOOKS = [
   { script: "session-start.mjs", event: "SessionStart" },
   { script: "user-prompt-submit.mjs", event: "UserPromptSubmit" },
   { script: "subagent-start.mjs", event: "SubagentStart" },
   // Telemetry (docs/telemetry.md) reads Claude Code's hook input, so only
   // Claude Code runs it.
-  ...Object.values(EVENTS).map(({ hook, matcher }) => ({
-    script: "telemetry.mjs",
-    event: hook,
-    hosts: ["claude-code"],
-    ...(matcher ? { matcher } : {}),
-  })),
+  ...telemetryEntries,
 ];
 
 export const HOSTS = {
