@@ -5,15 +5,10 @@
 
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  INSTALL_ID_FILE,
-  NOTICE,
-  NOTICE_FILE,
-  OPT_OUT_ENV,
-} from "./telemetry-config.mjs";
+import { INSTALL_ID_FILE, OPT_OUT_ENV } from "./telemetry-config.mjs";
 import { buildEvent } from "./telemetry-events.mjs";
 import { readInput } from "./hook-hosts.mjs";
 
@@ -53,14 +48,6 @@ const readInstallId = (/** @type {string} */ dir) => {
   return readFileSync(file, "utf8").trim();
 };
 
-const showNoticeOnce = (/** @type {string} */ dir) => {
-  const created = createIfMissing(
-    path.join(dir, NOTICE_FILE),
-    new Date().toISOString(),
-  );
-  if (created) process.stdout.write(JSON.stringify({ systemMessage: NOTICE }));
-};
-
 const send = (/** @type {object} */ event) => {
   // Claude Code kills hook processes when the session exits, so the network
   // call runs in a detached child that can outlive this hook.
@@ -78,15 +65,11 @@ const main = async () => {
   if (isOptedOut()) return;
 
   // Claude Code always sets this. Without it there is nowhere to keep the
-  // install ID or the notice marker, so nothing is sent.
+  // install ID, so nothing is sent.
   const dir = process.env.CLAUDE_PLUGIN_DATA;
   if (!dir) return;
   const installId = readInstallId(dir);
   if (!installId) return;
-
-  if (input.hook_event_name === "SessionStart") showNoticeOnce(dir);
-  // Nothing is sent before the user has seen the notice.
-  if (!existsSync(path.join(dir, NOTICE_FILE))) return;
 
   const event = buildEvent(input, { installId, os: process.platform });
   if (!event) return;

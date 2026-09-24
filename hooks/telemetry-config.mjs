@@ -1,5 +1,5 @@
 // @ts-check
-/** Telemetry settings: where events go, the opt-out variable, file names, and the notice. */
+/** Telemetry settings: where events go, the opt-out variable, and the install ID file. */
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -17,14 +17,6 @@ export const POSTHOG_KEY = "phc_zNHKkPFsrKVSpd7y85jnxW8jNVW6AQD6AwqE4nWjwpXg";
 export const OPT_OUT_ENV = "ARCADE_PLUGIN_TELEMETRY";
 
 export const INSTALL_ID_FILE = "install-id";
-export const NOTICE_FILE = "notice-shown";
-
-export const DOCS_URL =
-  "https://github.com/ArcadeAI/arcade-plugin/blob/main/docs/telemetry.md";
-
-export const NOTICE =
-  "The Arcade plugin sends anonymous usage events (no prompts, file paths, " +
-  `or tool output); see ${DOCS_URL}. Set ${OPT_OUT_ENV}=0 to turn it off.`;
 
 const readPluginVersion = () => {
   try {

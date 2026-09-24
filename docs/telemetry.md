@@ -26,14 +26,12 @@ Cursor and Copilot aren't wired up yet.
 
 ## What is stored on your machine
 
-Two files in the plugin's data folder (`~/.claude/plugins/data/<plugin id>/`):
+One file in the plugin's data folder (`~/.claude/plugins/data/<plugin id>/`):
+`install-id`, a random ID created on first run, not tied to you or your
+Arcade account.
 
-- `install-id`: a random ID created on first run, not tied to you or your
-  Arcade account.
-- `notice-shown`: marks that the first-run notice was shown.
-
-Nothing is sent until the notice has been shown. If the plugin can't write
-that folder, or Claude Code doesn't provide one, it sends nothing.
+If the plugin can't write that folder, or Claude Code doesn't provide one, it
+sends nothing.
 
 ## What is sent
 

@@ -18,8 +18,8 @@ for a marked rules block.
   and allowed value; change them there only. The builder sends nothing else,
   `npm run generate` writes the tables in `docs/telemetry.md`, and the tests
   check every built event against its schema and the telemetry rows in
-  `hooks/hook-hosts.mjs` against its hooks. `telemetry.mjs` prints nothing
-  but the one-time notice, and only `telemetry-send.mjs` may touch the
+  `hooks/hook-hosts.mjs` against its hooks. `telemetry.mjs` prints nothing,
+  and only `telemetry-send.mjs` may touch the
   network (a test enforces both). Telemetry files start with `// @ts-check`
   and `npm run typecheck` runs `tsc` on them; nothing is compiled.
 - Telemetry runs in Claude Code only. It reads Claude Code's hook input and

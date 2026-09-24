@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import os from "node:os";
@@ -12,7 +12,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { ARCADE_TOOL_PREFIX, EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
 import { buildEvent } from "../hooks/telemetry-events.mjs";
-import { NOTICE, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
+import { PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
 
 const INSTALL_ID = "11111111-2222-3333-4444-555555555555";
 const OPTIONS = { installId: INSTALL_ID, os: "darwin" };
@@ -46,9 +46,6 @@ const hookInput = (fields) => ({
 const TEMP_ROOT = mkdtempSync(path.join(os.tmpdir(), "arcade-telemetry-"));
 const makeTempDir = () => mkdtempSync(path.join(TEMP_ROOT, "data-"));
 after(() => rmSync(TEMP_ROOT, { recursive: true, force: true }));
-
-// The hook sends nothing until the first-run notice has been shown.
-const markNoticeShown = (dir) => writeFileSync(path.join(dir, "notice-shown"), "test");
 
 const hookEnv = (dataDir, host, extra = {}) => ({
   CLAUDE_PLUGIN_DATA: dataDir,
@@ -284,15 +281,14 @@ test("the Arcade tool prefix matches the plugin and MCP server names", () => {
   assert.equal(ARCADE_TOOL_PREFIX, `mcp__plugin_${plugin.name}_${server}__`);
 });
 
-test("telemetry hook shows the notice once and posts each event from a detached sender", async () => {
+test("telemetry hook prints nothing and posts each event from a detached sender", async () => {
   const server = await startServer();
   try {
     const dataDir = makeTempDir();
     const input = JSON.stringify(hookInput({ hook_event_name: "SessionStart", source: "startup" }));
     const env = hookEnv(dataDir, server.url);
 
-    assert.deepEqual(JSON.parse(runHook("telemetry.mjs", input, env).stdout), { systemMessage: NOTICE });
-    assert.match(NOTICE, /ARCADE_PLUGIN_TELEMETRY=0/);
+    assert.equal(runHook("telemetry.mjs", input, env).stdout, "");
     assert.equal(runHook("telemetry.mjs", input, env).stdout, "");
 
     await waitForRequests(server.requests, 2);
@@ -314,7 +310,6 @@ test("telemetry hook shows the notice once and posts each event from a detached 
 test("telemetry hook sends nothing when it must not", async () => {
   const server = await startServer();
   const sessionStart = JSON.stringify(hookInput({ hook_event_name: "SessionStart", source: "startup" }));
-  const toolCall = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Gmail_X` }));
   const readOnly = process.platform !== "win32" && process.getuid?.() !== 0;
   // [label, stdin, env overrides, prepare data dir, data dir stays empty]
   const cases = [
@@ -322,8 +317,7 @@ test("telemetry hook sends nothing when it must not", async () => {
     ["opted out with OFF", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "OFF" }, () => {}, true],
     ["DO_NOT_TRACK=1", sessionStart, { DO_NOT_TRACK: "1" }, () => {}, true],
     ["no CLAUDE_PLUGIN_DATA", sessionStart, { CLAUDE_PLUGIN_DATA: "" }, () => {}, true],
-    ["before the notice", toolCall, {}, () => {}, false],
-    ["invalid input", "not-json", {}, markNoticeShown, false],
+    ["invalid input", "not-json", {}, () => {}, false],
     ...(readOnly ? [["read-only data dir", sessionStart, {}, (dir) => chmodSync(dir, 0o500), true]] : []),
   ];
   try {
@@ -348,7 +342,6 @@ test("hook returns at once and the sender gives up on a host that never answers"
   const host = `http://127.0.0.1:${silent.address().port}`;
   try {
     const dataDir = makeTempDir();
-    markNoticeShown(dataDir);
     let started = Date.now();
     runHook("telemetry.mjs", JSON.stringify(hookInput({ hook_event_name: "SessionStart" })), hookEnv(dataDir, host));
     assert.ok(Date.now() - started < 2000, "hook waited on the network");
