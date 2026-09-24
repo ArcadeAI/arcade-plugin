@@ -60,13 +60,12 @@ const send = (/** @type {object} */ event) => {
 
 const main = async () => {
   const input = await readInput();
-  if (isOptedOut()) return;
-
   // Claude Code always sets this. Without it there is nowhere to keep the
   // arcade-used flag, so nothing is sent.
   const dir = process.env.CLAUDE_PLUGIN_DATA;
   if (!dir) return;
   rmSync(path.join(dir, OLD_INSTALL_ID_FILE), { force: true });
+  if (isOptedOut()) return;
 
   const arcadeUsedBefore = readArcadeUsed(dir);
   const event = buildEvent(input, { os: process.platform, arcadeUsedBefore });
