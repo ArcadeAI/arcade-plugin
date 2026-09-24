@@ -117,8 +117,8 @@ const buildFiles = (root) => {
       serialize({
         $schema: "https://json.schemastore.org/claude-code-marketplace.json",
         name,
-        // Marketplace listing text; not used by any other client.
-        description: "Install Arcade in Claude Desktop, Cowork, and Claude Code.",
+        // Marketplace listing text. Codex also installs from this marketplace.
+        description: "Install Arcade in Claude Desktop, Cowork, Claude Code, and Codex.",
         owner: author,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [

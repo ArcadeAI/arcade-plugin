@@ -8,7 +8,7 @@ browser. The rows differ in how much of this plugin the client can load.
 
 | Client | Tools | Skills | Subagent | Commands | Rule | Hooks | Install |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
-| **Cursor** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅¹ | [guide](install/cursor.md) |
+| **Cursor** | ✅ | ✅ | ✅ | ✅⁶ | ✅ | ✅¹ | [guide](install/cursor.md) |
 | **Claude Code** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
 | **Claude Cowork / Code desktop** | ✅ | ✅ | ✅ | ✅ | — | ✅⁵ | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅² | [guide](install/copilot.md) |
@@ -35,6 +35,8 @@ session and subagent hooks only.
 ⁵ Cowork runs the prompt and subagent hooks but doesn't add the session-start
 text, so its main conversation gets the short reminder and the skill, not the
 full rules. The desktop Code tab runs all three.
+⁶ The Cursor IDE (3.21.18) lists the commands on the plugin page but not in
+the `/` menu. Other plugins' commands don't show there either.
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
 `arcade-operator`. In Cursor the commands are `/arcade-apps`, `/arcade-connect`,
@@ -60,7 +62,7 @@ Files a client needs at its own path are generated from shared sources (see
 | Operator (generated copy) | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code |
 | Commands | `commands/arcade-*.md` | Cursor, Claude Code |
 | Rule | `clients/cursor/rules/arcade.mdc` | Cursor |
-| Marketplace | `.claude-plugin/marketplace.json` | Claude Desktop, Cowork, Claude Code |
+| Marketplace | `.claude-plugin/marketplace.json` | Claude Desktop, Cowork, Claude Code, Codex |
 | Codex listing | `plugin.json` → `extensions.com.openai.interface` | Codex |
 
 Claude Desktop installs this repo as a plugin marketplace (see
