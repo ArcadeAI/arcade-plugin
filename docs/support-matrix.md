@@ -10,7 +10,7 @@ browser. The rows differ in how much of this plugin the client can load.
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
 | **Cursor** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅¹ | [guide](install/cursor.md) |
 | **Claude Code** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
-| **Claude Cowork / Code desktop** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
+| **Claude Cowork / Code desktop** | ✅ | ✅ | ✅ | ✅ | — | ✅⁵ | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅² | [guide](install/copilot.md) |
 | **VS Code** | ✅ | ✅ | ✅ | — | — | —⁴ | [guide](install/vscode.md) |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | —³ | [guide](install/codex.md) |
@@ -26,14 +26,18 @@ telemetry hook on `SessionStart`, `UserPromptSubmit`, `PostToolUse`,
 `PostToolUseFailure`, and `SubagentStop` ([what's sent](telemetry.md)); no
 other client sends telemetry.
 
-¹ Session start only; Cursor's prompt and subagent hooks can't add context.
-The always-apply rule adds the short reminder (Cursor's CLI doesn't load it;
-Cloud Agents don't run plugin hooks, so they get the rule and the skill).
+¹ Cursor CLI only, at session start. The Cursor IDE (3.21.18) and Cloud
+Agents don't run plugin hooks, so they get the rule and the skill. Cursor's
+prompt and subagent hooks can't add context, and the CLI doesn't load the
+always-apply rule.
 ² Copilot CLI drops the output of prompt hooks from config files, so it gets
 session and subagent hooks only.
 ³ Blocked upstream; see [codex.md](install/codex.md).
 ⁴ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
 `${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet.
+⁵ Cowork runs the prompt and subagent hooks but doesn't add the session-start
+text, so its main conversation gets the short reminder and the skill, not the
+full rules. The desktop Code tab runs all three.
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
 `arcade-operator`. In Cursor the commands are `/arcade-apps`, `/arcade-connect`,

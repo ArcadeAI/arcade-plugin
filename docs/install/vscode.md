@@ -10,7 +10,8 @@ https://github.com/ArcadeAI/arcade-plugin
 
 Enable agent plugins in VS Code if needed (`chat.plugins.enabled`). Reload the
 VS Code window after install and confirm the plugin under **Agent Plugins →
-Installed**.
+Installed**. The first time, run **MCP: List Servers**, pick **arcade**, choose
+**Start Server**, and sign in when prompted; its tools show up after that.
 
 VS Code loads root `plugin.json` as an Agent Plugin: 2 skills, the gateway,
 and `arcade-operator` from `com.github.copilot/agents/`. It does not read the

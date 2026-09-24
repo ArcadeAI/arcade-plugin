@@ -6,7 +6,8 @@ import { readRepoFile, ROOT } from "./helpers.mjs";
 
 test(".cursor-plugin paths exist", () => {
   const manifest = JSON.parse(readRepoFile(".cursor-plugin/plugin.json"));
-  for (const key of ["skills", "agents", "commands", "rules"]) {
+  assert.equal(manifest.displayName, "Arcade");
+  for (const key of ["skills", "agents", "commands", "rules", "logo"]) {
     assert.ok(existsSync(path.join(ROOT, manifest[key])), `missing ${manifest[key]}`);
   }
 });
@@ -19,4 +20,10 @@ test("commands are named arcade-* and listed in the support matrix", () => {
     assert.match(readRepoFile(`commands/${file}`), new RegExp(`^name: ${name}$`, "m"));
     assert.match(matrix, new RegExp(`/arcade:${name}`));
   }
+});
+
+test("Claude marketplace lists the plugin with its name and logo", () => {
+  const [listed] = JSON.parse(readRepoFile(".claude-plugin/marketplace.json")).plugins;
+  assert.equal(listed.displayName, "Arcade");
+  assert.ok(existsSync(path.join(ROOT, listed.logo)), `missing ${listed.logo}`);
 });

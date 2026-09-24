@@ -20,6 +20,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // VS Code only read com.github.copilot/agents/, so that folder gets a copy.
 const OPERATOR = "agents/arcade-operator.agent.md";
 const CURSOR_RULE_DIR = "clients/cursor/rules";
+const LOGO = "assets/logo.png";
 
 /** Hand-written files that contain one generated block of routing rules. */
 export const FILES_WITH_GENERATED_RULES = {
@@ -101,6 +102,7 @@ const buildFiles = (root) => {
       serialize({
         ...identity,
         displayName,
+        logo: LOGO,
         repository,
         skills: "skills",
         agents: "agents",
@@ -130,7 +132,7 @@ const buildFiles = (root) => {
         owner: author,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
-          { name, displayName, source: "./", description, author, homepage, repository, license, keywords },
+          { name, displayName, logo: LOGO, source: "./", description, author, homepage, repository, license, keywords },
         ],
       }),
     ],

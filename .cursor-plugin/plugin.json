@@ -15,6 +15,7 @@
   ],
   "version": "0.1.0",
   "displayName": "Arcade",
+  "logo": "assets/logo.png",
   "repository": "https://github.com/ArcadeAI/arcade-plugin",
   "skills": "skills",
   "agents": "agents",
