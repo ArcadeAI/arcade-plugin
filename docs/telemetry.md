@@ -2,7 +2,7 @@
 
 The Arcade plugin sends a small set of usage events to Arcade's PostHog so we
 can see whether the model uses Arcade when a task needs it. Events carry a
-hash of Claude Code's random session ID, which changes every session, and no
+hash of the client's random session ID, which changes every session, and no
 ID that lasts across sessions. They never include your name, email, or Arcade
 account. No prompt text, file paths, or tool output is ever sent.
 
@@ -29,24 +29,32 @@ each prompt and each MCP tool call (about 60 ms); it exits without sending
 anything. Claude Code reads the list of hooks from the plugin's files, so an
 environment variable can't remove them.
 
+In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
+`copilot`. `COPILOT_OFFLINE=true` also turns it off (along with all other
+Copilot network activity).
+
 For testing, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a different host.
 
 ## Where it runs
 
-Only in Claude Code: the CLI, IDE extensions, the desktop app's Code tab, and
-Cowork. Other clients send no plugin telemetry. claude.ai and ChatGPT chat
-don't run plugin hooks at all; Codex drops hooks for Agent Plugins packages;
-Cursor and Copilot aren't wired up yet.
+In Claude Code (CLI, IDE extensions, desktop Code tab, Cowork) and GitHub
+Copilot CLI. VS Code reads Copilot's hook file but doesn't give hooks the
+plugin's path, so every hook checks for its script and exits without doing
+anything. VS Code sends no telemetry. Cursor isn't wired up; its hook input
+includes the user's email. claude.ai, ChatGPT, and Codex don't run plugin
+hooks.
 
 ## What is stored on your machine
 
-One file in the plugin's data folder (`~/.claude/plugins/data/<plugin id>/`):
-`arcade-used`, readable only by you. It holds the word `true` once an Arcade
-tool call has succeeded on this machine, and every event sends that as
-`arcade_used_before`. Nothing else is stored. Earlier versions kept an
-`install-id` file there; the plugin deletes it.
+One file per client, in the client's plugin data folder, named `arcade-used`.
+It holds the word `true` once an Arcade tool call has succeeded, and every
+event sends that as `arcade_used_before`. Nothing else is stored. Earlier
+versions kept an `install-id` file; the plugin deletes it.
 
-If Claude Code doesn't provide that folder, the plugin sends nothing.
+- Claude Code: `~/.claude/plugins/data/<plugin id>/arcade-used`
+- Copilot CLI: `~/.copilot/plugin-data/<…>/arcade-used`
+
+If the client doesn't provide a data folder path, the plugin sends nothing.
 
 ## What is sent
 
@@ -100,6 +108,8 @@ off.
 
 ## Reading the numbers
 
+### Claude Code
+
 Group events into turns by `turn`. Background task results don't send
 `Plugin prompt submitted`, so leave out turns that have tool events but no
 prompt event. Per turn:
@@ -122,6 +132,23 @@ prompt event. Per turn:
 An app tool called directly on another Arcade gateway (for example
 `Granola_ListMeetings` on a second gateway) looks the same as that app's own
 MCP server, so it counts as `other`.
+
+### Copilot CLI
+
+Copilot has no `prompt_id`, so there is no `turn`. Group tool and subagent
+events into turns by ordering all events from one `Plugin prompt submitted` up
+to the next one by timestamp.
+
+Subagent events use the subagent's own `session` value. The parent's
+`Plugin subagent stopped` carries `subagent_session`, which equals that
+subagent's `session`.
+
+- Leave out `Plugin prompt submitted` events whose `session` matches any
+  event's `subagent_session`. The model wrote those prompts.
+- Count a subagent session's tool events toward the parent turn that contains
+  the matching `Plugin subagent stopped`.
+- Leave out sessions with a prompt but no `Plugin session started` and no
+  matching `subagent_session`. These are subagents that never stopped.
 
 ## Classifier accuracy
 

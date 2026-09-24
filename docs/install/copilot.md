@@ -23,8 +23,25 @@ gateway, and `arcade-operator`.
 Hooks come from `com.github.copilot/hooks/hooks.json`: routing rules at
 session start and for subagents. Copilot CLI drops the output of prompt hooks
 from config files, so there's no per-prompt reminder here. VS Code reads the
-same file but can't run Agent Plugins hook commands yet, so it relies on the
-skills.
+same file; the hooks detect that it doesn't give them the plugin's path and do
+nothing, so VS Code relies on the skills.
+
+## Telemetry
+
+The plugin sends a small set of usage events (session start, tool calls, and
+subagent stops) to help us see whether the model uses Arcade when a task needs
+it. No prompt text or personal data is included. See [docs/telemetry.md](../telemetry.md)
+for the full list of what is sent.
+
+To turn it off, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
+`copilot`:
+
+```bash
+export ARCADE_PLUGIN_TELEMETRY=0
+```
+
+`COPILOT_OFFLINE=true` also turns off telemetry (along with all other Copilot
+network activity).
 
 ## First steps
 
