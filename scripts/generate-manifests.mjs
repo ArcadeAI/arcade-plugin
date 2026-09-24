@@ -33,6 +33,40 @@ export const COPIED_FILES = {
   "com.github.copilot/agents/arcade-operator.agent.md": OPERATOR,
 };
 
+/**
+ * Source description for each generated or partially-generated path. Used in
+ * error messages so a person who hand-edits a generated file knows what to
+ * edit instead. Every path that buildFiles adds to its output map must have an
+ * entry here — buildFiles throws if one is missing.
+ */
+export const FILE_SOURCES = {
+  ".cursor-plugin/plugin.json": "plugin.json, mcp.json, and VERSION",
+  ".claude-plugin/plugin.json": "plugin.json, mcp.json, and VERSION",
+  ".claude-plugin/marketplace.json": "plugin.json and VERSION",
+  [`${CURSOR_RULE_DIR}/arcade.mdc`]: "hooks/routing-guidance.mjs",
+  ".gitattributes": "scripts/generate-manifests.mjs",
+  // Manifest paths come from HOSTS; keys here match host.manifest values.
+  ...Object.fromEntries(Object.values(HOSTS).map((h) => [h.manifest, "hooks/hook-hosts.mjs"])),
+  // Copied files: value is the source path.
+  ...Object.fromEntries(Object.entries(COPIED_FILES).map(([copy, src]) => [copy, src])),
+  // Files with a generated rules block: source is hooks/routing-guidance.mjs.
+  ...Object.fromEntries(Object.keys(FILES_WITH_GENERATED_RULES).map((p) => [p, "hooks/routing-guidance.mjs"])),
+};
+
+/** Returns the error message to throw when `path` is out of date on disk. */
+const outOfDateError = (path) => {
+  if (path in FILES_WITH_GENERATED_RULES) {
+    return `${path}: the rules block is generated from hooks/routing-guidance.mjs — edit that file and run npm run generate`;
+  }
+  const src = FILE_SOURCES[path];
+  if (path in COPIED_FILES) {
+    return `${path} is a copy of ${src} — edit that file and run npm run generate`;
+  }
+  // Use "those" for multiple sources (the source string lists multiple files).
+  const plural = /,| and /.test(src);
+  return `${path} is generated from ${src} — edit ${plural ? "those" : "that file"} and run npm run generate`;
+};
+
 const RULES_BLOCK_BEGIN =
   "<!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->";
 const RULES_BLOCK_END = "<!-- END generated -->";
@@ -165,6 +199,15 @@ const buildFiles = (root) => {
     files.set(path, fillRulesBlock(readText(root, path), rules, path));
   }
 
+  // Every output must have a source entry so error messages can name it.
+  for (const path of files.keys()) {
+    if (!(path in FILE_SOURCES)) {
+      throw new Error(
+        `${path} has no entry in FILE_SOURCES — add one in scripts/generate-manifests.mjs next to where it is built`,
+      );
+    }
+  }
+
   return files;
 };
 
@@ -184,7 +227,7 @@ export const generateManifests = ({ check = false, root = ROOT } = {}) => {
     const absolutePath = join(root, path);
     if (check) {
       if (!existsSync(absolutePath) || readFileSync(absolutePath, "utf8") !== content) {
-        throw new Error(`${path} is out of date — run npm run generate`);
+        throw new Error(outOfDateError(path));
       }
       continue;
     }

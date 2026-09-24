@@ -9,28 +9,50 @@ test("committed generated files are current (run npm run generate if not)", () =
   generateManifests({ check: true });
 });
 
-test("check mode fails on a hand edit to a generated file or rules block", () => {
+test("check mode fails with a source-naming error when a generated file is hand-edited", () => {
   const root = makeFixture();
   try {
     generateManifests({ root });
-    generateManifests({ check: true, root });
 
-    const manifest = join(root, ".cursor-plugin/plugin.json");
-    writeFileSync(manifest, `${readFileSync(manifest, "utf8")} `);
-    assert.throws(() => generateManifests({ check: true, root }), /\.cursor-plugin\/plugin\.json is out of date/);
+    // Each case: edit a file in the fixture, expect an error that names the source.
+    const cases = [
+      {
+        desc: "Cursor manifest",
+        edit: (r) => { const p = join(r, ".cursor-plugin/plugin.json"); writeFileSync(p, `${readFileSync(p, "utf8")} `); },
+        pattern: /\.cursor-plugin\/plugin\.json is generated from plugin\.json, mcp\.json, and VERSION/,
+      },
+      {
+        desc: "hooks.json",
+        edit: (r) => rmSync(join(r, "com.github.copilot/hooks/hooks.json")),
+        pattern: /com\.github\.copilot\/hooks\/hooks\.json is generated from hooks\/hook-hosts\.mjs/,
+      },
+      {
+        desc: "Cursor rule",
+        edit: (r) => { const p = join(r, "clients/cursor/rules/arcade.mdc"); writeFileSync(p, `${readFileSync(p, "utf8")} `); },
+        pattern: /clients\/cursor\/rules\/arcade\.mdc is generated from hooks\/routing-guidance\.mjs/,
+      },
+      {
+        desc: "Copilot operator copy",
+        edit: (r) => { const p = join(r, "com.github.copilot/agents/arcade-operator.agent.md"); writeFileSync(p, `${readFileSync(p, "utf8")} `); },
+        pattern: /com\.github\.copilot\/agents\/arcade-operator\.agent\.md is a copy of agents\/arcade-operator\.agent\.md/,
+      },
+      {
+        desc: "rules block in try-arcade/SKILL.md",
+        edit: (r) => { const p = join(r, "skills/try-arcade/SKILL.md"); writeFileSync(p, readFileSync(p, "utf8").replace("use only arcade", "use any server")); },
+        pattern: /skills\/try-arcade\/SKILL\.md: the rules block is generated from hooks\/routing-guidance\.mjs/,
+      },
+      {
+        desc: ".gitattributes stale entry",
+        edit: (r) => writeFileSync(join(r, ".gitattributes"), `${readFileSync(join(r, ".gitattributes"), "utf8")}old/file.json linguist-generated=true\n`),
+        pattern: /old\/file\.json is no longer generated/,
+      },
+    ];
 
-    generateManifests({ root });
-    const skill = join(root, "skills/try-arcade/SKILL.md");
-    writeFileSync(skill, readFileSync(skill, "utf8").replace("use only arcade", "use any server"));
-    assert.throws(() => generateManifests({ check: true, root }), /skills\/try-arcade\/SKILL\.md is out of date/);
-
-    generateManifests({ root });
-    rmSync(join(root, "com.github.copilot/hooks/hooks.json"));
-    assert.throws(() => generateManifests({ check: true, root }), /com\.github\.copilot\/hooks\/hooks\.json is out of date/);
-
-    generateManifests({ root });
-    writeFileSync(join(root, ".gitattributes"), `${readFileSync(join(root, ".gitattributes"), "utf8")}old/file.json linguist-generated=true\n`);
-    assert.throws(() => generateManifests({ check: true, root }), /old\/file\.json is no longer generated/);
+    for (const { edit, pattern } of cases) {
+      generateManifests({ root });
+      edit(root);
+      assert.throws(() => generateManifests({ check: true, root }), pattern);
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
