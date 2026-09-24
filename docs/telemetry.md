@@ -1,8 +1,9 @@
 # Plugin telemetry
 
-The Arcade plugin sends a small set of anonymous events to Arcade's PostHog
-so we can see whether the model uses Arcade when a task needs it. No prompt
-text, file paths, or tool output is ever sent.
+The Arcade plugin sends a small set of usage events to Arcade's PostHog so we
+can see whether the model uses Arcade when a task needs it. Events carry a
+random install ID, not your name, email, or Arcade account. No prompt text,
+file paths, or tool output is ever sent.
 
 ## Turning it off
 
@@ -13,7 +14,14 @@ Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 { "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
 ```
 
-`false`, `off`, and `no` also work, and so does `DO_NOT_TRACK=1`.
+`false`, `off`, and `no` also work. It is also off when any of these is set:
+`DO_NOT_TRACK`, or Claude Code's own `DISABLE_TELEMETRY` or
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`.
+
+With telemetry off, Claude Code still starts the plugin's short Node hook on
+each prompt and each MCP tool call (about 60 ms); it exits without sending
+anything. Claude Code reads the list of hooks from the plugin's files, so an
+environment variable can't remove them.
 
 For testing, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a different host.
 
@@ -27,8 +35,8 @@ Cursor and Copilot aren't wired up yet.
 ## What is stored on your machine
 
 One file in the plugin's data folder (`~/.claude/plugins/data/<plugin id>/`):
-`install-id`, a random ID created on first run, not tied to you or your
-Arcade account.
+`install-id`, a random ID created on first run and readable only by you. The
+plugin sends nothing that links it to your name, email, or Arcade account.
 
 If the plugin can't write that folder, or Claude Code doesn't provide one, it
 sends nothing.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import os from "node:os";
@@ -12,7 +12,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { ARCADE_TOOL_PREFIX, EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
 import { buildEvent } from "../hooks/telemetry-events.mjs";
-import { PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
+import { EVENT_ENV, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
 
 const INSTALL_ID = "11111111-2222-3333-4444-555555555555";
 const OPTIONS = { installId: INSTALL_ID, os: "darwin" };
@@ -53,6 +53,8 @@ const hookEnv = (dataDir, host, extra = {}) => ({
   ARCADE_PLUGIN_TELEMETRY_HOST: host,
   ARCADE_PLUGIN_TELEMETRY: "",
   DO_NOT_TRACK: "",
+  DISABLE_TELEMETRY: "",
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "",
   ...extra,
 });
 
@@ -271,7 +273,9 @@ test("the docs point to docs/telemetry.md and name the off switch", () => {
     assert.match(text, /ARCADE_PLUGIN_TELEMETRY/, file);
   }
   const contract = readRepoFile("docs/telemetry.md");
-  assert.match(contract, /DO_NOT_TRACK=1/);
+  assert.match(contract, /DO_NOT_TRACK/);
+  assert.match(contract, /DISABLE_TELEMETRY/);
+  assert.match(contract, /CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC/);
   assert.match(contract, /IP address/);
 });
 
@@ -299,6 +303,9 @@ test("telemetry hook prints nothing and posts each event from a detached sender"
     assert.equal(body.api_key, POSTHOG_KEY);
     assert.equal(body.event, "Plugin session started");
     assert.equal(body.distinct_id, readFileSync(path.join(dataDir, "install-id"), "utf8").trim());
+    if (process.platform !== "win32") {
+      assert.equal(statSync(path.join(dataDir, "install-id")).mode & 0o777, 0o600, "install-id is readable only by its owner");
+    }
     assert.ok(!Number.isNaN(Date.parse(body.timestamp)));
     assert.equal(body.properties.os, process.platform);
     assert.doesNotMatch(request.body, new RegExp(`${SESSION_ID}|${PROMPT_ID}|private-repo`));
@@ -316,6 +323,9 @@ test("telemetry hook sends nothing when it must not", async () => {
     ["opted out with 0", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
     ["opted out with OFF", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "OFF" }, () => {}, true],
     ["DO_NOT_TRACK=1", sessionStart, { DO_NOT_TRACK: "1" }, () => {}, true],
+    ["Claude Code's DISABLE_TELEMETRY=1", sessionStart, { DISABLE_TELEMETRY: "1" }, () => {}, true],
+    ["Claude Code's CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", sessionStart,
+      { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }, () => {}, true],
     ["no CLAUDE_PLUGIN_DATA", sessionStart, { CLAUDE_PLUGIN_DATA: "" }, () => {}, true],
     ["invalid input", "not-json", {}, () => {}, false],
     ...(readOnly ? [["read-only data dir", sessionStart, {}, (dir) => chmodSync(dir, 0o500), true]] : []),
@@ -348,12 +358,12 @@ test("hook returns at once and the sender gives up on a host that never answers"
 
     started = Date.now();
     const event = JSON.stringify({ event: "Plugin session started", distinct_id: "x", properties: {} });
-    const child = spawn(process.execPath, [path.join(ROOT, "hooks", "telemetry-send.mjs"), event], {
-      env: { ...process.env, ARCADE_PLUGIN_TELEMETRY_HOST: host },
+    const child = spawn(process.execPath, [path.join(ROOT, "hooks", "telemetry-send.mjs")], {
+      env: { ...process.env, ARCADE_PLUGIN_TELEMETRY_HOST: host, [EVENT_ENV]: event },
     });
     assert.equal(await new Promise((resolve) => child.on("exit", resolve)), 0);
     const elapsed = Date.now() - started;
-    assert.ok(elapsed >= 2500 && elapsed < 5000, `sender timeout was ${elapsed} ms`);
+    assert.ok(elapsed >= 900 && elapsed < 3000, `sender timeout was ${elapsed} ms`);
   } finally {
     silent.close();
   }

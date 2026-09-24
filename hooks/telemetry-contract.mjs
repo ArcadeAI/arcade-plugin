@@ -50,11 +50,12 @@ export const GATEWAY_TOOLS = /** @type {const} */ ([
 /** @type {Record<string, typeof SERVICE_CATEGORIES[number]>} */
 export const TOOLKIT_SERVICES = {
   gmail: "email", outlookmail: "email",
-  googlecalendar: "calendar", outlookcalendar: "calendar",
-  slack: "chat", discord: "chat",
+  googlecalendar: "calendar", outlookcalendar: "calendar", microsoftoutlookcalendar: "calendar", calendly: "calendar",
+  slack: "chat", discord: "chat", discordbot: "chat", microsoftteams: "chat",
   linear: "issues", jira: "issues", asana: "issues", clickup: "issues", trello: "issues",
   notion: "docs", googledocs: "docs", confluence: "docs",
-  granola: "meetings", zoom: "meetings", fireflies: "meetings", microsoftteams: "meetings",
+  googlesheets: "docs", microsoftword: "docs", microsoftexcel: "docs",
+  granola: "meetings", zoom: "meetings", fireflies: "meetings",
   hubspot: "crm", salesforce: "crm", attio: "crm",
   github: "code_hosting", gitlab: "code_hosting", bitbucket: "code_hosting",
   posthog: "analytics",

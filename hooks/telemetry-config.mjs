@@ -18,6 +18,9 @@ export const OPT_OUT_ENV = "ARCADE_PLUGIN_TELEMETRY";
 
 export const INSTALL_ID_FILE = "install-id";
 
+// telemetry.mjs passes the event to telemetry-send.mjs in this variable.
+export const EVENT_ENV = "ARCADE_PLUGIN_TELEMETRY_EVENT";
+
 const readPluginVersion = () => {
   try {
     return readFileSync(path.join(HOOKS_DIR, "..", "VERSION"), "utf8").trim();

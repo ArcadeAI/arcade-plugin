@@ -21,6 +21,19 @@ test("classifier tables and labeled prompts use only the contract's categories",
   }
 });
 
+// A keyword like "microsoft teams" and the toolkit MicrosoftTeams name the
+// same app, so a prompt and a tool call for it must get the same category.
+test("an app in both the keyword list and the toolkit list gets one category", () => {
+  for (const [category, phrases] of Object.entries(KEYWORDS)) {
+    for (const phrase of phrases) {
+      const toolkit = phrase.replaceAll(" ", "");
+      if (Object.hasOwn(TOOLKIT_SERVICES, toolkit)) {
+        assert.equal(TOOLKIT_SERVICES[toolkit], category, phrase);
+      }
+    }
+  }
+});
+
 test("classifyPrompt returns sorted known categories and never throws", () => {
   assert.deepEqual(classifyPrompt("check slack and my calendar, then slack again"), {
     couldUseArcade: true,

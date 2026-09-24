@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
-// Claude Code telemetry hook. Sends the anonymous events described in
+// Claude Code telemetry hook. Sends the usage events described in
 // docs/telemetry.md. Always exit 0.
 
 import { spawn } from "node:child_process";
@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { INSTALL_ID_FILE, OPT_OUT_ENV } from "./telemetry-config.mjs";
+import { EVENT_ENV, INSTALL_ID_FILE, OPT_OUT_ENV } from "./telemetry-config.mjs";
 import { buildEvent } from "./telemetry-events.mjs";
 import { readInput } from "./hook-hosts.mjs";
 
@@ -19,10 +19,17 @@ const SENDER = path.join(
 
 const OFF_VALUES = ["0", "false", "off", "no"];
 
+// Setting any of these (to anything but an off value) also turns telemetry
+// off. The last two are Claude Code's own switches for its telemetry and for
+// all non-essential network traffic.
+const OFF_SWITCHES = ["DO_NOT_TRACK", "DISABLE_TELEMETRY", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"];
+
 const isOptedOut = () => {
-  const optOut = (process.env[OPT_OUT_ENV] ?? "").toLowerCase();
-  const doNotTrack = (process.env.DO_NOT_TRACK ?? "").toLowerCase();
-  return OFF_VALUES.includes(optOut) || doNotTrack === "1" || doNotTrack === "true";
+  if (OFF_VALUES.includes((process.env[OPT_OUT_ENV] ?? "").toLowerCase())) return true;
+  return OFF_SWITCHES.some((name) => {
+    const value = (process.env[name] ?? "").toLowerCase();
+    return value !== "" && !OFF_VALUES.includes(value);
+  });
 };
 
 // "wx" fails if the file exists, so two hooks racing on first run can't
@@ -33,7 +40,7 @@ const isOptedOut = () => {
  */
 const createIfMissing = (file, value) => {
   try {
-    writeFileSync(file, value, { flag: "wx" });
+    writeFileSync(file, value, { flag: "wx", mode: 0o600 });
     return true;
   } catch (error) {
     if (/** @type {NodeJS.ErrnoException} */ (error).code === "EEXIST") return false;
@@ -50,11 +57,14 @@ const readInstallId = (/** @type {string} */ dir) => {
 
 const send = (/** @type {object} */ event) => {
   // Claude Code kills hook processes when the session exits, so the network
-  // call runs in a detached child that can outlive this hook.
-  const child = spawn(process.execPath, [SENDER, JSON.stringify(event)], {
+  // call runs in a detached child that can outlive this hook. The event goes
+  // in an environment variable, not an argument, because other users on the
+  // machine can read a process's arguments but not its environment.
+  const child = spawn(process.execPath, [SENDER], {
     detached: true,
     stdio: "ignore",
     windowsHide: true,
+    env: { ...process.env, [EVENT_ENV]: JSON.stringify(event) },
   });
   child.on("error", () => {});
   child.unref();

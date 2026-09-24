@@ -37,8 +37,8 @@ plugin.
 
 ## Telemetry
 
-The plugin sends anonymous usage events so Arcade can see whether the model
-uses Arcade when a task needs it. [What's sent](../telemetry.md). To turn it
+The plugin sends usage events, tied to a random install ID and not to you, so
+Arcade can see whether the model uses Arcade when a task needs it. [What's sent](../telemetry.md). To turn it
 off, add this to Claude Code's `settings.json`:
 
 ```json

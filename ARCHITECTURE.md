@@ -88,9 +88,11 @@ The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
 model to self-report tokens, turns, or success.
 
-In Claude Code, `hooks/telemetry.mjs` also sends anonymous events on whether
-the model used Arcade when a prompt looked like a task Arcade could do. It is
-on by default, turned off with `ARCADE_PLUGIN_TELEMETRY=0`, and described in
+In Claude Code, `hooks/telemetry.mjs` also sends usage events on whether the
+model used Arcade when a prompt looked like a task Arcade could do. They carry
+a random install ID, not the user's name, email, or Arcade account. It is on by
+default, turned off with `ARCADE_PLUGIN_TELEMETRY=0` or Claude Code's own
+`DISABLE_TELEMETRY`, and described in
 [docs/telemetry.md](docs/telemetry.md). The network send runs in a detached
 `hooks/telemetry-send.mjs`, so a turn never waits on the network. Every event
 and property is defined once, in `hooks/telemetry-contract.mjs`; the docs

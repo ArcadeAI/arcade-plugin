@@ -3,10 +3,10 @@
 // Detached sender started by telemetry.mjs. Posts one event to PostHog, no
 // retries. Always exit 0.
 
-import { POSTHOG_HOST, POSTHOG_KEY } from "./telemetry-config.mjs";
+import { EVENT_ENV, POSTHOG_HOST, POSTHOG_KEY } from "./telemetry-config.mjs";
 
 try {
-  const { event, distinct_id, properties } = JSON.parse(process.argv[2]);
+  const { event, distinct_id, properties } = JSON.parse(process.env[EVENT_ENV] ?? "");
   await fetch(`${POSTHOG_HOST}/i/v0/e/`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -17,7 +17,7 @@ try {
       properties,
       timestamp: new Date().toISOString(),
     }),
-    signal: AbortSignal.timeout(3000),
+    signal: AbortSignal.timeout(1000),
   });
 } catch {
   // Telemetry is best effort.
