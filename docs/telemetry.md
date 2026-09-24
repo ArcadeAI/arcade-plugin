@@ -46,10 +46,11 @@ hooks.
 
 ## What is stored on your machine
 
-One file per client, in the client's plugin data folder, named `arcade-used`.
-It holds the word `true` once an Arcade tool call has succeeded, and every
-event sends that as `arcade_used_before`. Nothing else is stored. Earlier
-versions kept an `install-id` file; the plugin deletes it.
+One file per client, in the client's plugin data folder, named `arcade-used`,
+readable only by you. It holds the word `true` once an Arcade tool call has
+succeeded, and every event sends that as `arcade_used_before`. Nothing else is
+stored. If an `install-id` file is there, the plugin deletes it, even with
+telemetry off.
 
 - Claude Code: `~/.claude/plugins/data/<plugin id>/arcade-used`
 - Copilot CLI: `~/.copilot/plugin-data/<…>/arcade-used`
@@ -122,9 +123,11 @@ prompt event. Per turn:
 - **Missed:** `could_use_arcade` and no Arcade tool call. Broken down by: a
   different server was used for the same kind of service, auth was needed,
   an Arcade call failed, or nothing was called.
-- **Maybe not set up:** a missed turn with `arcade_used_before: false`. Arcade
-  may not be connected or signed in on that machine yet, so count these apart
-  from misses where `arcade_used_before` is `true`.
+- **Maybe not set up:** a missed turn with `arcade_used_before: false`. No
+  Arcade tool call has succeeded on that machine yet, so the gateway may not be
+  connected. Count these apart from misses where `arcade_used_before` is
+  `true`. A `true` value means the gateway has answered before, not that every
+  app is signed in.
 - **Called unexpectedly:** not `could_use_arcade`, but Arcade was called.
   This also shows where the keyword list misses.
 - **Not needed, not called:** everything else.

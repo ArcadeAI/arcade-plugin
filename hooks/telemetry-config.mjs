@@ -19,7 +19,7 @@ export const OPT_OUT_ENV = "ARCADE_PLUGIN_TELEMETRY";
 // Holds "true" once an Arcade tool call has succeeded on this machine.
 export const ARCADE_USED_FILE = "arcade-used";
 
-// Earlier versions kept a persistent random ID here; the hook deletes it.
+// Deleted when found, so no persistent ID stays on disk, even with telemetry off.
 export const OLD_INSTALL_ID_FILE = "install-id";
 
 // telemetry.mjs passes the event to telemetry-send.mjs in this variable.

@@ -546,6 +546,8 @@ test("telemetry hook sends nothing when it must not", async () => {
   // [label, stdin, env overrides, prepare data dir, data dir stays empty]
   const cases = [
     ["opted out with 0", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
+    ["opted out, with an old install-id to delete", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" },
+      (dir) => writeFileSync(path.join(dir, "install-id"), "11111111-2222-3333-4444-555555555555"), true],
     ["opted out with OFF", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "OFF" }, () => {}, true],
     ["DO_NOT_TRACK=1", sessionStart, { DO_NOT_TRACK: "1" }, () => {}, true],
     ["Claude Code's DISABLE_TELEMETRY=1", sessionStart, { DISABLE_TELEMETRY: "1" }, () => {}, true],

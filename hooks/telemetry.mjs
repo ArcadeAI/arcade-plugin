@@ -66,13 +66,12 @@ const main = async () => {
   const input = await readInput();
   const client = hostFromArgs(process.argv)?.telemetry;
   if (!client) return;
-  if (isOptedOut(client.optOutSwitches)) return;
-
   // The client always sets this. Without it there is nowhere to keep the
   // arcade-used flag, so nothing is sent.
   const dir = process.env[client.dataVariable];
   if (!dir || !path.isAbsolute(dir)) return;
   rmSync(path.join(dir, OLD_INSTALL_ID_FILE), { force: true });
+  if (isOptedOut(client.optOutSwitches)) return;
 
   const arcadeUsedBefore = readArcadeUsed(dir);
   const event = buildEvent(input, { host: client.host, os: process.platform, arcadeUsedBefore });
