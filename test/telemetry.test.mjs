@@ -326,6 +326,10 @@ test("telemetry hook sends nothing when it must not", async () => {
     ["Claude Code's DISABLE_TELEMETRY=1", sessionStart, { DISABLE_TELEMETRY: "1" }, () => {}, true],
     ["Claude Code's CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", sessionStart,
       { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }, () => {}, true],
+    // Claude Code reads these two as set for any non-empty value, even 0.
+    ["Claude Code's DISABLE_TELEMETRY=0", sessionStart, { DISABLE_TELEMETRY: "0" }, () => {}, true],
+    ["Claude Code's CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=false", sessionStart,
+      { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "false" }, () => {}, true],
     ["no CLAUDE_PLUGIN_DATA", sessionStart, { CLAUDE_PLUGIN_DATA: "" }, () => {}, true],
     ["invalid input", "not-json", {}, () => {}, false],
     ...(readOnly ? [["read-only data dir", sessionStart, {}, (dir) => chmodSync(dir, 0o500), true]] : []),

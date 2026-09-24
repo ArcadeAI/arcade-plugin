@@ -19,17 +19,16 @@ const SENDER = path.join(
 
 const OFF_VALUES = ["0", "false", "off", "no"];
 
-// Setting any of these (to anything but an off value) also turns telemetry
-// off. The last two are Claude Code's own switches for its telemetry and for
-// all non-essential network traffic.
-const OFF_SWITCHES = ["DO_NOT_TRACK", "DISABLE_TELEMETRY", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"];
+// Claude Code's own switches for its telemetry and for all non-essential
+// network traffic. Claude Code treats any non-empty value as set, including
+// "0" and "false", so the plugin does too.
+const CLAUDE_CODE_SWITCHES = ["DISABLE_TELEMETRY", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"];
 
 const isOptedOut = () => {
   if (OFF_VALUES.includes((process.env[OPT_OUT_ENV] ?? "").toLowerCase())) return true;
-  return OFF_SWITCHES.some((name) => {
-    const value = (process.env[name] ?? "").toLowerCase();
-    return value !== "" && !OFF_VALUES.includes(value);
-  });
+  const doNotTrack = (process.env.DO_NOT_TRACK ?? "").toLowerCase();
+  if (doNotTrack !== "" && !OFF_VALUES.includes(doNotTrack)) return true;
+  return CLAUDE_CODE_SWITCHES.some((name) => (process.env[name] ?? "") !== "");
 };
 
 // "wx" fails if the file exists, so two hooks racing on first run can't

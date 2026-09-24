@@ -14,9 +14,10 @@ Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 { "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
 ```
 
-`false`, `off`, and `no` also work. It is also off when any of these is set:
-`DO_NOT_TRACK`, or Claude Code's own `DISABLE_TELEMETRY` or
-`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`.
+`false`, `off`, and `no` also work. It is also off when `DO_NOT_TRACK` is set
+to anything but those values, and when Claude Code's own `DISABLE_TELEMETRY`
+or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set to any value. Like Claude
+Code, the plugin reads `0` and `false` on those two as set.
 
 With telemetry off, Claude Code still starts the plugin's short Node hook on
 each prompt and each MCP tool call (about 60 ms); it exits without sending
