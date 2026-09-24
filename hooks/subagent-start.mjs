@@ -8,7 +8,8 @@ import { isOperatorAgentType, SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 const host = hostFromArgs(process.argv);
 try {
   const input = await readInput();
-  if (host && !isOperatorAgentType(input.agent_type)) {
+  // Claude Code sends the name as agent_type, Copilot CLI as agentName.
+  if (host && !isOperatorAgentType(input.agent_type ?? input.agentName)) {
     printContext(host, "SubagentStart", SUBAGENT_CONTEXT);
   }
 } catch {

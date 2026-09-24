@@ -56,6 +56,8 @@ test("subagent-start skips arcade-operator in every client's input format", () =
   for (const input of [
     { agent_type: "arcade-operator" },
     { agent_type: "arcade:arcade-operator" },
+    // Copilot CLI 1.0.88's SubagentStart input.
+    { agentName: "arcade:arcade-operator", agentDisplayName: "arcade-operator" },
   ]) {
     for (const host of Object.keys(HOSTS)) {
       const result = runHook("subagent-start.mjs", input, ["--host", host]);
@@ -64,6 +66,7 @@ test("subagent-start skips arcade-operator in every client's input format", () =
     }
   }
   assert.notEqual(runHook("subagent-start.mjs", { agent_type: "Explore" }, ["--host", "claude-code"]).stdout, "");
+  assert.notEqual(runHook("subagent-start.mjs", { agentName: "general-purpose" }, ["--host", "copilot"]).stdout, "");
 });
 
 test("hooks exit 0 and print nothing without a known --host", () => {
