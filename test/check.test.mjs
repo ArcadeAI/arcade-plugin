@@ -18,7 +18,12 @@ test("plugin.json and mcp.json match the vendored Agent Plugins 1.0 schemas", ()
     const validate = ajv.compile(JSON.parse(readRepoFile(`schemas/agent-plugins/1.0.0/${file.replace(".json", ".schema.json")}`)));
     assert.ok(validate(JSON.parse(readRepoFile(file))), `${file}: ${ajv.errorsText(validate.errors)}`);
   }
-  assert.ok(plugin.extensions?.["com.openai"]?.interface?.displayName, "plugin.json: Codex displayName");
+  const openaiListing = plugin.extensions?.["com.openai"]?.interface;
+  assert.ok(openaiListing?.displayName, "plugin.json: Codex displayName");
+  for (const key of ["logo", "composerIcon"]) {
+    const file = openaiListing?.[key];
+    assert.ok(file && existsSync(path.join(ROOT, file)), `plugin.json: Codex ${key} must point at a committed file`);
+  }
 });
 
 test("hand-written files name the gateway from mcp.json", () => {
