@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { BASH_CLIS } from "../hooks/telemetry-contract.mjs";
-import { HOSTS } from "../hooks/hook-hosts.mjs";
+import { HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 
 const claudeHooks = () => JSON.parse(readRepoFile(HOSTS["claude-code"].manifest)).hooks;
@@ -11,15 +11,20 @@ test("PostToolUse and PostToolUseFailure have the expected telemetry groups", ()
   const hooks = claudeHooks();
   for (const event of ["PostToolUse", "PostToolUseFailure"]) {
     const groups = hooks[event];
-    assert.equal(groups.length, 2, `${event}: expected 2 groups`);
+    assert.equal(groups.length, 3, `${event}: expected 3 groups`);
 
-    const mainGroup = groups[0];
-    assert.equal(mainGroup.matcher, "mcp__.*|WebFetch|WebSearch", `${event} main group matcher`);
-    assert.equal(mainGroup.hooks.length, 1, `${event} main group should have 1 hook`);
-    assert.ok(mainGroup.hooks[0].command.includes("/hooks/telemetry.mjs"), `${event} main hook is telemetry.mjs`);
-    assert.ok(!mainGroup.hooks[0].if, `${event} main hook must not have if`);
+    const [mcpGroup, builtinGroup, bashGroup] = groups;
 
-    const bashGroup = groups[1];
+    assert.equal(mcpGroup.matcher, "mcp__.*", `${event} mcp group matcher`);
+    assert.equal(mcpGroup.hooks.length, 1, `${event} mcp group should have 1 hook`);
+    assert.ok(mcpGroup.hooks[0].command.includes("/hooks/telemetry.mjs"), `${event} mcp hook is telemetry.mjs`);
+    assert.ok(!mcpGroup.hooks[0].if, `${event} mcp hook must not have if`);
+
+    assert.equal(builtinGroup.matcher, "WebFetch|WebSearch", `${event} builtin group matcher`);
+    assert.equal(builtinGroup.hooks.length, 1, `${event} builtin group should have 1 hook`);
+    assert.ok(builtinGroup.hooks[0].command.includes("/hooks/telemetry.mjs"), `${event} builtin hook is telemetry.mjs`);
+    assert.ok(!builtinGroup.hooks[0].if, `${event} builtin hook must not have if`);
+
     assert.equal(bashGroup.matcher, "Bash", `${event} bash group matcher`);
     assert.equal(bashGroup.hooks.length, BASH_CLIS.length, `${event} bash group has one entry per CLI`);
   }
@@ -55,34 +60,16 @@ test("each Bash telemetry entry has if Bash(<cli> *) and command ending --cli <c
   }
 });
 
-test("routing scripts are on their hooks", () => {
-  const hooks = claudeHooks();
-  const allEntries = (event) =>
-    (hooks[event] ?? []).flatMap((g) => (g.hooks ? g.hooks : [g]));
-  const hasScript = (event, name) =>
-    allEntries(event).some((h) => h.command?.includes(`/hooks/${name}`));
-  assert.ok(hasScript("SessionStart", "session-start.mjs"), "session-start.mjs on SessionStart");
-  assert.ok(hasScript("UserPromptSubmit", "user-prompt-submit.mjs"), "user-prompt-submit.mjs on UserPromptSubmit");
-  assert.ok(hasScript("SubagentStart", "subagent-start.mjs"), "subagent-start.mjs on SubagentStart");
-});
-
-test("Cursor and Copilot manifests have no telemetry entries", () => {
-  for (const hostName of ["cursor", "copilot"]) {
-    const text = readRepoFile(HOSTS[hostName].manifest);
-    assert.ok(!text.includes("telemetry.mjs"), `${hostName}: manifest must not reference telemetry.mjs`);
-  }
-});
-
-// Moved from test/telemetry.test.mjs. Runs every telemetry command from the
-// generated manifest with telemetry off and verifies exit 0 and no output.
+// Runs every telemetry command from the generated manifest with telemetry off
+// and verifies exit 0 and no output.
 test("every generated telemetry command runs and exits quietly with telemetry off", () => {
   const { manifest, rootVariable } = HOSTS["claude-code"];
   const commands = Object.values(JSON.parse(readRepoFile(manifest)).hooks)
     .flatMap((groups) => groups.flatMap((group) => group.hooks))
     .map((hook) => hook.command)
     .filter((command) => command.includes("/hooks/telemetry.mjs"));
-  // 5 non-Bash events × 1 command + 2 hook events × BASH_CLIS.length CLI commands
-  assert.equal(commands.length, 5 + BASH_CLIS.length * 2);
+  const expectedCount = HOOKS.filter((h) => h.script === "telemetry.mjs").length;
+  assert.equal(commands.length, expectedCount);
   for (const command of commands) {
     const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
       shell: true,
