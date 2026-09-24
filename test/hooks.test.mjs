@@ -3,7 +3,14 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { shouldRemind } from "../hooks/prompt-filters.mjs";
-import { PROMPT_REMINDER } from "../hooks/routing-guidance.mjs";
+import {
+  CURSOR_RULE,
+  OPERATOR_RULES,
+  PROMPT_REMINDER,
+  SESSION_CONTEXT,
+  SKILL_RULES,
+  SUBAGENT_CONTEXT,
+} from "../hooks/routing-guidance.mjs";
 import { readRepoFile, ROOT, runHook } from "./helpers.mjs";
 
 // Exactly what each client should receive, from its hook docs. Every client in
@@ -97,10 +104,24 @@ test("each client runs exactly the hooks it can use", () => {
   }
 });
 
-// Cowork runs the prompt hook but not the session-start text, so this reminder
-// is the only routing text its main conversation gets. Keep the core rules in it.
-test("the per-prompt reminder keeps the core routing rules", () => {
-  for (const phrase of [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/]) {
-    assert.match(PROMPT_REMINDER, phrase);
+// Each client gets its routing rules from one of these texts, and some get
+// only one: Cowork's main conversation gets only the per-prompt reminder, and
+// the Cursor IDE gets only the rule and the skill. Keep the core rules in each.
+const CORE_RULES = {
+  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/]],
+  CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/, /plugin-arcade-arcade/]],
+  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /Never fall back to another connector/]],
+  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /Never fall back to another connector/, /explicitly chooses/]],
+  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /Never fall back to another connector/]],
+  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /Never fall back to another connector/]],
+};
+
+test("every routing text keeps the core routing rules", () => {
+  for (const [label, [text, phrases]] of Object.entries(CORE_RULES)) {
+    for (const phrase of phrases) {
+      assert.match(text, phrase, label);
+    }
   }
+  // Subagents can't start arcade-operator, so their text must not send them to it.
+  assert.doesNotMatch(SUBAGENT_CONTEXT, /arcade-operator/);
 });
