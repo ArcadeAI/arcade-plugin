@@ -10,6 +10,7 @@
     {
       "name": "arcade",
       "displayName": "Arcade",
+      "logo": "assets/logo.png",
       "source": "./",
       "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key.",
       "author": {
