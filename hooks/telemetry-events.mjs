@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Turns Claude Code hook input into a telemetry event. Pure: no I/O.
+ * Turns Claude Code or Copilot CLI hook input into a telemetry event. Pure: no I/O.
  * What may be sent is defined in telemetry-contract.mjs.
  */
 
@@ -15,6 +15,7 @@ import {
 import {
   allowedProperties,
   ARCADE_TOOL_PREFIX,
+  COPILOT_ARCADE_SERVER,
   GATEWAY_TOOLS,
   OPERATOR_STATUSES,
   OS_NAMES,
@@ -22,7 +23,7 @@ import {
 } from "./telemetry-contract.mjs";
 import { PLUGIN_VERSION } from "./telemetry-config.mjs";
 
-/** @typedef {Record<string, any>} HookInput Claude Code hook stdin. */
+/** @typedef {Record<string, any>} HookInput Hook stdin. */
 
 // Matches the operator's report line, e.g. "status: needs_auth", with or
 // without markdown around it. "unknown" is what we send when none matches.
@@ -31,7 +32,7 @@ const OPERATOR_STATUS = new RegExp(
   "im",
 );
 
-// Claude Code's session ID is random, new for each session, and never sent,
+// The client's session ID is random, new for each session, and never sent,
 // so it works as the salt: nothing links one session's hashes to another's.
 const shortHash = (/** @type {string} */ text) =>
   createHash("sha256").update(text).digest("hex").slice(0, 16);
@@ -71,7 +72,7 @@ const arcadeToolProperties = (server, tool, toolInput) => {
  * @param {unknown} toolName
  * @param {HookInput | undefined} toolInput
  */
-const toolProperties = (toolName, toolInput) => {
+const claudeToolProperties = (toolName, toolInput) => {
   if (typeof toolName !== "string" || !toolName.startsWith("mcp__")) {
     return null;
   }
@@ -91,26 +92,73 @@ const toolProperties = (toolName, toolInput) => {
   return withService({ server: "other" }, service);
 };
 
+/**
+ * @param {unknown} toolName
+ * @param {HookInput | undefined} toolInput
+ */
+const copilotToolProperties = (toolName, toolInput) => {
+  if (typeof toolName !== "string") return null;
+  // Arcade tool names never contain "-", so the last one ends the server name.
+  const splitAt = toolName.lastIndexOf("-");
+  // Built-in tools (Bash, Agent) have no server prefix.
+  if (splitAt <= 0 || splitAt === toolName.length - 1) return null;
+  const server = toolName.slice(0, splitAt);
+  const tool = toolName.slice(splitAt + 1);
+  if (server === COPILOT_ARCADE_SERVER) {
+    return arcadeToolProperties("arcade", tool, toolInput);
+  }
+  if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
+    return arcadeToolProperties("other_arcade", tool, toolInput);
+  }
+  const serverParts = server.split(/[^A-Za-z0-9]+/);
+  const service =
+    serviceForToolName(tool) ?? serverParts.map(serviceForToolkit).find(Boolean);
+  return withService({ server: "other" }, service);
+};
+
+/**
+ * @typedef {object} HostInput
+ * @property {(toolName: unknown, toolInput: HookInput | undefined) => Record<string, string> | null} toolProperties
+ * @property {boolean} promptReminder Whether the client runs user-prompt-submit.mjs.
+ * @property {boolean} hasPromptId Whether the hook input carries a prompt_id for `turn`.
+ */
+
+/** How each TELEMETRY_HOSTS value's hook input is read. @type {Record<string, HostInput>} */
+export const HOST_INPUT = {
+  "claude-code": { toolProperties: claudeToolProperties, promptReminder: true, hasPromptId: true },
+  // Copilot CLI drops prompt-hook output, so it has no reminder hook.
+  "copilot-cli": { toolProperties: copilotToolProperties, promptReminder: false, hasPromptId: false },
+};
+
 const operatorStatus = (/** @type {unknown} */ message) => {
   const match = typeof message === "string" && message.match(OPERATOR_STATUS);
   return match ? match[1].toLowerCase() : "unknown";
 };
 
-const promptProperties = (/** @type {unknown} */ prompt) => {
+/**
+ * @param {unknown} prompt
+ * @param {HostInput} hostInput
+ */
+const promptProperties = (prompt, hostInput) => {
   const { couldUseArcade, serviceHints } = classifyPrompt(prompt);
   return {
     could_use_arcade: couldUseArcade,
     service_hints: serviceHints,
-    reminder_sent: shouldRemind(prompt),
+    reminder_sent: hostInput.promptReminder && shouldRemind(prompt),
   };
 };
+
+// The parent's SubagentStop names the subagent's session ID as agent_id.
+const subagentSession = (/** @type {unknown} */ agentId) =>
+  typeof agentId === "string" && agentId !== "" ? { subagent_session: shortHash(agentId) } : {};
 
 /**
  * Returns [event name, extra properties], or null for untracked input.
  * @param {HookInput} input
+ * @param {HostInput} hostInput
  * @returns {[string, Record<string, unknown>] | null}
  */
-const eventFor = (input) => {
+const eventFor = (input, hostInput) => {
   switch (input.hook_event_name) {
     case "SessionStart":
       return [
@@ -119,24 +167,25 @@ const eventFor = (input) => {
       ];
     case "UserPromptSubmit":
       if (isTaskNotification(input.prompt)) return null;
-      return ["Plugin prompt submitted", promptProperties(input.prompt)];
+      return ["Plugin prompt submitted", promptProperties(input.prompt, hostInput)];
     case "PostToolUse": {
-      const extra = toolProperties(input.tool_name, input.tool_input);
+      const extra = hostInput.toolProperties(input.tool_name, input.tool_input);
       return extra && ["Plugin tool called", extra];
     }
     case "PostToolUseFailure": {
-      const extra = toolProperties(input.tool_name, input.tool_input);
+      const extra = hostInput.toolProperties(input.tool_name, input.tool_input);
       return extra && ["Plugin tool failed", extra];
     }
     case "SubagentStop":
       if (!isOperatorAgentType(input.agent_type)) {
-        return ["Plugin subagent stopped", { agent: "other" }];
+        return ["Plugin subagent stopped", { agent: "other", ...subagentSession(input.agent_id) }];
       }
       return [
         "Plugin subagent stopped",
         {
           agent: "arcade-operator",
           status: operatorStatus(input.last_assistant_message),
+          ...subagentSession(input.agent_id),
         },
       ];
     default:
@@ -159,21 +208,23 @@ const keepAllowed = (event, properties) => {
 
 /**
  * Builds `{ event, distinct_id, properties }` from hook stdin, or returns null
- * when the input is not something the contract tracks.
+ * when the input is not something the contract tracks or the host is unknown.
  * @param {HookInput | null | undefined} input
- * @param {{ os: string, arcadeUsedBefore: boolean }} options
+ * @param {{ host: string, os: string, arcadeUsedBefore: boolean }} options
  */
-export const buildEvent = (input, { os, arcadeUsedBefore }) => {
+export const buildEvent = (input, { host, os, arcadeUsedBefore }) => {
+  if (!Object.hasOwn(HOST_INPUT, host)) return null;
+  const hostInput = HOST_INPUT[host];
   if (!input || typeof input !== "object") return null;
   if (typeof input.session_id !== "string" || input.session_id === "") return null;
-  const found = eventFor(input);
+  const found = eventFor(input, hostInput);
   if (!found) return null;
   const [event, extra] = found;
 
   /** @type {Record<string, unknown>} */
   const properties = {
     ...extra,
-    host: "claude-code",
+    host,
     plugin_version: PLUGIN_VERSION,
     os: oneOf(os, OS_NAMES, "other"),
     $process_person_profile: false,
@@ -185,7 +236,7 @@ export const buildEvent = (input, { os, arcadeUsedBefore }) => {
   };
   const session = shortHash(input.session_id);
   properties.session = session;
-  if (typeof input.prompt_id === "string") {
+  if (hostInput.hasPromptId && typeof input.prompt_id === "string") {
     properties.turn = shortHash(`${input.session_id}:${input.prompt_id}`);
   }
 
