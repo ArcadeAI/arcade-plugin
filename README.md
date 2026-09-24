@@ -57,6 +57,56 @@ Your assistant speaks intent to Arcade. You see the useful result, a sign-in
 link when an app isn't connected yet, and a confirmation prompt before
 anything is sent, created, or deleted.
 
+## Before you start
+
+- An Arcade account ([app.arcade.dev](https://app.arcade.dev)). Your client
+  opens a browser sign-in the first time it connects to the gateway.
+- Each app (Google, Slack, GitHub, and so on) gets its own browser sign-in,
+  either the first time a task needs it or ahead of time with
+  `/arcade-connect`.
+- Node.js on your `PATH`, for the hook scripts in Claude Code, the Cursor CLI,
+  and Copilot CLI.
+
+## What data goes where
+
+- Your agent sends each task to Arcade's gateway,
+  `https://api.arcade.dev/mcp/arcade`. The gateway calls the apps you
+  connected, using the access you approved when you signed in, and returns
+  the result to your agent. Your agent never gets your app credentials.
+- The hook scripts run on your machine. They add Arcade's routing rules to
+  the model's context.
+- Arcade's [privacy policy](https://www.arcade.dev/privacy-policy) covers
+  what Arcade stores and for how long.
+
+## Troubleshooting
+
+- **Arcade asks you to sign in, or its tools are missing.** The `arcade` MCP
+  server isn't signed in. Sign in from your client's MCP settings (`/mcp` in
+  Claude Code). In VS Code, run **MCP: List
+  Servers**, choose `arcade`, then **Start Server** and sign in.
+- **The gateway fails to connect.** Check
+  [status.arcade.dev](https://status.arcade.dev) and any proxy or firewall
+  between you and `api.arcade.dev`. The plugin reports the error instead of
+  finishing the task another way.
+- **An app isn't connected.** Open the sign-in link Arcade returns, or run
+  `/arcade-connect <app>`. `/arcade-status` shows what's connected.
+- **An update doesn't show up.** In Claude Code, run `/reload-plugins`. For a
+  local Cursor install, run `git pull` in the plugin folder and reload the
+  window. In Copilot CLI, run `/restart`.
+- **Hooks don't run in the Cursor IDE, VS Code, or Codex.** That's a client
+  limit, not a broken install; the skills and the gateway still work. See the
+  [support matrix](docs/support-matrix.md).
+
+## Support
+
+- Bugs in this plugin: [GitHub issues](https://github.com/ArcadeAI/arcade-plugin/issues)
+- Questions and community help: [Arcade Discord](https://discord.gg/GUZEMpEZ9p)
+- Email support (paid plans) and sales: [Contact us](https://docs.arcade.dev/en/resources/contact-us)
+- Service status: [status.arcade.dev](https://status.arcade.dev)
+- Security reports: [SECURITY.md](SECURITY.md)
+- [Terms of service](https://www.arcade.dev/terms) ·
+  [Privacy policy](https://www.arcade.dev/privacy-policy)
+
 ## Learn more
 
 - [Install guides](docs/install/) — quick install + one page per client
