@@ -128,16 +128,13 @@ const hookCommand = (hostName, script) =>
 
 
 // Claude Code nests each command in a group: { hooks: { Event: [{ hooks: [entry] }] } }.
-// For Claude Code, each event may have two groups: one for non-Bash matchers (combined
-// with "|") and one for Bash (with per-CLI "if" conditions). Scripts that share an event
-// and matcher go in one group; a second non-Bash entry from the same script extends the
-// combined matcher rather than adding a duplicate command.
+// One group per (event, matcher) pair, in the order entries first appear in HOOKS.
 // Cursor, Copilot CLI, and VS Code take the entries directly and need version 1.
 const buildHookManifest = (hostName) => {
   if (HOSTS[hostName].format === "nested") {
-    // main: the combined non-Bash group; bash: the Bash-only group.
-    /** @type {Record<string, { main: {matcher?: string, hooks: object[]} | null, bash: {matcher: string, hooks: object[]} | null }>} */
-    const groups = {};
+    const groupMap = new Map(); // key: "name::matcher" -> { matcher?, hooks: [] }
+    const groupOrder = []; // keys in first-appearance order
+
     for (const hook of HOOKS) {
       if (hook.hosts && !hook.hosts.includes(hostName)) continue;
       const name = HOSTS[hostName].events ? HOSTS[hostName].events[hook.event] : hook.event;
@@ -151,33 +148,21 @@ const buildHookManifest = (hostName) => {
         command: cmd,
         timeout: HOOK_TIMEOUT_SEC,
       };
-      groups[name] ??= { main: null, bash: null };
-      if (hook.matcher === "Bash") {
-        if (!groups[name].bash) groups[name].bash = { matcher: "Bash", hooks: [] };
-        groups[name].bash.hooks.push(entry);
-      } else {
-        if (!groups[name].main) {
-          groups[name].main = { ...(hook.matcher ? { matcher: hook.matcher } : {}), hooks: [entry] };
-        } else {
-          // Extend the combined matcher.
-          if (hook.matcher) {
-            const existing = groups[name].main.matcher;
-            groups[name].main.matcher = existing ? `${existing}|${hook.matcher}` : hook.matcher;
-          }
-          // Skip duplicate commands (two events with the same script on the same hook).
-          if (!groups[name].main.hooks.some((e) => e.command === entry.command && !entry["if"])) {
-            groups[name].main.hooks.push(entry);
-          }
-        }
+      const key = `${name}::${hook.matcher ?? ""}`;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, { name, ...(hook.matcher ? { matcher: hook.matcher } : {}), hooks: [] });
+        groupOrder.push(key);
       }
+      groupMap.get(key).hooks.push(entry);
     }
-    const hooks = Object.fromEntries(
-      Object.entries(groups).map(([name, { main, bash }]) => [
-        name,
-        [main, bash].filter(Boolean),
-      ]),
-    );
-    return { hooks };
+
+    const hooksByEvent = {};
+    for (const key of groupOrder) {
+      const { name, ...group } = groupMap.get(key);
+      hooksByEvent[name] ??= [];
+      hooksByEvent[name].push(group);
+    }
+    return { hooks: hooksByEvent };
   }
 
   const hooks = {};
@@ -185,6 +170,9 @@ const buildHookManifest = (hostName) => {
     if (hook.hosts && !hook.hosts.includes(hostName)) continue;
     const name = HOSTS[hostName].events ? HOSTS[hostName].events[hook.event] : hook.event;
     if (!name) continue;
+    if (hook["if"] || hook.extraArgs) {
+      throw new Error(`${hook.script} entry for ${hostName} has if or extra args, which the flat format does not support`);
+    }
     const entry = { type: "command", command: hookCommand(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC };
     hooks[name] ??= [];
     hooks[name].push(entry);

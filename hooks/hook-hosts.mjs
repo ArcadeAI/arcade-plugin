@@ -19,7 +19,7 @@ for (const { hook, matcher, bashClis } of Object.values(EVENTS)) {
   telemetryEntries.push({
     script: "telemetry.mjs",
     event: hook,
-    hosts: /** @type {string[]} */ (["claude-code"]),
+    hosts: ["claude-code"],
     ...(matcher ? { matcher } : {}),
   });
   if (bashClis) {
@@ -27,10 +27,10 @@ for (const { hook, matcher, bashClis } of Object.values(EVENTS)) {
       telemetryEntries.push({
         script: "telemetry.mjs",
         event: hook,
-        hosts: /** @type {string[]} */ (["claude-code"]),
+        hosts: ["claude-code"],
         matcher: "Bash",
         "if": `Bash(${cli} *)`,
-        extraArgs: /** @type {string[]} */ (["--cli", cli]),
+        extraArgs: ["--cli", cli],
       });
     }
   }

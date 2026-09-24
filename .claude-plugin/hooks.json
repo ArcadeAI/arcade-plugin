@@ -45,7 +45,17 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "mcp__.*|WebFetch|WebSearch",
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "WebFetch|WebSearch",
         "hooks": [
           {
             "type": "command",
@@ -98,7 +108,17 @@
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "mcp__.*|WebFetch|WebSearch",
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "WebFetch|WebSearch",
         "hooks": [
           {
             "type": "command",
