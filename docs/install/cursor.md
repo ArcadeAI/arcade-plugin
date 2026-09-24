@@ -32,8 +32,8 @@ Imports** (off by default on Enterprise). When it's off, Cursor ignores
 2. Each person opens **Customize**, finds **Arcade**, and selects **Install**.
 
 Either way, Cursor reads `.cursor-plugin/plugin.json` first, so it loads
-`skills/`, the operator, the Cursor rule, the session hook (Cursor CLI only), and the gateway —
-not just the portable Agent Plugins core.
+`skills/`, the operator, the Cursor rule, the session hook (Cursor CLI only),
+and the gateway — not just the portable Agent Plugins core.
 
 ## Tools only (one click)
 

@@ -67,8 +67,9 @@ export const PROMPT_REMINDER =
   "Don't fall back to another connector, CLI, or API unless the user " +
   "explicitly chooses that.";
 
-// Cursor's always-apply rule. Cursor's session hook adds the full rules; the
-// rule is the only thing Cloud Agents get besides the skill.
+// Cursor's always-apply rule. The Cursor IDE and Cloud Agents get only this
+// rule and the skill, because they don't run plugin hooks. The Cursor CLI runs
+// the session hook, which adds the full rules, but doesn't load this rule.
 export const CURSOR_RULE = join(PROMPT_REMINDER, CURSOR_NAME);
 
 // Subagents can't start arcade-operator themselves, so they get try-arcade

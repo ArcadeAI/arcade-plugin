@@ -77,6 +77,9 @@ const buildFiles = (root) => {
   const { url } = readJson(root, "mcp.json").mcpServers.arcade;
   const { interface: openaiListing } = plugin.extensions["com.openai"];
   const { displayName } = openaiListing;
+  if (!openaiListing.logo) {
+    throw new Error("plugin.json extensions.com.openai.interface.logo is missing");
+  }
   // Codex wants "./assets/logo.png"; Cursor and the Claude marketplace take "assets/logo.png".
   const logo = openaiListing.logo.replace(/^\.\//, "");
   const { name, description, author, homepage, license, keywords, repository } = plugin;

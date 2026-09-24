@@ -23,6 +23,8 @@ test("plugin.json and mcp.json match the vendored Agent Plugins 1.0 schemas", ()
   for (const key of ["logo", "composerIcon"]) {
     const file = openaiListing?.[key];
     assert.ok(file && existsSync(path.join(ROOT, file)), `plugin.json: Codex ${key} must point at a committed file`);
+    // Codex's own plugins all write these paths with a leading "./".
+    assert.match(file, /^\.\//, `plugin.json: Codex ${key} must start with ./`);
   }
 });
 
