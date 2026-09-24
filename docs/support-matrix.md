@@ -25,10 +25,9 @@ full rules reach the main conversation. Partial means some hooks run but the
 session-start text doesn't reach the main conversation. The files are
 `.claude-plugin/hooks.json` (Claude Code),
 `clients/cursor/hooks/hooks.json` (Cursor CLI), and
-`com.github.copilot/hooks/hooks.json` (Copilot CLI). Claude Code also runs the
-telemetry hook on `SessionStart`, `UserPromptSubmit`, `PostToolUse`,
-`PostToolUseFailure`, and `SubagentStop` ([what's sent](telemetry.md)); no
-other client sends telemetry.
+`com.github.copilot/hooks/hooks.json` (Copilot CLI). Claude Code and Copilot CLI also run the telemetry hook on `SessionStart`,
+`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, and `SubagentStop`
+([what's sent](telemetry.md)); no other client sends telemetry.
 
 ¹ The Cursor IDE (3.21.18) lists the commands on the plugin page but not in
 the `/` menu. Other plugins' commands don't appear there either.
@@ -41,9 +40,11 @@ load the always-apply rule.
 text, so its main conversation gets the short reminder and the skill, not the
 full rules.
 ⁵ Copilot CLI drops the output of prompt hooks from config files, so it gets
-session and subagent hooks only.
-⁶ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
-`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet.
+session and subagent hooks only. Copilot CLI also runs the telemetry hook on
+`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, and `SubagentStop`.
+⁶ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't give Agent
+Plugins hooks the plugin's path. Each command checks that its script exists
+and exits 0 without output, so VS Code runs no plugin hooks.
 ⁷ Blocked upstream; see [codex.md](install/codex.md).
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
