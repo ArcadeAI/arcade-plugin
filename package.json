@@ -7,7 +7,8 @@
     "test": "node --test test/*.test.mjs",
     "verify:discover": "plugins discover .",
     "verify:claude": "claude plugin validate . --strict && claude plugin validate .claude-plugin/plugin.json --strict",
-    "verify": "npm test && npm run verify:discover && npm run verify:claude"
+    "verify:cursor": "node scripts/verify-cursor.mjs",
+    "verify": "npm test && npm run verify:discover && npm run verify:claude && npm run verify:cursor"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.258",

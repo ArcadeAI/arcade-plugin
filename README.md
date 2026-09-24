@@ -82,7 +82,8 @@ npm run verify
 
 `verify` runs the tests (hand-written file checks, a stale-generated-file
 check, and every hook command in every client's manifest), then
-`plugins discover` and `claude plugin validate`.
+`plugins discover`, `claude plugin validate`, and Cursor's plugin validator
+(`scripts/verify-cursor.mjs` downloads it at a pinned commit).
 
 CI runs the same steps (`.github/workflows/check.yml`). On pull requests the
 **`complete`** job also waits for Cursor Bugbot; make `complete` the only
