@@ -6,13 +6,19 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: package.json
           cache: npm
@@ -29,9 +35,9 @@ jobs:
       always() &&
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     needs: [check]
+    timeout-minutes: 20
     permissions:
       checks: read
-      pull-requests: read
     steps:
       - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
@@ -40,17 +46,19 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          sha="${{ github.event.pull_request.head.sha }}"
-          repo="${{ github.repository }}"
+          sha="${HEAD_SHA}"
+          repo="${REPO}"
           deadline=$(( $(date +%s) + 900 ))
 
           while [ "$(date +%s)" -lt "$deadline" ]; do
             bugbot_json="$(
               gh api "repos/${repo}/commits/${sha}/check-runs" --paginate |
-                jq -s '[.[].check_runs[] | select(.name=="Cursor Bugbot")] | sort_by(.started_at) | last'
+                jq -s '[.[].check_runs[] | select(.name=="Cursor Bugbot" and .app.slug=="cursor")] | sort_by(.started_at) | last'
             )"
             status="$(printf '%s' "${bugbot_json}" | jq -r '.status // ""')"
             conclusion="$(printf '%s' "${bugbot_json}" | jq -r '.conclusion // ""')"
