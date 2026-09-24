@@ -9,10 +9,12 @@ import { EVENTS } from "./telemetry-contract.mjs";
 export const HOOK_TIMEOUT_SEC = 5;
 
 /**
- * One entry per hook script and event. The event is Claude Code's name for it;
- * a client with an `events` map uses its own names and only gets the events it
- * lists. `hosts` limits an entry to some clients; `matcher` is passed to Claude
- * Code.
+ * One entry per hook command. The event is Claude Code's name for it; a client
+ * with an `events` map uses its own names and only gets the events it lists.
+ * `hosts` limits an entry to some clients. `matcher`, `if`, and `extraArgs`
+ * are Claude Code only: `if` is a permission rule such as "Bash(gh *)" that
+ * keeps the hook from starting for other commands, and `extraArgs` are added
+ * to the command.
  */
 const telemetryEntries = [];
 for (const { hook, matcher, bashClis } of Object.values(EVENTS)) {

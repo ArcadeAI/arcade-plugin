@@ -127,57 +127,34 @@ const hookCommand = (hostName, script) =>
   `node "\${${HOSTS[hostName].rootVariable}}/hooks/${script}" --host ${hostName}`;
 
 
-// Claude Code nests each command in a group: { hooks: { Event: [{ hooks: [entry] }] } }.
-// One group per (event, matcher) pair, in the order entries first appear in HOOKS.
-// Cursor, Copilot CLI, and VS Code take the entries directly and need version 1.
-const buildHookManifest = (hostName) => {
-  if (HOSTS[hostName].format === "nested") {
-    const groupMap = new Map(); // key: "name::matcher" -> { matcher?, hooks: [] }
-    const groupOrder = []; // keys in first-appearance order
-
-    for (const hook of HOOKS) {
-      if (hook.hosts && !hook.hosts.includes(hostName)) continue;
-      const name = HOSTS[hostName].events ? HOSTS[hostName].events[hook.event] : hook.event;
-      if (!name) continue;
-      const cmd = hook.extraArgs
-        ? `${hookCommand(hostName, hook.script)} ${hook.extraArgs.join(" ")}`
-        : hookCommand(hostName, hook.script);
-      const entry = {
-        type: "command",
-        ...(hook["if"] ? { "if": hook["if"] } : {}),
-        command: cmd,
-        timeout: HOOK_TIMEOUT_SEC,
-      };
-      const key = `${name}::${hook.matcher ?? ""}`;
-      if (!groupMap.has(key)) {
-        groupMap.set(key, { name, ...(hook.matcher ? { matcher: hook.matcher } : {}), hooks: [] });
-        groupOrder.push(key);
-      }
-      groupMap.get(key).hooks.push(entry);
-    }
-
-    const hooksByEvent = {};
-    for (const key of groupOrder) {
-      const { name, ...group } = groupMap.get(key);
-      hooksByEvent[name] ??= [];
-      hooksByEvent[name].push(group);
-    }
-    return { hooks: hooksByEvent };
-  }
-
+// Claude Code nests each command in a group: { hooks: { Event: [{ matcher, hooks: [entry] }] } },
+// with one group per event and matcher. Cursor, Copilot CLI, and VS Code take
+// the entries directly and need version 1.
+export const buildHookManifest = (hostName, hookRows = HOOKS) => {
+  const nested = HOSTS[hostName].format === "nested";
   const hooks = {};
-  for (const hook of HOOKS) {
+  for (const hook of hookRows) {
     if (hook.hosts && !hook.hosts.includes(hostName)) continue;
     const name = HOSTS[hostName].events ? HOSTS[hostName].events[hook.event] : hook.event;
     if (!name) continue;
-    if (hook["if"] || hook.extraArgs) {
-      throw new Error(`${hook.script} entry for ${hostName} has if or extra args, which the flat format does not support`);
-    }
-    const entry = { type: "command", command: hookCommand(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC };
     hooks[name] ??= [];
-    hooks[name].push(entry);
+    if (!nested) {
+      if (hook.if || hook.extraArgs) {
+        throw new Error(`${hook.script} entry for ${hostName} has if or extra args, which the flat format does not support`);
+      }
+      hooks[name].push({ type: "command", command: hookCommand(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC });
+      continue;
+    }
+    const command = [hookCommand(hostName, hook.script), ...(hook.extraArgs ?? [])].join(" ");
+    const entry = { type: "command", ...(hook.if ? { if: hook.if } : {}), command, timeout: HOOK_TIMEOUT_SEC };
+    let group = hooks[name].find((existing) => existing.matcher === hook.matcher);
+    if (!group) {
+      group = { ...(hook.matcher ? { matcher: hook.matcher } : {}), hooks: [] };
+      hooks[name].push(group);
+    }
+    group.hooks.push(entry);
   }
-  return { version: 1, hooks };
+  return nested ? { hooks } : { version: 1, hooks };
 };
 
 /** Every generated file and its contents, from the sources in `root`. */

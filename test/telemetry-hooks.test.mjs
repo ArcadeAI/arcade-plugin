@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { BASH_CLIS } from "../hooks/telemetry-contract.mjs";
 import { HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
+import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 
 const claudeHooks = () => JSON.parse(readRepoFile(HOSTS["claude-code"].manifest)).hooks;
@@ -80,4 +81,9 @@ test("every generated telemetry command runs and exits quietly with telemetry of
     assert.equal(result.status, 0, `${command}: ${result.stderr}`);
     assert.equal(result.stdout, "", command);
   }
+});
+
+test("a flat-format client can't get an entry with if or extra args", () => {
+  const row = { script: "telemetry.mjs", event: "SessionStart", if: "Bash(gh *)", extraArgs: ["--cli", "gh"] };
+  assert.throws(() => buildHookManifest("copilot", [row]), /telemetry\.mjs entry for copilot has if or extra args/);
 });
