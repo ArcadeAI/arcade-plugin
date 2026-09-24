@@ -10,8 +10,8 @@ browser. The rows differ in how much of this plugin the client can load.
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
 | **Cursor IDE / Cloud Agents** | ✅ | ✅ | ✅ | ✅¹ | ✅ | —² | [guide](install/cursor.md) |
 | **Cursor CLI** | ✅ | ✅ | ✅ | ✅ | — | ✅³ | [guide](install/cursor.md) |
-| **Claude Code** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
-| **Claude Cowork / Code desktop** | ✅ | ✅ | ✅ | ✅ | — | partial⁴ | [guide](install/claude-code.md) |
+| **Claude Code (CLI and desktop Code tab)** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
+| **Claude Cowork** | ✅ | ✅ | ✅ | ✅ | — | partial⁴ | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅⁵ | [guide](install/copilot.md) |
 | **VS Code** | ✅ | ✅ | ✅ | — | — | —⁶ | [guide](install/vscode.md) |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | —⁷ | [guide](install/codex.md) |
@@ -36,7 +36,7 @@ and enterprise hooks only; they get the rule and the skill.
 load the always-apply rule.
 ⁴ Cowork runs the prompt and subagent hooks but doesn't add the session-start
 text, so its main conversation gets the short reminder and the skill, not the
-full rules. The desktop Code tab runs all three.
+full rules.
 ⁵ Copilot CLI drops the output of prompt hooks from config files, so it gets
 session and subagent hooks only.
 ⁶ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
