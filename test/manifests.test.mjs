@@ -22,8 +22,7 @@ test("commands are named arcade-* and listed in the support matrix", () => {
   }
 });
 
-test("Claude marketplace lists the plugin with its name and logo", () => {
+test("Claude marketplace lists the plugin as Arcade", () => {
   const [listed] = JSON.parse(readRepoFile(".claude-plugin/marketplace.json")).plugins;
   assert.equal(listed.displayName, "Arcade");
-  assert.ok(existsSync(path.join(ROOT, listed.logo)), `missing ${listed.logo}`);
 });

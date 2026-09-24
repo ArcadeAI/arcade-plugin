@@ -80,7 +80,8 @@ const buildFiles = (root) => {
   if (!openaiListing.logo) {
     throw new Error("plugin.json extensions.com.openai.interface.logo is missing");
   }
-  // Codex wants "./assets/logo.png"; Cursor and the Claude marketplace take "assets/logo.png".
+  // Codex wants "./assets/logo.png"; Cursor takes "assets/logo.png". The Claude
+  // marketplace has no logo field.
   const logo = openaiListing.logo.replace(/^\.\//, "");
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
@@ -121,7 +122,7 @@ const buildFiles = (root) => {
         owner: author,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
-          { name, displayName, logo, source: "./", description, author, homepage, repository, license, keywords },
+          { name, displayName, source: "./", description, author, homepage, repository, license, keywords },
         ],
       }),
     ],
