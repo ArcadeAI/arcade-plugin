@@ -51,7 +51,7 @@ export const HOSTS = {
   },
   // Copilot CLI. PascalCase names put it in its VS Code-compatible mode
   // (snake_case SessionStart input; SubagentStart still sends camelCase
-  // agentName in 1.0.88); it drops prompt-hook output, so there's no prompt hook.
+  // agentName in 1.0.88); it drops prompt-hook output, so it has no prompt reminder hook.
   // It names MCP tools `<server>-<tool>`; built-in tools have no hyphen.
   // VS Code reads this file too but doesn't set or expand ${PLUGIN_ROOT} for
   // Agent Plugins hooks (pluginParsers.ts on microsoft/vscode main, 2026-09),

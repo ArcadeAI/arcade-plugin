@@ -186,7 +186,6 @@ test("buildEvent maps each hook input to the documented event", () => {
   for (const host of ["cursor", "copilot", "toString", ""]) {
     assert.equal(buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, host }), null, `host ${host}`);
   }
-  // Claude Code SubagentStop events carry no subagent_session, matching ef0db55.
   const ccStop = buildEvent(hookInput({ hook_event_name: "SubagentStop", agent_type: OPERATOR, agent_id: "agent-x" }), OPTIONS);
   assert.equal(ccStop.properties.subagent_session, undefined, "Claude Code SubagentStop has no subagent_session");
 });
@@ -728,6 +727,7 @@ test("Copilot telemetry powershell command skips arcade-operator and sends exact
     assert.equal(sent.status, 0, `telemetry powershell: ${sent.stderr}`);
     assert.equal(sent.stdout, "", "telemetry powershell: no stdout");
     await waitForRequests(server.requests, 1);
+    await sleep(500);
     assert.equal(server.requests.length, 1, "exactly one request arrived");
     const body = JSON.parse(server.requests[0].body);
     assert.equal(body.event, "Plugin session started");
