@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   release-please:
@@ -15,7 +16,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # The release PR is opened with GITHUB_TOKEN, and GitHub doesn't start
+      # workflows for events that token creates, so the required check never
+      # runs on it. workflow_dispatch is the one event that token can start.
+      - name: Run checks on the release PR
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: gh workflow run check.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"

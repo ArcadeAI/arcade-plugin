@@ -92,7 +92,9 @@ required status check.
 
 Release Please opens a release PR on `main` with version bumps across `VERSION`,
 adapter manifests, and `CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and
-create the GitHub release.
+create the GitHub release. The workflow opens that PR with `GITHUB_TOKEN`,
+which doesn't start other workflows, so it then starts `check` on the release
+branch itself.
 
 Configure paths in `release-please-config.json`. The workflow lives at
 `.github/workflows/release-please.yml`.
