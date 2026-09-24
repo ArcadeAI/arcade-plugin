@@ -23,9 +23,10 @@ subagents. The files are `.claude-plugin/hooks.json` (Claude Code),
 `clients/cursor/hooks/hooks.json` (Cursor), and
 `com.github.copilot/hooks/hooks.json` (Copilot CLI).
 
-¹ Session start only; Cursor's prompt and subagent hooks can't add context.
-The always-apply rule adds the short reminder (Cursor's CLI doesn't load it;
-Cloud Agents don't run plugin hooks, so they get the rule and the skill).
+¹ Cursor CLI only, at session start. The Cursor IDE (3.21.18) and Cloud
+Agents don't run plugin hooks, so they get the rule and the skill. Cursor's
+prompt and subagent hooks can't add context, and the CLI doesn't load the
+always-apply rule.
 ² Copilot CLI drops the output of prompt hooks from config files, so it gets
 session and subagent hooks only.
 ³ Blocked upstream; see [codex.md](install/codex.md).
