@@ -40,12 +40,22 @@ test("failureKind: auth_required for Arcade_UseTool requires authorization text"
   assert.equal(failureKind(f.error, f.is_interrupt), "auth_required");
 });
 
+test("failureKind: auth_required for Claude Code re-authorization error", () => {
+  const f = fixture("auth-required-reauth.json");
+  assert.equal(failureKind(f.error, f.is_interrupt), "auth_required");
+});
+
+test("failureKind: auth_required for Claude Code needs-to-be-connected error", () => {
+  const f = fixture("auth-required-connect.json");
+  assert.equal(failureKind(f.error, f.is_interrupt), "auth_required");
+});
+
 test("failureKind: auth_required matches case-insensitively", () => {
   assert.equal(failureKind("tool requires Authorization", false), "auth_required");
   assert.equal(failureKind("Authorization Required: dropbox", false), "auth_required");
 });
 
-test("failureKind: session_expired for HTTP 401 and 404", () => {
+test("failureKind: session_expired for session expired message", () => {
   const f = fixture("session-expired.json");
   assert.equal(failureKind(f.error, f.is_interrupt), "session_expired");
 });
@@ -75,6 +85,11 @@ test("failureKind: unreachable for unable to connect", () => {
   assert.equal(failureKind(f.error, f.is_interrupt), "unreachable");
 });
 
+test("failureKind: unreachable for transport dropped mid-call", () => {
+  const f = fixture("unreachable-transport-dropped.json");
+  assert.equal(failureKind(f.error, f.is_interrupt), "unreachable");
+});
+
 test("failureKind: unreachable for Node.js error codes", () => {
   for (const code of ["ECONNREFUSED", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "ENETUNREACH"]) {
     assert.equal(failureKind(`connect ${code} 127.0.0.1:9`, false), "unreachable", code);
@@ -89,6 +104,11 @@ test("failureKind: Connection closed only matches the full string (not a prefix)
 
 test("failureKind: http_error for HTTP 500 response", () => {
   const f = fixture("http-error-500.json");
+  assert.equal(failureKind(f.error, f.is_interrupt), "http_error");
+});
+
+test("failureKind: http_error for Streamable HTTP error prefix", () => {
+  const f = fixture("http-error-streamable.json");
   assert.equal(failureKind(f.error, f.is_interrupt), "http_error");
 });
 
@@ -118,33 +138,41 @@ test("failureKind: non-string error falls through to tool_error", () => {
 // authNeeded
 // ---------------------------------------------------------------------------
 
-test("authNeeded: true when content array text includes authorization_required", () => {
+test("authNeeded: true when providers array contains authorization_required status", () => {
   const response = [
     {
       type: "text",
       text: JSON.stringify({
         message: "Not yet authorized: dropbox.",
-        services: {
-          dropbox: { status: "authorization_required" },
-          gmail: { status: "authorized" },
-        },
+        providers: [
+          { provider: "dropbox", status: "authorization_required" },
+          { provider: "gmail", status: "authorized" },
+        ],
       }),
     },
   ];
   assert.equal(authNeeded(response), true);
 });
 
-test("authNeeded: false when all services are authorized", () => {
+test("authNeeded: false when all providers are authorized", () => {
   const response = [
     {
       type: "text",
       text: JSON.stringify({
-        message: "All services are authorized.",
-        services: { gmail: { status: "authorized" } },
+        message: "All authorized.",
+        providers: [{ provider: "gmail", status: "authorized" }],
       }),
     },
   ];
   assert.equal(authNeeded(response), false);
+});
+
+test("authNeeded: false for prose text containing authorization_required outside providers", () => {
+  assert.equal(
+    authNeeded('{"message":"status is authorization_required","providers":[{"provider":"x","status":"authorized"}]}'),
+    false
+  );
+  assert.equal(authNeeded("This service has authorization_required status"), false);
 });
 
 test("authNeeded: false for plain non-JSON text", () => {
@@ -162,8 +190,9 @@ test("authNeeded: false for non-string non-array inputs", () => {
   assert.equal(authNeeded(true), false);
 });
 
-test("authNeeded: true when string itself contains authorization_required", () => {
-  assert.equal(authNeeded('{"status":"authorization_required"}'), true);
+test("authNeeded: false when JSON has no providers field", () => {
+  assert.equal(authNeeded('{"status":"authorization_required"}'), false);
+  assert.equal(authNeeded(JSON.stringify({ message: "ok" })), false);
 });
 
 // ---------------------------------------------------------------------------

@@ -141,7 +141,7 @@ MCP server, so it counts as `other`.
 
 - `auth_required` matches the sign-in text in the Arcade gateway's source
   code and was checked with a test MCP server, not against the hosted gateway.
-- `session_expired` covers both HTTP 401 and 404 from the server.
+- `session_expired` covers HTTP 404, or a closed HTTP connection.
 - Bad input, rate limits, upstream API errors, and an app's revoked sign-in
   all count as `tool_error`, because each tool writes its own message.
 - `failure_kind` is sent for every server, so Arcade's failures can be

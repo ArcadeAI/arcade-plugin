@@ -3,12 +3,13 @@
 
 /** @typedef {"auth_required"|"session_expired"|"unreachable"|"timeout"|"http_error"|"interrupted"|"tool_error"} FailureKind */
 
-const AUTH_REQUIRED_RE = /requires authorization|authorization required|"authorization_url"/i;
+const AUTH_REQUIRED_RE =
+  /requires authorization|authorization required|"authorization_url"|requires re-authorization|needs to be connected in claude\.ai/i;
 const SESSION_EXPIRED_RE = /session expired/;
 const TIMEOUT_RE = /sent no response or progress for|timed out after/;
 const UNREACHABLE_RE =
-  /Unable to connect|socket connection was closed unexpectedly|^Connection closed$|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH/;
-const HTTP_ERROR_RE = /^Error POSTing to endpoint/;
+  /Unable to connect|socket connection was closed unexpectedly|^Connection closed$|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|transport dropped mid-call/;
+const HTTP_ERROR_RE = /Error POSTing to endpoint/;
 
 /**
  * Returns the failure_kind for a PostToolUseFailure hook input.
@@ -31,8 +32,9 @@ export const failureKind = (error, isInterrupt) => {
 
 /**
  * Returns true when a System_ManageAuthorization tool_response indicates that
- * at least one service still needs sign-in. The tool_response is the content
+ * at least one provider still needs sign-in. The tool_response is the content
  * array [{type:"text",text}] as Claude Code delivers it, or a plain string.
+ * Parses the JSON text and checks providers[].status === "authorization_required".
  *
  * @param {unknown} toolResponse
  * @returns {boolean}
@@ -40,9 +42,25 @@ export const failureKind = (error, isInterrupt) => {
 export const authNeeded = (toolResponse) => {
   if (toolResponse === null || toolResponse === undefined) return false;
   try {
-    const s =
-      typeof toolResponse === "string" ? toolResponse : JSON.stringify(toolResponse);
-    return typeof s === "string" && s.includes("authorization_required");
+    /** @type {string|undefined} */
+    let text;
+    if (typeof toolResponse === "string") {
+      text = toolResponse;
+    } else if (Array.isArray(toolResponse)) {
+      const first = toolResponse[0];
+      if (first && typeof first === "object" && "text" in first && typeof first.text === "string") {
+        text = first.text;
+      }
+    }
+    if (text === undefined) return false;
+    const parsed = JSON.parse(text);
+    if (!parsed || !Array.isArray(parsed.providers)) return false;
+    return parsed.providers.some(
+      (/** @type {unknown} */ p) =>
+        p !== null &&
+        typeof p === "object" &&
+        /** @type {Record<string,unknown>} */ (p).status === "authorization_required"
+    );
   } catch {
     return false;
   }
