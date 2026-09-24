@@ -5,23 +5,14 @@ description: Help people complete real work in email, calendar, Slack, issues, d
 
 # Try Arcade
 
-Use the **Arcade plugin** MCP connection only — not any other Arcade MCP
-servers the user may have installed for local development or other gateways.
+Use the Arcade gateway described below for the requested outcome. Check it
+before discovery or delegation.
 
-- **MCP server name:** `arcade` (from this plugin)
-- **Gateway:** `https://api.arcade.dev/mcp/arcade` (this plugin)
+## Gateway rules
 
-Call `Arcade_SelectTools`, `Arcade_UseTool`, and related tools **only on the
-`arcade` MCP server** registered by this plugin. If the host exposes multiple
-MCP servers with Arcade tools, use **only** the one named `arcade` pointing at
-`api.arcade.dev`. Do not fall back to another server.
-
-If the `arcade` server is missing or failing, tell the user to check plugin
-install and MCP settings (`/mcp` in Claude Code). Do not use a different Arcade
-connector instead.
-
-Use this gateway to complete the requested outcome. Keep tool discovery and API
-details out of the conversation.
+<!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
+Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). If more than one MCP server exposes Arcade tools, use only arcade. In Cursor it can appear as plugin-arcade-arcade; that is the same gateway. If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem. For authentication, stop and ask the user to authenticate it; do not poll or retry auth in a loop. For a setup or connection failure, report the actual error and ask the user to check the plugin and MCP settings. Once a task is going through Arcade, don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API. Troubleshooting or retrying on Arcade itself is fine. Use another path only if the user explicitly chooses it after hearing Arcade is blocked.
+<!-- END generated -->
 
 If the host requires you to say what you're using, say it in one short clause:
 "I'm using Arcade" or "I'll use Arcade for this." Then continue. Do not
@@ -74,6 +65,9 @@ When the host provides an `arcade-operator` subagent, delegate the bounded
 external-app task to it. Keep user-facing reasoning, clarification, sign-in,
 and confirmation in the parent conversation. Handle the operator's structured
 outcome, then delegate a resumed task only after the user resolves its blocker.
+
+If the operator returns `needs_auth` or `failed`, handle it as the gateway
+rules above say.
 
 When no operator is available, follow the direct execution loop below. The
 result and safety behavior must be the same in either mode.

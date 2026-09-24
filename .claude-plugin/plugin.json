@@ -1,7 +1,6 @@
 {
   "name": "arcade",
   "description": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key.",
-  "version": "0.1.0",
   "author": {
     "name": "Arcade.dev",
     "url": "https://arcade.dev"
@@ -14,5 +13,12 @@
     "agent-skills",
     "connected-apps"
   ],
-  "mcpServers": "./clients/claude/mcp.json"
+  "version": "0.1.0",
+  "hooks": "./.claude-plugin/hooks.json",
+  "mcpServers": {
+    "arcade": {
+      "type": "http",
+      "url": "https://api.arcade.dev/mcp/arcade"
+    }
+  }
 }

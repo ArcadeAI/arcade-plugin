@@ -9,25 +9,21 @@ https://api.arcade.dev/mcp/arcade
 That path is tools only.
 
 Clients that implement [Agent Plugins](https://agent-plugins.org) 1.0 can
-install the full plugin:
+load the full plugin — `plugin.json`, `skills/`, and `mcp.json`, which give you
+`try-arcade`, `scale-arcade`, and the gateway. Install it the way your client
+installs plugins; the [install guides](README.md) cover each supported client.
+The cross-client `npx plugins add ArcadeAI/arcade-plugin` doesn't finish the
+job for every client yet (see
+[About `npx plugins add`](README.md#about-npx-plugins-add)).
 
-```bash
-npx plugins add ArcadeAI/arcade-plugin
-```
-
-That loads `plugin.json`, `skills/`, and `mcp.json` — `try-arcade`,
-`scale-arcade`, and the gateway.
-
-The operator file in `agents/` is not a portable Agent Plugins component.
-Hosts that already scan `agents/` (Claude Code, Copilot CLI) pick it up;
-everyone else runs the same loop in the parent skill.
-
-## Sign in
-
-No API keys. The first task that touches an app returns a sign-in link;
-approve it in the browser when prompted.
+The operator is not a portable Agent Plugins component. Cursor, Claude Code,
+and Cowork load it from `agents/`; Copilot CLI and VS Code load a generated copy
+from `com.github.copilot/agents/`. Other clients run the same loop in the
+parent skill.
 
 ## First steps
 
 - "What's on my calendar tomorrow?"
-- `/try-arcade` (when the client loaded skills)
+- Invoke skills the way your client supports them (for example `/try-arcade` in
+  Cursor and Claude Code, or `@Arcade` / `$arcade:try-arcade` in Codex — see
+  [codex.md](codex.md))

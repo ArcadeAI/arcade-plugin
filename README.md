@@ -17,21 +17,9 @@ once in the browser without ever handing your agent a key.
 
 ## Install
 
-### Full plugin
-
-#### Cursor, Claude Code, VS Code, GitHub Copilot CLI, Codex / ChatGPT
-
-```bash
-npx plugins add ArcadeAI/arcade-plugin
-```
-
-Add `--target cursor` (or `claude-code`, `vscode`, `codex`, `copilot`) to
-install to one client. See [install guides](docs/install/) for details.
-
-### Claude Desktop
-
-Add this repository as a plugin marketplace, then install Arcade.
-[Guide →](docs/install/claude-desktop.md)
+Each client installs differently; the [install guide](docs/install/README.md)
+has the one command for yours (Claude Code, Codex, Cursor, VS Code, Copilot
+CLI, Claude Desktop).
 
 ### Tools only
 
@@ -46,24 +34,9 @@ the [install guides](docs/install/).
 
 ## What each client gets
 
-| Client | MCP | Skills | Subagents | Commands | Rules | Hooks |
-| --- | :--: | :--: | :--: | :--: | :--: | :--: |
-| **Cursor** | ✅ | ✅ 2 | ✅ | ✅ 3 | ✅ | ✅ |
-| **Claude Code** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
-| **Claude Cowork / desktop** | ✅ | ✅ 2 | ✅ | ✅ 3 | — | ✅ 2 |
-| **GitHub Copilot CLI** | ✅ | ✅ 2 | ✅ | — | — | — |
-| **VS Code** | ✅ | ✅ 2 | — | — | — | — |
-| **Codex / ChatGPT** | ✅ | ✅ 2 | — | — | — | — |
-| **OpenCode** | ✅ | — | — | — | — | — |
-| **Claude Desktop** | ✅ | ✅ 2 | — | — | — | — |
-| **Any MCP client** | ✅ | — | — | — | — | — |
-
-Skills are `try-arcade` and `scale-arcade`. The operator is
-`arcade-operator`. Commands are `/arcade-apps`, `/arcade-connect`, and
-`/arcade-status`. Cursor also gets an always-on rule and a session hook;
-Claude Code and Cowork get session and per-turn hooks. Claude Desktop
-Chat loads tools and skills from the plugin marketplace. Full detail is
-in the [support matrix](docs/support-matrix.md).
+Every client gets the Arcade gateway. How much of the rest it loads (skills,
+the `arcade-operator` subagent, commands, hooks) depends on the client; see
+the [support matrix](docs/support-matrix.md).
 
 ## Try it
 
@@ -75,6 +48,10 @@ in the [support matrix](docs/support-matrix.md).
 - `/try-arcade` or `/scale-arcade`
 - `/arcade-status` — check the gateway, sign-in, and connected apps
 - `/arcade-connect google` — connect an app ahead of time
+- `/arcade-apps` — see or disconnect connected apps
+
+Commands work in Cursor, Claude Code, and Cowork. The Cursor IDE doesn't list
+them in the `/` menu; see the [support matrix](docs/support-matrix.md).
 
 Your assistant speaks intent to Arcade. You see the useful result, a sign-in
 link when an app isn't connected yet, and a confirmation prompt before
@@ -94,21 +71,22 @@ anything is sent, created, or deleted.
 
 ## Develop
 
+Agents editing this repo should read [AGENTS.md](AGENTS.md).
+[ARCHITECTURE.md](ARCHITECTURE.md) lists the source files and what is
+generated from them.
+
 ```bash
 npm ci
 npm run verify
 ```
 
-`verify` runs structural checks, JSON Schema validation, hook/manifest
-tests, `plugins discover`, and `claude plugin validate` (pinned in
-`package.json` devDependencies; CI uses Node 22.23.2).
+`verify` runs the tests (hand-written file checks, a stale-generated-file
+check, and every hook command in every client's manifest), then
+`plugins discover` and `claude plugin validate`.
 
-CI runs the same steps on push and pull request (`.github/workflows/check.yml`).
-Pull requests finish with a **`complete`** job that aggregates workflow jobs,
-waits for **`Cursor Bugbot`** to finish with **`success`**, and follows the
-aggregate pattern in
-[evantahler/botholomew](https://github.com/evantahler/botholomew/blob/main/.github/workflows/ci.yml).
-Use **`complete`** as the only required status check in branch protection.
+CI runs the same steps (`.github/workflows/check.yml`). On pull requests the
+**`complete`** job also waits for Cursor Bugbot; make `complete` the only
+required status check.
 
 ## Release
 

@@ -1,64 +1,31 @@
 # Architecture
 
-This package is a portable Agent Plugin plus a small adapter per host. The
-portable core is `plugin.json`, `mcp.json`, and `skills/`. Cursor and Claude
-adapters live in `.cursor-plugin/`, `.claude-plugin/`, and `clients/`.
-Commands, hooks, and the Cursor rule are host adapters, not portable
-Agent Plugins components. The package still ships no credentials.
+A portable Agent Plugin (`plugin.json`, `mcp.json`, `skills/`) plus the files
+each client needs at its own path. Every client-specific file is generated
+from a few sources by `npm run generate`; `npm run verify` fails if one was
+edited by hand. The package ships no credentials.
 
-The customer-facing overview lives in [README.md](README.md). Interaction
-rules live in the skills; the optional operator and observability boundary
-are documented below.
+| Source (edit these) | Holds |
+| --- | --- |
+| `plugin.json`, `mcp.json`, `VERSION` | identity, gateway URL, version, Codex listing metadata |
+| `hooks/routing-guidance.mjs` | the routing rules, as sentences |
+| `hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
+| `agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
+| `skills/` | the skills, outside the generated rules block in try-arcade |
 
-## Package shape
+`scripts/generate-manifests.mjs` writes every generated file; the generated
+`.gitattributes` lists them (GitHub collapses them in diffs).
 
-```text
-arcade-plugin/                            Agent Plugin 1.0  (v0.1.0)
-│
-├── plugin.json                         portable identity
-├── mcp.json                            portable Streamable HTTP gateway
-├── .cursor-plugin/plugin.json          Cursor Plugin (skills + operator)
-├── .claude-plugin/plugin.json          Claude plugin (skills + operator)
-├── .claude-plugin/marketplace.json     Claude Desktop / Code marketplace catalog
-├── clients/
-│   ├── cursor/
-│   │   ├── mcp.json                    Cursor infers transport from url
-│   │   ├── hooks/hooks.json            Cursor sessionStart
-│   │   └── rules/arcade.mdc              always-apply: try Arcade first
-│   └── claude/mcp.json                 Claude needs type: http
-│   └── claude-desktop/
-│       └── claude_desktop_config.json  tools-only fallback
-│
-├── commands/                           arcade-apps, arcade-connect, arcade-status
-├── hooks/                              Claude Code session + per-turn hooks
-│
-├── README.md                           customer-facing overview
-├── ARCHITECTURE.md                     this file
-├── LICENSE                             MIT
-├── CHANGELOG.md
-├── docs/
-│   ├── support-matrix.md               what each client loads
-│   └── install/                        one page per client
-│
-├── skills/                             from outcome, or invoked by name
-│   ├── try-arcade/
-│   │   ├── SKILL.md                    external service tasks
-│   │   └── references/arcade-docs.md   other Arcade product questions
-│   └── scale-arcade/
-│       ├── SKILL.md                    org rollout guidance
-│       └── references/arcade-docs.md   same docs entry points
-│
-└── agents/                             one copy, read by Cursor + Claude + Copilot CLI
-    └── arcade-operator.agent.md        bounded discovery + execution
-```
+- The operator lives at `agents/arcade-operator.agent.md`, the only place both
+  Claude Code and Cowork accept. Copilot CLI and VS Code only read
+  `com.github.copilot/agents/`, so the generator copies it there.
+- Each hook command passes `--host <name>`; the script prints the output
+  format that client reads.
+- Codex doesn't run plugin hooks for Agent Plugins packages yet; see
+  [docs/install/codex.md](docs/install/codex.md).
 
-Agent Plugins clients load `plugin.json`, `mcp.json`, and `skills/`. Cursor
-resolves `.cursor-plugin/plugin.json` first and also registers `agents/`.
-Claude Code resolves `.claude-plugin/plugin.json` and discovers `skills/` and
-`agents/` from the default folders. Claude Desktop adds this repository as a
-plugin marketplace via `.claude-plugin/marketplace.json` (`source: "./"`).
-Every client can still run the workflow directly through MCP without the
-operator.
+Release Please bumps `VERSION`, `plugin.json`, and the version fields in the
+generated manifests; a test replays that bump and checks nothing goes stale.
 
 ## Execution model
 

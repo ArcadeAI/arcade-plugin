@@ -3,12 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node scripts/check.mjs",
-    "test": "node --test",
-    "validate:schemas": "node scripts/validate-schemas.mjs",
+    "generate": "node scripts/generate-manifests.mjs",
+    "test": "node --test test/*.test.mjs",
     "verify:discover": "plugins discover .",
-    "verify:claude": "claude plugin validate .",
-    "verify": "npm run check && npm run validate:schemas && npm test && npm run verify:discover && npm run verify:claude"
+    "verify:claude": "claude plugin validate . --strict && claude plugin validate .claude-plugin/plugin.json --strict",
+    "verify": "npm test && npm run verify:discover && npm run verify:claude"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.258",
