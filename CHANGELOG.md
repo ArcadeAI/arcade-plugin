@@ -4,6 +4,17 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/ArcadeAI/arcade-plugin/compare/v0.1.0...v0.2.0) (2026-09-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* generate every client's files from one set of sources (GRO-353) ([#9](https://github.com/ArcadeAI/arcade-plugin/issues/9))
+
+### Features
+
+* generate every client's files from one set of sources (GRO-353) ([#9](https://github.com/ArcadeAI/arcade-plugin/issues/9)) ([7e44be9](https://github.com/ArcadeAI/arcade-plugin/commit/7e44be9eeacc1bc235059dc73478a754ed64813e))
+
 ## [0.1.0] - 2026-09-10
 
 Initial public release of the Arcade Agent Plugin.

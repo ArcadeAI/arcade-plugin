@@ -13,7 +13,7 @@
     "agent-skills",
     "connected-apps"
   ],
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Arcade",
   "logo": "assets/logo.png",
   "repository": "https://github.com/ArcadeAI/arcade-plugin",
