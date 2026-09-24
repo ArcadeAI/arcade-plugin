@@ -4,14 +4,56 @@
     "SessionStart": [
       {
         "type": "command",
-        "command": "node \"${PLUGIN_ROOT}/hooks/session-start.mjs\" --host copilot",
+        "command": "if [ -f \"${PLUGIN_ROOT}/hooks/session-start.mjs\" ]; then node \"${PLUGIN_ROOT}/hooks/session-start.mjs\" --host copilot; fi",
+        "powershell": "if ($env:PLUGIN_ROOT -and (Test-Path -LiteralPath ($env:PLUGIN_ROOT + '/hooks/session-start.mjs'))) { node ($env:PLUGIN_ROOT + '/hooks/session-start.mjs') --host copilot }",
+        "timeout": 5
+      },
+      {
+        "type": "command",
+        "command": "if [ -f \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" ]; then node \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" --host copilot; fi",
+        "powershell": "if ($env:PLUGIN_ROOT -and (Test-Path -LiteralPath ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs'))) { node ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs') --host copilot }",
         "timeout": 5
       }
     ],
     "SubagentStart": [
       {
         "type": "command",
-        "command": "node \"${PLUGIN_ROOT}/hooks/subagent-start.mjs\" --host copilot",
+        "command": "if [ -f \"${PLUGIN_ROOT}/hooks/subagent-start.mjs\" ]; then node \"${PLUGIN_ROOT}/hooks/subagent-start.mjs\" --host copilot; fi",
+        "powershell": "if ($env:PLUGIN_ROOT -and (Test-Path -LiteralPath ($env:PLUGIN_ROOT + '/hooks/subagent-start.mjs'))) { node ($env:PLUGIN_ROOT + '/hooks/subagent-start.mjs') --host copilot }",
+        "timeout": 5
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "if [ -f \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" ]; then node \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" --host copilot; fi",
+        "powershell": "if ($env:PLUGIN_ROOT -and (Test-Path -LiteralPath ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs'))) { node ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs') --host copilot }",
+        "timeout": 5
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "if [ -f \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" ]; then node \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" --host copilot; fi",
+        "powershell": "if ($env:PLUGIN_ROOT -and (Test-Path -LiteralPath ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs'))) { node ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs') --host copilot }",
+        "timeout": 5,
+        "matcher": ".+-.+"
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "type": "command",
+        "command": "if [ -f \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" ]; then node \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" --host copilot; fi",
+        "powershell": "if ($env:PLUGIN_ROOT -and (Test-Path -LiteralPath ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs'))) { node ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs') --host copilot }",
+        "timeout": 5,
+        "matcher": ".+-.+"
+      }
+    ],
+    "SubagentStop": [
+      {
+        "type": "command",
+        "command": "if [ -f \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" ]; then node \"${PLUGIN_ROOT}/hooks/telemetry.mjs\" --host copilot; fi",
+        "powershell": "if ($env:PLUGIN_ROOT -and (Test-Path -LiteralPath ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs'))) { node ($env:PLUGIN_ROOT + '/hooks/telemetry.mjs') --host copilot }",
         "timeout": 5
       }
     ]

@@ -61,8 +61,10 @@ export const FILE_SOURCES = {
   ...Object.fromEntries(
     Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"]]),
   ),
-  // Claude Code's hook list also gets the telemetry events from the contract.
+  // The hook lists of clients that run telemetry also get the telemetry events
+  // from the contract.
   [HOSTS["claude-code"].manifest]: ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
+  [HOSTS.copilot.manifest]: ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
   "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
   // A copy of the operator with its rules block filled in.
   "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR, "hooks/routing-guidance.mjs"],
@@ -123,22 +125,40 @@ const fillRulesBlock = (text, rules, path) => {
   return `${text.slice(0, begin + RULES_BLOCK_BEGIN.length)}\n${rules}\n${text.slice(end)}`;
 };
 
-const hookCommand = (hostName, script) =>
-  `node "\${${HOSTS[hostName].rootVariable}}/hooks/${script}" --host ${hostName}`;
-
+/**
+ * The command fields of one hook entry. With `runOnlyIfScriptExists`, the
+ * command runs the script only if the file is there, so a client that leaves
+ * the root variable unset (VS Code) gets exit 0 and no output. `powershell`
+ * is the Windows form; it has no double quotes because VS Code passes it as
+ * one argument to `powershell.exe -Command`.
+ */
+const hookCommandFields = (hostName, script) => {
+  const { rootVariable, runOnlyIfScriptExists } = HOSTS[hostName];
+  const scriptPath = `\${${rootVariable}}/hooks/${script}`;
+  const command = `node "${scriptPath}" --host ${hostName}`;
+  if (!runOnlyIfScriptExists) return { command };
+  const psPath = `($env:${rootVariable} + '/hooks/${script}')`;
+  return {
+    command: `if [ -f "${scriptPath}" ]; then ${command}; fi`,
+    powershell: `if ($env:${rootVariable} -and (Test-Path -LiteralPath ${psPath})) { node ${psPath} --host ${hostName} }`,
+  };
+};
 
 // Claude Code nests each command in a group: { hooks: { Event: [{ hooks: [entry] }] } }.
 // Cursor, Copilot CLI, and VS Code take the entries directly and need version 1.
 // Scripts that share an event run from one group, so a second script on an
 // event doesn't replace the first.
 const buildHookManifest = (hostName) => {
+  const host = HOSTS[hostName];
   const hooks = {};
-  for (const { event, script, hosts, matcher } of HOOKS) {
+  for (const { event, script, hosts, mcpToolsOnly } of HOOKS) {
     if (hosts && !hosts.includes(hostName)) continue;
-    const name = HOSTS[hostName].events ? HOSTS[hostName].events[event] : event;
+    const name = host.events ? host.events[event] : event;
     if (!name) continue;
-    const entry = { type: "command", command: hookCommand(hostName, script), timeout: HOOK_TIMEOUT_SEC };
-    if (HOSTS[hostName].format === "nested") {
+    const matcher = mcpToolsOnly ? host.mcpToolMatcher : undefined;
+    if (mcpToolsOnly && !matcher) throw new Error(`${hostName} has no mcpToolMatcher for ${script} on ${name}`);
+    const entry = { type: "command", ...hookCommandFields(hostName, script), timeout: HOOK_TIMEOUT_SEC };
+    if (host.format === "nested") {
       hooks[name] ??= [{ ...(matcher ? { matcher } : {}), hooks: [] }];
       if (hooks[name][0].matcher !== matcher) {
         throw new Error(`${script}: hooks on ${name} must share one matcher`);
@@ -146,10 +166,10 @@ const buildHookManifest = (hostName) => {
       hooks[name][0].hooks.push(entry);
     } else {
       hooks[name] ??= [];
-      hooks[name].push(entry);
+      hooks[name].push({ ...entry, ...(matcher ? { matcher } : {}) });
     }
   }
-  return HOSTS[hostName].format === "nested" ? { hooks } : { version: 1, hooks };
+  return host.format === "nested" ? { hooks } : { version: 1, hooks };
 };
 
 /** Every generated file and its contents, from the sources in `root`. */

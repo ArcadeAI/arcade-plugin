@@ -136,7 +136,7 @@ const TOOL_RULES = [
 /**
  * @typedef {object} EventSpec
  * @property {string} hook The Claude Code hook that sends it.
- * @property {string} [matcher] Claude Code's matcher for that hook.
+ * @property {boolean} [mcpToolsOnly] Runs only on MCP tools, using each client's `mcpToolMatcher`.
  * @property {string} when Extra conditions, for docs/telemetry.md.
  * @property {Record<string, Property>} properties Properties beyond COMMON_PROPERTIES.
  * @property {string[]} required
@@ -168,7 +168,7 @@ export const EVENTS = {
   },
   "Plugin tool called": {
     hook: "PostToolUse",
-    matcher: "mcp__.*",
+    mcpToolsOnly: true,
     when: "on MCP tools",
     properties: TOOL_PROPERTIES,
     required: ["server"],
@@ -176,7 +176,7 @@ export const EVENTS = {
   },
   "Plugin tool failed": {
     hook: "PostToolUseFailure",
-    matcher: "mcp__.*",
+    mcpToolsOnly: true,
     when: "on MCP tools",
     properties: TOOL_PROPERTIES,
     required: ["server"],
