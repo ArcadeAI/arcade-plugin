@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import os from "node:os";
@@ -14,8 +14,7 @@ import { ARCADE_TOOL_PREFIX, EVENTS, eventSchema } from "../hooks/telemetry-cont
 import { buildEvent } from "../hooks/telemetry-events.mjs";
 import { EVENT_ENV, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
 
-const INSTALL_ID = "11111111-2222-3333-4444-555555555555";
-const OPTIONS = { installId: INSTALL_ID, os: "darwin" };
+const OPTIONS = { os: "darwin", arcadeUsedBefore: false };
 const SESSION_ID = "raw-session-id-123";
 const PROMPT_ID = "raw-prompt-id-456";
 const OPERATOR = "arcade:arcade-operator";
@@ -33,8 +32,8 @@ const runHook = (script, stdin, env, extraArgs = []) =>
     env: { ...process.env, ...env },
   });
 
-const hash16 = (id) =>
-  createHash("sha256").update(`${INSTALL_ID}:${id}`).digest("hex").slice(0, 16);
+const hash16 = (text) => createHash("sha256").update(text).digest("hex").slice(0, 16);
+const SESSION_HASH = hash16(SESSION_ID);
 
 const hookInput = (fields) => ({
   session_id: SESSION_ID,
@@ -53,10 +52,11 @@ const expectedEvent = (event, extra) => {
     $process_person_profile: false,
     $geoip_disable: true,
     $ip: "0.0.0.0",
-    session: hash16(SESSION_ID),
+    arcade_used_before: false,
+    session: SESSION_HASH,
   };
-  if (event !== "Plugin session started") properties.turn = hash16(PROMPT_ID);
-  return { event, distinct_id: INSTALL_ID, properties };
+  if (event !== "Plugin session started") properties.turn = hash16(`${SESSION_ID}:${PROMPT_ID}`);
+  return { event, distinct_id: SESSION_HASH, properties };
 };
 
 // Text of a System_ManageAuthorization `status` answer, as tool_response.
@@ -189,6 +189,9 @@ test("buildEvent maps each hook input to the documented event", () => {
   const onFreebsd = buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, os: "freebsd" });
   assert.equal(onFreebsd.properties.os, "other");
   assert.equal(buildEvent(null, OPTIONS), null);
+  assert.equal(buildEvent({ hook_event_name: "SessionStart", source: "startup" }, OPTIONS), null, "no session_id");
+  const usedBefore = buildEvent(hookInput({ hook_event_name: "SessionStart" }), { ...OPTIONS, arcadeUsedBefore: true });
+  assert.equal(usedBefore.properties.arcade_used_before, true);
 });
 
 test("buildEvent reports web tools, and Bash only for a listed CLI the command runs", () => {
@@ -437,10 +440,10 @@ test("telemetry hook prints nothing and posts each event from a detached sender"
     const body = JSON.parse(request.body);
     assert.equal(body.api_key, POSTHOG_KEY);
     assert.equal(body.event, "Plugin session started");
-    assert.equal(body.distinct_id, readFileSync(path.join(dataDir, "install-id"), "utf8").trim());
-    if (process.platform !== "win32") {
-      assert.equal(statSync(path.join(dataDir, "install-id")).mode & 0o777, 0o600, "install-id is readable only by its owner");
-    }
+    assert.equal(body.distinct_id, SESSION_HASH);
+    assert.equal(body.properties.session, SESSION_HASH);
+    assert.equal(body.properties.arcade_used_before, false);
+    assert.deepEqual(readdirSync(dataDir), [], "a session start stores nothing");
     assert.ok(!Number.isNaN(Date.parse(body.timestamp)));
     assert.equal(body.properties.os, process.platform);
     assert.doesNotMatch(request.body, new RegExp(`${SESSION_ID}|${PROMPT_ID}|private-repo`));
@@ -478,10 +481,35 @@ test("telemetry hook reads --cli and posts a Bash event without the command", as
   }
 });
 
+test("the arcade-used flag is set by the first successful Arcade call and replaces install-id", async () => {
+  const server = await startServer();
+  try {
+    const dataDir = makeTempDir();
+    writeFileSync(path.join(dataDir, "install-id"), "11111111-2222-3333-4444-555555555555");
+    const env = hookEnv(dataDir, server.url);
+    const otherServer = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: "mcp__granola__Granola_ListMeetings" }));
+    const arcadeCall = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails` }));
+
+    runHook("telemetry.mjs", otherServer, env);
+    assert.deepEqual(readdirSync(dataDir), [], "install-id is deleted and another server's call sets no flag");
+    runHook("telemetry.mjs", arcadeCall, env);
+    assert.equal(readFileSync(path.join(dataDir, "arcade-used"), "utf8"), "true");
+    if (process.platform !== "win32") {
+      assert.equal(statSync(path.join(dataDir, "arcade-used")).mode & 0o777, 0o600, "arcade-used is readable only by its owner");
+    }
+    runHook("telemetry.mjs", otherServer, env);
+
+    await waitForRequests(server.requests, 3);
+    const sent = server.requests.map((request) => JSON.parse(request.body).properties.arcade_used_before);
+    assert.deepEqual(sent.sort(), [false, false, true], "only the call after the Arcade call says it was used before");
+  } finally {
+    await server.close();
+  }
+});
+
 test("telemetry hook sends nothing when it must not", async () => {
   const server = await startServer();
   const sessionStart = JSON.stringify(hookInput({ hook_event_name: "SessionStart", source: "startup" }));
-  const readOnly = process.platform !== "win32" && process.getuid?.() !== 0;
   // [label, stdin, env overrides, prepare data dir, data dir stays empty]
   const cases = [
     ["opted out with 0", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
@@ -490,9 +518,12 @@ test("telemetry hook sends nothing when it must not", async () => {
     ["Claude Code's DISABLE_TELEMETRY=1", sessionStart, { DISABLE_TELEMETRY: "1" }, () => {}, true],
     ["Claude Code's CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", sessionStart,
       { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }, () => {}, true],
+    // Claude Code reads these two as set for any non-empty value, even 0.
+    ["Claude Code's DISABLE_TELEMETRY=0", sessionStart, { DISABLE_TELEMETRY: "0" }, () => {}, true],
+    ["Claude Code's CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=false", sessionStart,
+      { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "false" }, () => {}, true],
     ["no CLAUDE_PLUGIN_DATA", sessionStart, { CLAUDE_PLUGIN_DATA: "" }, () => {}, true],
     ["invalid input", "not-json", {}, () => {}, false],
-    ...(readOnly ? [["read-only data dir", sessionStart, {}, (dir) => chmodSync(dir, 0o500), true]] : []),
   ];
   try {
     for (const [label, stdin, env, prepare, staysEmpty] of cases) {

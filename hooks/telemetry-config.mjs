@@ -1,5 +1,5 @@
 // @ts-check
-/** Telemetry settings: where events go, the opt-out variable, and the install ID file. */
+/** Telemetry settings: where events go, the opt-out variable, and the local file names. */
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -16,7 +16,11 @@ export const POSTHOG_KEY = "phc_zNHKkPFsrKVSpd7y85jnxW8jNVW6AQD6AwqE4nWjwpXg";
 
 export const OPT_OUT_ENV = "ARCADE_PLUGIN_TELEMETRY";
 
-export const INSTALL_ID_FILE = "install-id";
+// Holds "true" once an Arcade tool call has succeeded on this machine.
+export const ARCADE_USED_FILE = "arcade-used";
+
+// Earlier versions kept a persistent random ID here; the hook deletes it.
+export const OLD_INSTALL_ID_FILE = "install-id";
 
 // telemetry.mjs passes the event to telemetry-send.mjs in this variable.
 export const EVENT_ENV = "ARCADE_PLUGIN_TELEMETRY_EVENT";

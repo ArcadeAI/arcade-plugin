@@ -35,12 +35,10 @@ const OPERATOR_STATUS = new RegExp(
   "im",
 );
 
-/**
- * @param {string} installId
- * @param {string} id
- */
-const shortHash = (installId, id) =>
-  createHash("sha256").update(`${installId}:${id}`).digest("hex").slice(0, 16);
+// Claude Code's session ID is random, new for each session, and never sent,
+// so it works as the salt: nothing links one session's hashes to another's.
+const shortHash = (/** @type {string} */ text) =>
+  createHash("sha256").update(text).digest("hex").slice(0, 16);
 
 /**
  * @param {unknown} value
@@ -196,11 +194,12 @@ const keepAllowed = (event, properties) => {
  * Builds `{ event, distinct_id, properties }` from hook stdin, or returns null
  * when the input is not something the contract tracks.
  * @param {HookInput | null | undefined} input
- * @param {{ installId: string, os: string, cli?: string }} options `cli` is the
+ * @param {{ os: string, arcadeUsedBefore: boolean, cli?: string }} options `cli` is the
  *   hook command's `--cli` argument, set only on Bash entries.
  */
-export const buildEvent = (input, { installId, os, cli }) => {
+export const buildEvent = (input, { os, arcadeUsedBefore, cli }) => {
   if (!input || typeof input !== "object") return null;
+  if (typeof input.session_id !== "string" || input.session_id === "") return null;
   const found = eventFor(input, cli);
   if (!found) return null;
   const [event, extra] = found;
@@ -216,17 +215,25 @@ export const buildEvent = (input, { installId, os, cli }) => {
     // PostHog stores the request's IP unless the event sets one. Null and ""
     // are replaced; a fixed placeholder is kept.
     $ip: "0.0.0.0",
+    arcade_used_before: arcadeUsedBefore === true,
   };
-  if (typeof input.session_id === "string") {
-    properties.session = shortHash(installId, input.session_id);
-  }
+  const session = shortHash(input.session_id);
+  properties.session = session;
   if (typeof input.prompt_id === "string") {
-    properties.turn = shortHash(installId, input.prompt_id);
+    properties.turn = shortHash(`${input.session_id}:${input.prompt_id}`);
   }
 
   return {
     event,
-    distinct_id: installId,
+    distinct_id: session,
     properties: keepAllowed(event, properties),
   };
 };
+
+/**
+ * True for a successful call to this plugin's Arcade gateway or another
+ * Arcade connection.
+ * @param {{ event: string, properties: Record<string, unknown> }} event
+ */
+export const isArcadeCall = ({ event, properties }) =>
+  event === "Plugin tool called" && (properties.server === "arcade" || properties.server === "other_arcade");

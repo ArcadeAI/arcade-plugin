@@ -88,17 +88,22 @@ export const TOOLKIT_SERVICES = {
 const HASH = { type: "string", pattern: "^[0-9a-f]{16}$" };
 // VERSION, or "unknown" when it can't be read.
 const PLUGIN_VERSION_PATTERN = "^(unknown|[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?)$";
-// The install ID, from crypto.randomUUID().
-const UUID = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 const enumOf = (/** @type {readonly string[]} */ values) => ({ enum: [...values] });
 const list = (/** @type {readonly string[]} */ values) => values.map((value) => `\`${value}\``).join(" \\| ");
 
 /** Properties every event may carry. @type {Record<string, Property>} */
 export const COMMON_PROPERTIES = {
-  session: { schema: HASH, doc: '`sha256(install_id + ":" + session_id)`, first 16 hex characters' },
+  session: {
+    schema: HASH,
+    doc: "`sha256(session_id)`, first 16 hex characters, where `session_id` is Claude Code's random ID for the session",
+  },
   turn: {
     schema: HASH,
-    doc: '`sha256(install_id + ":" + prompt_id)`, first 16 hex characters (not on `Plugin session started`)',
+    doc: '`sha256(session_id + ":" + prompt_id)`, first 16 hex characters (not on `Plugin session started`)',
+  },
+  arcade_used_before: {
+    schema: { type: "boolean" },
+    doc: "whether an Arcade tool call had succeeded on this machine before this event (from the `arcade-used` file)",
   },
   host: { schema: enumOf(TELEMETRY_HOSTS), doc: list(TELEMETRY_HOSTS) },
   plugin_version: { schema: { type: "string", pattern: PLUGIN_VERSION_PATTERN }, doc: "from `VERSION`" },
@@ -109,7 +114,7 @@ export const COMMON_PROPERTIES = {
 };
 
 /** Common properties present on every event. */
-const ALWAYS_SENT = ["host", "plugin_version", "os", "$process_person_profile", "$geoip_disable", "$ip"];
+const ALWAYS_SENT = ["session", "arcade_used_before", "host", "plugin_version", "os", "$process_person_profile", "$geoip_disable", "$ip"];
 
 // JSON Schema patterns have no case-insensitive flag, and the builder matches
 // toolkit names in any case, so each letter becomes a two-case class.
@@ -308,7 +313,7 @@ export const eventSchema = () => ({
     required: ["event", "distinct_id", "properties"],
     properties: {
       event: { const: name },
-      distinct_id: { type: "string", pattern: UUID },
+      distinct_id: HASH,
       properties: {
         type: "object",
         additionalProperties: false,
