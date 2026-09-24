@@ -13,11 +13,16 @@ import {
 } from "../hooks/routing-guidance.mjs";
 import { readRepoFile, ROOT, runHook } from "./helpers.mjs";
 
-// Exactly what each client should receive, from its hook docs. Every client in
-// HOSTS needs an entry here.
+// This is a second copy of each client's hook output format, kept here on
+// purpose so that changing a client's format in the hooks also requires
+// changing this test. Each entry names its source.
 const EXPECTED_OUTPUT = {
+  // cursor.com/docs/hooks.md: sessionStart adds additional_context
   cursor: (_event, text) => ({ additional_context: text }),
+  // code.claude.com/docs/en/hooks: hookSpecificOutput.additionalContext for SessionStart, UserPromptSubmit, SubagentStart
   "claude-code": (event, text) => ({ hookSpecificOutput: { hookEventName: event, additionalContext: text } }),
+  // measured in Copilot CLI 1.0.88: outputs both top-level additionalContext and hookSpecificOutput.additionalContext;
+  // prompt hook output from config files is dropped (measured in Copilot CLI 1.0.88)
   copilot: (event, text) => ({
     additionalContext: text,
     hookSpecificOutput: { hookEventName: event, additionalContext: text },
@@ -84,15 +89,16 @@ test("hooks exit 0 and print nothing without a known --host", () => {
   }
 });
 
-// Which hooks each client runs, and why, from real runs and client source.
-// Change this only with new evidence from the client.
+// Which hooks each client runs. Change this only with new evidence from the
+// client. Each entry names its source.
 const EXPECTED_EVENTS = {
+  // code.claude.com/docs/en/hooks: SessionStart, UserPromptSubmit, SubagentStart all support additionalContext
   "claude-code": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
-  // Cursor's CLI doesn't load the plugin's always-apply rule, so the session
-  // hook is the only way it gets the full rules. Its prompt and subagent hooks
-  // can't add context.
+  // cursor.com/docs/hooks.md: sessionStart adds additional_context; beforeSubmitPrompt and subagentStart can't add context.
+  // The CLI doesn't load the plugin's always-apply rule, so the session hook is the only way it gets the full rules.
   cursor: ["sessionStart"],
-  // Copilot CLI drops prompt-hook output from config files.
+  // measured in Copilot CLI 1.0.88: SubagentStart runs and injects context; prompt hook output from config files is dropped
+  // docs.github.com/en/copilot/reference/hooks-reference: SubagentStart input uses agentName
   copilot: ["SessionStart", "SubagentStart"],
 };
 
@@ -108,12 +114,12 @@ test("each client runs exactly the hooks it can use", () => {
 // only one: Cowork's main conversation gets only the per-prompt reminder and the skill, and
 // the Cursor IDE gets only the rule and the skill. Keep the core rules in each.
 const CORE_RULES = {
-  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/]],
-  CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Don't fall back to another connector/, /plugin-arcade-arcade/]],
-  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /Never fall back to another connector/, /needsAuth/, /Keep tool discovery/]],
-  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /Never fall back to another connector/, /explicitly chooses/, /needsAuth/]],
-  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /Never fall back to another connector/, /needsAuth/]],
-  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /Never fall back to another connector/, /needsAuth/, /Keep tool discovery/]],
+  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /Once a task is going through Arcade/]],
+  CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /Once a task is going through Arcade/, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/]],
+  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /Once a task is going through Arcade/, /needsAuth/, /Keep tool discovery/]],
+  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /Once a task is going through Arcade/, /explicitly chooses/, /needsAuth/]],
+  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /Once a task is going through Arcade/, /needsAuth/]],
+  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /Once a task is going through Arcade/, /needsAuth/, /Keep tool discovery/]],
 };
 
 test("every routing text keeps the core routing rules", () => {
@@ -124,4 +130,11 @@ test("every routing text keeps the core routing rules", () => {
   }
   // Subagents can't start arcade-operator, so their text must not send them to it.
   assert.doesNotMatch(SUBAGENT_CONTEXT, /arcade-operator/);
+});
+
+test("no routing text uses the old unscoped no-fallback wording", () => {
+  for (const [label, [text]] of Object.entries(CORE_RULES)) {
+    assert.doesNotMatch(text, /Never fall back/, label);
+    assert.doesNotMatch(text, /Don't fall back/, label);
+  }
 });

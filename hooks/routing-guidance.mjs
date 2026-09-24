@@ -30,9 +30,9 @@ const AUTH_ACTION_DELEGATE =
   "return failed with the actual error.";
 
 const NO_SUBSTITUTES =
-  "Never fall back to another connector: do not finish the task through " +
-  "another MCP server, a CLI such as gh or curl, a built-in search, or a " +
-  "direct API. Troubleshooting or retrying on Arcade itself is fine.";
+  "Once a task is going through Arcade, don't finish it through another MCP " +
+  "server, a CLI such as gh or curl, a built-in search, or a direct API. " +
+  "Troubleshooting or retrying on Arcade itself is fine.";
 
 // Only the conversation that talks to the user can offer this choice.
 const USER_MAY_CHOOSE =
@@ -64,13 +64,13 @@ export const SESSION_CONTEXT = join(...PARENT_RULES, DELEGATION, PRIVACY);
 export const PROMPT_REMINDER =
   'For external app tasks, use try-arcade (or arcade-operator when available) ' +
   'through the "arcade" MCP server only, and scale-arcade for team rollout. ' +
-  "Don't fall back to another connector, CLI, or API unless the user " +
-  "explicitly chooses that.";
+  "Once a task is going through Arcade, don't switch to another connector, " +
+  "CLI, or API unless the user explicitly chooses that.";
 
-// Cursor's always-apply rule. The Cursor IDE and Cloud Agents get only this
-// rule and the skill, because they don't run plugin hooks. The Cursor CLI runs
-// the session hook, which adds the full rules, but doesn't load this rule.
-export const CURSOR_RULE = join(PROMPT_REMINDER, CURSOR_NAME);
+// Cursor's always-apply rule. The Cursor IDE and Cloud Agents don't run plugin
+// hooks, so the rule carries the full session rules. The Cursor CLI runs the
+// session hook but doesn't load this rule, so it never gets both.
+export const CURSOR_RULE = SESSION_CONTEXT;
 
 // Subagents can't start arcade-operator themselves, so they get try-arcade
 // without the delegation sentence.
