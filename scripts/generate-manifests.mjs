@@ -162,6 +162,9 @@ export const buildHookManifest = (hostName, hookRows = HOOKS) => {
       if (hook.if || hook.extraArgs) {
         throw new Error(`${hook.script} entry for ${hostName} has if or extra args, which the flat format does not support`);
       }
+      if (hook.matcher && !hook.mcpToolsOnly) {
+        throw new Error(`${hook.script} entry for ${hostName} has a Claude Code tool matcher; flat-format clients only get mcpToolsOnly rows`);
+      }
       const entry = { type: "command", ...hookCommandFields(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC };
       hooks[name].push({ ...entry, ...(matcher ? { matcher } : {}) });
       continue;

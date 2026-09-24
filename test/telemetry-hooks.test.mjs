@@ -87,3 +87,8 @@ test("a flat-format client can't get an entry with if or extra args", () => {
   const row = { script: "telemetry.mjs", event: "SessionStart", if: "Bash(gh *)", extraArgs: ["--cli", "gh"] };
   assert.throws(() => buildHookManifest("copilot", [row]), /telemetry\.mjs entry for copilot has if or extra args/);
 });
+
+test("a flat-format client can't get a Claude Code tool matcher", () => {
+  const row = { script: "telemetry.mjs", event: "PostToolUse", matcher: "WebFetch|WebSearch" };
+  assert.throws(() => buildHookManifest("copilot", [row]), /has a Claude Code tool matcher/);
+});

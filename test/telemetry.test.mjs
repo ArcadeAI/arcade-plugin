@@ -271,7 +271,7 @@ test("buildEvent maps Copilot CLI hook input to the documented event", () => {
       { server: "arcade", tool: "other", failure_kind: "tool_error" }],
     ["PostToolUseFailure", { tool_name: "arcade-die_tool", tool_input: {},
       error: "MCP server 'arcade': MCP request failed: MCP transport closed before the tool responded" }, FAILED,
-      { server: "arcade", tool: "other", failure_kind: "tool_error" }],
+      { server: "arcade", tool: "other", failure_kind: "unreachable" }],
     ["PostToolUseFailure", { tool_name: "arcade-Slack_SendMessage", tool_input: {},
       error: "MCP server 'arcade': Slack requires authorization" }, FAILED,
       { server: "arcade", tool: "Slack_SendMessage", service: "chat", failure_kind: "auth_required" }],

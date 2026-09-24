@@ -103,7 +103,10 @@ do: email, calendar, chat, and the other categories above.
 on your machine. The error text, the tool output, and the command they are
 picked from are never sent. A Bash command sends an event only when one of its
 commands starts with a listed program; commands that call a program by its
-full path, such as `/opt/homebrew/bin/gh`, are not counted.
+full path, such as `/opt/homebrew/bin/gh`, are not counted. A command that runs
+two listed programs, such as `gh … && curl …`, sends one event for each, so
+count CLI use by turn, not by event. Claude Code starts these hooks only for
+commands that match (the hook `if` field, Claude Code 2.1.246 and later).
 
 ## Never sent
 
@@ -204,8 +207,8 @@ into "used a CLI or the web instead" and "nothing was called".
 
 `failure_kind` uses the same rules on Copilot CLI's error text, which starts
 with `MCP server '<name>':`. Copilot doesn't say when a call was interrupted,
-so `interrupted` doesn't appear. A server error and a transport that closed
-mid-call have both come out as `tool_error` in Copilot CLI tests.
+so `interrupted` doesn't appear. A transport that closed mid-call counts as
+`unreachable`, the same as in Claude Code.
 
 ## Classifier accuracy
 

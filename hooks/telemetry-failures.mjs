@@ -8,7 +8,7 @@ const AUTH_REQUIRED_RE =
 const SESSION_EXPIRED_RE = /session expired/;
 const TIMEOUT_RE = /sent no response or progress for|timed out after/;
 const UNREACHABLE_RE =
-  /Unable to connect|socket connection was closed unexpectedly|^Connection closed$|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|transport dropped mid-call/;
+  /Unable to connect|socket connection was closed unexpectedly|^Connection closed$|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|transport dropped mid-call|transport closed before the tool responded/;
 const HTTP_ERROR_RE = /Error POSTing to endpoint/;
 
 /**
