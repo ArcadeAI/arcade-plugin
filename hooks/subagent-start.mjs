@@ -6,6 +6,7 @@ import { hostFromArgs, printContext, readInput } from "./hook-hosts.mjs";
 import { SUBAGENT_CONTEXT } from "./routing-guidance.mjs";
 
 // Plugin agents can arrive scoped, e.g. "arcade:arcade-operator".
+// Claude Code sends the name as agent_type, Copilot CLI as agentName.
 const isOperator = (name) =>
   typeof name === "string" &&
   (name === "arcade-operator" || name.endsWith(":arcade-operator"));
@@ -13,7 +14,7 @@ const isOperator = (name) =>
 const host = hostFromArgs(process.argv);
 try {
   const input = await readInput();
-  if (host && !isOperator(input.agent_type)) {
+  if (host && !isOperator(input.agent_type ?? input.agentName)) {
     printContext(host, "SubagentStart", SUBAGENT_CONTEXT);
   }
 } catch {

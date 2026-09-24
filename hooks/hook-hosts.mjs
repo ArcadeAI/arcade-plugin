@@ -38,7 +38,8 @@ export const HOSTS = {
     contextOutput: (_eventName, text) => ({ additional_context: text }),
   },
   // Copilot CLI. PascalCase names put it in its VS Code-compatible mode
-  // (snake_case input); it drops prompt-hook output, so there's no prompt hook.
+  // (snake_case SessionStart input; SubagentStart still sends camelCase
+  // agentName in 1.0.88); it drops prompt-hook output, so there's no prompt hook.
   // VS Code reads this file too but doesn't expand ${PLUGIN_ROOT} for Agent
   // Plugins hooks or pass their output to the model (pluginParsers.ts,
   // copilotPluginConverters.ts on microsoft/vscode main, 2026-09).
