@@ -172,10 +172,17 @@ MCP server, so it counts as `other`.
 
 - `auth_required` matches the sign-in text in the Arcade gateway's source
   code, checked with a test MCP server but not against the hosted gateway. It
-  also matches Claude Code's own "requires re-authorization" and "needs to be
-  connected in claude.ai" errors.
+  also matches Claude Code's own sign-in errors: "needs you to sign in again",
+  "needs additional permissions", a rejected headersHelper credential or
+  Authorization header, and "needs to be connected in claude.ai". It still
+  matches "requires re-authorization", which Claude Code 2.1.246 said instead
+  of "needs you to sign in again".
+- `timeout` and `unreachable` also match the MCP SDK's
+  `MCP error -32001: Request timed out` and
+  `MCP error -32000: Connection closed`.
 - `session_expired` matches Claude Code's "session expired" error, which it
-  gives for an HTTP 404 from the server.
+  gives for an HTTP 404 from the server, or when an HTTP server closes the
+  connection mid-call.
 - Bad input, rate limits, upstream API errors, and an app's revoked sign-in
   all count as `tool_error`, because each tool writes its own message.
 - `failure_kind` is sent for every server, so Arcade's failures can be

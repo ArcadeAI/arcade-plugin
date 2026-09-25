@@ -40,9 +40,30 @@ test("failureKind: auth_required for Arcade_UseTool requires authorization text"
   assert.equal(failureKind(f.error, f.is_interrupt), "auth_required");
 });
 
-test("failureKind: auth_required for Claude Code re-authorization error", () => {
+test("failureKind: auth_required for Claude Code 2.1.246 re-authorization error", () => {
   const f = fixture("auth-required-reauth.json");
   assert.equal(failureKind(f.error, f.is_interrupt), "auth_required");
+});
+
+test("failureKind: auth_required for Claude Code 2.1.278 sign-in-again error", () => {
+  const f = fixture("auth-required-sign-in-again.json");
+  assert.equal(failureKind(f.error, f.is_interrupt), "auth_required");
+});
+
+test("failureKind: auth_required for Claude Code scope and rejected-credential errors", () => {
+  for (const msg of [
+    'MCP server "arcade" needs additional permissions (scope: "calendar.read") \u2014 run /mcp to re-authenticate',
+    'MCP server "arcade" rejected the credential from its headersHelper (check the helper and run /mcp to reconnect, or to authenticate if the server also uses OAuth)',
+    'MCP server "arcade" rejected the Authorization header in its config (update it, then run /mcp to reconnect)',
+  ]) {
+    assert.equal(failureKind(msg, false), "auth_required", msg);
+  }
+});
+
+test("failureKind: sign-in and permission wording in a tool's own error stays tool_error", () => {
+  assert.equal(failureKind("Please sign in again to continue", false), "tool_error");
+  assert.equal(failureKind("The app needs additional permissions to read this file", false), "tool_error");
+  assert.equal(failureKind("Upstream API rejected the credential", false), "tool_error");
 });
 
 test("failureKind: auth_required for Claude Code needs-to-be-connected error", () => {
@@ -70,8 +91,18 @@ test("failureKind: timeout for gateway-side timed out after", () => {
   assert.equal(failureKind(f.error, f.is_interrupt), "timeout");
 });
 
+test("failureKind: timeout for MCP SDK request timeout", () => {
+  const f = fixture("timeout-mcp-request.json");
+  assert.equal(failureKind(f.error, f.is_interrupt), "timeout");
+});
+
 test("failureKind: unreachable for stdio server Connection closed", () => {
   const f = fixture("unreachable-connection-closed.json");
+  assert.equal(failureKind(f.error, f.is_interrupt), "unreachable");
+});
+
+test("failureKind: unreachable for MCP SDK Connection closed", () => {
+  const f = fixture("unreachable-mcp-connection-closed.json");
   assert.equal(failureKind(f.error, f.is_interrupt), "unreachable");
 });
 
@@ -96,10 +127,11 @@ test("failureKind: unreachable for Node.js error codes", () => {
   }
 });
 
-test("failureKind: Connection closed only matches the full string (not a prefix)", () => {
-  // The regex uses ^ and $ so it only matches when the entire error is "Connection closed"
+test("failureKind: Connection closed matches only alone or after the MCP SDK error code", () => {
   assert.equal(failureKind("Connection closed unexpectedly", false), "tool_error");
   assert.equal(failureKind("Error: Connection closed", false), "tool_error");
+  assert.equal(failureKind("The upstream connection closed before the file was saved", false), "tool_error");
+  assert.equal(failureKind("MCP error -32603: Connection closed by upstream API", false), "tool_error");
 });
 
 test("failureKind: http_error for HTTP 500 response", () => {

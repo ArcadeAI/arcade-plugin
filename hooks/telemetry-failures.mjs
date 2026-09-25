@@ -3,12 +3,15 @@
 
 /** @typedef {"auth_required"|"session_expired"|"unreachable"|"timeout"|"http_error"|"interrupted"|"tool_error"} FailureKind */
 
+// Claude Code 2.1.246 says "requires re-authorization". 2.1.278 says "needs
+// you to sign in again", "needs additional permissions", or "rejected the
+// credential from its headersHelper" / "rejected the Authorization header".
 const AUTH_REQUIRED_RE =
-  /requires authorization|authorization required|"authorization_url"|requires re-authorization|needs to be connected in claude\.ai/i;
+  /requires authorization|authorization required|"authorization_url"|requires re-authorization|needs to be connected in claude\.ai|needs you to sign in again|needs additional permissions \(scope:|rejected the credential from its headersHelper|rejected the Authorization header in its config/i;
 const SESSION_EXPIRED_RE = /session expired/;
-const TIMEOUT_RE = /sent no response or progress for|timed out after/;
+const TIMEOUT_RE = /sent no response or progress for|timed out after|MCP error -32001: Request timed out/;
 const UNREACHABLE_RE =
-  /Unable to connect|socket connection was closed unexpectedly|^Connection closed$|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|transport dropped mid-call|transport closed before the tool responded/;
+  /Unable to connect|socket connection was closed unexpectedly|^Connection closed$|MCP error -32000: Connection closed|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|transport dropped mid-call|transport closed before the tool responded/;
 const HTTP_ERROR_RE = /Error POSTing to endpoint/;
 
 /**
