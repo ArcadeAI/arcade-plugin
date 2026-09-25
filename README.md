@@ -1,61 +1,93 @@
 # Arcade
 
-> **Try Arcade in your agent.** This plugin is for calling tools and getting
-> started with Arcade — connect apps, call tools, and explore what Arcade can do.
-> For team-wide features (custom tool allowlists, fine-tuned governance, connecting your IDP, etc.), use the
-> `scale-arcade` skill and the [Arcade dashboard](https://app.arcade.dev).
-
-Ask for what you want: email, calendar, Slack, issues, docs, and more.
-Your agent picks the right tool across every app you've connected. Sign in
-once in the browser without ever handing your agent a key.
-
-[MCP Server](https://api.arcade.dev/mcp/arcade) ·
-[Agent Plugins 1.0.0](https://agent-plugins.org) ·
-[MIT](LICENSE)
-
----
+Arcade lets your AI agent read and act in your apps, such as Gmail, Google
+Calendar, Slack, GitHub, Linear, and Notion. You sign in to each app in your
+browser, and your agent doesn't receive the credentials. The plugin tells your
+agent to ask you before it sends, creates, updates, or deletes anything.
 
 ## Install
 
-Each client installs differently; the [install guide](docs/install/README.md)
-has the one command for yours (Claude Code, Codex, Cursor, VS Code, Copilot
-CLI, Claude Desktop).
+Follow the [install guide](docs/install/README.md) for your client: Claude
+Code, Codex, Cursor, VS Code, GitHub Copilot CLI, or Claude Desktop.
 
-### Tools only
-
-Any MCP client (including OpenCode):
+Other MCP clients can add the gateway directly. This gives them Arcade's tools
+without the plugin's skills, commands, and hooks:
 
 ```text
 https://api.arcade.dev/mcp/arcade
 ```
 
-Cursor and VS Code also offer one-click MCP links (gateway only, no skills) in
-the [install guides](docs/install/).
+## Before you start
 
-## What each client gets
-
-Every client gets the Arcade gateway. How much of the rest it loads (skills,
-the `arcade-operator` subagent, commands, hooks) depends on the client; see
-the [support matrix](docs/support-matrix.md).
+- An Arcade account from [app.arcade.dev](https://app.arcade.dev).
+- Node.js on your `PATH` in Claude Code, the Cursor CLI, and Copilot CLI,
+  which run the plugin's hook scripts with it.
 
 ## Try it
+
+Ask your agent:
 
 - "What's on my calendar tomorrow?"
 - "Summarize unread email from this week."
 - "Draft a reply to that thread, then wait for me to send it."
-- "What can Arcade do?"
-- "We want this workflow on a team gateway. What should we set up?"
-- `/try-arcade` or `/scale-arcade`
-- `/arcade-status` — check the gateway, sign-in, and connected apps
-- `/arcade-connect google` — connect an app ahead of time
-- `/arcade-apps` — see or disconnect connected apps
 
-Commands work in Cursor, Claude Code, and Cowork. The Cursor IDE doesn't list
-them in the `/` menu; see the [support matrix](docs/support-matrix.md).
+The first time a task needs an app, Arcade returns a sign-in link for it. You
+don't need an API key.
 
-Your assistant speaks intent to Arcade. You see the useful result, a sign-in
-link when an app isn't connected yet, and a confirmation prompt before
-anything is sent, created, or deleted.
+Cursor, Claude Code, and Cowork also have commands: `/arcade-status` shows
+sign-in and connected apps, `/arcade-connect google` connects an app ahead of
+time, and `/arcade-apps` lists or disconnects apps. In Claude Code, add the
+`arcade:` prefix, as in `/arcade:arcade-status`. The Cursor IDE doesn't show
+them in the `/` menu. The [support matrix](docs/support-matrix.md) lists what
+each client loads.
+
+## What data goes where
+
+- When your agent uses Arcade, it sends the request to Arcade's gateway. The
+  gateway calls your connected apps with the access you approved and returns
+  the result.
+- In clients that run plugin hooks, the hook scripts run on your machine and
+  add Arcade's routing rules to the model's context. The
+  [support matrix](docs/support-matrix.md) lists which clients run them.
+- Arcade's [privacy policy](https://www.arcade.dev/privacy-policy) covers what
+  Arcade stores and for how long.
+
+## Troubleshooting
+
+- **Arcade asks you to sign in, or the `arcade` server shows zero tools:**
+  sign in from your client's MCP settings (`/mcp` in Claude Code). In VS Code,
+  run **MCP: List Servers**, choose `arcade`, then **Start Server**.
+- **The `arcade` server is missing or fails to connect:** check that the
+  plugin is installed and enabled, or, without the plugin, that your
+  client's MCP settings have the gateway URL above. Then check
+  [status.arcade.dev](https://status.arcade.dev) and any proxy or firewall
+  that blocks `api.arcade.dev`.
+- **An app isn't connected:** open the sign-in link Arcade returns, or ask
+  your agent to connect the app.
+- **An update doesn't show up:** in Claude Code, run
+  `claude plugin marketplace update arcade` and
+  `claude plugin update arcade@arcade`, then restart Claude Code. In Copilot
+  CLI, run `copilot plugin update arcade`, then `/restart`. For a local Cursor
+  install, run `git pull` in the plugin folder and reload the window.
+- **Hooks don't run in the Cursor IDE, VS Code, or Codex:** those clients
+  don't run plugin hooks. Skills and the gateway still work.
+
+## For teams
+
+To roll Arcade out to a team with a shared gateway, a chosen set of tools, and
+sign-in through your identity provider, use the
+[Arcade dashboard](https://app.arcade.dev) or ask your agent to use
+`scale-arcade`.
+
+## Support
+
+- Bugs in this plugin: [GitHub issues](https://github.com/ArcadeAI/arcade-plugin/issues)
+- Questions and community help: [Arcade Discord](https://discord.gg/GUZEMpEZ9p)
+- Email support (paid plans) and sales: [Contact us](https://docs.arcade.dev/en/resources/contact-us)
+- Service status: [status.arcade.dev](https://status.arcade.dev)
+- Security reports: [SECURITY.md](SECURITY.md)
+- [Terms of service](https://www.arcade.dev/terms) ·
+  [Privacy policy](https://www.arcade.dev/privacy-policy)
 
 ## Learn more
 
@@ -66,8 +98,6 @@ anything is sent, created, or deleted.
 - [Arcade dashboard](https://app.arcade.dev) — org rollout, project gateways,
   identity, and tool policy (see `scale-arcade`).
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
-- Privacy: tasks run through Arcade's hosted gateway and the apps you
-  connect — [privacy policy](https://www.arcade.dev/privacy-policy).
 
 ## Develop
 
