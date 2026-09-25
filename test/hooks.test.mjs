@@ -112,27 +112,36 @@ test("each client runs exactly the hooks it can use", () => {
 // Each client gets its routing rules from one of these texts, and some get
 // only one: Cowork's main conversation gets only the per-prompt reminder and the skill, and
 // the Cursor IDE gets only the rule and the skill. Keep the core rules in each.
-// The whole no-switch rule, for every text that carries it.
-const NO_SWITCH = [/don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API/, /Troubleshooting or retrying on Arcade itself is fine/];
+const DELEGATE_NO_SWITCH = [
+  /don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API/,
+  /Troubleshooting or retrying on Arcade itself is fine/,
+];
 
 const CORE_RULES = {
-  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server only/, /try-arcade/, /arcade-operator/, /don't move any part of it to another connector/, /explicitly chooses/]],
-  CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, ...NO_SWITCH, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/, /explicitly chooses/]],
-  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, ...NO_SWITCH, /needsAuth/, /Keep tool discovery/, /explicitly chooses/]],
-  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, ...NO_SWITCH, /explicitly chooses/, /needsAuth/]],
-  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, ...NO_SWITCH, /needsAuth/]],
-  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, ...NO_SWITCH, /needsAuth/, /Keep tool discovery/]],
+  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server/, /try-arcade/, /arcade-operator/]],
+  CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/]],
+  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/]],
+  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /needsAuth/]],
+  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /needsAuth/, ...DELEGATE_NO_SWITCH]],
+  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /needsAuth/, /Keep tool discovery/, ...DELEGATE_NO_SWITCH]],
 };
+
+// Parent-facing routing: Arcade first, not exclusive. Delegates keep DELEGATE_NO_SWITCH.
+const PARENT_LABELS = new Set(["PROMPT_REMINDER", "CURSOR_RULE", "SESSION_CONTEXT", "SKILL_RULES"]);
+const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP server only/;
 
 test("every routing text keeps the core routing rules", () => {
   for (const [label, [text, phrases]] of Object.entries(CORE_RULES)) {
     for (const phrase of phrases) {
       assert.match(text, phrase, label);
     }
+    if (PARENT_LABELS.has(label)) {
+      assert.doesNotMatch(text, BANS_OTHER_TOOLS, label);
+    }
   }
   // Subagents can't start arcade-operator, so their text must not send them to it.
   assert.doesNotMatch(SUBAGENT_CONTEXT, /arcade-operator/);
-  // Operator and subagent texts report back to a parent; they don't offer the user a choice.
+  // Delegates report back to a parent; they don't offer the user another path.
   assert.doesNotMatch(OPERATOR_RULES, /explicitly chooses/);
   assert.doesNotMatch(SUBAGENT_CONTEXT, /explicitly chooses/);
 });

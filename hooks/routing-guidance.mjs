@@ -29,15 +29,12 @@ const AUTH_ACTION_DELEGATE =
   "For authentication, return needs_auth. For a setup or connection failure, " +
   "return failed with the actual error.";
 
+// Delegates (arcade-operator, try-arcade subagents) report to a parent that can
+// use other tools. They must finish only through Arcade.
 const NO_SUBSTITUTES =
   "Once a task is going through Arcade, don't move any part of it to another MCP " +
   "server, a CLI such as gh or curl, a built-in search, or a direct API. " +
   "Troubleshooting or retrying on Arcade itself is fine.";
-
-// Only the conversation that talks to the user can offer this choice.
-const USER_MAY_CHOOSE =
-  "Use another path only if the user explicitly chooses it after hearing " +
-  "Arcade is blocked.";
 
 const DELEGATION =
   "For external service tasks (email, calendar, chat, docs, issues, CRM), " +
@@ -53,8 +50,6 @@ const PARENT_RULES = [
   line("Gateway", GATEWAY),
   line("Authentication", AUTH_DEFINITION),
   line("If blocked", AUTH_ACTION_PARENT),
-  line("Stay on Arcade", NO_SUBSTITUTES),
-  line("Other path", USER_MAY_CHOOSE),
 ];
 const DELEGATE_RULES = [
   line("Gateway", GATEWAY),
@@ -77,9 +72,7 @@ export const SESSION_CONTEXT = join(...PARENT_RULES, line("Routing", DELEGATION)
 // from SESSION_CONTEXT, try-arcade, and arcade-operator.
 export const PROMPT_REMINDER =
   'For external app tasks, use try-arcade (or arcade-operator when available) ' +
-  'through the "arcade" MCP server only, and scale-arcade for team rollout. ' +
-  "Once a task is going through Arcade, don't move any part of it to another connector, " +
-  "CLI, or API unless the user explicitly chooses that.";
+  'through the "arcade" MCP server, and scale-arcade for team rollout.';
 
 // Cursor's always-apply rule. The Cursor IDE and Cloud Agents don't run plugin
 // hooks, so the rule carries the full session rules. The Cursor CLI runs the
