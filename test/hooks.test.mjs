@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import { HOSTS } from "../hooks/hook-hosts.mjs";
 import { shouldRemind } from "../hooks/prompt-filters.mjs";
@@ -32,23 +35,122 @@ test("every client in the hook table has an expected output format", () => {
   assert.deepEqual(Object.keys(EXPECTED_OUTPUT).sort(), Object.keys(HOSTS).sort());
 });
 
+const HOOK_INPUT = JSON.stringify({ prompt: "What's on my calendar?", agent_type: "Explore" });
+
+const assertPrintsContext = (hostName, event, result, label) => {
+  assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+  const out = JSON.parse(result.stdout);
+  const text = out.hookSpecificOutput?.additionalContext ?? out.additional_context;
+  assert.ok(text, `${label}: no context in ${result.stdout}`);
+  assert.deepEqual(out, EXPECTED_OUTPUT[hostName](event, text), label);
+};
+
 test("every command in every generated hooks.json runs and prints what its client reads", () => {
   for (const [hostName, { manifest, rootVariable }] of Object.entries(HOSTS)) {
     for (const [event, entries] of Object.entries(JSON.parse(readRepoFile(manifest)).hooks)) {
       for (const { command } of entries.flatMap((entry) => entry.hooks ?? [entry])) {
-        const label = `${hostName} ${event}`;
+        // Telemetry prints nothing; test/telemetry.test.mjs runs its commands.
+        if (command.includes("/hooks/telemetry.mjs")) continue;
         const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
           shell: true,
-          input: JSON.stringify({ prompt: "What's on my calendar?", agent_type: "Explore" }),
+          input: HOOK_INPUT,
           encoding: "utf8",
         });
-        assert.equal(result.status, 0, `${label}: ${result.stderr}`);
-        const out = JSON.parse(result.stdout);
-        const text = out.hookSpecificOutput?.additionalContext ?? out.additional_context;
-        assert.ok(text, `${label}: no context in ${result.stdout}`);
-        assert.deepEqual(out, EXPECTED_OUTPUT[hostName](event, text), label);
+        assertPrintsContext(hostName, event, result, `${hostName} ${event}`);
       }
     }
+  }
+});
+
+// VS Code reads com.github.copilot/hooks/hooks.json but runs each command as
+// written, through `spawn(command, { shell: true })` from the workspace root,
+// without setting or replacing PLUGIN_ROOT (microsoft/vscode main, 2026-09:
+// pluginParsers.ts, hookExecutor.ts). Copilot CLI replaces ${PLUGIN_ROOT} in
+// the command and also sets it in the environment.
+const copilotEntries = () =>
+  Object.entries(JSON.parse(readRepoFile(HOSTS.copilot.manifest)).hooks).flatMap(([event, entries]) =>
+    entries.map((entry) => ({ event, ...entry })),
+  );
+
+const PLUGIN_VARIABLES = ["PLUGIN_ROOT", "COPILOT_PLUGIN_DATA", "CLAUDE_PLUGIN_DATA"];
+
+/** process.env without the variables a client sets for plugin hooks, plus `extra`. */
+const hookEnv = (extra = {}) => ({
+  ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !PLUGIN_VARIABLES.includes(name))),
+  // Keeps a telemetry hook from sending anything if it does run.
+  ARCADE_PLUGIN_TELEMETRY: "0",
+  ...extra,
+});
+
+const VSCODE_INPUT = JSON.stringify({
+  hook_event_name: "SessionStart",
+  session_id: "vscode-session",
+  cwd: "/workspace",
+  prompt: "What's on my calendar?",
+  agent_type: "Explore",
+});
+
+// The `command` field is the macOS and Linux form; cmd.exe can't run it.
+const skipOnWindows = { skip: process.platform === "win32" && "the command field is for macOS and Linux" };
+
+test("in VS Code every Copilot hook command exits 0 without output", skipOnWindows, () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "arcade-vscode-"));
+  for (const extra of [{}, { PLUGIN_ROOT: "/nonexistent" }]) {
+    for (const { event, command } of copilotEntries()) {
+      const label = `${event} ${command} ${JSON.stringify(extra)}`;
+      const result = spawnSync(command, { shell: true, cwd, env: hookEnv(extra), input: VSCODE_INPUT, encoding: "utf8" });
+      assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+      assert.equal(result.stdout, "", label);
+      assert.equal(result.stderr, "", label);
+    }
+  }
+});
+
+/** Checks the output of a Copilot hook run with PLUGIN_ROOT set to the repo. */
+const assertCopilotHookRan = (event, command, result, label) => {
+  if (command.includes("/hooks/telemetry.mjs")) {
+    assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+    assert.equal(result.stdout, "", label);
+    return;
+  }
+  assertPrintsContext("copilot", event, result, label);
+};
+
+test("in Copilot CLI every Copilot hook command runs with PLUGIN_ROOT set only in the environment", skipOnWindows, () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "arcade-copilot-"));
+  for (const { event, command } of copilotEntries()) {
+    const result = spawnSync(command, {
+      shell: true,
+      cwd,
+      env: hookEnv({ PLUGIN_ROOT: ROOT }),
+      input: HOOK_INPUT,
+      encoding: "utf8",
+    });
+    assertCopilotHookRan(event, command, result, `${event} ${command}`);
+  }
+});
+
+// GitHub's ubuntu-latest image includes pwsh.
+const POWERSHELL = (process.platform === "win32" ? ["pwsh", "powershell.exe"] : ["pwsh"]).find(
+  (exe) => !spawnSync(exe, ["-NoProfile", "-NonInteractive", "-Command", "exit 0"]).error,
+);
+
+test("every Copilot hook's powershell command skips without PLUGIN_ROOT and runs with it", { skip: !POWERSHELL && "pwsh not found" }, () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "arcade-powershell-"));
+  const runPowerShell = (script, env) =>
+    spawnSync(String(POWERSHELL), ["-NoProfile", "-NonInteractive", "-Command", script], {
+      cwd,
+      env,
+      input: HOOK_INPUT,
+      encoding: "utf8",
+    });
+  for (const { event, command, powershell } of copilotEntries()) {
+    assert.ok(powershell, `${event} ${command}: no powershell command`);
+    const skipped = runPowerShell(powershell, hookEnv());
+    assert.equal(skipped.status, 0, `${powershell}: ${skipped.stderr}`);
+    assert.equal(skipped.stdout, "", powershell);
+    assert.equal(skipped.stderr, "", powershell);
+    assertCopilotHookRan(event, powershell, runPowerShell(powershell, hookEnv({ PLUGIN_ROOT: ROOT })), powershell);
   }
 });
 
@@ -91,14 +193,16 @@ test("hooks exit 0 and print nothing without a known --host", () => {
 // Which hooks each client runs. Change this only with new evidence from the
 // client. Each entry names its source.
 const EXPECTED_EVENTS = {
-  // code.claude.com/docs/en/hooks: SessionStart, UserPromptSubmit, SubagentStart all support additionalContext
-  "claude-code": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
+  // code.claude.com/docs/en/hooks: SessionStart, UserPromptSubmit, SubagentStart all support additionalContext.
+  // PostToolUse, PostToolUseFailure, and SubagentStop run only the telemetry hook (docs/telemetry.md).
+  "claude-code": ["SessionStart", "UserPromptSubmit", "SubagentStart", "PostToolUse", "PostToolUseFailure", "SubagentStop"],
   // cursor.com/docs/hooks.md: sessionStart adds additional_context; beforeSubmitPrompt and subagentStart can't add context.
   // The CLI doesn't load the plugin's always-apply rule, so the session hook is the only way it gets the full rules.
   cursor: ["sessionStart"],
   // measured in Copilot CLI 1.0.88: SubagentStart runs and injects context; prompt hook output from config files is dropped
   // docs.github.com/en/copilot/reference/hooks-reference: SubagentStart input uses agentName
-  copilot: ["SessionStart", "SubagentStart"],
+  // UserPromptSubmit, PostToolUse, PostToolUseFailure, and SubagentStop run only the telemetry hook (docs/telemetry.md).
+  copilot: ["SessionStart", "SubagentStart", "UserPromptSubmit", "PostToolUse", "PostToolUseFailure", "SubagentStop"],
 };
 
 test("each client runs exactly the hooks it can use", () => {

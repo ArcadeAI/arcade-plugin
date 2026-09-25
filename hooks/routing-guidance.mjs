@@ -94,3 +94,10 @@ export const SUBAGENT_CONTEXT = join(
   line("Routing", "For external service tasks, use try-arcade."),
   line("Privacy", PRIVACY),
 );
+
+const OPERATOR_AGENT = "arcade-operator";
+
+/** True for arcade-operator, bare or plugin-scoped (e.g. "arcade:arcade-operator"). */
+export const isOperatorAgentType = (agentType) =>
+  typeof agentType === "string" &&
+  (agentType === OPERATOR_AGENT || agentType.endsWith(`:${OPERATOR_AGENT}`));

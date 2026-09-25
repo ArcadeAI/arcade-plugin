@@ -14,6 +14,21 @@ for a marked rules block.
 - Hooks: add a hook or a client in `hooks/hook-hosts.mjs`, never in a
   `hooks.json`. A new client also needs its expected output in
   `test/hooks.test.mjs`.
+- Telemetry: `hooks/telemetry-contract.mjs` defines every event, property,
+  and allowed value; change them there only. The builder sends nothing else,
+  `npm run generate` writes the tables in `docs/telemetry.md`, and the tests
+  check every built event against its schema and the telemetry rows in
+  `hooks/hook-hosts.mjs` against its hooks. `telemetry.mjs` prints nothing,
+  and only `telemetry-send.mjs` may touch the
+  network (a test enforces both). Telemetry files start with `// @ts-check`
+  and `npm run typecheck` runs `tsc` on them; nothing is compiled.
+- Telemetry runs in Claude Code and Copilot CLI. `telemetry-events.mjs` maps
+  each client's hook input. Each client's `arcade-used` flag lives in the
+  folder it names (`CLAUDE_PLUGIN_DATA`, `COPILOT_PLUGIN_DATA`). Nothing that
+  lasts across sessions is sent. VS Code reads Copilot's hooks.json but gives
+  hooks no plugin path, so every Copilot hook command checks that its script
+  exists first. Keep that check. Cursor stays out: its hook input carries the
+  user's email.
 - Codex hooks are blocked upstream ([docs/install/codex.md](docs/install/codex.md)).
   Don't remove the root `$schema` to force them; that breaks Agent Plugins
   conformance.

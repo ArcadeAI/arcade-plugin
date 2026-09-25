@@ -10,6 +10,7 @@ edited by hand. The package ships no credentials.
 | `plugin.json`, `mcp.json`, `VERSION` | identity, gateway URL, version, Codex listing metadata |
 | `hooks/routing-guidance.mjs` | the routing rules, as sentences |
 | `hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
+| `hooks/telemetry-contract.mjs` | every telemetry event, property, and allowed value; the tables in `docs/telemetry.md` |
 | `agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
 | `skills/` | the skills, outside the generated rules block in try-arcade |
 
@@ -67,7 +68,7 @@ it follows the same Arcade discovery and execution loop itself.
 │  https://api.arcade.dev/mcp/arcade                           │
 │                                                              │
 │  only external capability boundary                           │
-│  canonical telemetry lives here, not in the plugin           │
+│  canonical tool-call records live here                       │
 └──────────────────────────────────────────────────────────────┘
                 │
                 ▼
@@ -85,6 +86,14 @@ success or narrating tool internals.
 
 The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
-model to self-report tokens, turns, or success, and it ships no telemetry hook.
-If a host-specific hook later adds supplemental signals, it must be explicit,
-opt-in, and documented as non-portable.
+model to self-report tokens, turns, or success.
+
+In Claude Code and Copilot CLI, `hooks/telemetry.mjs` also sends usage events
+on whether the model used Arcade when a prompt looked like a task Arcade could
+do. They carry a hash of the session ID and no ID that lasts across sessions.
+It is on by default, turned off with `ARCADE_PLUGIN_TELEMETRY=0`, Claude
+Code's own `DISABLE_TELEMETRY`, or Copilot's `COPILOT_OFFLINE`, and described
+in [docs/telemetry.md](docs/telemetry.md). The network send runs in a detached
+`hooks/telemetry-send.mjs`, so a turn never waits on the network. Every event
+and property is defined once, in `hooks/telemetry-contract.mjs`; the docs
+tables are generated from it and the tests validate built events against it.

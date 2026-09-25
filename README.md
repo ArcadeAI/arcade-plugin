@@ -67,7 +67,10 @@ anything is sent, created, or deleted.
   identity, and tool policy (see `scale-arcade`).
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
 - Privacy: tasks run through Arcade's hosted gateway and the apps you
-  connect — [privacy policy](https://www.arcade.dev/privacy-policy).
+  connect — [privacy policy](https://www.arcade.dev/privacy-policy). In
+  Claude Code and Copilot CLI the plugin also sends
+  [usage events](docs/telemetry.md) that don't include your name, email, or
+  account; set `ARCADE_PLUGIN_TELEMETRY=0` to turn them off.
 
 ## Develop
 

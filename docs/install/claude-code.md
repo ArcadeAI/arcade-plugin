@@ -37,6 +37,16 @@ If your host has other Arcade MCP connectors too, Claude may pick the wrong one
 connected and prefer disabling other Arcade connectors while testing this
 plugin.
 
+## Telemetry
+
+The plugin sends usage events, with no ID that lasts across sessions, so
+Arcade can see whether the model uses Arcade when a task needs it. [What's sent](../telemetry.md). To turn it
+off, add this to Claude Code's `settings.json`:
+
+```json
+{ "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
+```
+
 ## First steps
 
 - "What's on my calendar tomorrow?"
