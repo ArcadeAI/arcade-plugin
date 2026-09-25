@@ -50,8 +50,11 @@ the [support matrix](docs/support-matrix.md).
 - `/arcade-connect google` — connect an app ahead of time
 - `/arcade-apps` — see or disconnect connected apps
 
-Commands work in Cursor, Claude Code, and Cowork. The Cursor IDE doesn't list
-them in the `/` menu; see the [support matrix](docs/support-matrix.md).
+Commands work in Cursor, Claude Code, and Cowork. In Claude Code they start
+with `arcade:`, for example `/arcade:arcade-status`. The Cursor IDE doesn't
+list them in the `/` menu; see the [support matrix](docs/support-matrix.md).
+In other clients, ask your agent instead, for example "Connect my Google
+account through Arcade."
 
 Your assistant speaks intent to Arcade. You see the useful result, a sign-in
 link when an app isn't connected yet, and a confirmation prompt before
@@ -62,8 +65,9 @@ anything is sent, created, or deleted.
 - An Arcade account ([app.arcade.dev](https://app.arcade.dev)). Your client
   opens a browser sign-in the first time it connects to the gateway.
 - Each app (Google, Slack, GitHub, and so on) gets its own browser sign-in,
-  either the first time a task needs it or ahead of time with
-  `/arcade-connect`.
+  either the first time a task needs it or ahead of time. To connect one
+  ahead of time, ask your agent to connect it. In clients with commands you
+  can also run `/arcade-connect` (`/arcade:arcade-connect` in Claude Code).
 - Node.js on your `PATH`, for the hook scripts in Claude Code, the Cursor CLI,
   and Copilot CLI.
 
@@ -80,19 +84,26 @@ anything is sent, created, or deleted.
 
 ## Troubleshooting
 
-- **Arcade asks you to sign in, or its tools are missing.** The `arcade` MCP
-  server isn't signed in. Sign in from your client's MCP settings (`/mcp` in
-  Claude Code). In VS Code, run **MCP: List
-  Servers**, choose `arcade`, then **Start Server** and sign in.
-- **The gateway fails to connect.** Check
-  [status.arcade.dev](https://status.arcade.dev) and any proxy or firewall
-  between you and `api.arcade.dev`. The plugin reports the error instead of
-  finishing the task another way.
-- **An app isn't connected.** Open the sign-in link Arcade returns, or run
-  `/arcade-connect <app>`. `/arcade-status` shows what's connected.
-- **An update doesn't show up.** In Claude Code, run `/reload-plugins`. For a
-  local Cursor install, run `git pull` in the plugin folder and reload the
-  window. In Copilot CLI, run `/restart`.
+- **Arcade asks you to sign in, or the `arcade` server shows zero tools.**
+  The `arcade` MCP server isn't signed in. Sign in from your client's MCP
+  settings (`/mcp` in Claude Code). In VS Code, run **MCP: List Servers**,
+  choose `arcade`, then **Start Server** and sign in.
+- **The `arcade` server is missing or fails to connect.** This is a setup or
+  connection problem, not a sign-in problem. Check that the plugin is
+  installed and enabled and that `arcade` is listed in your client's MCP
+  settings. Then check [status.arcade.dev](https://status.arcade.dev) and any
+  proxy or firewall between you and `api.arcade.dev`. The plugin reports the
+  error instead of finishing the task another way.
+- **An app isn't connected.** Open the sign-in link Arcade returns, or ask
+  your agent to connect the app. In clients with commands,
+  `/arcade-connect <app>` does the same and `/arcade-status` shows what's
+  connected (`/arcade:arcade-connect` and `/arcade:arcade-status` in Claude
+  Code).
+- **An update doesn't show up.** In Claude Code, run
+  `claude plugin marketplace update arcade`, then
+  `claude plugin update arcade@arcade`, then restart Claude Code. For a local
+  Cursor install, run `git pull` in the plugin folder and reload the window.
+  In Copilot CLI, run `copilot plugin update arcade`, then `/restart`.
 - **Hooks don't run in the Cursor IDE, VS Code, or Codex.** That's a client
   limit, not a broken install; the skills and the gateway still work. See the
   [support matrix](docs/support-matrix.md).
