@@ -29,6 +29,13 @@ const AUTH_ACTION_DELEGATE =
   "For authentication, return needs_auth. For a setup or connection failure, " +
   "return failed with the actual error.";
 
+// Delegates (arcade-operator, try-arcade subagents) report to a parent that can
+// use other tools. They must finish only through Arcade.
+const NO_SUBSTITUTES =
+  "Once a task is going through Arcade, don't move any part of it to another MCP " +
+  "server, a CLI such as gh or curl, a built-in search, or a direct API. " +
+  "Troubleshooting or retrying on Arcade itself is fine.";
+
 const DELEGATION =
   "For external service tasks (email, calendar, chat, docs, issues, CRM), " +
   "use try-arcade first. For team or org rollout, use scale-arcade. When " +
@@ -48,6 +55,7 @@ const DELEGATE_RULES = [
   line("Gateway", GATEWAY),
   line("Authentication", AUTH_DEFINITION),
   line("If blocked", AUTH_ACTION_DELEGATE),
+  line("Stay on Arcade", NO_SUBSTITUTES),
 ];
 
 // One labeled line per rule, so a host that injects the whole set can scan it.
