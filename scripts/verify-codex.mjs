@@ -6,7 +6,7 @@
 // No sign-in is needed.
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,7 +15,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pluginName = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8")).name;
 const marketplaceName = JSON.parse(readFileSync(join(root, ".claude-plugin/marketplace.json"), "utf8")).name;
 const servers = JSON.parse(readFileSync(join(root, "mcp.json"), "utf8")).mcpServers;
-const skills = readdirSync(join(root, "skills"));
+const skills = readdirSync(join(root, "skills")).filter((name) => existsSync(join(root, "skills", name, "SKILL.md")));
 
 // HOME is replaced too, because Codex also reads ~/.agents/plugins/.
 const work = mkdtempSync(join(tmpdir(), "arcade-codex-verify-"));

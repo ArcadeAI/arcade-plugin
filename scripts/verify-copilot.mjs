@@ -6,7 +6,7 @@
 // reads back what Copilot loaded. No sign-in is needed.
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pluginName = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8")).name;
 const servers = JSON.parse(readFileSync(join(root, "mcp.json"), "utf8")).mcpServers;
-const skills = readdirSync(join(root, "skills"));
+const skills = readdirSync(join(root, "skills")).filter((name) => existsSync(join(root, "skills", name, "SKILL.md")));
 
 const work = mkdtempSync(join(tmpdir(), "arcade-copilot-verify-"));
 const env = { ...process.env, COPILOT_HOME: work };
