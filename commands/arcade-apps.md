@@ -4,8 +4,8 @@ description: See your connected apps, or disconnect one (Google, GitHub, Slack, 
 ---
 
 Help the user manage connected apps through the **`arcade` MCP server only**
-(plugin gateway). Follow `try-arcade` language: app, connected, sign
-in, permissions — not tokens, OAuth, or scopes.
+(plugin gateway). Use app, connected, sign in, and permissions. Leave out
+tokens, OAuth, and scopes.
 
 - **List:** ask Arcade to list connected apps, then summarize each app's
   name, whether it is connected, and the account when connected. Connected

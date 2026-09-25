@@ -4,7 +4,7 @@ description: Connect an app to Arcade (Google, GitHub, Slack, Notion, …) with 
 ---
 
 Help the user connect the app they name through the **`arcade` MCP server
-only** (plugin gateway). Follow `try-arcade` sign-in etiquette.
+only** (plugin gateway).
 
 1. Discover whether the app is already connected. If it is, say so (with
    the account) and stop.
