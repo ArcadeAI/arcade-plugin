@@ -12,7 +12,7 @@ permissions:
 jobs:
   # One job per step of `npm run verify`, so each client's check reports on
   # its own and one failure doesn't skip the rest.
-  check:
+  verify:
     name: ${{ matrix.script }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -35,12 +35,14 @@ jobs:
 
       - run: npm run ${{ matrix.script }}
 
-  complete:
+  # Branch protection on main requires a check named `check`, so the job that
+  # waits for every other job carries that name.
+  check:
     runs-on: ubuntu-latest
     if: >-
       always() &&
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    needs: [check]
+    needs: [verify]
     timeout-minutes: 20
     permissions:
       checks: read

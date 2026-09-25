@@ -92,9 +92,9 @@ npm run verify
   these install the plugin into a temporary home and check that the client
   loaded every MCP server and skill
 
-CI runs each of these as its own job (`.github/workflows/check.yml`). On pull requests the
-**`complete`** job also waits for Cursor Bugbot; make `complete` the only
-required status check.
+CI runs each of these as its own job (`.github/workflows/check.yml`). The
+**`check`** job waits for all of them and, on pull requests, for Cursor
+Bugbot. Branch protection on `main` requires `check`.
 
 ## Release
 
