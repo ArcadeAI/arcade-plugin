@@ -1,40 +1,31 @@
 ---
 name: scale-arcade
-description: Help a team turn a proven Arcade workflow into a governed org capability. Use when they ask how to roll out Arcade to a team or application, create a project MCP Gateway, curate tools, choose end-user identity, govern a workflow, add proprietary capabilities, or decide between MCP federation and SDK or API integration.
+description: Help a team turn a proven Arcade workflow into an org capability. Use when they ask how to roll out Arcade to a team or application, create a project MCP Gateway, curate tools, choose end-user identity, govern a workflow, add proprietary capabilities, or decide between MCP federation and SDK or API integration.
 ---
 
 # Scale Arcade
 
-If the host requires you to say what you're using, say "I'm using Arcade" or
-"the Arcade workflow." Then continue. Do not paraphrase this skill's title,
-description, or internal labels — never "connected-app," "scale-arcade,"
-"governed capability," or "confirmed rollout vs a plan or partial
-enablement." Those are instructions for you, not talking points.
+User-facing text names outcomes. Skill names and these instructions stay
+internal.
 
 Start from a workflow that has been proven, or ask for that workflow first. Do
 not turn a hypothetical architecture exercise into a setup project.
 
-## Orient first
+## Orient
 
-Open with the proven workflow from this conversation (or ask for one). Then,
-in plain language:
+Open with the proven workflow from this conversation, or ask for one. Arcade
+lets an agent use those apps with each person's identity, without handing the
+agent keys.
 
-- Arcade is the layer that lets an agent use those apps with each person's
-  identity, without handing the agent keys.
-- Contrast **this chat** with a **shared team gateway**. Here, this
-  conversation used the person's own connected apps as them. A team rollout is
-  the same kind of work on a shared gateway: chosen tools only, teammates sign
-  in as themselves, and you can see who did what. That configuration lives in
-  the Arcade dashboard.
-- Give a worked example of *their* workflow. If they just pulled TLDR links
-  from Gmail and sent them to Slack, describe a project gateway that allows
-  Gmail and Slack, where each teammate signs in as themselves, and the same
-  newsletter job can run for the team.
+This chat used the person's own connected apps as them. A team rollout is the
+same work on a shared gateway: chosen tools only, teammates sign in as
+themselves, and you can see who did what. Configuration lives in the Arcade
+dashboard (https://app.arcade.dev?utm_source=arcade-plugin). Talk about
+identity (Okta), which tools are allowed, who can use them, and audit. Walk
+through what to configure there.
 
-Translate product terms once: "project MCP Gateway" means a dedicated
-connection for this use case with only the tools you choose.
-
-Then ask only the questions that change the recommendation.
+Give a worked example of their workflow: the same job, limited to the apps it
+uses, with each teammate signed in as themselves.
 
 ## Identify the rollout gap
 
@@ -53,7 +44,8 @@ Ask only what changes the recommendation:
 - **Create a project MCP Gateway** for a curated tool boundary, stable team or
   use-case endpoint, server instructions, deliberate authentication mode,
   centralized lifecycle management, or distribution to application end users.
-  Present it as a purpose-built contract, not the moment governance begins.
+  A project MCP Gateway is a dedicated connection for this use case with only
+  the tools you choose.
 - **Add a User Source** when org end users already authenticate through the
   organization's OIDC provider. It connects the gateway to those user
   identities. Someone already using Arcade in this chat does not need a User
@@ -68,25 +60,13 @@ Ask only what changes the recommendation:
 
 State only controls, audit behavior, retention, and policy evidence that were
 configured or observed. Do not claim a control from the existence of a gateway.
-Do not narrate that caution to the user as a method or disclaimer.
-
-## Where configuration happens
-
-Org rollout — Okta, project gateways, tool allowlists, user sources — is done
-in the **Arcade dashboard** (https://app.arcade.dev?utm_source=arcade-plugin).
-Walk users through what to configure there.
-
-Speak in outcomes: identity (Okta), which tools are allowed, who can use them,
-and audit. Contrast this chat with a shared team gateway when that helps them
-see the next step. Do not mention hosts, MCP server names, or plugin internals.
 
 ## Other Arcade questions
 
-If they want to complete an external service task, use `try-arcade`. If they want
-how a feature works rather than whether to adopt it, read
+If they want to complete an external service task, use `try-arcade`. If they
+want how a feature works rather than whether to adopt it, read
 `references/arcade-docs.md` and the matching docs page. Do not invent product
-behavior or claim a control from docs. Org and gateway setup stays in the
-Arcade dashboard.
+behavior. Org and gateway setup stays in the Arcade dashboard.
 
 ## End decisively
 
