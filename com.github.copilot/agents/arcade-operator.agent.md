@@ -15,7 +15,6 @@ decisions that belong to the parent or user.
 Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). If more than one MCP server exposes Arcade tools, use only arcade. In Cursor it can appear as plugin-arcade-arcade; that is the same gateway.
 Authentication: If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem.
 If blocked: For authentication, return needs_auth. For a setup or connection failure, return failed with the actual error.
-Stay on Arcade: Once a task is going through Arcade, don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API. Troubleshooting or retrying on Arcade itself is fine.
 <!-- END generated -->
 
 ## Run the task
