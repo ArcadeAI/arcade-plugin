@@ -24,11 +24,12 @@ to anything but those values, and when Claude Code's own `DISABLE_TELEMETRY`
 or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set to any value. Like Claude
 Code, the plugin reads `0` and `false` on those two as set.
 
-With telemetry off, Claude Code still starts the plugin's short Node hook on
-each prompt, on each MCP tool call, on each web fetch or search, and on each
-`gh`, `glab`, `curl`, `wget`, `http`, or `osascript` command (about 60 ms
-each). It exits without sending anything. Claude Code reads the list of hooks
-from the plugin's files, so an environment variable can't remove them.
+With telemetry off, Claude Code still starts the plugin's short Node hook at
+session start, on each prompt, after each MCP tool call, after each web fetch
+or search, after each `gh`, `glab`, `curl`, `wget`, `http`, or `osascript`
+command, and when a subagent stops (about 60 ms each time). It exits without
+sending anything. Claude Code reads the list of hooks from the plugin's files,
+so an environment variable can't remove them.
 
 In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
 `copilot`. `COPILOT_OFFLINE=true` also turns it off (along with all other
@@ -202,12 +203,12 @@ subagent's `session`.
   event's `subagent_session`. The model wrote those prompts.
 - Count a subagent session's tool events toward the parent turn that contains
   the matching `Plugin subagent stopped`.
+- Leave out sessions with a prompt but no `Plugin session started` and no
+  matching `subagent_session`. These are subagents that never stopped.
 
 Copilot names MCP tools `<server>-<tool>` with no plugin prefix, so any MCP
 server the user named `arcade` counts as `server: arcade`, not just this
 plugin's.
-- Leave out sessions with a prompt but no `Plugin session started` and no
-  matching `subagent_session`. These are subagents that never stopped.
 
 Copilot CLI sends no built-in tool events, so a missed turn can't be split
 into "used a CLI or the web instead" and "nothing was called".
