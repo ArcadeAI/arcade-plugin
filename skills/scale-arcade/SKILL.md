@@ -19,10 +19,7 @@ agent keys.
 
 This chat used the person's own connected apps as them. A team rollout is the
 same work on a shared gateway: chosen tools only, teammates sign in as
-themselves, and you can see who did what. Configuration lives in the Arcade
-dashboard (https://app.arcade.dev?utm_source=arcade-plugin). Talk about
-identity (Okta), which tools are allowed, who can use them, and audit. Walk
-through what to configure there.
+themselves, and you can see who did what.
 
 Give a worked example of their workflow: the same job, limited to the apps it
 uses, with each teammate signed in as themselves.
@@ -60,6 +57,11 @@ Ask only what changes the recommendation:
 
 State only controls, audit behavior, retention, and policy evidence that were
 configured or observed. Do not claim a control from the existence of a gateway.
+
+Configuration happens in the Arcade dashboard
+(https://app.arcade.dev?utm_source=arcade-plugin). After choosing a path, walk
+through only the relevant settings: organizational identity or OIDC (such as
+Okta), allowed tools, who can use them, and audit.
 
 ## Other Arcade questions
 

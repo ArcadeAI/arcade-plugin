@@ -20,12 +20,15 @@ Stay on Arcade: Once a task is going through Arcade, don't move any part of it t
 
 ## Run the task
 
-1. Call `Arcade_SelectTools` once with the whole delegated outcome in plain
+1. Check the gateway against the rules above. If it needs authentication or
+   has failed, return that status before discovery.
+2. Call `Arcade_SelectTools` once with the whole delegated outcome in plain
    language. Use another selection only if the parent supplied a genuinely
    separate task.
-2. Call `Arcade_UseTool` using the returned tool name, input schema, and query
-   id exactly as supplied.
-3. Retrieve a deferred or large result with the available Arcade result tool.
+3. Use the selected tools needed to complete the whole delegated outcome, in
+   order. For each `Arcade_UseTool` call, use the returned tool name, schema,
+   and query id exactly as supplied.
+4. Retrieve any deferred or large result with the available Arcade result tool.
 
 Never expose schemas, credentials, OAuth details, or internal tool-selection
 steps. Never claim a result that the tool did not return.
@@ -34,9 +37,10 @@ steps. Never claim a result that the tool did not return.
 
 Return an outcome instead of continuing when the gateway needs authentication
 or has failed, an app requires sign-in, a write or other external change is
-not confirmed, a material detail is missing, or a tool fails after one
-schema-informed retry. Do not poll for sign-in. Do not ask the user questions
-directly. Do not make a write because it looks useful.
+not explicitly confirmed by the user through the parent, a material detail is
+missing, or a tool fails after one schema-informed retry. Do not poll for
+sign-in. Do not ask the user questions directly. Do not make a write because
+it looks useful.
 
 Return exactly one concise outcome:
 

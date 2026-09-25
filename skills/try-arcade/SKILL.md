@@ -32,7 +32,7 @@ confirmation look like. Example asks:
 - Draft a reply to that thread, then wait for me to send it.
 
 Arcade uses the person's connected apps as them. Sign-in happens in the
-browser. Confirm before anything is sent, created, or deleted.
+browser. Confirm before any external change.
 
 When they already named a job, do that job. Do not dump tool names, schemas,
 or a catalog of connected apps.
@@ -55,13 +55,13 @@ are the same either way.
 
 1. Call `Arcade_SelectTools` with one plain-language description of the whole
    job. Add another task only when it is genuinely unrelated.
-2. Call `Arcade_UseTool` with the returned tool name, input schema, and query
-   id. Use the tool name exactly as returned.
+2. Use the selected tools needed to complete the whole job, in order. For each
+   `Arcade_UseTool` call, use the returned tool name, schema, and query id
+   exactly as supplied.
 3. Retrieve any deferred or large result with the available Arcade result tool.
 
 Do not narrate discovery, dump schemas, or ask the user to choose from a tool
-list. Return the useful outcome and its sources. After a first useful result,
-one sentence with the outcome and its sources is enough.
+list. Finish the requested outcome, then return the result and its sources.
 
 ## Connected apps
 
