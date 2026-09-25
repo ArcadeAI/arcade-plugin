@@ -43,10 +43,12 @@ each client loads.
 
 ## What data goes where
 
-- Your agent sends each task to Arcade's gateway. The gateway calls your
-  connected apps with the access you approved and returns the result.
-- The hook scripts run on your machine and add Arcade's routing rules to the
-  model's context.
+- When your agent uses Arcade, it sends the request to Arcade's gateway. The
+  gateway calls your connected apps with the access you approved and returns
+  the result.
+- In clients that run plugin hooks, the hook scripts run on your machine and
+  add Arcade's routing rules to the model's context. The
+  [support matrix](docs/support-matrix.md) lists which clients run them.
 - Arcade's [privacy policy](https://www.arcade.dev/privacy-policy) covers what
   Arcade stores and for how long.
 
@@ -56,7 +58,8 @@ each client loads.
   sign in from your client's MCP settings (`/mcp` in Claude Code). In VS Code,
   run **MCP: List Servers**, choose `arcade`, then **Start Server**.
 - **The `arcade` server is missing or fails to connect:** check that the
-  plugin is installed and enabled. Then check
+  plugin is installed and enabled, or, without the plugin, that your
+  client's MCP settings have the gateway URL above. Then check
   [status.arcade.dev](https://status.arcade.dev) and any proxy or firewall
   that blocks `api.arcade.dev`.
 - **An app isn't connected:** open the sign-in link Arcade returns, or ask
@@ -95,8 +98,6 @@ sign-in through your identity provider, use the
 - [Arcade dashboard](https://app.arcade.dev) — org rollout, project gateways,
   identity, and tool policy (see `scale-arcade`).
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
-- Privacy: tasks run through Arcade's hosted gateway and the apps you
-  connect — [privacy policy](https://www.arcade.dev/privacy-policy).
 
 ## Develop
 
