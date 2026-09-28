@@ -47,17 +47,31 @@ const DELEGATION =
 
 const PRIVACY = "Keep tool discovery and tool names out of the conversation.";
 
-const join = (...sentences) => sentences.join(" ");
+const line = (label, text) => `${label}: ${text}`;
 
-const PARENT_RULES = [GATEWAY, AUTH_DEFINITION, AUTH_ACTION_PARENT, NO_SUBSTITUTES, USER_MAY_CHOOSE];
-const DELEGATE_RULES = [GATEWAY, AUTH_DEFINITION, AUTH_ACTION_DELEGATE, NO_SUBSTITUTES];
+const PARENT_RULES = [
+  line("Gateway", GATEWAY),
+  line("Authentication", AUTH_DEFINITION),
+  line("If blocked", AUTH_ACTION_PARENT),
+  line("Stay on Arcade", NO_SUBSTITUTES),
+  line("Other path", USER_MAY_CHOOSE),
+];
+const DELEGATE_RULES = [
+  line("Gateway", GATEWAY),
+  line("Authentication", AUTH_DEFINITION),
+  line("If blocked", AUTH_ACTION_DELEGATE),
+  line("Stay on Arcade", NO_SUBSTITUTES),
+];
+
+// One labeled line per rule, so a host that injects the whole set can scan it.
+const join = (...parts) => parts.join("\n");
 
 // Generated into the try-arcade skill and arcade-operator.
 export const SKILL_RULES = join(...PARENT_RULES);
 export const OPERATOR_RULES = join(...DELEGATE_RULES);
 
 // Printed by the session-start hook.
-export const SESSION_CONTEXT = join(...PARENT_RULES, DELEGATION, PRIVACY);
+export const SESSION_CONTEXT = join(...PARENT_RULES, line("Routing", DELEGATION), line("Privacy", PRIVACY));
 
 // Sent on most user turns, so it is one short paragraph. The full rules come
 // from SESSION_CONTEXT, try-arcade, and arcade-operator.
@@ -75,8 +89,8 @@ export const CURSOR_RULE = SESSION_CONTEXT;
 // Subagents can't start arcade-operator themselves, so they get try-arcade
 // without the delegation sentence.
 export const SUBAGENT_CONTEXT = join(
-  "This subagent shares the parent session.",
+  line("Session", "This subagent shares the parent session."),
   ...DELEGATE_RULES,
-  "For external service tasks, use try-arcade.",
-  PRIVACY,
+  line("Routing", "For external service tasks, use try-arcade."),
+  line("Privacy", PRIVACY),
 );
