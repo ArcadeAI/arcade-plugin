@@ -115,6 +115,7 @@ test("each client runs exactly the hooks it can use", () => {
 const DELEGATE_NO_SWITCH = [
   /don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API/,
   /Troubleshooting or retrying on Arcade itself is fine/,
+  /If Arcade can't do some of the task, say what is left in your result/,
 ];
 
 const CORE_RULES = {
@@ -126,7 +127,8 @@ const CORE_RULES = {
   SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /needsAuth/, /Keep tool discovery/, ...DELEGATE_NO_SWITCH]],
 };
 
-// Parent-facing routing: Arcade first, not exclusive. Delegates keep DELEGATE_NO_SWITCH.
+// The parent conversation tries Arcade first but may finish with other tools.
+// BANS_OTHER_TOOLS matches exact phrases, so a reworded ban would pass.
 const PARENT_LABELS = new Set(["PROMPT_REMINDER", "CURSOR_RULE", "SESSION_CONTEXT", "SKILL_RULES"]);
 const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP server only/;
 
