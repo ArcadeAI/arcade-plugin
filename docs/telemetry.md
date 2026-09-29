@@ -1,14 +1,33 @@
 # Plugin telemetry
 
-The Arcade plugin sends a small set of usage events to Arcade's PostHog so we
-can see whether the model uses Arcade when a task needs it. Events carry a
-hash of the client's random session ID, which changes every session, and no
-ID that lasts across sessions. They never include your name, email, or Arcade
-account. No prompt text, file paths, or tool output is ever sent.
+The Arcade plugin sends scoped usage events to Arcade's PostHog by default.
+Claude Code and Copilot CLI hooks locally classify prompts across sessions to
+recognize app-related work. Prompts classified as unrelated send no event or routing reminder.
+Direct Arcade tool calls remain observable, even without a classified prompt.
+Alternative MCP, CLI, and web tools send events only during app-related work.
 
-Install and active-user counts don't come from these events. Arcade's gateway
-already sees each signed-in user and the name of the client they connect from,
-so those counts come from there.
+Events carry hashed session IDs, with no ID lasting across sessions. They
+exclude prompt text, commands, app data, names, email addresses, and Arcade
+account IDs. These observations do not establish task success or whether
+Arcade was needed. Install and signed-in-user counts require gateway data.
+
+## Prompt scope
+
+A prompt matching the local app classifier or mentioning Arcade opens a
+30-minute observation period
+for its session. A short explicit confirmation such as “yes, send it” continues
+that period without extending its expiry. An unrelated substantive prompt
+closes it. Background task notifications leave the current period unchanged.
+Expired, absent, or invalid state produces no alternative-tool telemetry.
+
+`could_use_arcade` and `service_hints` describe keywords in the current prompt,
+not the preceding task. A confirmation reply can therefore send a scoped prompt
+event with `could_use_arcade: false` and no service hints. Keyword matching can
+misclassify prompts; the labeled evaluation measures that limitation separately.
+
+Session starts send no usage event. Only the Arcade operator's stop reports
+send subagent events. Local classification and routing reminders remain active
+when telemetry is off; turning off events does not disable Arcade routing.
 
 ## Turning it off
 
@@ -24,12 +43,9 @@ to anything but those values, and when Claude Code's own `DISABLE_TELEMETRY`
 or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set to any value. Like Claude
 Code, the plugin reads `0` and `false` on those two as set.
 
-With telemetry off, Claude Code still starts the plugin's short Node hook at
-session start, on each prompt, after each MCP tool call, after each web fetch
-or search, after each `gh`, `glab`, `curl`, `wget`, `http`, or `osascript`
-command, and when a subagent stops (about 60 ms each time). It exits without
-sending anything. Claude Code reads the list of hooks from the plugin's files,
-so an environment variable can't remove them.
+With telemetry off, the client still invokes its configured Node hooks. The
+telemetry hook exits without sending events; the routing hook still classifies
+prompts locally. An environment variable cannot remove hooks from the manifest.
 
 In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
 `copilot`. `COPILOT_OFFLINE=true` also turns it off (along with all other
@@ -52,16 +68,24 @@ events.
 
 ## What is stored on your machine
 
-One file per client, in the client's plugin data folder, named `arcade-used`,
-readable only by you. It holds the word `true` once an Arcade tool call has
-succeeded, and every event sends that as `arcade_used_before`. Nothing else is
-stored. If an `install-id` file is there, the plugin deletes it, even with
+The client's plugin data folder contains an `arcade-used` flag, readable only
+by you. It holds `true` after an Arcade call succeeds and supplies
+`arcade_used_before`. The plugin deletes an obsolete `install-id`, even with
 telemetry off.
 
-- Claude Code: `~/.claude/plugins/data/<plugin id>/arcade-used`
-- Copilot CLI: `~/.copilot/plugin-data/<…>/arcade-used`
+Prompt relevance state lives in `prompt-scope/<sha256(host:session_id)>.json` in
+the same folder. It contains a relevance boolean, expiry timestamp, and optional
+hashed prompt ID for duplicate-hook handling. It contains no prompt text,
+commands, tool arguments, or service content. Expired state cannot authorize
+observation. The next prompt-state write removes expired or malformed entries;
+at most 256 session state files are retained. Session start clears that
+session's state. Claude alternative-tool observations require a matching hashed
+prompt ID; an absent prompt ID cannot authorize those observations.
 
-If the client doesn't provide a data folder path, the plugin sends nothing.
+- Claude Code: `~/.claude/plugins/data/<plugin id>/`
+- Copilot CLI: `~/.copilot/plugin-data/<…>/`
+
+If the client supplies no plugin data folder, the plugin sends nothing.
 
 ## What is sent
 
@@ -103,7 +127,8 @@ do: email, calendar, chat, and the other categories above.
 
 `failure_kind`, `auth_needed`, and `cli` are values from fixed lists, picked
 on your machine. The error text, the tool output, and the command they are
-picked from are never sent. A Bash command sends an event only when one of its
+picked from are never sent. During an app-related observation period, a Bash
+command sends an event only when one of its
 commands starts with a listed program; commands that call a program by its
 full path, such as `/opt/homebrew/bin/gh`, are not counted. A command that runs
 two listed programs, such as `gh … && curl …`, sends one event for each, so
@@ -131,8 +156,9 @@ off.
 These events measure what plugin hooks observed, not whether Arcade was needed
 or whether the user's task succeeded. `could_use_arcade` and `service_hints`
 come from a local keyword classifier. A flagged prompt is a candidate for
-review, not a confirmed opportunity; an unflagged prompt is not confirmed to
-need no app. Use labeled task evaluations to score routing, and compare the
+review, not a confirmed opportunity. Prompt events are selected by relevance,
+so they cannot measure the share of all prompts needing Arcade; unrelated
+prompts are deliberately absent. Use labeled task evaluations to score routing, and compare the
 plugin with a baseline or variant before attributing a change to it.
 Neither host emits a task ID.
 
@@ -147,19 +173,24 @@ Keep the observation stages separate:
 | No Arcade call observed | A prompt with no Arcade tool event in the observable group | The hooks saw no call. This is not a routing miss without an independently labeled need and complete tool visibility. |
 
 Count each unit once at each stage, and show the denominator, host, date range,
-plugin version, and observation coverage beside every rate. Keep the number of
-prompt units and root sessions visible even when a chart has no app actions.
+plugin version, telemetry version, and observation coverage beside every rate.
+`telemetry_version: 2` identifies scoped events; a missing value identifies the
+legacy contract. Keep those populations separate, even at the same plugin
+version. Keep the number of
+observed prompt units and sessions visible even when a chart has no app actions.
 Do not extrapolate rates from a test sample or telemetry-enabled sessions to all users.
 Do not mix Claude turns with Copilot session counts in one rate.
 
 ### Claude Code turns
 
 The denominator is distinct `turn` values with a `Plugin prompt submitted`
-event. Exclude tool-only turns: Claude Code filters background task results
+event. This is a count of observed relevant turns, not all prompts or tasks.
+Exclude tool-only turns: Claude Code filters background task results
 from prompt events. Group tool events with the same `turn`, including an
 arcade-operator's events, and report sessions and turns separately. A short
-follow-up such as “yes, send it” is a separate turn; the classifier may flag
-only the earlier prompt, so turn counts do not describe whole tasks.
+follow-up such as “yes, send it” is a separate observed turn while scope is
+active, even when its keyword flag is false. Turn counts do not describe whole
+tasks. Report tool-only turns separately from this denominator.
 
 `server: other_arcade` means the hook observed another connection's Arcade
 gateway tool. A live Claude Code run invoked Arcade through a claude.ai
@@ -180,21 +211,21 @@ unconnected.
 
 ### Copilot CLI sessions
 
-Copilot CLI supplies no `prompt_id` or `turn`. Use a **root-session proxy**:
-count each session once when it has a `Plugin session started` event, at least
-one `Plugin prompt submitted` event, and no parent link. Report how many root
-sessions contain multiple prompts. This proxy is not a count of user tasks or
-turns.
-Reconstruct per-prompt intervals only when event order and the subagent link
-are sufficient; detached event delivery can change arrival order. The hashes
-do not link a resumed task across sessions.
+Copilot CLI supplies no `prompt_id` or `turn`. Count distinct sessions with a
+scoped `Plugin prompt submitted` event as **observed relevant sessions**. Report
+multiple-prompt sessions separately. This is not a count of all sessions, user
+tasks, or turns. Session starts are not transmitted and cannot define roots.
 
-The parent's `Plugin subagent stopped` carries `subagent_session`, equal to
-the subagent's `session`. Exclude linked subagent prompts from the root-session
-denominator and include their tool events with the parent. Report sessions
-with a prompt but neither `Plugin session started` nor a parent link as
-unclassified coverage, rather than dropping them without a count. A root
-session can also lack a tool event because the hook missed it.
+An Arcade operator's stop report carries `subagent_session`, equal to that
+operator's own event `session`. Exclude known linked operator prompts from the
+parent-session denominator and include their tool events with the parent.
+Other subagents do not send stop reports, so their prompt sessions cannot be
+reliably distinguished from roots. Report that parent attribution is unknown
+rather than labeling every unlinked session as a root.
+
+Detached event delivery can change arrival order. A missing operator stop or a
+rolling-window boundary can also remove a parent link. Do not reconstruct
+per-prompt outcomes from timestamps alone or link resumed tasks across sessions.
 
 Copilot names MCP tools `<server>-<tool>` with no plugin prefix, so an MCP
 server named `arcade` counts as `server: arcade` even if this plugin did not
@@ -221,14 +252,10 @@ do not send final answers or satisfaction signals. Task success, true routing
 misses, and improvement from this plugin require labeled evaluations outside
 this telemetry.
 
-## Classifier accuracy
+## Routing evaluation
 
-Measured against the labeled prompts in `test/fixtures/routing-prompts.json`:
-
-- Missed Arcade tasks: 6 of 55 (10.9%). Mostly asks with no app name, like
-  "move my 3pm to thursday".
-- False alarms on coding prompts: 4 of 56 (7.1%). Mostly code written *for*
-  a service, like "fix the slack webhook integration test".
-
-Arcade users often build integrations, so the real false-alarm rate is
-probably higher than the fixtures show.
+The [routing evaluation](routing-evaluation.md) measures classification and tool
+routing against independently labeled cases, including confirmation replies.
+Its results are separate from production usage events. Fixture accuracy does
+not establish real-user routing quality; prompts with no app name and coding
+work involving service names need explicit coverage.

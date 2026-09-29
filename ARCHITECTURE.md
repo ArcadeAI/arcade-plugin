@@ -88,12 +88,22 @@ The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
 model to self-report tokens, turns, or success.
 
-In Claude Code and Copilot CLI, `hooks/telemetry.mjs` also sends usage events
-on whether the model used Arcade when a prompt looked like a task Arcade could
-do. They carry a hash of the session ID and no ID that lasts across sessions.
-It is on by default, turned off with `ARCADE_PLUGIN_TELEMETRY=0`, Claude
-Code's own `DISABLE_TELEMETRY`, or Copilot's `COPILOT_OFFLINE`, and described
-in [docs/telemetry.md](docs/telemetry.md). The network send runs in a detached
-`hooks/telemetry-send.mjs`, so a turn never waits on the network. Every event
-and property is defined once, in `hooks/telemetry-contract.mjs`; the docs
-tables are generated from it and the tests validate built events against it.
+In Claude Code and Copilot CLI, hooks locally classify prompts across sessions.
+Only prompts classified as app-related or mentioning Arcade, and their explicit
+confirmation replies, receive a
+routing reminder or prompt event. Direct Arcade calls remain observable;
+alternative MCP, CLI, and web tools require an active app-related prompt.
+Session starts and other subagents' stops send no events.
+
+Prompt relevance state expires after 30 minutes, and an unrelated substantive
+prompt closes it. Confirmation replies keep the original expiry. State contains
+a relevance boolean, expiry, and a hashed prompt ID, without conversation text. See
+[docs/telemetry.md](docs/telemetry.md) for the local storage and event contract.
+
+Usage events are on by default and have no ID lasting across sessions. Set
+`ARCADE_PLUGIN_TELEMETRY=0` to disable transmission; local routing still works.
+The detached `hooks/telemetry-send.mjs` sends events without making the turn wait
+on the network. `hooks/telemetry-contract.mjs` defines every event and property;
+the generator writes the documentation tables and tests check event builders
+against the contract. The Arcade gateway remains the source for canonical tool
+outcomes; a client completion event does not establish task success.
