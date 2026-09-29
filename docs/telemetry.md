@@ -127,96 +127,94 @@ off.
 
 ## Reading the numbers
 
-### Claude Code
+These events measure what plugin hooks observed, not whether Arcade was needed
+or whether the user's task succeeded. `could_use_arcade` and `service_hints`
+come from a local keyword classifier. A flagged prompt is a candidate for
+review, not a confirmed opportunity; an unflagged prompt is not confirmed to
+need no app. Use labeled task evaluations to score routing, and compare the
+plugin with a baseline or variant before attributing a change to it.
+Neither host emits a task ID.
 
-Group events into turns by `turn`. Background task results don't send
-`Plugin prompt submitted`, so leave out turns that have tool events but no
-prompt event. Per turn:
+Keep the observation stages separate:
 
-- **Called when needed:** `could_use_arcade` and at least one
-  `Plugin tool called` with `server: arcade`, not counting
-  `System_ManageAuthorization`. Arcade's gateway tells the model to call it
-  before each job, so a call to it doesn't mean the task used Arcade.
-- **Called through another Arcade connection:** the same, with
-  `server: other_arcade`. Claude Code can hide the plugin's server when a
-  claude.ai Arcade connector points at the same gateway.
-- **Missed:** `could_use_arcade` and no Arcade tool call. Broken down by:
-  - an Arcade call failed, by `failure_kind`
-  - sign-in was needed: `auth_needed: true`, or the arcade-operator reported
-    `needs_auth`. A `System_ManageAuthorization` call alone doesn't show this.
-  - the model used a CLI or the web instead: a `Plugin built-in tool called`
-    or `Plugin built-in tool failed` event, by `cli` or `tool`
-  - a different server was used for the same kind of service
-  - nothing was called
-- **Maybe not set up:** a missed turn with `arcade_used_before: false`. No
-  Arcade tool call has succeeded on that machine yet, so the gateway may not be
-  connected. Count these apart from misses where `arcade_used_before` is
-  `true`. A `true` value means the gateway has answered before, not that every
-  app is signed in.
-- **Called unexpectedly:** not `could_use_arcade`, but Arcade was called.
-  This also shows where the keyword list misses.
-- **Not needed, not called:** everything else.
+| Stage | Evidence | What it establishes |
+| --- | --- | --- |
+| Gateway discovery or selection | `Plugin tool called` or `Plugin tool failed` for `Arcade_ListApps` or `Arcade_SelectTools` | The model attempted to find an app tool; a successful selection is not an app action. |
+| Authorization check | `System_ManageAuthorization`, reported separately | `auth_needed: true` means its answer said sign-in was needed. A check alone says nothing about app use; `false` does not prove every app is connected. |
+| App action | `Arcade_UseTool` or a named public Arcade toolkit tool, split by `Plugin tool called` and `Plugin tool failed` | The hook observed a tool completion or failure. Private tool names reported as `other` cannot be assigned to this stage. Neither outcome proves the user's task succeeded. |
+| No Arcade call observed | A prompt with no Arcade tool event in the observable group | The hooks saw no call. This is not a routing miss without an independently labeled need and complete tool visibility. |
 
-A reply like "yes, send it" is its own turn, usually without keywords, so it
-can count as "called unexpectedly" while the turn that asked counts as
-"missed". To score them together, add an unflagged turn to the most recent
-flagged turn in the same session when that turn is one of the two before it
-and started at most 10 minutes earlier, then score each group once. Unrelated
-turns in that window join the group too, so report per-turn and grouped counts
-side by side.
+Count each unit once at each stage, and show the denominator, host, date range,
+plugin version, and observation coverage beside every rate. Keep the number of
+prompt units and root sessions visible even when a chart has no app actions.
+Do not extrapolate rates from a test sample or opted-in events to all users.
+Do not mix Claude turns with Copilot session counts in one rate.
 
-An app tool called directly on another Arcade gateway (for example
-`Granola_ListMeetings` on a second gateway) looks the same as that app's own
-MCP server, so it counts as `other`.
+### Claude Code turns
 
-`failure_kind` limits:
+The denominator is distinct `turn` values with a `Plugin prompt submitted`
+event. Exclude tool-only turns: Claude Code filters background task results
+from prompt events. Group tool events with the same `turn`, including an
+arcade-operator's events, and report sessions and turns separately. A short
+follow-up such as “yes, send it” is a separate turn; the classifier may flag
+only the earlier prompt, so turn counts do not describe whole tasks.
 
-- `auth_required` matches the sign-in text in the Arcade gateway's source
-  code, checked with a test MCP server but not against the hosted gateway. It
-  also matches Claude Code's own sign-in errors: "needs you to sign in again",
-  "needs additional permissions", a rejected headersHelper credential or
-  Authorization header, and "needs to be connected in claude.ai". It still
-  matches "requires re-authorization", which Claude Code 2.1.246 said instead
-  of "needs you to sign in again".
-- `timeout` and `unreachable` also match the MCP SDK's
-  `MCP error -32001: Request timed out` and
-  `MCP error -32000: Connection closed`.
-- `session_expired` matches Claude Code's "session expired" error, which it
-  gives for an HTTP 404 from the server, or when an HTTP server closes the
-  connection mid-call.
-- Bad input, rate limits, upstream API errors, and an app's revoked sign-in
-  all count as `tool_error`, because each tool writes its own message.
-- `failure_kind` is sent for every server, so Arcade's failures can be
-  compared with other servers'.
+`server: other_arcade` means the hook observed another connection's Arcade
+gateway tool. It does not guarantee visibility into every connection: a live
+Claude Code run called Arcade through a claude.ai connection without a plugin
+tool event. Label flagged turns with no observed Arcade call **no call
+observed**, not **missed**. A direct app tool on another gateway may appear
+as `server: other`, without an identifiable Arcade call.
 
-### Copilot CLI
+A built-in CLI or web event is a tool observation, not evidence of fallback.
+Only call it a possible fallback after linking it to a labeled Arcade-eligible
+task and establishing that it served the same request.
+`arcade_used_before: false` says no Arcade call has previously succeeded on
+that machine; it does not prove that the gateway or a particular app was
+unconnected.
 
-Copilot has no `prompt_id`, so there is no `turn`. Group tool and subagent
-events into turns by ordering all events from one `Plugin prompt submitted` up
-to the next one by timestamp.
+### Copilot CLI sessions
 
-Subagent events use the subagent's own `session` value. The parent's
-`Plugin subagent stopped` carries `subagent_session`, which equals that
-subagent's `session`.
+Copilot CLI supplies no `prompt_id` or `turn`. Use a **root-session proxy**:
+count each session once when it has a `Plugin session started` event, at least
+one `Plugin prompt submitted` event, and no parent link. Report how many root
+sessions contain multiple prompts. This proxy is not a count of user tasks or
+turns.
+Reconstruct per-prompt intervals only when event order and the subagent link
+are sufficient; detached event delivery can change arrival order. The hashes
+do not link a resumed task across sessions.
 
-- Leave out `Plugin prompt submitted` events whose `session` matches any
-  event's `subagent_session`. The model wrote those prompts.
-- Count a subagent session's tool events toward the parent turn that contains
-  the matching `Plugin subagent stopped`.
-- Leave out sessions with a prompt but no `Plugin session started` and no
-  matching `subagent_session`. These are subagents that never stopped.
+The parent's `Plugin subagent stopped` carries `subagent_session`, equal to
+the subagent's `session`. Exclude linked subagent prompts from the root-session
+denominator and include their tool events with the parent. Report sessions
+with a prompt but neither `Plugin session started` nor a parent link as
+unclassified coverage, rather than dropping them without a count. A root
+session can also lack a tool event because the hook missed it.
 
-Copilot names MCP tools `<server>-<tool>` with no plugin prefix, so any MCP
-server the user named `arcade` counts as `server: arcade`, not just this
-plugin's.
+Copilot names MCP tools `<server>-<tool>` with no plugin prefix, so an MCP
+server named `arcade` counts as `server: arcade` even if this plugin did not
+install it. Copilot sends no built-in CLI or web events; its `arcade-operator`
+can report `status: unknown`. Do not infer a fallback or task result from
+either absence.
 
-Copilot CLI sends no built-in tool events, so a missed turn can't be split
-into "used a CLI or the web instead" and "nothing was called".
+### Failure and outcome limits
 
-`failure_kind` uses the same rules on Copilot CLI's error text, which starts
-with `MCP server '<name>':`. Copilot doesn't say when a call was interrupted,
-so `interrupted` doesn't appear. A transport that closed mid-call counts as
-`unreachable`, the same as in Claude Code.
+`failure_kind` is a local classifier of error text, not a server error code.
+An app sign-in failure can be `tool_error` when its wording does not match the
+classifier; bad input, rate limits, and upstream errors can also get that
+value.
+
+`auth_needed: true` on an authorization check reports a service still needing
+sign-in; operator `status: needs_auth` is the model's report, not a verified
+server status. `auth_required`, `session_expired`, `timeout`, and `unreachable`
+match known client or MCP SDK error wording; other wording can classify
+differently. Copilot does not report interrupted calls, so its `interrupted`
+category is empty.
+
+Operator status describes its report, not the parent task's result. The hooks
+do not send final answers or satisfaction signals. Task success, true routing
+misses, and improvement from this plugin require labeled evaluations outside
+this telemetry.
 
 ## Classifier accuracy
 
