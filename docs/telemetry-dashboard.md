@@ -9,7 +9,8 @@ The dashboard checks whether plugin telemetry reaches PostHog. It reads Staging 
 Split every insight by `telemetry_version`: missing means legacy version 1;
 `2` means scoped observation. Never combine their denominators, even when
 `plugin_version` is the same. Legacy events include unrelated prompts and session
-starts; version 2 omits both. Keep deliberate QA separate from production usage.
+starts; version 2 omits both. Version 1 retains recorded app tool names; version 2
+uses `app_tool` and service categories. Keep deliberate QA separate from production usage.
 
 Every chart displays host, unit, date range, plugin version, telemetry version,
 numerator, denominator, and coverage limits. Count the unit once at each stage.
@@ -19,7 +20,7 @@ Tool-event totals have an event denominator; they are not task or adoption rates
 | --- | --- | --- |
 | Claude prompt observations | Distinct `turn` with scoped `Plugin prompt submitted` | Relevant observed turns only; confirmations can have a false keyword flag; no task count |
 | Claude Arcade attempts | Observed attempts, plus distinct turns with attempts | Attempt alone has no observed outcome; direct tool-only turns reported separately |
-| Claude gateway and app results | Tool events by name and completion/failure; rates use observed relevant turns | Tool completion is not task success; private tools reported as `other` are unclassified |
+| Claude gateway and app results | Tool events by gateway name or fixed category and completion/failure; rates use observed relevant turns | Tool completion is not task success; tools with an unrecognized service category are `other` |
 | Claude alternative-tool observations | Distinct observed relevant turns with each tracked tool | In-scope tool use is not proof of fallback; keyword scope can misclassify |
 | Claude operator reports | Observed Arcade operator stops by reported status | Model report is not the parent task's verified outcome |
 | Copilot session observations | Distinct scoped prompt `session`, excluding known operator child links | Observed relevant sessions, not all sessions or proven roots; generic subagent parentage is unknown |
@@ -40,7 +41,7 @@ An attempt lacking either result is **attempt observed, outcome unknown**. An
 observed prompt lacking an Arcade event is **no call observed**, not **missed**.
 Discovery (`Arcade_ListApps`, `Arcade_SelectTools`) and authorization
 (`System_ManageAuthorization`) are separate from app tools (`Arcade_UseTool` and
-named public toolkit tools). None of those stages establishes task success.
+`app_tool` categories). None of those stages establishes task success.
 
 Each insight's saved HogQL is its executable definition. Use a rolling seven-day
 filter in the query and dashboard. Record query refresh results after changing

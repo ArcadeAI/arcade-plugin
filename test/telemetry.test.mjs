@@ -165,7 +165,7 @@ test("buildEvent maps each hook input to the documented event", () => {
     ["PreToolUse", { tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}Arcade_SelectTools` }, ATTEMPTED,
       { server: "other_arcade", tool: "Arcade_SelectTools" }],
     ["PreToolUse", { tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents` }, ATTEMPTED,
-      { server: "other_arcade", tool: "GoogleCalendar_ListEvents", service: "calendar" }],
+      { server: "other_arcade", tool: "app_tool", service: "calendar" }],
     ["PreToolUse", { tool_name: `${ARCADE_TOOL_PREFIX}Arcade_UseTool`, tool_input: { tool_name: "GoogleCalendar.ListEvents" } }, ATTEMPTED,
       { server: "arcade", tool: "Arcade_UseTool", service: "calendar" }],
     ["PreToolUse", { tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}AcmeHR_RunPayroll` }, ATTEMPTED,
@@ -173,9 +173,9 @@ test("buildEvent maps each hook input to the documented event", () => {
     ["PreToolUse", { tool_name: "mcp__claude_ai_Gmail__search_threads" }, null],
     ["PreToolUse", { tool_name: "mcp__claude_ai_Arcade__Arcade_SelectTools" }, null],
     ["PreToolUse", { tool_name: "Bash" }, null],
-    [...tool(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`), CALLED, { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
+    [...tool(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`), CALLED, { server: "arcade", tool: "app_tool", service: "email" }],
     [...tool(`${CLAUDE_AI_ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents`), CALLED,
-      { server: "other_arcade", tool: "GoogleCalendar_ListEvents", service: "calendar" }],
+      { server: "other_arcade", tool: "app_tool", service: "calendar" }],
     [...tool(SIGN_IN), CALLED, { server: "arcade", tool: "System_ManageAuthorization", auth_needed: false }],
     [...signInCheck(SIGN_IN, ["authorized", "authorization_required"]), CALLED,
       { server: "arcade", tool: "System_ManageAuthorization", auth_needed: true }],
@@ -184,7 +184,7 @@ test("buildEvent maps each hook input to the documented event", () => {
     [...signInCheck("mcp__claude_ai_Arcade__System_ManageAuthorization", ["authorization_required"]), CALLED,
       { server: "other_arcade", tool: "System_ManageAuthorization", auth_needed: true }],
     [...signInCheck(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, ["authorization_required"]), CALLED,
-      { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
+      { server: "arcade", tool: "app_tool", service: "email" }],
     [...tool(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, { tool_name: "GoogleCalendar.ListEvents" }), CALLED,
       { server: "arcade", tool: "Arcade_UseTool", service: "calendar" }],
     [...tool(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, { tool_name: "AcmeHR.RunPayroll" }), CALLED, { server: "arcade", tool: "Arcade_UseTool" }],
@@ -196,17 +196,17 @@ test("buildEvent maps each hook input to the documented event", () => {
     [...tool("mcp__secret-server__DoThing"), CALLED, { server: "other" }],
     [...tool("Read"), null],
     ["PostToolUseFailure", { tool_name: `${ARCADE_TOOL_PREFIX}Slack_SendMessage` }, FAILED,
-      { server: "arcade", tool: "Slack_SendMessage", service: "chat", failure_kind: "tool_error" }],
+      { server: "arcade", tool: "app_tool", service: "chat", failure_kind: "tool_error" }],
     [...failed(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`,
       '{"message":"The tool was not executed because it requires authorization.","authorization_url":"https://example.com/auth"}'),
-      FAILED, { server: "arcade", tool: "Gmail_ListEmails", service: "email", failure_kind: "auth_required" }],
+      FAILED, { server: "arcade", tool: "app_tool", service: "email", failure_kind: "auth_required" }],
     [...failed(`${ARCADE_TOOL_PREFIX}Arcade_UseTool`, 'MCP server "plugin:arcade:arcade" session expired',
       { tool_input: { tool_name: "Gmail.ListEmails" } }),
       FAILED, { server: "arcade", tool: "Arcade_UseTool", service: "email", failure_kind: "session_expired" }],
     [...failed(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, "Connection closed"),
-      FAILED, { server: "arcade", tool: "Gmail_ListEmails", service: "email", failure_kind: "unreachable" }],
+      FAILED, { server: "arcade", tool: "app_tool", service: "email", failure_kind: "unreachable" }],
     [...failed(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`, "Connection closed", { is_interrupt: true }),
-      FAILED, { server: "arcade", tool: "Gmail_ListEmails", service: "email", failure_kind: "interrupted" }],
+      FAILED, { server: "arcade", tool: "app_tool", service: "email", failure_kind: "interrupted" }],
     [...failed("mcp__secret-server__DoThing", "Error POSTing to endpoint: internal error"),
       FAILED, { server: "other", failure_kind: "http_error" }],
     [...failed("Read", "File does not exist."), null],
@@ -270,7 +270,7 @@ test("buildEvent maps Copilot CLI hook input to the documented event", () => {
     ["SessionStart", { source: "startup" }, null],
     ["UserPromptSubmit", { prompt: "What is on my calendar tomorrow?" }, "Plugin prompt submitted",
       { could_use_arcade: true, service_hints: ["calendar"], reminder_sent: false }],
-    [...tool("arcade-Gmail_ListEmails"), CALLED, { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
+    [...tool("arcade-Gmail_ListEmails"), CALLED, { server: "arcade", tool: "app_tool", service: "email" }],
     [...tool("arcade-Arcade_UseTool", { tool_name: "GoogleCalendar.ListEvents" }), CALLED,
       { server: "arcade", tool: "Arcade_UseTool", service: "calendar" }],
     [...tool("arcade-AcmeHR_RunPayroll"), CALLED, { server: "arcade", tool: "other" }],
@@ -291,7 +291,7 @@ test("buildEvent maps Copilot CLI hook input to the documented event", () => {
       { server: "arcade", tool: "other", failure_kind: "unreachable" }],
     ["PostToolUseFailure", { tool_name: "arcade-Slack_SendMessage", tool_input: {},
       error: "MCP server 'arcade': Slack requires authorization" }, FAILED,
-      { server: "arcade", tool: "Slack_SendMessage", service: "chat", failure_kind: "auth_required" }],
+      { server: "arcade", tool: "app_tool", service: "chat", failure_kind: "auth_required" }],
     ["PostToolUse", { tool_name: "arcade-System_ManageAuthorization", tool_input: {}, tool_result: {
       result_type: "success", text_result_for_llm: '{"providers":[{"status":"authorization_required"}]}' } }, CALLED,
       { server: "arcade", tool: "System_ManageAuthorization", auth_needed: true }],
@@ -491,6 +491,32 @@ test("buildEvent never leaks Copilot CLI input text or raw ids", () => {
   }
 });
 
+test("recognized service prefixes never expose app tool names", () => {
+  const names = [
+    ["Gmail_Alice_PrivatePayroll", "email"],
+    ["gMaIl.PrivateCustomerExports", "email"],
+    ["GoogleCalendar_PrivateBoardMeeting", "calendar"],
+  ];
+  const clients = [
+    { options: OPTIONS, input: hookInput, prefix: ARCADE_TOOL_PREFIX, hooks: ["PreToolUse", "PostToolUse", "PostToolUseFailure"] },
+    { options: OPTIONS, input: hookInput, prefix: CLAUDE_AI_ARCADE_TOOL_PREFIX, hooks: ["PreToolUse", "PostToolUse", "PostToolUseFailure"] },
+    { options: COPILOT_OPTIONS, input: copilotInput, prefix: `${COPILOT_ARCADE_SERVER}-`, hooks: ["PostToolUse", "PostToolUseFailure"] },
+  ];
+  for (const client of clients) {
+    for (const [name, service] of names) {
+      for (const hook of client.hooks) {
+        const event = buildEvent(client.input({ hook_event_name: hook, tool_name: `${client.prefix}${name}` }), client.options);
+        assert.equal(event.properties.tool, "app_tool");
+        assert.equal(event.properties.service, service);
+        assert.doesNotMatch(JSON.stringify(event), /Alice|Private|Payroll|Customer|BoardMeeting/);
+        assertMatchesContract(event);
+        const privateName = { ...event, properties: { ...event.properties, tool: name } };
+        assert.equal(validateEvent(privateName), false, `${client.options.host} ${hook}: private tool name`);
+      }
+    }
+  }
+});
+
 test("every explicitly scoped prompt builds an event that matches the contract", async () => {
   const prompts = JSON.parse(readFileSync(path.join(ROOT, "test/fixtures/routing-prompts.json"), "utf8"));
   for (const { prompt } of prompts) {
@@ -519,7 +545,7 @@ test("the contract schema rejects events outside the contract", () => {
   bad.push({ ...operatorStop, properties: withoutStatus });
   bad.push(withProperties({ plugin_version: "latest" }));
   bad.push(withProperties({ auth_needed: true }));
-  bad.push(withProperties({ server: "arcade", tool: "Gmail_ListEmails", auth_needed: false }));
+  bad.push(withProperties({ server: "arcade", tool: "app_tool", auth_needed: false }));
 
   const signIn = buildEvent(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}System_ManageAuthorization` }), OPTIONS);
   const { auth_needed: _authNeeded, ...withoutAuthNeeded } = signIn.properties;
@@ -936,7 +962,7 @@ test("Copilot telemetry hook posts events and keeps arcade-used in COPILOT_PLUGI
     }
     const called = bodies.find((body) => body.event === "Plugin tool called");
     assert.equal(called.properties.server, "arcade");
-    assert.equal(called.properties.tool, "Gmail_ListEmails");
+    assert.equal(called.properties.tool, "app_tool");
     assert.equal(called.properties.arcade_used_before, false);
     assert.deepEqual(bodies.map((body) => body.properties.arcade_used_before).sort(), [false, true, true, true]);
     for (const request of server.requests) {

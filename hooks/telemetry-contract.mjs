@@ -66,7 +66,7 @@ export const GATEWAY_TOOLS = /** @type {const} */ ([
 ]);
 
 // Arcade toolkit name (the part of a tool name before "_" or ".", lowercased)
-// to its service category. Tool names from these toolkits are public.
+// to its service category. Tool suffixes are never sent.
 /** @type {Record<string, typeof SERVICE_CATEGORIES[number]>} */
 export const TOOLKIT_SERVICES = {
   gmail: "email", outlookmail: "email",
@@ -120,27 +120,14 @@ export const COMMON_PROPERTIES = {
 /** Common properties present on every event. */
 const ALWAYS_SENT = ["session", "arcade_used_before", "host", "plugin_version", "telemetry_version", "os", "$process_person_profile", "$geoip_disable", "$ip"];
 
-// JSON Schema patterns have no case-insensitive flag, and the builder matches
-// toolkit names in any case, so each letter becomes a two-case class.
-const anyCase = (/** @type {string} */ word) =>
-  [...word].map((char) => (/[a-z]/.test(char) ? `[${char}${char.toUpperCase()}]` : char)).join("");
-
-// "other", a gateway tool, or a tool from a toolkit in TOOLKIT_SERVICES.
-const PUBLIC_TOOL = {
-  anyOf: [
-    enumOf(["other", ...GATEWAY_TOOLS]),
-    { type: "string", pattern: `^(${Object.keys(TOOLKIT_SERVICES).map(anyCase).join("|")})[_.]` },
-  ],
-};
-
 const TOOL_PROPERTIES = {
   server: {
     schema: enumOf(SERVERS),
     doc: "`arcade` (this plugin's gateway) \\| `other_arcade` (another connection exposing Arcade's gateway tools) \\| `other`",
   },
   tool: {
-    schema: PUBLIC_TOOL,
-    doc: "only for `arcade` and `other_arcade`: the Arcade tool name if it is a gateway tool or a public Arcade toolkit tool, otherwise `other`",
+    schema: enumOf(["other", "app_tool", ...GATEWAY_TOOLS]),
+    doc: "only for `arcade` and `other_arcade`: an exact gateway tool name, `app_tool` for a recognized service category, or `other`; app tool names are never sent",
   },
   service: {
     schema: enumOf(SERVICE_CATEGORIES),
@@ -148,7 +135,7 @@ const TOOL_PROPERTIES = {
   },
 };
 
-// A tool name is sent for Arcade's own gateways, and only for them.
+// Tool values are sent only for Arcade connections.
 const TOOL_RULES = [
   { if: { properties: { server: { const: "other" } } }, then: { not: { required: ["tool"] } } },
   { if: { properties: { server: enumOf(["arcade", "other_arcade"]) } }, then: { required: ["tool"] } },

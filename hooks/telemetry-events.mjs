@@ -67,9 +67,10 @@ const arcadeToolProperties = (server, tool, toolInput) => {
     tool === "Arcade_UseTool"
       ? serviceForToolName(toolInput?.tool_name)
       : serviceForToolName(tool);
-  // Custom toolkit names could be private, so only public names are sent.
-  const isPublic = /** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool) || service !== null;
-  return withService({ server, tool: isPublic ? tool : "other" }, service);
+  // A recognized toolkit prefix does not establish that its tool name is public.
+  const isGateway = /** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool);
+  const category = isGateway ? tool : service !== null ? "app_tool" : "other";
+  return withService({ server, tool: category }, service);
 };
 
 /**
