@@ -41,6 +41,16 @@ test("no root folders that clients would load a second time", () => {
   }
 });
 
+// Cursor's validator (npm run verify:cursor) only checks frontmatter in a root
+// rules/ folder, and this repo keeps its rule under clients/cursor/rules/.
+test("every Cursor rule has a description in its frontmatter", () => {
+  const dir = "clients/cursor/rules";
+  for (const file of readdirSync(path.join(ROOT, dir)).filter((name) => name.endsWith(".mdc"))) {
+    const frontmatter = readRepoFile(`${dir}/${file}`).match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
+    assert.match(frontmatter, /^description: \S/m, `${dir}/${file}: missing description in frontmatter`);
+  }
+});
+
 test("install docs name the repo and link every client page", () => {
   const index = readRepoFile("docs/install/README.md");
   for (const file of ["docs/install/README.md", "docs/install/claude-code.md", "docs/install/claude-desktop.md"]) {

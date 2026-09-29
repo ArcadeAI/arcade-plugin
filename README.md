@@ -80,13 +80,21 @@ npm ci
 npm run verify
 ```
 
-`verify` runs the tests (hand-written file checks, a stale-generated-file
-check, and every hook command in every client's manifest), then
-`plugins discover` and `claude plugin validate`.
+`verify` runs:
 
-CI runs the same steps (`.github/workflows/check.yml`). On pull requests the
-**`complete`** job also waits for Cursor Bugbot; make `complete` the only
-required status check.
+- the tests: hand-written file checks, a stale-generated-file check, and
+  every hook command in every client's manifest
+- `claude plugin validate`
+- Cursor's plugin validator (`scripts/verify-cursor.mjs` downloads it at a
+  pinned commit)
+- Codex and Copilot CLI checks (`scripts/verify-codex.mjs`,
+  `scripts/verify-copilot.mjs`): neither client has a validate command, so
+  these install the plugin into a temporary home and check that the client
+  loaded every MCP server and skill
+
+CI runs each of these as its own job (`.github/workflows/check.yml`). The
+**`check`** job waits for all of them and, on pull requests, for Cursor
+Bugbot. Branch protection on `main` requires `check`.
 
 ## Release
 
