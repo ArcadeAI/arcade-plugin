@@ -102,7 +102,7 @@ export const COMMON_PROPERTIES = {
   },
   turn: {
     schema: HASH,
-    doc: '`sha256(session_id + ":" + prompt_id)`, first 16 hex characters; Claude Code only, because Copilot CLI has no prompt ID (not on `Plugin session started`)',
+    doc: '`sha256(session_id + ":" + prompt_id)`, first 16 hex characters; Claude Code only, because Copilot CLI has no prompt ID',
   },
   arcade_used_before: {
     schema: { type: "boolean" },
