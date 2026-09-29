@@ -2,15 +2,15 @@
 
 [Open the dashboard](https://us.posthog.com/project/129768/dashboard/2150320).
 
-The dashboard checks whether plugin telemetry reaches PostHog. It reads Staging project 129768, plugin version `0.2.0`, over a rolling seven days. Deliberate Claude Code and Copilot CLI runs seeded the current sample. These counts are not production usage or task-success rates, and there is no installed-user denominator. The SQL measures are noncanonical because this PostHog connection lacks `data_catalog:read`.
+The dashboard checks whether plugin telemetry reaches PostHog. It reads Staging project 129768, plugin version `0.2.0`, over a rolling seven days. The current events came from deliberate Claude Code and Copilot CLI tests. These counts are not production usage or task-success rates, and there is no installed-user denominator. The SQL measures are noncanonical because this PostHog connection lacks `data_catalog:read`.
 
 ## Definitions
 
 - `could_use_arcade` is a local keyword flag on a prompt. It does not establish that Arcade was needed.
 - `Plugin tool attempted` is a Claude Code `PreToolUse` observation. It records that an Arcade tool was selected before execution. It is not a completion, app action, or task result. Older runs have no attempt event and are not backfilled.
 - `Plugin tool called` means the client reported tool completion through `PostToolUse`. It does not independently verify an app action or the user's task.
-- `Arcade_ListApps` and `Arcade_SelectTools` are gateway discovery and selection. `Arcade_UseTool` and other Arcade tools outside those two and `System_ManageAuthorization` are app tools. Failed app calls come from `Plugin tool failed` and retain their reported `failure_kind`.
-- Claude observations use a prompt `turn`. Copilot observations use a root `session` with `Plugin session started`. A Copilot child session contributes calls only when `Plugin subagent stopped.subagent_session` links it to the root. Root sessions with multiple parent prompts are counted as attribution unknown. Sessions with neither a start nor a child link appear as unlinked in the coverage table.
+- `Arcade_ListApps` and `Arcade_SelectTools` are gateway discovery and selection. `Arcade_UseTool` and named public toolkit tools are app tools. `System_ManageAuthorization` is an authorization check. A tool reported as `other` is unclassified and does not count as an app tool. Failed app calls come from `Plugin tool failed` and retain their reported `failure_kind`.
+- Claude observations use a prompt `turn`. Copilot observations use a root `session` with `Plugin session started`. A Copilot child session contributes calls only when `Plugin subagent stopped.subagent_session` links it to the root. Root sessions with multiple parent prompts are counted as attribution unknown. Prompt-bearing sessions with neither a start nor a child link appear as unlinked in the coverage table.
 
 ## Saved insights
 
@@ -21,7 +21,7 @@ The dashboard checks whether plugin telemetry reaches PostHog. It reads Staging 
 | Claude operator reported status | `HuSr1EKI` | Stops |
 | Claude Arcade tool attempts | `uuCJnm8A` | PreToolUse attempts by connection and tool |
 | Claude gateway and app tool results | `ijmf2caj` | Tool events by name and result |
-| Claude built-in tools observed | `iQ4gvyoh` | Turns with each built-in tool |
+| Claude built-in tool completions | `iQ4gvyoh` | Turns with each tracked PostToolUse completion |
 | Copilot root-session observations | `DXQPLNrZ` | Root sessions |
 | Copilot parent prompt keyword flags | `s2BffTqn` | Parent prompts |
 | Copilot gateway and app tool results | `Itp6kRP7` | Tool events by name and result |
