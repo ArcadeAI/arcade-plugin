@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ARCADE_USED_FILE, EVENT_ENV, OLD_INSTALL_ID_FILE, OPT_OUT_ENV } from "./telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "./telemetry-events.mjs";
+import { scopeForInput } from "./hook-scope.mjs";
 import { hostFromArgs, readInput } from "./hook-hosts.mjs";
 
 const SENDER = path.join(
@@ -77,6 +78,7 @@ const main = async () => {
   const dir = process.env[client.dataVariable];
   if (!dir || !path.isAbsolute(dir)) return;
   rmSync(path.join(dir, OLD_INSTALL_ID_FILE), { force: true });
+  const scope = scopeForInput(input, { host: client.host, dir });
   if (isOptedOut(client.optOutSwitches)) return;
 
   const arcadeUsedBefore = readArcadeUsed(dir);
@@ -85,6 +87,7 @@ const main = async () => {
     os: process.platform,
     arcadeUsedBefore,
     cli: cliFromArgs(process.argv),
+    ...scope,
   });
   if (!event) return;
   if (!arcadeUsedBefore && isArcadeCall(event)) markArcadeUsed(dir);

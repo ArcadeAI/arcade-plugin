@@ -23,7 +23,6 @@ import {
   GATEWAY_TOOLS,
   OPERATOR_STATUSES,
   OS_NAMES,
-  SESSION_SOURCES,
 } from "./telemetry-contract.mjs";
 import { PLUGIN_VERSION } from "./telemetry-config.mjs";
 import { authNeeded, failureKind } from "./telemetry-failures.mjs";
@@ -197,13 +196,14 @@ const operatorStatus = (/** @type {unknown} */ message) => {
 /**
  * @param {unknown} prompt
  * @param {HostInput} hostInput
+ * @param {boolean} reminderSent
  */
-const promptProperties = (prompt, hostInput) => {
+const promptProperties = (prompt, hostInput, reminderSent) => {
   const { couldUseArcade, serviceHints } = classifyPrompt(prompt);
   return {
     could_use_arcade: couldUseArcade,
     service_hints: serviceHints,
-    reminder_sent: hostInput.promptReminder && shouldRemind(prompt),
+    reminder_sent: hostInput.promptReminder && reminderSent,
   };
 };
 
@@ -216,27 +216,26 @@ const subagentSession = (/** @type {unknown} */ agentId) =>
  * @param {HookInput} input
  * @param {HostInput} hostInput
  * @param {string | undefined} cli
+ * @param {boolean} appWork
+ * @param {boolean} reminderSent
  * @returns {[string, Record<string, unknown>] | null}
  */
-const eventFor = (input, hostInput, cli) => {
+const eventFor = (input, hostInput, cli, appWork, reminderSent) => {
   switch (input.hook_event_name) {
     case "SessionStart":
-      return [
-        "Plugin session started",
-        { source: oneOf(input.source, SESSION_SOURCES, "other") },
-      ];
+      return null;
     case "UserPromptSubmit":
-      if (isTaskNotification(input.prompt)) return null;
-      return ["Plugin prompt submitted", promptProperties(input.prompt, hostInput)];
+      if (isTaskNotification(input.prompt) || !appWork) return null;
+      return ["Plugin prompt submitted", promptProperties(input.prompt, hostInput, reminderSent)];
     case "PreToolUse": {
       const extra = hostInput.attemptProperties?.(input.tool_name, input.tool_input);
       return extra ? ["Plugin tool attempted", extra] : null;
     }
     case "PostToolUse": {
       const builtin = hostInput.builtinTools && builtinToolProperties(input.tool_name, input.tool_input, cli);
-      if (builtin) return ["Plugin built-in tool called", builtin];
+      if (builtin && appWork) return ["Plugin built-in tool called", builtin];
       const extra = hostInput.toolProperties(input.tool_name, input.tool_input);
-      if (!extra) return null;
+      if (!extra || (extra.server === "other" && !appWork)) return null;
       if (extra.tool === "System_ManageAuthorization") {
         return ["Plugin tool called", { ...extra, auth_needed: authNeeded(hostInput.toolResponse(input)) }];
       }
@@ -244,15 +243,15 @@ const eventFor = (input, hostInput, cli) => {
     }
     case "PostToolUseFailure": {
       const builtin = hostInput.builtinTools && builtinToolProperties(input.tool_name, input.tool_input, cli);
-      if (builtin) return ["Plugin built-in tool failed", builtin];
+      if (builtin && appWork) return ["Plugin built-in tool failed", builtin];
       const extra = hostInput.toolProperties(input.tool_name, input.tool_input);
-      if (!extra) return null;
+      if (!extra || (extra.server === "other" && !appWork)) return null;
       return ["Plugin tool failed", { ...extra, failure_kind: failureKind(input.error, input.is_interrupt) }];
     }
     case "SubagentStop": {
       const session = hostInput.subagentSession ? subagentSession(input.agent_id) : {};
       if (!isOperatorAgentType(input.agent_type)) {
-        return ["Plugin subagent stopped", { agent: "other", ...session }];
+        return null;
       }
       return [
         "Plugin subagent stopped",
@@ -285,15 +284,17 @@ const keepAllowed = (event, properties) => {
  * Builds `{ event, distinct_id, properties }` from hook stdin, or returns null
  * when the input is not something the contract tracks or the host is unknown.
  * @param {HookInput | null | undefined} input
- * @param {{ host: string, os: string, arcadeUsedBefore: boolean, cli?: string }} options
+ * @param {{ host: string, os: string, arcadeUsedBefore: boolean, cli?: string, appWork?: boolean, reminderSent?: boolean }} options
  *   `cli` is the hook command's `--cli` argument, set only on Bash entries.
  */
-export const buildEvent = (input, { host, os, arcadeUsedBefore, cli }) => {
+export const buildEvent = (input, { host, os, arcadeUsedBefore, cli, appWork, reminderSent }) => {
   if (!Object.hasOwn(HOST_INPUT, host)) return null;
   const hostInput = HOST_INPUT[host];
   if (!input || typeof input !== "object") return null;
   if (typeof input.session_id !== "string" || input.session_id === "") return null;
-  const found = eventFor(input, hostInput, cli);
+  const relevant = appWork ?? (input.hook_event_name === "UserPromptSubmit" &&
+    (classifyPrompt(input.prompt).couldUseArcade || (typeof input.prompt === "string" && /\barcade\b/i.test(input.prompt))));
+  const found = eventFor(input, hostInput, cli, relevant, reminderSent ?? shouldRemind(input.prompt, relevant));
   if (!found) return null;
   const [event, extra] = found;
 
@@ -302,6 +303,7 @@ export const buildEvent = (input, { host, os, arcadeUsedBefore, cli }) => {
     ...extra,
     host,
     plugin_version: PLUGIN_VERSION,
+    telemetry_version: 2,
     os: oneOf(os, OS_NAMES, "other"),
     $process_person_profile: false,
     $geoip_disable: true,

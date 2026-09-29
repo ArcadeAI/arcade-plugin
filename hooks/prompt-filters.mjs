@@ -1,5 +1,7 @@
 /** Decides which user prompts get the per-turn routing reminder. */
 
+import { classifyPrompt } from "./telemetry-classify.mjs";
+
 // Short acknowledgements only — not action phrases like "fix it".
 const CONTINUATION_WORDS = new Set([
   "yes", "y", "yeah", "yep", "yup", "no", "nope", "ok", "okay", "k", "sure",
@@ -10,7 +12,7 @@ const CONTINUATION_WORDS = new Set([
 
 const MAX_CONTINUATION_WORDS = 2;
 
-const isBareContinuation = (prompt) => {
+export const isBareContinuation = (prompt) => {
   const words = prompt
     .toLowerCase()
     .replace(/[^a-z\s]/g, " ")
@@ -25,8 +27,17 @@ const isBareContinuation = (prompt) => {
 export const isTaskNotification = (prompt) =>
   typeof prompt === "string" && prompt.trimStart().startsWith("<task-notification>");
 
-export const shouldRemind = (prompt) =>
+export const isConfirmation = (prompt) => {
+  if (typeof prompt !== "string") return false;
+  if (isBareContinuation(prompt)) return true;
+  const text = prompt.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(?:(?:yes|yeah|yep|ok|okay|sure|please) )?(?:go ahead(?: and)? )?(?:send|post|create|schedule|book|reply|submit|do)(?: it| that| them| the draft| the message)(?: please)?$/.test(text)
+    || text === "go ahead";
+};
+
+export const shouldRemind = (prompt, appWork = false) =>
   typeof prompt === "string" &&
   prompt.trim() !== "" &&
   !isTaskNotification(prompt) &&
-  !isBareContinuation(prompt);
+  !isBareContinuation(prompt) &&
+  (appWork || classifyPrompt(prompt).couldUseArcade || /\barcade\b/i.test(prompt));

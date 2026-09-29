@@ -2,13 +2,18 @@
 // Adds a short routing reminder to user prompts. Always exits 0.
 
 import { hostFromArgs, printContext, readInput } from "./hook-hosts.mjs";
-import { shouldRemind } from "./prompt-filters.mjs";
+import { scopeForInput } from "./hook-scope.mjs";
 import { PROMPT_REMINDER } from "./routing-guidance.mjs";
 
 const host = hostFromArgs(process.argv);
 try {
-  const { prompt } = await readInput();
-  if (host && shouldRemind(prompt)) printContext(host, "UserPromptSubmit", PROMPT_REMINDER);
+  const input = await readInput();
+  const client = host?.telemetry;
+  const scope = scopeForInput({ ...input, hook_event_name: "UserPromptSubmit" }, {
+    host: client?.host ?? "unknown",
+    dir: client ? process.env[client.dataVariable] : undefined,
+  });
+  if (host && scope.reminderSent) printContext(host, "UserPromptSubmit", PROMPT_REMINDER);
 } catch {
   // Never block a prompt.
 }

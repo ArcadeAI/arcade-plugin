@@ -20,10 +20,9 @@ export const SERVICE_CATEGORIES = /** @type {const} */ ([
 ]);
 
 export const TELEMETRY_HOSTS = /** @type {const} */ (["claude-code", "copilot-cli"]);
-export const SESSION_SOURCES = /** @type {const} */ (["startup", "resume", "clear", "compact", "fork", "new", "other"]);
 export const OS_NAMES = /** @type {const} */ (["darwin", "linux", "win32", "other"]);
 export const SERVERS = /** @type {const} */ (["arcade", "other_arcade", "other"]);
-export const AGENTS = /** @type {const} */ (["arcade-operator", "other"]);
+export const AGENTS = /** @type {const} */ (["arcade-operator"]);
 export const OPERATOR_STATUSES = /** @type {const} */ ([
   "completed",
   "needs_auth",
@@ -110,6 +109,7 @@ export const COMMON_PROPERTIES = {
     doc: "whether an Arcade tool call had succeeded on this machine before this event (from the `arcade-used` file)",
   },
   host: { schema: enumOf(TELEMETRY_HOSTS), doc: list(TELEMETRY_HOSTS) },
+  telemetry_version: { schema: { const: 2 }, doc: "`2`, the scoped event contract; earlier events have no version" },
   plugin_version: { schema: { type: "string", pattern: PLUGIN_VERSION_PATTERN }, doc: "from `VERSION`" },
   os: { schema: enumOf(OS_NAMES), doc: list(OS_NAMES) },
   $process_person_profile: { schema: { const: false }, doc: "`false`" },
@@ -118,7 +118,7 @@ export const COMMON_PROPERTIES = {
 };
 
 /** Common properties present on every event. */
-const ALWAYS_SENT = ["session", "arcade_used_before", "host", "plugin_version", "os", "$process_person_profile", "$geoip_disable", "$ip"];
+const ALWAYS_SENT = ["session", "arcade_used_before", "host", "plugin_version", "telemetry_version", "os", "$process_person_profile", "$geoip_disable", "$ip"];
 
 // JSON Schema patterns have no case-insensitive flag, and the builder matches
 // toolkit names in any case, so each letter becomes a two-case class.
@@ -239,16 +239,9 @@ const BUILTIN_TOOL_WHEN = `Claude Code only, on \`WebFetch\` and \`WebSearch\`, 
 
 /** @type {Record<string, EventSpec>} */
 export const EVENTS = {
-  "Plugin session started": {
-    hook: "SessionStart",
-    when: "",
-    properties: { source: { schema: enumOf(SESSION_SOURCES), doc: list(SESSION_SOURCES) } },
-    required: ["source"],
-    excludes: ["turn"],
-  },
   "Plugin prompt submitted": {
     hook: "UserPromptSubmit",
-    when: "except background task results that Claude Code passes through the same hook. In Copilot CLI a subagent's own prompt also sends it",
+    when: "only for locally classified app work and short confirmations of that work; background task results are excluded. In Copilot CLI a relevant subagent prompt also sends it",
     properties: {
       could_use_arcade: { schema: { type: "boolean" }, doc: "boolean, a local keyword guess (see below)" },
       service_hints: {
@@ -270,7 +263,7 @@ export const EVENTS = {
   "Plugin tool called": {
     hook: "PostToolUse",
     mcpToolsOnly: true,
-    when: "on MCP tools",
+    when: "on Arcade tools, or alternative MCP tools while the current turn concerns app work",
     properties: TOOL_CALLED_PROPERTIES,
     required: ["server"],
     rules: TOOL_CALLED_RULES,
@@ -278,7 +271,7 @@ export const EVENTS = {
   "Plugin tool failed": {
     hook: "PostToolUseFailure",
     mcpToolsOnly: true,
-    when: "on MCP tools",
+    when: "on Arcade tools, or alternative MCP tools while the current turn concerns app work",
     properties: TOOL_FAILED_PROPERTIES,
     required: ["server", "failure_kind"],
     rules: TOOL_RULES,
@@ -288,7 +281,7 @@ export const EVENTS = {
     claudeCodeOnly: true,
     matcher: "WebFetch|WebSearch",
     bashClis: BASH_CLIS,
-    when: BUILTIN_TOOL_WHEN,
+    when: `${BUILTIN_TOOL_WHEN}; only while the current turn concerns app work`,
     properties: BUILTIN_TOOL_PROPERTIES,
     required: ["tool"],
     rules: BUILTIN_TOOL_RULES,
@@ -298,14 +291,14 @@ export const EVENTS = {
     claudeCodeOnly: true,
     matcher: "WebFetch|WebSearch",
     bashClis: BASH_CLIS,
-    when: BUILTIN_TOOL_WHEN,
+    when: `${BUILTIN_TOOL_WHEN}; only while the current turn concerns app work`,
     properties: BUILTIN_TOOL_PROPERTIES,
     required: ["tool"],
     rules: BUILTIN_TOOL_RULES,
   },
   "Plugin subagent stopped": {
     hook: "SubagentStop",
-    when: "",
+    when: "only for arcade-operator",
     properties: {
       agent: { schema: enumOf(AGENTS), doc: list(AGENTS) },
       status: {
@@ -317,12 +310,7 @@ export const EVENTS = {
         doc: "`sha256(agent_id)`, first 16 hex characters. In Copilot CLI the subagent's own events carry this as `session`",
       },
     },
-    required: ["agent"],
-    // Only the operator's status is read, and it is always sent.
-    rules: [
-      { if: { properties: { agent: { const: "other" } } }, then: { not: { required: ["status"] } } },
-      { if: { properties: { agent: { const: "arcade-operator" } } }, then: { required: ["status"] } },
-    ],
+    required: ["agent", "status"],
   },
 };
 
