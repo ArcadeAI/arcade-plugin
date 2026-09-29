@@ -17,6 +17,7 @@ import {
   allowedProperties,
   ARCADE_TOOL_PREFIX,
   BASH_CLIS,
+  CLAUDE_AI_ARCADE_TOOL_PREFIX,
   CLI_SERVICES,
   COPILOT_ARCADE_SERVER,
   GATEWAY_TOOLS,
@@ -85,6 +86,9 @@ const claudeToolProperties = (toolName, toolInput) => {
   if (toolName.startsWith(ARCADE_TOOL_PREFIX)) {
     return arcadeToolProperties("arcade", tool, toolInput);
   }
+  if (toolName.startsWith(CLAUDE_AI_ARCADE_TOOL_PREFIX)) {
+    return arcadeToolProperties("other_arcade", tool, toolInput);
+  }
   if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
     return arcadeToolProperties("other_arcade", tool, toolInput);
   }
@@ -94,6 +98,21 @@ const claudeToolProperties = (toolName, toolInput) => {
   const service =
     serviceForToolName(tool) ?? serverParts.map(serviceForToolkit).find(Boolean);
   return withService({ server: "other" }, service);
+};
+
+/**
+ * @param {unknown} toolName
+ * @param {HookInput | undefined} toolInput
+ */
+const claudeAttemptProperties = (toolName, toolInput) => {
+  if (typeof toolName !== "string") return null;
+  if (toolName.startsWith(ARCADE_TOOL_PREFIX)) {
+    return arcadeToolProperties("arcade", toolName.slice(ARCADE_TOOL_PREFIX.length), toolInput);
+  }
+  if (toolName.startsWith(CLAUDE_AI_ARCADE_TOOL_PREFIX)) {
+    return arcadeToolProperties("other_arcade", toolName.slice(CLAUDE_AI_ARCADE_TOOL_PREFIX.length), toolInput);
+  }
+  return null;
 };
 
 /**
@@ -142,6 +161,7 @@ const copilotToolProperties = (toolName, toolInput) => {
 /**
  * @typedef {object} HostInput
  * @property {(toolName: unknown, toolInput: HookInput | undefined) => Record<string, string> | null} toolProperties
+ * @property {(toolName: unknown, toolInput: HookInput | undefined) => Record<string, string> | null} [attemptProperties]
  * @property {(input: HookInput) => unknown} toolResponse The tool's result, read only by authNeeded.
  * @property {boolean} builtinTools Whether WebFetch, WebSearch, and Bash calls send built-in tool events.
  * @property {boolean} promptReminder Whether the client runs user-prompt-submit.mjs.
@@ -152,6 +172,7 @@ const copilotToolProperties = (toolName, toolInput) => {
 export const HOST_INPUT = {
   "claude-code": {
     toolProperties: claudeToolProperties,
+    attemptProperties: claudeAttemptProperties,
     toolResponse: (input) => input.tool_response,
     builtinTools: true,
     promptReminder: true,
@@ -207,6 +228,10 @@ const eventFor = (input, hostInput, cli) => {
     case "UserPromptSubmit":
       if (isTaskNotification(input.prompt)) return null;
       return ["Plugin prompt submitted", promptProperties(input.prompt, hostInput)];
+    case "PreToolUse": {
+      const extra = hostInput.attemptProperties?.(input.tool_name, input.tool_input);
+      return extra ? ["Plugin tool attempted", extra] : null;
+    }
     case "PostToolUse": {
       const builtin = hostInput.builtinTools && builtinToolProperties(input.tool_name, input.tool_input, cli);
       if (builtin) return ["Plugin built-in tool called", builtin];

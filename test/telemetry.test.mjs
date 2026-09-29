@@ -10,8 +10,8 @@ import { after, test } from "node:test";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 import Ajv2020 from "ajv/dist/2020.js";
 import { HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
-import { ARCADE_TOOL_PREFIX, COPILOT_ARCADE_SERVER, EVENTS, eventSchema, TELEMETRY_HOSTS } from "../hooks/telemetry-contract.mjs";
-import { buildEvent, HOST_INPUT } from "../hooks/telemetry-events.mjs";
+import { ARCADE_TOOL_PREFIX, CLAUDE_AI_ARCADE_TOOL_PREFIX, COPILOT_ARCADE_SERVER, EVENTS, eventSchema, TELEMETRY_HOSTS } from "../hooks/telemetry-contract.mjs";
+import { buildEvent, HOST_INPUT, isArcadeCall } from "../hooks/telemetry-events.mjs";
 import { EVENT_ENV, PLUGIN_VERSION, POSTHOG_KEY } from "../hooks/telemetry-config.mjs";
 
 const OPTIONS = { host: "claude-code", os: "darwin", arcadeUsedBefore: false };
@@ -140,6 +140,7 @@ const POWERSHELL = (process.platform === "win32" ? ["pwsh", "powershell.exe"] : 
 );
 
 test("buildEvent maps each hook input to the documented event", () => {
+  const ATTEMPTED = "Plugin tool attempted";
   const CALLED = "Plugin tool called";
   const FAILED = "Plugin tool failed";
   const STOPPED = "Plugin subagent stopped";
@@ -158,7 +159,22 @@ test("buildEvent maps each hook input to the documented event", () => {
     ["UserPromptSubmit", { prompt: "ok" }, "Plugin prompt submitted",
       { could_use_arcade: false, service_hints: [], reminder_sent: false }],
     ["UserPromptSubmit", { prompt: "<task-notification>\n<status>completed</status> calendar" }, null],
+    ["PreToolUse", { tool_name: `${ARCADE_TOOL_PREFIX}Arcade_SelectTools` }, ATTEMPTED,
+      { server: "arcade", tool: "Arcade_SelectTools" }],
+    ["PreToolUse", { tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}Arcade_SelectTools` }, ATTEMPTED,
+      { server: "other_arcade", tool: "Arcade_SelectTools" }],
+    ["PreToolUse", { tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents` }, ATTEMPTED,
+      { server: "other_arcade", tool: "GoogleCalendar_ListEvents", service: "calendar" }],
+    ["PreToolUse", { tool_name: `${ARCADE_TOOL_PREFIX}Arcade_UseTool`, tool_input: { tool_name: "GoogleCalendar.ListEvents" } }, ATTEMPTED,
+      { server: "arcade", tool: "Arcade_UseTool", service: "calendar" }],
+    ["PreToolUse", { tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}AcmeHR_RunPayroll` }, ATTEMPTED,
+      { server: "other_arcade", tool: "other" }],
+    ["PreToolUse", { tool_name: "mcp__claude_ai_Gmail__search_threads" }, null],
+    ["PreToolUse", { tool_name: "mcp__claude_ai_Arcade__Arcade_SelectTools" }, null],
+    ["PreToolUse", { tool_name: "Bash" }, null],
     [...tool(`${ARCADE_TOOL_PREFIX}Gmail_ListEmails`), CALLED, { server: "arcade", tool: "Gmail_ListEmails", service: "email" }],
+    [...tool(`${CLAUDE_AI_ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents`), CALLED,
+      { server: "other_arcade", tool: "GoogleCalendar_ListEvents", service: "calendar" }],
     [...tool(SIGN_IN), CALLED, { server: "arcade", tool: "System_ManageAuthorization", auth_needed: false }],
     [...signInCheck(SIGN_IN, ["authorized", "authorization_required"]), CALLED,
       { server: "arcade", tool: "System_ManageAuthorization", auth_needed: true }],
@@ -392,6 +408,8 @@ test("buildEvent never leaks input text or raw ids, and sends only allowed keys"
   const inputs = [
     { hook_event_name: "SessionStart", source: "SECRET-source" },
     { hook_event_name: "UserPromptSubmit" },
+    { hook_event_name: "PreToolUse", tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}Arcade_UseTool` },
+    { hook_event_name: "PreToolUse", tool_name: `${ARCADE_TOOL_PREFIX}AcmeHR_RunPayroll` },
     { hook_event_name: "PostToolUse", tool_name: "mcp__secret-server__DoThing" },
     { hook_event_name: "PostToolUseFailure", tool_name: "mcp__SECRET__Granola_ListMeetings" },
     { hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Arcade_UseTool` },
@@ -507,6 +525,16 @@ test("the contract schema rejects events outside the contract", () => {
   bad.push({ ...toolFailed, properties: { ...toolFailed.properties, failure_kind: "rate_limited" } });
   bad.push({ ...toolFailed, properties: { ...toolFailed.properties, auth_needed: true } });
 
+  const attempted = buildEvent(hookInput({ hook_event_name: "PreToolUse", tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}Arcade_SelectTools` }), OPTIONS);
+  const { tool: _attemptTool, ...attemptWithoutTool } = attempted.properties;
+  bad.push(
+    { ...attempted, properties: attemptWithoutTool },
+    { ...attempted, properties: { ...attempted.properties, server: "other" } },
+    { ...attempted, properties: { ...attempted.properties, tool: "AcmeHR_RunPayroll" } },
+    { ...attempted, properties: { ...attempted.properties, auth_needed: false } },
+    { ...attempted, properties: { ...attempted.properties, failure_kind: "tool_error" } },
+  );
+
   const webFetch = buildEvent(hookInput({ hook_event_name: "PostToolUse", tool_name: "WebFetch" }), OPTIONS);
   const bash = buildEvent(hookInput({ hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "gh pr list" } }), { ...OPTIONS, cli: "gh" });
   const curl = buildEvent(hookInput({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "curl x" } }), { ...OPTIONS, cli: "curl" });
@@ -526,7 +554,7 @@ test("the contract schema rejects events outside the contract", () => {
     { ...curl, properties: { ...curl.properties, failure_kind: "tool_error" } },
   );
 
-  for (const event of [good, signIn, toolFailed, webFetch, bash, curl]) assertMatchesContract(event);
+  for (const event of [good, attempted, signIn, toolFailed, webFetch, bash, curl]) assertMatchesContract(event);
   for (const event of bad) assert.equal(validateEvent(event), false, JSON.stringify(event));
 });
 
@@ -535,11 +563,30 @@ test("each contract event is built from its hook's input", () => {
   for (const host of TELEMETRY_HOSTS) {
     for (const [name, spec] of Object.entries(EVENTS)) {
       if (spec.claudeCodeOnly && host !== "claude-code") continue;
-      const toolName = spec.mcpToolsOnly ? arcadeTools[host] : spec.matcher?.split("|")[0];
+      const toolName = spec.hook === "PreToolUse"
+        ? `${ARCADE_TOOL_PREFIX}Arcade_SelectTools`
+        : spec.mcpToolsOnly ? arcadeTools[host] : spec.matcher?.split("|")[0];
       const input = hookInput({ hook_event_name: spec.hook, tool_name: toolName, prompt: "hi" });
       assert.equal(buildEvent(input, { ...OPTIONS, host })?.event, name, `${host} ${spec.hook}`);
     }
   }
+});
+
+test("an attempt alone does not mark Arcade as used or prove success", () => {
+  const attempt = buildEvent(hookInput({
+    hook_event_name: "PreToolUse",
+    tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents`,
+  }), OPTIONS);
+  assert.equal(attempt.event, "Plugin tool attempted");
+  assert.equal(isArcadeCall(attempt), false);
+  assert.equal(attempt.properties.arcade_used_before, false);
+  assert.equal(attempt.properties.auth_needed, undefined);
+  assert.equal(attempt.properties.failure_kind, undefined);
+  const success = buildEvent(hookInput({
+    hook_event_name: "PostToolUse",
+    tool_name: `${ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents`,
+  }), OPTIONS);
+  assert.equal(isArcadeCall(success), true);
 });
 
 test("Copilot CLI sends no built-in tool events", () => {
@@ -725,10 +772,17 @@ test("the arcade-used flag is set by the first successful Arcade call and replac
     writeFileSync(path.join(dataDir, "install-id"), "11111111-2222-3333-4444-555555555555");
     const env = hookEnv(dataDir, server.url);
     const otherServer = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: "mcp__granola__Granola_ListMeetings" }));
+    const arcadeAttempt = JSON.stringify(hookInput({
+      hook_event_name: "PreToolUse",
+      tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents`,
+      tool_input: { query: "SECRET private meeting" },
+    }));
     const arcadeCall = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails` }));
 
     runHook("telemetry.mjs", otherServer, env);
     assert.deepEqual(readdirSync(dataDir), [], "install-id is deleted and another server's call sets no flag");
+    runHook("telemetry.mjs", arcadeAttempt, env);
+    assert.deepEqual(readdirSync(dataDir), [], "an Arcade attempt sets no flag");
     runHook("telemetry.mjs", arcadeCall, env);
     assert.equal(readFileSync(path.join(dataDir, "arcade-used"), "utf8"), "true");
     if (process.platform !== "win32") {
@@ -736,9 +790,12 @@ test("the arcade-used flag is set by the first successful Arcade call and replac
     }
     runHook("telemetry.mjs", otherServer, env);
 
-    await waitForRequests(server.requests, 3);
+    await waitForRequests(server.requests, 4);
+    const attempted = server.requests.find((request) => JSON.parse(request.body).event === "Plugin tool attempted");
+    assert.ok(attempted, "the Arcade attempt is sent");
+    assert.doesNotMatch(attempted.body, /SECRET|private meeting/);
     const sent = server.requests.map((request) => JSON.parse(request.body).properties.arcade_used_before);
-    assert.deepEqual(sent.sort(), [false, false, true], "only the call after the Arcade call says it was used before");
+    assert.deepEqual(sent.sort(), [false, false, false, true], "only the call after the Arcade call says it was used before");
   } finally {
     await server.close();
   }
@@ -747,9 +804,14 @@ test("the arcade-used flag is set by the first successful Arcade call and replac
 test("telemetry hook sends nothing when it must not", async () => {
   const server = await startServer();
   const sessionStart = JSON.stringify(hookInput({ hook_event_name: "SessionStart", source: "startup" }));
+  const arcadeAttempt = JSON.stringify(hookInput({
+    hook_event_name: "PreToolUse",
+    tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}Arcade_SelectTools`,
+  }));
   // [label, stdin, env overrides, prepare data dir, data dir stays empty]
   const cases = [
     ["opted out with 0", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
+    ["attempt opted out with 0", arcadeAttempt, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
     ["opted out, with an old install-id to delete", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" },
       (dir) => writeFileSync(path.join(dir, "install-id"), "11111111-2222-3333-4444-555555555555"), true],
     ["opted out with OFF", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "OFF" }, () => {}, true],

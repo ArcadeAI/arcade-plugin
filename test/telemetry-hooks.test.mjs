@@ -8,6 +8,21 @@ import { readRepoFile, ROOT } from "./helpers.mjs";
 
 const claudeHooks = () => JSON.parse(readRepoFile(HOSTS["claude-code"].manifest)).hooks;
 
+test("PreToolUse runs telemetry for MCP tools only in Claude Code", () => {
+  const [group] = claudeHooks().PreToolUse;
+  assert.equal(group.matcher, "^(?:mcp__plugin_arcade_arcade__|mcp__claude_ai_arcade__)");
+  const matcher = new RegExp(group.matcher);
+  assert.equal(matcher.test("mcp__plugin_arcade_arcade__Arcade_SelectTools"), true);
+  assert.equal(matcher.test("mcp__claude_ai_arcade__GoogleCalendar_ListEvents"), true);
+  assert.equal(matcher.test("mcp__claude_ai_Gmail__search_threads"), false);
+  assert.equal(matcher.test("mcp__claude_ai_Arcade__Arcade_SelectTools"), false);
+  assert.equal(group.hooks.length, 1);
+  assert.ok(group.hooks[0].command.includes("/hooks/telemetry.mjs"));
+  assert.equal(group.hooks[0].if, undefined);
+  const copilot = JSON.parse(readRepoFile(HOSTS.copilot.manifest));
+  assert.equal(copilot.hooks.PreToolUse, undefined);
+});
+
 test("PostToolUse and PostToolUseFailure have the expected telemetry groups", () => {
   const hooks = claudeHooks();
   for (const event of ["PostToolUse", "PostToolUseFailure"]) {

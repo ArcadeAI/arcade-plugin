@@ -52,6 +52,7 @@ export const CLI_SERVICES = { gh: "code_hosting", glab: "code_hosting" };
 
 /** Tool name prefix for this plugin's own gateway: plugin "arcade", MCP server "arcade". */
 export const ARCADE_TOOL_PREFIX = "mcp__plugin_arcade_arcade__";
+export const CLAUDE_AI_ARCADE_TOOL_PREFIX = "mcp__claude_ai_arcade__";
 
 /** Copilot CLI names MCP tools `<server>-<tool>`; this is this plugin's server key in mcp.json. */
 export const COPILOT_ARCADE_SERVER = "arcade";
@@ -161,6 +162,14 @@ const TOOL_CALLED_PROPERTIES = {
   },
 };
 
+const TOOL_ATTEMPTED_PROPERTIES = {
+  ...TOOL_PROPERTIES,
+  server: {
+    schema: enumOf(["arcade", "other_arcade"]),
+    doc: "`arcade` (this plugin's gateway) \\| `other_arcade` (the claude.ai Arcade connection)",
+  },
+};
+
 const TOOL_CALLED_RULES = [
   ...TOOL_RULES,
   {
@@ -216,8 +225,7 @@ const BUILTIN_TOOL_WHEN = `Claude Code only, on \`WebFetch\` and \`WebSearch\`, 
  * @typedef {object} EventSpec
  * @property {string} hook The Claude Code hook that sends it.
  * @property {boolean} [mcpToolsOnly] Runs only on MCP tools, using each client's `mcpToolMatcher`.
- * @property {boolean} [claudeCodeOnly] Runs only in Claude Code, because
- *   `matcher` and `bashClis` use Claude Code's built-in tool names.
+ * @property {boolean} [claudeCodeOnly] Runs only in Claude Code.
  * @property {string} [matcher] Claude Code's matcher for that hook.
  * @property {readonly string[]} [bashClis] Programs whose Bash commands also
  *   send this event. Each gets its own hook entry with an `if` condition, so
@@ -250,6 +258,14 @@ export const EVENTS = {
       reminder_sent: { schema: { type: "boolean" }, doc: "boolean, whether the routing reminder was added (always `false` in Copilot CLI)" },
     },
     required: ["could_use_arcade", "service_hints", "reminder_sent"],
+  },
+  "Plugin tool attempted": {
+    hook: "PreToolUse",
+    claudeCodeOnly: true,
+    matcher: "^(?:mcp__plugin_arcade_arcade__|mcp__claude_ai_arcade__)",
+    when: "in Claude Code, before an MCP call through this plugin's Arcade gateway or the claude.ai Arcade connection; an attempt does not show whether the tool finished",
+    properties: TOOL_ATTEMPTED_PROPERTIES,
+    required: ["server", "tool"],
   },
   "Plugin tool called": {
     hook: "PostToolUse",

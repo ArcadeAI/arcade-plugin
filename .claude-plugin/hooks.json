@@ -43,6 +43,18 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "^(?:mcp__plugin_arcade_arcade__|mcp__claude_ai_arcade__)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/telemetry.mjs\" --host claude-code",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "mcp__.*",
