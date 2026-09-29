@@ -4,15 +4,52 @@
 
 The dashboard checks whether plugin telemetry reaches PostHog. It reads Staging project 129768, plugin version `0.2.0`, over a rolling seven days. The current events came from deliberate Claude Code and Copilot CLI tests. These counts are not production usage or task-success rates, and there is no installed-user denominator. The SQL measures are noncanonical because this PostHog connection lacks `data_catalog:read`.
 
-## Definitions
+## Contract versions and chart denominators
 
-- `could_use_arcade` is a local keyword flag on a prompt. It does not establish that Arcade was needed.
-- `Plugin tool attempted` is a Claude Code `PreToolUse` observation. It records that an Arcade tool was selected before execution. It is not a completion, app action, or task result. Older runs have no attempt event and are not backfilled.
-- `Plugin tool called` means the client reported tool completion through `PostToolUse`. It does not independently verify an app action or the user's task.
-- `Arcade_ListApps` and `Arcade_SelectTools` are gateway discovery and selection. `Arcade_UseTool` and named public toolkit tools are app tools. `System_ManageAuthorization` is an authorization check. A tool reported as `other` is unclassified and does not count as an app tool. Failed app calls come from `Plugin tool failed` and retain their reported `failure_kind`.
-- Claude observations use a prompt `turn`. Copilot observations use a root `session` with `Plugin session started`. A Copilot child session contributes calls only when `Plugin subagent stopped.subagent_session` links it to the root. Root sessions with multiple parent prompts are counted as attribution unknown. Prompt-bearing sessions with neither a start nor a child link appear as unlinked in the coverage table.
+Split every insight by `telemetry_version`: missing means legacy version 1;
+`2` means scoped observation. Never combine their denominators, even when
+`plugin_version` is the same. Legacy events include unrelated prompts and session
+starts; version 2 omits both. Keep deliberate QA separate from production usage.
 
-## Saved insights
+Every chart displays host, unit, date range, plugin version, telemetry version,
+numerator, denominator, and coverage limits. Count the unit once at each stage.
+Tool-event totals have an event denominator; they are not task or adoption rates.
+
+| Version 2 chart | Unit and denominator | Uncertainty to display |
+| --- | --- | --- |
+| Claude prompt observations | Distinct `turn` with scoped `Plugin prompt submitted` | Relevant observed turns only; confirmations can have a false keyword flag; no task count |
+| Claude Arcade attempts | Observed attempts, plus distinct turns with attempts | Attempt alone has no observed outcome; direct tool-only turns reported separately |
+| Claude gateway and app results | Tool events by name and completion/failure; rates use observed relevant turns | Tool completion is not task success; private tools reported as `other` are unclassified |
+| Claude alternative-tool observations | Distinct observed relevant turns with each tracked tool | In-scope tool use is not proof of fallback; keyword scope can misclassify |
+| Claude operator reports | Observed Arcade operator stops by reported status | Model report is not the parent task's verified outcome |
+| Copilot session observations | Distinct scoped prompt `session`, excluding known operator child links | Observed relevant sessions, not all sessions or proven roots; generic subagent parentage is unknown |
+| Copilot prompt keyword flags | Scoped prompt events, grouped by keyword flag | Event count, not distinct prompts or tasks; inherited confirmations can be false |
+| Copilot gateway and app results | Tool events, with known operator children grouped under parent; rates use observed relevant sessions | Multiple prompts prevent per-prompt outcomes; absent child links prevent reliable attribution |
+| Copilot operator reports | Observed Arcade operator stops by reported status | Missing stops and window boundaries can remove links; reported success is not task success |
+| Coverage | Prompt units, direct tool-only units, linked children, multi-prompt sessions, unknown parentage | No installed-user denominator; unknown parentage cannot be read as a root count |
+
+Version 2 session queries derive candidates from scoped prompt events, not
+`Plugin session started`. Retain `Plugin subagent stopped.subagent_session` links
+only for `agent = 'arcade-operator'`. Exclude known linked child prompts from the
+candidate denominator, and label remaining candidates as observed sessions with
+unknown parentage. A missing link is a coverage limitation, not a routing miss.
+
+`Plugin tool attempted` records selection before execution. `Plugin tool called`
+records a client completion; `Plugin tool failed` records a reported failure.
+An attempt lacking either result is **attempt observed, outcome unknown**. An
+observed prompt lacking an Arcade event is **no call observed**, not **missed**.
+Discovery (`Arcade_ListApps`, `Arcade_SelectTools`) and authorization
+(`System_ManageAuthorization`) are separate from app tools (`Arcade_UseTool` and
+named public toolkit tools). None of those stages establishes task success.
+
+Each insight's saved HogQL is its executable definition. Use a rolling seven-day
+filter in the query and dashboard. Record query refresh results after changing
+saved insights; the historical measurement below does not validate version 2.
+
+## Legacy saved insight identities
+
+These identifiers locate the staging charts. Their names, descriptions, and
+queries must state which contract version they count.
 
 | Insight | Short ID | Unit |
 | --- | --- | --- |
@@ -29,7 +66,7 @@ The dashboard checks whether plugin telemetry reaches PostHog. It reads Staging 
 
 Each insight's saved HogQL is the executable definition. Every event scan filters `timestamp >= now() - INTERVAL 7 DAY` and `plugin_version = '0.2.0'`. The dashboard also displays a seven-day filter.
 
-## Verification on 2026-09-29
+## Legacy QA verification on 2026-09-29 (contract version 1)
 
 **Measured:** A forced refresh ran all ten insights without warnings. Raw event rows and the coverage insight agreed:
 

@@ -39,9 +39,12 @@ plugin.
 
 ## Telemetry
 
-The plugin sends usage events, with no ID that lasts across sessions, so
-Arcade can see whether the model uses Arcade when a task needs it. [What's sent](../telemetry.md). To turn it
-off, add this to Claude Code's `settings.json`:
+Hooks locally classify prompts across sessions. App-related prompts, explicit
+confirmation replies, and Arcade calls can send usage events to Arcade's PostHog;
+prompts classified as unrelated send nothing. Events contain fixed categories and hashed
+session IDs, without prompt text or app data. [What's sent](../telemetry.md).
+
+To turn events off, add this to Claude Code's `settings.json`:
 
 ```json
 { "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }

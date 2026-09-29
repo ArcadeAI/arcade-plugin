@@ -66,11 +66,21 @@ anything is sent, created, or deleted.
 - [Arcade dashboard](https://app.arcade.dev) — org rollout, project gateways,
   identity, and tool policy (see `scale-arcade`).
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
-- Privacy: tasks run through Arcade's hosted gateway and the apps you
-  connect — [privacy policy](https://www.arcade.dev/privacy-policy). In
-  Claude Code and Copilot CLI the plugin also sends
-  [usage events](docs/telemetry.md) that don't include your name, email, or
-  account; set `ARCADE_PLUGIN_TELEMETRY=0` to turn them off.
+- [Privacy policy](https://www.arcade.dev/privacy-policy): tasks run through
+  Arcade's hosted gateway and connected apps.
+
+## Plugin usage events
+
+Claude Code and Copilot CLI hooks locally classify prompts across sessions to
+recognize app-related work and explicit confirmation replies. Prompts classified as unrelated
+produce no routing reminder or usage event. The plugin sends scoped
+[usage events](docs/telemetry.md) to Arcade's PostHog by default, including direct
+Arcade calls and alternative tools observed during app-related work.
+
+Events contain fixed categories and hashed session IDs, with no prompt text,
+commands, app data, name, email, or account ID. They measure observed tool use,
+not task success. Set `ARCADE_PLUGIN_TELEMETRY=0` to turn events off; local
+classification and routing reminders still work.
 
 ## Develop
 
