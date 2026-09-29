@@ -139,7 +139,8 @@ Keep the observation stages separate:
 
 | Stage | Evidence | What it establishes |
 | --- | --- | --- |
-| Gateway discovery or selection | `Plugin tool called` or `Plugin tool failed` for `Arcade_ListApps` or `Arcade_SelectTools` | The model attempted to find an app tool; a successful selection is not an app action. |
+| Tool attempt (Claude Code) | `Plugin tool attempted` on PreToolUse | The model invoked a tool. An attempt alone has no observed outcome. |
+| Gateway discovery or selection | `Plugin tool called` or `Plugin tool failed` for `Arcade_ListApps` or `Arcade_SelectTools` | The discovery or selection call completed or failed; a successful selection is not an app action. |
 | Authorization check | `System_ManageAuthorization`, reported separately | `auth_needed: true` means its answer said sign-in was needed. A check alone says nothing about app use; `false` does not prove every app is connected. |
 | App action | `Arcade_UseTool` or a named public Arcade toolkit tool, split by `Plugin tool called` and `Plugin tool failed` | The hook observed a tool completion or failure. Private tool names reported as `other` cannot be assigned to this stage. Neither outcome proves the user's task succeeded. |
 | No Arcade call observed | A prompt with no Arcade tool event in the observable group | The hooks saw no call. This is not a routing miss without an independently labeled need and complete tool visibility. |
@@ -147,7 +148,7 @@ Keep the observation stages separate:
 Count each unit once at each stage, and show the denominator, host, date range,
 plugin version, and observation coverage beside every rate. Keep the number of
 prompt units and root sessions visible even when a chart has no app actions.
-Do not extrapolate rates from a test sample or opted-in events to all users.
+Do not extrapolate rates from a test sample or telemetry-enabled sessions to all users.
 Do not mix Claude turns with Copilot session counts in one rate.
 
 ### Claude Code turns
@@ -160,9 +161,12 @@ follow-up such as “yes, send it” is a separate turn; the classifier may flag
 only the earlier prompt, so turn counts do not describe whole tasks.
 
 `server: other_arcade` means the hook observed another connection's Arcade
-gateway tool. It does not guarantee visibility into every connection: a live
-Claude Code run called Arcade through a claude.ai connection without a plugin
-tool event. Label flagged turns with no observed Arcade call **no call
+gateway tool. A live Claude Code run invoked Arcade through a claude.ai
+connection without a PostToolUse event. A `Plugin tool attempted` event can
+show that invocation, but only `Plugin tool called` or `Plugin tool failed`
+records its outcome. Count an attempt without either outcome as **attempt
+observed, outcome unknown**, not app action success. It does not set
+`arcade_used_before`. Label flagged turns with no Arcade tool event **no call
 observed**, not **missed**. A direct app tool on another gateway may appear
 as `server: other`, without an identifiable Arcade call.
 
