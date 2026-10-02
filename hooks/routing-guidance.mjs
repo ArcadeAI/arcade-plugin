@@ -9,17 +9,22 @@ const CURSOR_NAME =
 
 const GATEWAY =
   'Arcade is connected as the "arcade" MCP server (gateway at ' +
-  `api.arcade.dev). ${CURSOR_NAME}`;
+  `api.arcade.dev). ${CURSOR_NAME} Prefer arcade when several servers expose Arcade tools.`;
 
-const PARENT_GATEWAY = `${GATEWAY} Prefer arcade when several servers expose Arcade tools.`;
-const DELEGATE_GATEWAY = `${GATEWAY} If more than one MCP server exposes Arcade tools, use only arcade.`;
+const GATEWAY_CHECK =
+  "Before using another gateway, verify its account, org, and project match the " +
+  "intended destination. Do not broaden authorization or copy secrets, credentials, " +
+  "or user sessions. Discover tools on the chosen gateway; do not reuse another " +
+  "gateway's query IDs. A gateway switch does not repair missing configuration.";
 
 const PARENT_FALLBACK =
   "If Arcade cannot complete the task, the parent may use another already-authorized " +
   "Arcade gateway or other available tools within the user's authorized task. " +
-  "Before using another gateway, verify its account, org, and project match the " +
-  "intended destination. Do not broaden authorization or copy secrets, credentials, " +
-  "or user sessions. A gateway switch does not repair missing configuration.";
+  GATEWAY_CHECK;
+
+const DELEGATE_FALLBACK =
+  "If arcade cannot complete the delegated task, you may use another already-authorized " +
+  "Arcade gateway within that task. " + GATEWAY_CHECK;
 
 const AUTH_DEFINITION =
   "If the gateway explicitly shows needsAuth, or its plugin namespace is " +
@@ -37,16 +42,17 @@ const AUTH_ACTION_PARENT =
   "the fallback rule.";
 
 const AUTH_ACTION_DELEGATE =
-  "For authentication, return needs_auth. For permission denial or another " +
-  "failure, return failed with the actual error.";
+  "For authentication, return needs_auth. For permission denial, return failed " +
+  "with the actual error. Do not switch gateways or tools to bypass authentication " +
+  "or permission denial. For other failures, apply the fallback rule or return " +
+  "failed with the actual error if no authorized gateway can complete the task.";
 
 // arcade-operator and other subagents report to a parent that can use other
 // tools, so they finish only through Arcade and hand back what Arcade couldn't do.
 const NO_SUBSTITUTES =
-  "Once a task is going through Arcade, don't move any part of it to another MCP " +
-  "server, a CLI such as gh or curl, a built-in search, or a direct API. " +
-  "Troubleshooting or retrying on Arcade itself is fine. If Arcade can't do " +
-  "some of the task, say what is left in your result so the parent can finish it.";
+  "Use Arcade gateways for delegated work. Do not substitute non-Arcade MCP " +
+  "servers, CLIs, built-in search, or direct APIs. If no authorized gateway can " +
+  "complete the task, say what is left in your result so the parent can finish it.";
 
 const DELEGATION =
   "For external service tasks (email, calendar, chat, docs, issues, CRM), " +
@@ -59,15 +65,16 @@ const PRIVACY = "Keep tool discovery and tool names out of the conversation.";
 const line = (label, text) => `${label}: ${text}`;
 
 const PARENT_RULES = [
-  line("Gateway", PARENT_GATEWAY),
+  line("Gateway", GATEWAY),
   line("Authentication", AUTH_DEFINITION),
   line("If blocked", AUTH_ACTION_PARENT),
   line("Fallback", PARENT_FALLBACK),
 ];
 const DELEGATE_RULES = [
-  line("Gateway", DELEGATE_GATEWAY),
+  line("Gateway", GATEWAY),
   line("Authentication", AUTH_DEFINITION),
   line("If blocked", AUTH_ACTION_DELEGATE),
+  line("Fallback", DELEGATE_FALLBACK),
   line("Stay on Arcade", NO_SUBSTITUTES),
 ];
 
