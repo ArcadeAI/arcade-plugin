@@ -47,8 +47,8 @@ timeframe. Do not ask the user to choose tools, schemas, APIs, or architecture.
 When the host provides an `arcade-operator` subagent, delegate the bounded
 external-app task to it. The parent keeps clarification, sign-in, and
 confirmation. Apply the operator's returned status, and delegate again only
-after the blocker is resolved. The parent may use the fallback rule for a
-failure that does not require authentication or permissions.
+after the blocker is resolved. The parent may use the fallback rule after a
+failure other than authentication or permission denial.
 
 When no operator is available, run this loop. The result and the safety rules
 are the same either way.

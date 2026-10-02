@@ -165,7 +165,7 @@ test("parent fallback requires existing authorization and the intended gateway d
 
 test("try-arcade error handling follows the parent fallback rules", () => {
   const skill = readRepoFile("skills/try-arcade/SKILL.md");
-  assert.match(skill, /The parent may use the fallback rule for a\nfailure that does not require authentication or permissions/);
+  assert.match(skill, /The parent may use the fallback rule after a\nfailure other than authentication or permission denial/);
   assert.match(skill, /For another error, report the tool's message and follow the gateway\nrules above/);
   assert.doesNotMatch(skill, /For another error, report the tool's message and stop/);
 });
