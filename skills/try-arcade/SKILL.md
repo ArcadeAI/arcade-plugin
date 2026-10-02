@@ -14,9 +14,10 @@ stay internal.
 ## Gateway rules
 
 <!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
-Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). If more than one MCP server exposes Arcade tools, use only arcade. In Cursor it can appear as plugin-arcade-arcade; that is the same gateway.
+Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). In Cursor it can appear as plugin-arcade-arcade; that is the same gateway. Prefer arcade when several servers expose Arcade tools.
 Authentication: If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem.
-If blocked: For authentication, stop and ask the user to authenticate it; do not poll or retry auth in a loop. For a setup or connection failure, report the actual error and ask the user to check the plugin and MCP settings.
+If blocked: For authentication, stop and ask the user to authenticate it; do not poll or retry auth in a loop. For permission denial, stop and ask the user to resolve it. Do not switch gateways or tools to bypass authentication or permission denial. For other failures, report the actual error and apply the fallback rule.
+Fallback: If Arcade cannot complete the task, the parent may use another already-authorized Arcade gateway or other available tools within the user's authorized task. Before using another gateway, verify its account, org, and project match the intended destination. Do not broaden authorization or copy secrets, credentials, or user sessions. A gateway switch does not repair missing configuration.
 <!-- END generated -->
 
 ## When there is no job
@@ -46,7 +47,8 @@ timeframe. Do not ask the user to choose tools, schemas, APIs, or architecture.
 When the host provides an `arcade-operator` subagent, delegate the bounded
 external-app task to it. The parent keeps clarification, sign-in, and
 confirmation. Apply the operator's returned status, and delegate again only
-after the user resolves the blocker.
+after the blocker is resolved. The parent may use the fallback rule for a
+failure that does not require authentication or permissions.
 
 When no operator is available, run this loop. The result and the safety rules
 are the same either way.
@@ -84,8 +86,8 @@ a recipient, destination, or destructive value.
 ## Errors
 
 For an input error, correct the inputs against the returned schema and retry
-once. For another error, report the tool's message and stop. Never fabricate a
-result.
+once. For another error, report the tool's message and follow the gateway
+rules above. Never fabricate a result.
 
 ## Other Arcade questions
 

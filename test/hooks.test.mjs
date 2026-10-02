@@ -122,15 +122,15 @@ const CORE_RULES = {
   PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server/, /try-arcade/, /arcade-operator/]],
   CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/]],
   SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/]],
-  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /needsAuth/]],
-  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /needsAuth/, ...DELEGATE_NO_SWITCH]],
-  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /needsAuth/, /Keep tool discovery/, ...DELEGATE_NO_SWITCH]],
+  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /stop and ask the user to authenticate/, /needsAuth/]],
+  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /return needs_auth/, /return failed/, /needsAuth/, ...DELEGATE_NO_SWITCH]],
+  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /try-arcade/, /return needs_auth/, /needsAuth/, /Keep tool discovery/, ...DELEGATE_NO_SWITCH]],
 };
 
 // The parent conversation tries Arcade first but may finish with other tools.
 // BANS_OTHER_TOOLS matches exact phrases, so a reworded ban would pass.
 const PARENT_LABELS = new Set(["PROMPT_REMINDER", "CURSOR_RULE", "SESSION_CONTEXT", "SKILL_RULES"]);
-const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP server only/;
+const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP server only|use only arcade/;
 
 test("every routing text keeps the core routing rules", () => {
   for (const [label, [text, phrases]] of Object.entries(CORE_RULES)) {
@@ -146,4 +146,26 @@ test("every routing text keeps the core routing rules", () => {
   // Delegates report back to a parent; they don't offer the user another path.
   assert.doesNotMatch(OPERATOR_RULES, /explicitly chooses/);
   assert.doesNotMatch(SUBAGENT_CONTEXT, /explicitly chooses/);
+});
+
+test("parent fallback requires existing authorization and the intended gateway destination", () => {
+  for (const text of [CURSOR_RULE, SESSION_CONTEXT, SKILL_RULES]) {
+    assert.match(text, /another already-authorized Arcade gateway or other available tools within the user's authorized task/);
+    assert.match(text, /verify its account, org, and project match the intended destination/);
+    assert.match(text, /Do not broaden authorization or copy secrets, credentials, or user sessions/);
+    assert.match(text, /Do not switch gateways or tools to bypass authentication or permission denial/);
+    assert.match(text, /For permission denial, stop and ask the user to resolve it/);
+    assert.match(text, /A gateway switch does not repair missing configuration/);
+  }
+  for (const text of [OPERATOR_RULES, SUBAGENT_CONTEXT]) {
+    assert.doesNotMatch(text, /Fallback:|parent may use another/);
+    assert.match(text, /For permission denial or another failure, return failed with the actual error/);
+  }
+});
+
+test("try-arcade error handling follows the parent fallback rules", () => {
+  const skill = readRepoFile("skills/try-arcade/SKILL.md");
+  assert.match(skill, /The parent may use the fallback rule for a\nfailure that does not require authentication or permissions/);
+  assert.match(skill, /For another error, report the tool's message and follow the gateway\nrules above/);
+  assert.doesNotMatch(skill, /For another error, report the tool's message and stop/);
 });

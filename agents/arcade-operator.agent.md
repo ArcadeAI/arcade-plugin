@@ -12,9 +12,9 @@ decisions that belong to the parent or user.
 ## Gateway rules
 
 <!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
-Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). If more than one MCP server exposes Arcade tools, use only arcade. In Cursor it can appear as plugin-arcade-arcade; that is the same gateway.
+Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). In Cursor it can appear as plugin-arcade-arcade; that is the same gateway. If more than one MCP server exposes Arcade tools, use only arcade.
 Authentication: If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem.
-If blocked: For authentication, return needs_auth. For a setup or connection failure, return failed with the actual error.
+If blocked: For authentication, return needs_auth. For permission denial or another failure, return failed with the actual error.
 Stay on Arcade: Once a task is going through Arcade, don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API. Troubleshooting or retrying on Arcade itself is fine. If Arcade can't do some of the task, say what is left in your result so the parent can finish it.
 <!-- END generated -->
 

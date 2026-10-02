@@ -9,8 +9,17 @@ const CURSOR_NAME =
 
 const GATEWAY =
   'Arcade is connected as the "arcade" MCP server (gateway at ' +
-  "api.arcade.dev). If more than one MCP server exposes Arcade tools, use " +
-  `only arcade. ${CURSOR_NAME}`;
+  `api.arcade.dev). ${CURSOR_NAME}`;
+
+const PARENT_GATEWAY = `${GATEWAY} Prefer arcade when several servers expose Arcade tools.`;
+const DELEGATE_GATEWAY = `${GATEWAY} If more than one MCP server exposes Arcade tools, use only arcade.`;
+
+const PARENT_FALLBACK =
+  "If Arcade cannot complete the task, the parent may use another already-authorized " +
+  "Arcade gateway or other available tools within the user's authorized task. " +
+  "Before using another gateway, verify its account, org, and project match the " +
+  "intended destination. Do not broaden authorization or copy secrets, credentials, " +
+  "or user sessions. A gateway switch does not repair missing configuration.";
 
 const AUTH_DEFINITION =
   "If the gateway explicitly shows needsAuth, or its plugin namespace is " +
@@ -22,12 +31,14 @@ const AUTH_DEFINITION =
 // reports back to the parent instead.
 const AUTH_ACTION_PARENT =
   "For authentication, stop and ask the user to authenticate it; do not poll " +
-  "or retry auth in a loop. For a setup or connection failure, report the " +
-  "actual error and ask the user to check the plugin and MCP settings.";
+  "or retry auth in a loop. For permission denial, stop and ask the user to " +
+  "resolve it. Do not switch gateways or tools to bypass authentication or " +
+  "permission denial. For other failures, report the actual error and apply " +
+  "the fallback rule.";
 
 const AUTH_ACTION_DELEGATE =
-  "For authentication, return needs_auth. For a setup or connection failure, " +
-  "return failed with the actual error.";
+  "For authentication, return needs_auth. For permission denial or another " +
+  "failure, return failed with the actual error.";
 
 // arcade-operator and other subagents report to a parent that can use other
 // tools, so they finish only through Arcade and hand back what Arcade couldn't do.
@@ -48,12 +59,13 @@ const PRIVACY = "Keep tool discovery and tool names out of the conversation.";
 const line = (label, text) => `${label}: ${text}`;
 
 const PARENT_RULES = [
-  line("Gateway", GATEWAY),
+  line("Gateway", PARENT_GATEWAY),
   line("Authentication", AUTH_DEFINITION),
   line("If blocked", AUTH_ACTION_PARENT),
+  line("Fallback", PARENT_FALLBACK),
 ];
 const DELEGATE_RULES = [
-  line("Gateway", GATEWAY),
+  line("Gateway", DELEGATE_GATEWAY),
   line("Authentication", AUTH_DEFINITION),
   line("If blocked", AUTH_ACTION_DELEGATE),
   line("Stay on Arcade", NO_SUBSTITUTES),
@@ -73,7 +85,8 @@ export const SESSION_CONTEXT = join(...PARENT_RULES, line("Routing", DELEGATION)
 // from SESSION_CONTEXT, try-arcade, and arcade-operator.
 export const PROMPT_REMINDER =
   'For external app tasks, use try-arcade (or arcade-operator when available) ' +
-  'through the "arcade" MCP server, and scale-arcade for team rollout.';
+  'first through the "arcade" MCP server, and scale-arcade for team rollout. ' +
+  'The parent may finish blocked work under the try-arcade fallback rules.';
 
 // Cursor's always-apply rule. The Cursor IDE and Cloud Agents don't run plugin
 // hooks, so the rule carries the full session rules. The Cursor CLI runs the
