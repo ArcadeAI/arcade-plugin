@@ -5,6 +5,7 @@ import { test } from "node:test";
 import {
   FILE_SOURCES,
   FILES_WITH_GENERATED_RULES,
+  FILES_WITH_GENERATED_TABLES,
   generateManifests,
   requireSources,
 } from "../scripts/generate-manifests.mjs";
@@ -17,13 +18,14 @@ const EXPECTED_SOURCES = {
   ".claude-plugin/marketplace.json": ["plugin.json", "scripts/generate-manifests.mjs"],
   "clients/cursor/rules/arcade.mdc": ["hooks/routing-guidance.mjs", "scripts/generate-manifests.mjs"],
   ".gitattributes": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
-  ".claude-plugin/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  ".claude-plugin/hooks.json": ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
   "clients/cursor/hooks/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
-  "com.github.copilot/hooks/hooks.json": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
+  "com.github.copilot/hooks/hooks.json": ["hooks/hook-hosts.mjs", "hooks/telemetry-contract.mjs", "scripts/generate-manifests.mjs"],
   "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
   "com.github.copilot/agents/arcade-operator.agent.md": ["agents/arcade-operator.agent.md", "hooks/routing-guidance.mjs"],
   "agents/arcade-operator.agent.md": ["hooks/routing-guidance.mjs"],
   "skills/try-arcade/SKILL.md": ["hooks/routing-guidance.mjs"],
+  "docs/telemetry.md": ["hooks/telemetry-contract.mjs"],
 };
 
 test("FILE_SOURCES lists the expected sources for every generated path", () => {
@@ -48,6 +50,9 @@ test("check mode fails with a source-naming error when a generated file is hand-
       if (path in FILES_WITH_GENERATED_RULES) {
         // Edit inside the block so the rules-block path is specifically tested.
         writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("use only arcade", "use any server"));
+      } else if (FILES_WITH_GENERATED_TABLES.includes(path)) {
+        // Only the tables are generated, so the edit has to be inside them.
+        writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("Service categories:", "Service kinds:"));
       } else {
         writeFileSync(fullPath, `${readFileSync(fullPath, "utf8")} `);
       }
