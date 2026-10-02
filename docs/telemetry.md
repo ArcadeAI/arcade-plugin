@@ -68,10 +68,10 @@ events.
 
 ## What is stored on your machine
 
-The client's plugin data folder contains an `arcade-used` flag, readable only
-by you. It holds `true` after an Arcade call succeeds and supplies
-`arcade_used_before`. The plugin deletes an obsolete `install-id`, even with
-telemetry off.
+Each client's plugin data folder contains its own `arcade-used` flag, readable
+only by you. It holds `true` after an Arcade call succeeds in that client plugin
+installation and supplies `arcade_used_before`. The plugin deletes an obsolete
+`install-id`, even with telemetry off.
 
 Prompt relevance state lives in `prompt-scope/<sha256(host:session_id)>.json` in
 the same folder. It contains a relevance boolean, expiry timestamp, and optional
@@ -97,7 +97,7 @@ Every event has these properties:
 | `distinct_id` | the same value as `session` |
 | `session` | `sha256(session_id)`, first 16 hex characters, where `session_id` is the client's random ID for the session |
 | `turn` | `sha256(session_id + ":" + prompt_id)`, first 16 hex characters; Claude Code only, because Copilot CLI has no prompt ID |
-| `arcade_used_before` | whether an Arcade tool call had succeeded on this machine before this event (from the `arcade-used` file) |
+| `arcade_used_before` | whether an Arcade tool call had succeeded for this client plugin installation before this event (from the `arcade-used` file) |
 | `host` | `claude-code` \| `copilot-cli` |
 | `telemetry_version` | `2`, the scoped event contract; earlier events have no version |
 | `plugin_version` | from `VERSION` |
@@ -205,9 +205,9 @@ as `server: other`, without an identifiable Arcade call.
 A built-in CLI or web event is a tool observation, not evidence of fallback.
 Only call it a possible fallback after linking it to a labeled Arcade-eligible
 task and establishing that it served the same request.
-`arcade_used_before: false` says no Arcade call has previously succeeded on
-that machine; it does not prove that the gateway or a particular app was
-unconnected.
+`arcade_used_before: false` says no Arcade call has previously succeeded for
+that client plugin installation; it does not describe another client on the
+same machine or prove that the gateway or a particular app was unconnected.
 
 ### Copilot CLI sessions
 

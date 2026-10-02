@@ -16,7 +16,7 @@ export const POSTHOG_KEY = "phc_zNHKkPFsrKVSpd7y85jnxW8jNVW6AQD6AwqE4nWjwpXg";
 
 export const OPT_OUT_ENV = "ARCADE_PLUGIN_TELEMETRY";
 
-// Holds "true" once an Arcade tool call has succeeded on this machine.
+// Holds "true" once an Arcade tool call has succeeded for this client plugin installation.
 export const ARCADE_USED_FILE = "arcade-used";
 
 // Deleted when found, so no persistent ID stays on disk, even with telemetry off.

@@ -106,7 +106,7 @@ export const COMMON_PROPERTIES = {
   },
   arcade_used_before: {
     schema: { type: "boolean" },
-    doc: "whether an Arcade tool call had succeeded on this machine before this event (from the `arcade-used` file)",
+    doc: "whether an Arcade tool call had succeeded for this client plugin installation before this event (from the `arcade-used` file)",
   },
   host: { schema: enumOf(TELEMETRY_HOSTS), doc: list(TELEMETRY_HOSTS) },
   telemetry_version: { schema: { const: 2 }, doc: "`2`, the scoped event contract; earlier events have no version" },
