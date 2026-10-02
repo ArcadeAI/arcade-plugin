@@ -4,7 +4,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { isConfirmation, isTaskNotification, shouldRemind } from "./prompt-filters.mjs";
+import { isConfirmation, isTaskNotification } from "./prompt-filters.mjs";
 import { classifyPrompt } from "./telemetry-classify.mjs";
 
 export const SCOPE_TTL_MS = 30 * 60 * 1000;
@@ -71,19 +71,22 @@ const writeState = (/** @type {string} */ file, /** @type {ScopeState} */ state,
 };
 
 /**
- * Both prompt hooks resolve independently, including when telemetry is off.
+ * Whether this hook input is part of app work. Prompt hooks record the
+ * decision; other hooks read it.
  * @param {Record<string, any>} input
  * @param {{ host: string, dir?: string, now?: number }} options
  */
 export const scopeForInput = (input, { host, dir, now = Date.now() }) => {
-  const fallback = { appWork: false, reminderSent: false };
+  const fallback = { appWork: false };
   const promptHook = input.hook_event_name === "UserPromptSubmit";
   if (promptHook && isTaskNotification(input.prompt)) return fallback;
   const session = typeof input.session_id === "string" && input.session_id !== "" ? input.session_id : null;
   const file = dir && path.isAbsolute(dir) && session
     ? path.join(dir, SCOPE_DIRECTORY, `${hash(`${host}:${session}`)}.json`) : null;
   if (input.hook_event_name === "SessionStart") {
-    if (file) rmSync(file, { force: true });
+    // Claude Code also sends SessionStart after compacting a conversation. The
+    // session and turn continue, so their scope does too.
+    if (file && input.source !== "compact") rmSync(file, { force: true });
     return fallback;
   }
   const previous = file ? readState(file, now) : null;
@@ -93,7 +96,7 @@ export const scopeForInput = (input, { host, dir, now = Date.now() }) => {
       ? turn !== undefined && previous?.turn === turn
       : turn === undefined || previous?.turn === turn;
     const appWork = previous?.relevant === true && matchesTurn;
-    return { appWork, reminderSent: false };
+    return { appWork };
   }
   const state = turn && previous?.turn === turn
     ? previous : { ...classifyAppWork(input.prompt, previous, now), ...(turn ? { turn } : {}) };
@@ -105,5 +108,5 @@ export const scopeForInput = (input, { host, dir, now = Date.now() }) => {
       try { rmSync(file, { force: true }); } catch {}
     }
   }
-  return { appWork: state.relevant, reminderSent: shouldRemind(input.prompt, state.relevant) };
+  return { appWork: state.relevant };
 };

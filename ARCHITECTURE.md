@@ -90,8 +90,9 @@ model to self-report tokens, turns, or success.
 
 In Claude Code and Copilot CLI, hooks locally classify prompts across sessions.
 Only prompts classified as app-related or mentioning Arcade, and their explicit
-confirmation replies, receive a
-routing reminder or prompt event. Direct Arcade calls remain observable;
+confirmation replies, send a prompt event. The routing reminder doesn't use the
+classifier; it goes on every prompt except short acknowledgements and
+background task results. Direct Arcade calls remain observable;
 alternative MCP, CLI, and web tools require an active app-related prompt.
 Session starts and other subagents' stops send no events.
 

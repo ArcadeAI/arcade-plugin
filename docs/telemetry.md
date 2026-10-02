@@ -2,7 +2,7 @@
 
 The Arcade plugin sends scoped usage events to Arcade's PostHog by default.
 Claude Code and Copilot CLI hooks locally classify prompts across sessions to
-recognize app-related work. Prompts classified as unrelated send no event or routing reminder.
+recognize app-related work. Prompts classified as unrelated send no event.
 Direct Arcade tool calls remain observable, even without a classified prompt.
 Alternative MCP, CLI, and web tools send events only during app-related work.
 
@@ -26,8 +26,8 @@ event with `could_use_arcade: false` and no service hints. Keyword matching can
 misclassify prompts; the labeled evaluation measures that limitation separately.
 
 Session starts send no usage event. Only the Arcade operator's stop reports
-send subagent events. Local classification and routing reminders remain active
-when telemetry is off; turning off events does not disable Arcade routing.
+send subagent events. The routing reminder goes on every prompt except short
+acknowledgements and background task results, whether or not telemetry is on.
 
 ## Turning it off
 
@@ -44,8 +44,9 @@ or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set to any value. Like Claude
 Code, the plugin reads `0` and `false` on those two as set.
 
 With telemetry off, the client still invokes its configured Node hooks. The
-telemetry hook exits without sending events; the routing hook still classifies
-prompts locally. An environment variable cannot remove hooks from the manifest.
+telemetry hook exits before classifying the prompt or storing state, and the
+routing hook still adds its reminder. An environment variable cannot remove
+hooks from the manifest.
 
 In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
 `copilot`. `COPILOT_OFFLINE=true` also turns it off (along with all other
@@ -70,16 +71,15 @@ events.
 
 Each client's plugin data folder contains its own `arcade-used` flag, readable
 only by you. It holds `true` after an Arcade call succeeds in that client plugin
-installation and supplies `arcade_used_before`. The plugin deletes an obsolete
-`install-id`, even with telemetry off.
+installation and supplies `arcade_used_before`.
 
 Prompt relevance state lives in `prompt-scope/<sha256(host:session_id)>.json` in
 the same folder. It contains a relevance boolean, expiry timestamp, and optional
-hashed prompt ID for duplicate-hook handling. It contains no prompt text,
+hashed prompt ID that ties tool calls to their prompt. It contains no prompt text,
 commands, tool arguments, or service content. Expired state cannot authorize
 observation. The next prompt-state write removes expired or malformed entries;
 at most 256 session state files are retained. Session start clears that
-session's state. Claude alternative-tool observations require a matching hashed
+session's state, except after Claude Code compacts the conversation. Claude alternative-tool observations require a matching hashed
 prompt ID; an absent prompt ID cannot authorize those observations.
 
 - Claude Code: `~/.claude/plugins/data/<plugin id>/`

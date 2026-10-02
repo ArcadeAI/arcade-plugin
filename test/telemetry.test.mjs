@@ -780,16 +780,15 @@ test("telemetry hook reads --cli and posts a Bash event without the command", as
         tool_input: { command, description: "List private-repo pull requests" },
       }));
 
-    runHook("user-prompt-submit.mjs", JSON.stringify(hookInput({ hook_event_name: "UserPromptSubmit", prompt: "List GitHub pull requests" })), env);
+    runHook("telemetry.mjs", JSON.stringify(hookInput({ hook_event_name: "UserPromptSubmit", prompt: "List GitHub pull requests" })), env);
     assert.equal(runHook("telemetry.mjs", bash("echo private-repo"), env, "claude-code", ["--cli", "gh"]).stdout, "");
     assert.equal(runHook("telemetry.mjs", bash("gh pr list --repo someone/private-repo"), env, "claude-code", ["--cli", "gh"]).stdout, "");
 
-    await waitForRequests(server.requests, 1);
+    await waitForRequests(server.requests, 2);
     await sleep(500);
-    assert.equal(server.requests.length, 1);
-    const [request] = server.requests;
+    assert.deepEqual(server.requests.map((r) => JSON.parse(r.body).event).sort(), ["Plugin built-in tool called", "Plugin prompt submitted"]);
+    const request = server.requests.find((r) => JSON.parse(r.body).event === "Plugin built-in tool called");
     const body = JSON.parse(request.body);
-    assert.equal(body.event, "Plugin built-in tool called");
     assert.equal(body.properties.tool, "Bash");
     assert.equal(body.properties.cli, "gh");
     assert.equal(body.properties.service, "code_hosting");
@@ -799,7 +798,7 @@ test("telemetry hook reads --cli and posts a Bash event without the command", as
   }
 });
 
-test("actual hooks send only relevant work, keep confirmation context, and route with telemetry off", async () => {
+test("actual hooks send only relevant work, keep confirmation context, and remind on every prompt", async () => {
   const server = await startServer();
   try {
     const dataDir = makeTempDir();
@@ -808,13 +807,14 @@ test("actual hooks send only relevant work, keep confirmation context, and route
     const submit = (prompt, promptId) => input({ hook_event_name: "UserPromptSubmit", prompt, prompt_id: promptId });
     const web = (promptId, fields = {}) => input({ hook_event_name: "PostToolUse", tool_name: "WebFetch", prompt_id: promptId, ...fields });
     runHook("telemetry.mjs", input({ hook_event_name: "SessionStart" }), env);
-    assert.equal(runHook("user-prompt-submit.mjs", submit("Fix the parser", "unrelated"), env).stdout, "");
+    assert.ok(runHook("user-prompt-submit.mjs", submit("Fix the parser", "unrelated"), env).stdout);
     runHook("telemetry.mjs", submit("Fix the parser", "unrelated"), env);
     runHook("telemetry.mjs", web("unrelated"), env);
     runHook("telemetry.mjs", input({ hook_event_name: "SubagentStop", agent_type: "general-purpose" }), env);
 
     const reminder = runHook("user-prompt-submit.mjs", submit("Check my calendar", "calendar"), env);
     assert.ok(JSON.parse(reminder.stdout).hookSpecificOutput.additionalContext);
+    runHook("telemetry.mjs", submit("Check my calendar", "calendar"), env);
     runHook("telemetry.mjs", web("calendar"), env);
     runHook("telemetry.mjs", web("other-turn"), env);
     runHook("telemetry.mjs", web("calendar", { session_id: "other-session" }), env);
@@ -832,15 +832,15 @@ test("actual hooks send only relevant work, keep confirmation context, and route
     assert.ok(runHook("user-prompt-submit.mjs", submit("Check my calendar", "opted-out"), optedOut).stdout);
     assert.ok(runHook("session-start.mjs", input({ hook_event_name: "SessionStart", source: "resume" }), optedOut).stdout);
     runHook("telemetry.mjs", web("opted-out"), env);
-    await waitForRequests(server.requests, 5);
+    await waitForRequests(server.requests, 6);
     await sleep(500);
     const bodies = server.requests.map((request) => JSON.parse(request.body));
-    assert.equal(bodies.length, 5);
+    assert.equal(bodies.length, 6);
     const counts = {};
     for (const body of bodies) counts[body.event] = (counts[body.event] ?? 0) + 1;
-    assert.deepEqual(counts, { "Plugin built-in tool called": 2, "Plugin prompt submitted": 1, "Plugin tool attempted": 1, "Plugin tool called": 1 });
-    const confirmation = bodies.find((body) => body.event === "Plugin prompt submitted");
-    assert.equal(confirmation.properties.could_use_arcade, false);
+    assert.deepEqual(counts, { "Plugin built-in tool called": 2, "Plugin prompt submitted": 2, "Plugin tool attempted": 1, "Plugin tool called": 1 });
+    const confirmation = bodies.find((body) => body.event === "Plugin prompt submitted" && !body.properties.could_use_arcade);
+    assert.ok(confirmation, "the confirmation sends a prompt event");
     assert.equal(confirmation.properties.reminder_sent, true);
     for (const request of server.requests) {
       assert.equal(JSON.parse(request.body).properties.telemetry_version, 2);
@@ -851,11 +851,10 @@ test("actual hooks send only relevant work, keep confirmation context, and route
   }
 });
 
-test("the arcade-used flag is set by the first successful Arcade call and replaces install-id", async () => {
+test("the arcade-used flag is set by the first successful Arcade call", async () => {
   const server = await startServer();
   try {
     const dataDir = makeTempDir();
-    writeFileSync(path.join(dataDir, "install-id"), "11111111-2222-3333-4444-555555555555");
     const env = hookEnv(dataDir, server.url);
     const otherServer = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: "mcp__granola__Granola_ListMeetings" }));
     const arcadeAttempt = JSON.stringify(hookInput({
@@ -866,7 +865,7 @@ test("the arcade-used flag is set by the first successful Arcade call and replac
     const arcadeCall = JSON.stringify(hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails` }));
 
     runHook("telemetry.mjs", otherServer, env);
-    assert.deepEqual(readdirSync(dataDir), [], "install-id is deleted and another server's call sets no flag");
+    assert.deepEqual(readdirSync(dataDir), [], "another server's call sets no flag");
     runHook("telemetry.mjs", arcadeAttempt, env);
     assert.deepEqual(readdirSync(dataDir), [], "an Arcade attempt sets no flag");
     runHook("telemetry.mjs", arcadeCall, env);
@@ -894,12 +893,12 @@ test("telemetry hook sends nothing when it must not", async () => {
     hook_event_name: "PreToolUse",
     tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}Arcade_SelectTools`,
   }));
+  const appPrompt = JSON.stringify(hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar" }));
   // [label, stdin, env overrides, prepare data dir, data dir stays empty]
   const cases = [
     ["opted out with 0", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
     ["attempt opted out with 0", arcadeAttempt, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
-    ["opted out, with an old install-id to delete", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "0" },
-      (dir) => writeFileSync(path.join(dir, "install-id"), "11111111-2222-3333-4444-555555555555"), true],
+    ["opted out app prompt stores no scope", appPrompt, { ARCADE_PLUGIN_TELEMETRY: "0" }, () => {}, true],
     ["opted out with OFF", sessionStart, { ARCADE_PLUGIN_TELEMETRY: "OFF" }, () => {}, true],
     ["DO_NOT_TRACK=1", sessionStart, { DO_NOT_TRACK: "1" }, () => {}, true],
     ["Claude Code's DISABLE_TELEMETRY=1", sessionStart, { DISABLE_TELEMETRY: "1" }, () => {}, true],
@@ -997,13 +996,6 @@ test("Copilot telemetry hook sends nothing when it must not", async () => {
     const result = runHook("telemetry.mjs", arcadeCall, hookEnv(dataDir2, server.url), "copilot");
     assert.equal(result.stdout, "");
     assert.deepEqual(readdirSync(dataDir2), [], "--host copilot with only CLAUDE_PLUGIN_DATA");
-    // Opted out with install-id present: install-id deleted, nothing sent.
-    const dataDir3 = makeTempDir();
-    writeFileSync(path.join(dataDir3, "install-id"), "11111111-2222-3333-4444-555555555555");
-    const result2 = runHook("telemetry.mjs", arcadeCall, copilotEnv(dataDir3, server.url, { ARCADE_PLUGIN_TELEMETRY: "0" }), "copilot");
-    assert.equal(result2.status, 0, result2.stderr);
-    assert.equal(result2.stdout, "", "opted out, with an old install-id to delete (copilot)");
-    assert.deepEqual(readdirSync(dataDir3), [], "opted out, with an old install-id to delete (copilot)");
     await sleep(1000);
     assert.deepEqual(server.requests, []);
   } finally {

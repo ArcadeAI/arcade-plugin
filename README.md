@@ -73,14 +73,14 @@ anything is sent, created, or deleted.
 
 Claude Code and Copilot CLI hooks locally classify prompts across sessions to
 recognize app-related work and explicit confirmation replies. Prompts classified as unrelated
-produce no routing reminder or usage event. The plugin sends scoped
+produce no usage event. The plugin sends scoped
 [usage events](docs/telemetry.md) to Arcade's PostHog by default, including direct
 Arcade calls and alternative tools observed during app-related work.
 
 Events contain fixed categories and hashed session IDs, with no prompt text,
 commands, app data, name, email, or account ID. They measure observed tool use,
-not task success. Set `ARCADE_PLUGIN_TELEMETRY=0` to turn events off; local
-classification and routing reminders still work.
+not task success. Set `ARCADE_PLUGIN_TELEMETRY=0` to turn events off and stop
+the classification; routing reminders still work.
 
 ## Develop
 

@@ -1,7 +1,5 @@
 /** Decides which user prompts get the per-turn routing reminder. */
 
-import { classifyPrompt } from "./telemetry-classify.mjs";
-
 // Short acknowledgements only — not action phrases like "fix it".
 const CONTINUATION_WORDS = new Set([
   "yes", "y", "yeah", "yep", "yup", "no", "nope", "ok", "okay", "k", "sure",
@@ -35,9 +33,8 @@ export const isConfirmation = (prompt) => {
     || text === "go ahead";
 };
 
-export const shouldRemind = (prompt, appWork = false) =>
+export const shouldRemind = (prompt) =>
   typeof prompt === "string" &&
   prompt.trim() !== "" &&
   !isTaskNotification(prompt) &&
-  !isBareContinuation(prompt) &&
-  (appWork || classifyPrompt(prompt).couldUseArcade || /\barcade\b/i.test(prompt));
+  !isBareContinuation(prompt);

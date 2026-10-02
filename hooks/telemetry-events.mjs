@@ -197,14 +197,13 @@ const operatorStatus = (/** @type {unknown} */ message) => {
 /**
  * @param {unknown} prompt
  * @param {HostInput} hostInput
- * @param {boolean} reminderSent
  */
-const promptProperties = (prompt, hostInput, reminderSent) => {
+const promptProperties = (prompt, hostInput) => {
   const { couldUseArcade, serviceHints } = classifyPrompt(prompt);
   return {
     could_use_arcade: couldUseArcade,
     service_hints: serviceHints,
-    reminder_sent: hostInput.promptReminder && reminderSent,
+    reminder_sent: hostInput.promptReminder && shouldRemind(prompt),
   };
 };
 
@@ -218,16 +217,15 @@ const subagentSession = (/** @type {unknown} */ agentId) =>
  * @param {HostInput} hostInput
  * @param {string | undefined} cli
  * @param {boolean} appWork
- * @param {boolean} reminderSent
  * @returns {[string, Record<string, unknown>] | null}
  */
-const eventFor = (input, hostInput, cli, appWork, reminderSent) => {
+const eventFor = (input, hostInput, cli, appWork) => {
   switch (input.hook_event_name) {
     case "SessionStart":
       return null;
     case "UserPromptSubmit":
       if (isTaskNotification(input.prompt) || !appWork) return null;
-      return ["Plugin prompt submitted", promptProperties(input.prompt, hostInput, reminderSent)];
+      return ["Plugin prompt submitted", promptProperties(input.prompt, hostInput)];
     case "PreToolUse": {
       const extra = hostInput.attemptProperties?.(input.tool_name, input.tool_input);
       return extra ? ["Plugin tool attempted", extra] : null;
@@ -285,17 +283,16 @@ const keepAllowed = (event, properties) => {
  * Builds `{ event, distinct_id, properties }` from hook stdin, or returns null
  * when the input is not something the contract tracks or the host is unknown.
  * @param {HookInput | null | undefined} input
- * @param {{ host: string, os: string, arcadeUsedBefore: boolean, cli?: string, appWork?: boolean, reminderSent?: boolean }} options
+ * @param {{ host: string, os: string, arcadeUsedBefore: boolean, cli?: string, appWork: boolean }} options
  *   `cli` is the hook command's `--cli` argument, set only on Bash entries.
+ *   `appWork` comes from scopeForInput in hook-scope.mjs.
  */
-export const buildEvent = (input, { host, os, arcadeUsedBefore, cli, appWork, reminderSent }) => {
+export const buildEvent = (input, { host, os, arcadeUsedBefore, cli, appWork }) => {
   if (!Object.hasOwn(HOST_INPUT, host)) return null;
   const hostInput = HOST_INPUT[host];
   if (!input || typeof input !== "object") return null;
   if (typeof input.session_id !== "string" || input.session_id === "") return null;
-  const relevant = appWork ?? (input.hook_event_name === "UserPromptSubmit" &&
-    (classifyPrompt(input.prompt).couldUseArcade || (typeof input.prompt === "string" && /\barcade\b/i.test(input.prompt))));
-  const found = eventFor(input, hostInput, cli, relevant, reminderSent ?? shouldRemind(input.prompt, relevant));
+  const found = eventFor(input, hostInput, cli, appWork);
   if (!found) return null;
   const [event, extra] = found;
 

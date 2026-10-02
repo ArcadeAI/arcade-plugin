@@ -33,7 +33,7 @@ test("confirmation relevance expires from the original app prompt and unrelated 
 test("scope isolates sessions and Claude turns, preserves notifications, and resets on session start", () => {
   const dir = makeDir();
   assert.equal(scopeForInput(tool(), options(dir)).appWork, false);
-  assert.equal(scopeForInput(prompt("Check my calendar"), options(dir)).reminderSent, true);
+  assert.equal(scopeForInput(prompt("Check my calendar"), options(dir)).appWork, true);
   assert.equal(scopeForInput(tool(), options(dir)).appWork, true);
   assert.equal(scopeForInput(tool("different-turn"), options(dir)).appWork, false);
   assert.equal(scopeForInput(tool("turn-1", "different-session"), options(dir)).appWork, false);
@@ -53,6 +53,8 @@ test("scope isolates sessions and Claude turns, preserves notifications, and res
   scopeForInput({ hook_event_name: "SessionStart", session_id: "session-1" }, options(dir));
   assert.equal(scopeForInput(tool("turn-2"), options(dir)).appWork, false);
   scopeForInput(prompt("Check my calendar", "turn-3"), options(dir));
+  scopeForInput({ hook_event_name: "SessionStart", session_id: "session-1", source: "compact" }, options(dir));
+  assert.equal(scopeForInput(tool("turn-3"), options(dir)).appWork, true, "compaction keeps scope");
   scopeForInput(prompt("Fix the parser", "turn-4"), options(dir));
   assert.equal(scopeForInput(tool("turn-4"), options(dir)).appWork, false);
 });

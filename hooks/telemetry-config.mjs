@@ -19,9 +19,6 @@ export const OPT_OUT_ENV = "ARCADE_PLUGIN_TELEMETRY";
 // Holds "true" once an Arcade tool call has succeeded for this client plugin installation.
 export const ARCADE_USED_FILE = "arcade-used";
 
-// Deleted when found, so no persistent ID stays on disk, even with telemetry off.
-export const OLD_INSTALL_ID_FILE = "install-id";
-
 // telemetry.mjs passes the event to telemetry-send.mjs in this variable.
 export const EVENT_ENV = "ARCADE_PLUGIN_TELEMETRY_EVENT";
 

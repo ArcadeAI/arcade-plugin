@@ -221,7 +221,6 @@ const BUILTIN_TOOL_WHEN = `Claude Code only, on \`WebFetch\` and \`WebSearch\`, 
  * @property {Record<string, Property>} properties Properties beyond COMMON_PROPERTIES.
  * @property {string[]} required
  * @property {object[]} [rules] Extra JSON Schema rules for this event.
- * @property {string[]} [excludes] Common properties this event never carries.
  */
 
 /** @type {Record<string, EventSpec>} */
@@ -303,7 +302,7 @@ export const EVENTS = {
 
 /** Property names an event may carry, common ones included. */
 export const allowedProperties = (/** @type {string} */ eventName) => [
-  ...Object.keys(COMMON_PROPERTIES).filter((key) => !EVENTS[eventName].excludes?.includes(key)),
+  ...Object.keys(COMMON_PROPERTIES),
   ...Object.keys(EVENTS[eventName].properties),
 ];
 

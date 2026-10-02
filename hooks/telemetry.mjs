@@ -4,10 +4,10 @@
 // Sends the usage events described in docs/telemetry.md. Always exit 0.
 
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ARCADE_USED_FILE, EVENT_ENV, OLD_INSTALL_ID_FILE, OPT_OUT_ENV } from "./telemetry-config.mjs";
+import { ARCADE_USED_FILE, EVENT_ENV, OPT_OUT_ENV } from "./telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "./telemetry-events.mjs";
 import { scopeForInput } from "./hook-scope.mjs";
 import { hostFromArgs, readInput } from "./hook-hosts.mjs";
@@ -77,9 +77,8 @@ const main = async () => {
   // arcade-used flag, so nothing is sent.
   const dir = process.env[client.dataVariable];
   if (!dir || !path.isAbsolute(dir)) return;
-  rmSync(path.join(dir, OLD_INSTALL_ID_FILE), { force: true });
-  const scope = scopeForInput(input, { host: client.host, dir });
   if (isOptedOut(client.optOutSwitches)) return;
+  const { appWork } = scopeForInput(input, { host: client.host, dir });
 
   const arcadeUsedBefore = readArcadeUsed(dir);
   const event = buildEvent(input, {
@@ -87,7 +86,7 @@ const main = async () => {
     os: process.platform,
     arcadeUsedBefore,
     cli: cliFromArgs(process.argv),
-    ...scope,
+    appWork,
   });
   if (!event) return;
   if (!arcadeUsedBefore && isArcadeCall(event)) markArcadeUsed(dir);

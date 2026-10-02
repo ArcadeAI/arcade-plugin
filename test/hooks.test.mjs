@@ -155,10 +155,10 @@ test("every Copilot hook's powershell command skips without PLUGIN_ROOT and runs
 });
 
 test("shouldRemind skips acknowledgements and background task results", () => {
-  for (const prompt of ["What's on my calendar?"]) {
+  for (const prompt of ["What's on my calendar?", "fix it", "go ahead and send it"]) {
     assert.equal(shouldRemind(prompt), true, prompt);
   }
-  for (const prompt of ["", "fix it", "go ahead and send it", "ok", "yes thanks", "<task-notification>\n<task-id>a</task-id>", undefined]) {
+  for (const prompt of ["", "ok", "yes thanks", "<task-notification>\n<task-id>a</task-id>", undefined]) {
     assert.equal(shouldRemind(prompt), false, String(prompt));
   }
 });

@@ -11,7 +11,7 @@ actual findings before publishing.
   plugin version, and any ZIP filename and SHA-256. If the tracked branch changes
   after validation, validate the new commit.
 - Run `npm run verify` and save its output. Record any skipped host checks.
-- Verify unrelated coding prompts send no event or reminder; app prompts and
+- Verify unrelated coding prompts send no event; app prompts and
   explicit confirmations stay in scope; unrelated task switches close scope;
   alternative tool events require scope; opt-out sends nothing; direct Arcade
   calls remain observable. Use synthetic inputs and inspect captured payloads.
@@ -50,6 +50,10 @@ completed successfully despite authentication failures and absent verdicts. The
 [shared scanner](https://github.com/anthropics/claude-plugins-community/blob/426e469f322952061102b286b378c0c9733a0934/.github/actions/scan-plugins/scripts/scan.sh)
 uses static source review and skips unparseable verdicts. A green check alone is
 insufficient evidence of an actual policy verdict.
+
+**Measured:** The per-prompt routing reminder runs on every prompt without a
+relevance check, because Cowork gets no session-start text and relies on it for
+routing. GRO-398 records whether it ships that way in the build Claude reviews.
 
 **Inferred:** These findings explain a review risk; they do not establish the
 newer directory portal's implementation or its decision on Arcade. The
