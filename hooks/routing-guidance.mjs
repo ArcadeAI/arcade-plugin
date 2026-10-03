@@ -14,17 +14,19 @@ const GATEWAY =
 const GATEWAY_CHECK =
   "Discover tools on each gateway; never reuse another gateway's query IDs. " +
   "On another gateway, confirm the intended app account with the app's who-am-I " +
-  "tool. If unconfirmed, do not write; return the action to the parent or user. " +
+  "tool. If unconfirmed, do not write; for reads, name the source account. " +
   "Do not broaden authorization or copy secrets, credentials, or user sessions.";
 
 const PARENT_FALLBACK =
-  "If Arcade cannot finish, the parent may use another already-authorized " +
+  "If the arcade server cannot finish, the parent may use another already-authorized " +
   "Arcade gateway or other available tools within the authorized task. " +
-  GATEWAY_CHECK;
+  GATEWAY_CHECK +
+  " For an unconfirmed write or unidentified read account, ask the user.";
 
 const DELEGATE_FALLBACK =
-  "If Arcade cannot finish, use another already-authorized Arcade gateway " +
-  "within the delegated task. " + GATEWAY_CHECK;
+  "If the arcade server cannot finish, use another already-authorized Arcade gateway " +
+  "within the delegated task. " + GATEWAY_CHECK +
+  " For an unconfirmed write or unidentified read account, return needs_confirmation.";
 
 const AUTH_DEFINITION =
   "A gateway showing needsAuth or a plugin namespace with zero tools needs " +
@@ -90,7 +92,7 @@ export const SESSION_CONTEXT = join(...PARENT_RULES, line("Routing", DELEGATION)
 export const PROMPT_REMINDER =
   'For external app tasks, use try-arcade (or arcade-operator when available) ' +
   'first through the "arcade" MCP server, and scale-arcade for team rollout. ' +
-  "The parent may finish work Arcade can't finish under the try-arcade fallback rules.";
+  "The parent may finish work the arcade server cannot complete under the try-arcade fallback rules.";
 
 // Cursor's always-apply rule. The Cursor IDE and Cloud Agents don't run plugin
 // hooks, so the rule carries the full session rules. The Cursor CLI runs the
