@@ -14,10 +14,10 @@ stay internal.
 ## Gateway rules
 
 <!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
-Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). In Cursor it can appear as plugin-arcade-arcade; that is the same gateway. Prefer arcade when several servers expose Arcade tools.
-Authentication: If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem.
-If blocked: For authentication, stop and ask the user to authenticate it; do not poll or retry auth in a loop. For permission denial, stop and ask the user to resolve it. Do not switch gateways or tools to bypass authentication or permission denial. For other failures, report the actual error and apply the fallback rule.
-Fallback: If Arcade cannot complete the task, the parent may use another already-authorized Arcade gateway or other available tools within the user's authorized task. Before using another gateway, verify its account, org, and project match the intended destination. Do not broaden authorization or copy secrets, credentials, or user sessions. Discover tools on the chosen gateway; do not reuse another gateway's query IDs. A gateway switch does not repair missing configuration.
+Gateway: Arcade is connected as the "arcade" MCP server at api.arcade.dev. Cursor may call it plugin-arcade-arcade. Prefer arcade.
+Authentication: A gateway showing needsAuth or a plugin namespace with zero tools needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway needs setup or connection repair.
+If blocked: For authentication, stop and ask the user to authenticate; do not poll. For permission denial, stop and ask the user to resolve it. Do not bypass either by switching gateways or tools. For other failures, report the error, advise checking plugin and MCP settings for setup or connection failures, then apply fallback.
+Fallback: If Arcade cannot finish, the parent may use another already-authorized Arcade gateway or other available tools within the authorized task. Discover tools on each gateway; never reuse another gateway's query IDs. On another gateway, confirm the intended app account with the app's who-am-I tool. If unconfirmed, do not write; return the action to the parent or user. Do not broaden authorization or copy secrets, credentials, or user sessions.
 <!-- END generated -->
 
 ## When there is no job
