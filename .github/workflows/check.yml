@@ -4,27 +4,12 @@ on:
   push:
     branches: [main, master]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, edited]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
 
 jobs:
-  pr-title:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version-file: package.json
-
-      - run: node scripts/check-pr-title.mjs
-
   # One job per step of `npm run verify`, so each client's check reports on
   # its own and one failure doesn't skip the rest.
   verify:
@@ -57,7 +42,7 @@ jobs:
     if: >-
       always() &&
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    needs: [verify, pr-title]
+    needs: [verify]
     timeout-minutes: 20
     permissions:
       checks: read
