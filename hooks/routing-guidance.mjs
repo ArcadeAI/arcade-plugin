@@ -13,20 +13,19 @@ const GATEWAY =
 
 const GATEWAY_CHECK =
   "Discover tools on each gateway; never reuse another gateway's query IDs. " +
+  "Do not broaden authorization or copy secrets, credentials, or user sessions. " +
   "On another gateway, confirm the intended app account with the app's who-am-I " +
-  "tool. If unconfirmed, do not write; for reads, name the source account. " +
-  "Do not broaden authorization or copy secrets, credentials, or user sessions.";
+  "tool. Write only through a confirmed account, and name the source account " +
+  "for reads.";
 
 const PARENT_FALLBACK =
   "If the arcade server cannot finish, the parent may use another already-authorized " +
   "Arcade gateway or other available tools within the authorized task. " +
-  GATEWAY_CHECK +
-  " For an unconfirmed write or unidentified read account, ask the user.";
+  GATEWAY_CHECK + " If you can't, ask the user.";
 
 const DELEGATE_FALLBACK =
   "If the arcade server cannot finish, use another already-authorized Arcade gateway " +
-  "within the delegated task. " + GATEWAY_CHECK +
-  " For an unconfirmed write or unidentified read account, return needs_confirmation.";
+  "within the delegated task. " + GATEWAY_CHECK + " If you can't, return needs_confirmation.";
 
 const AUTH_DEFINITION =
   "A gateway showing needsAuth or a plugin namespace with zero tools needs " +
