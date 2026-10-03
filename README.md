@@ -93,14 +93,24 @@ npm run verify
   loaded every MCP server and skill
 
 CI runs each of these as its own job (`.github/workflows/check.yml`). The
-**`check`** job waits for all of them and, on pull requests, for Cursor
-Bugbot. Branch protection on `main` requires `check`.
+**`check`** job waits for all of them and, on pull requests, for the PR title
+check and Cursor Bugbot. Branch protection on `main` requires `check`.
 
 ## Release
 
-Release Please opens a release PR on `main` with version bumps across `VERSION`,
-adapter manifests, and `CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and
-create the GitHub release.
+Use a Conventional Commit PR title and keep it when squash merging:
+
+- `fix: ...` for a patch
+- `feat: ...` for a feature
+- `type!: ...` for a breaking change
+
+CI checks the title, including edits. Rename GitHub's `Revert "..."` titles
+to `revert: ...`.
+
+After a releasable commit reaches `main`, Release Please opens or updates a
+release PR with version bumps across `VERSION`, plugin manifests, and
+`CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and create the GitHub
+release. Do not bump the version by hand alongside Release Please.
 
 Configure paths in `release-please-config.json`. The workflow lives at
 `.github/workflows/release-please.yml`.

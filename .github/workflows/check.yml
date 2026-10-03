@@ -4,12 +4,30 @@ on:
   push:
     branches: [main, master]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
 
 permissions:
   contents: read
 
 jobs:
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require a Conventional Commit title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node <<'NODE'
+          const header = /^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\([^()\r\n]+\))?!?: \S[^\r\n]*$/;
+          if (!header.test(process.env.TITLE ?? "")) {
+            console.error("PR title must use a Conventional Commit header, e.g. fix: allow an authorized gateway fallback. See README.md#release.");
+            process.exit(1);
+          }
+          console.log("PR title is a Conventional Commit header.");
+          NODE
+
   # One job per step of `npm run verify`, so each client's check reports on
   # its own and one failure doesn't skip the rest.
   verify:
@@ -42,7 +60,7 @@ jobs:
     if: >-
       always() &&
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    needs: [verify]
+    needs: [verify, pr-title]
     timeout-minutes: 20
     permissions:
       checks: read

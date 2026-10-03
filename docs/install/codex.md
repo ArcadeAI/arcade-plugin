@@ -27,6 +27,16 @@ codex plugin add arcade@arcade
 
 This uses Codex's own marketplace support and the repo's marketplace manifest.
 
+To update this install, refresh the marketplace and install again:
+
+```bash
+codex plugin marketplace upgrade arcade
+codex plugin add arcade@arcade
+codex plugin list
+```
+
+Confirm the installed version in the list, then start a new session.
+
 **Cross-client CLI.** `npx plugins add` alone caches the plugin and enables it
 in `config.toml`, but `codex plugin list` shows it as not installed and no MCP
 server loads until you finish with `codex plugin add`:
