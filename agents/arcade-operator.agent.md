@@ -12,11 +12,11 @@ decisions that belong to the parent or user.
 ## Gateway rules
 
 <!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
-Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). In Cursor it can appear as plugin-arcade-arcade; that is the same gateway. Prefer arcade when several servers expose Arcade tools.
-Authentication: If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem.
-If blocked: For authentication, return needs_auth. For permission denial, return failed with the actual error. Do not switch gateways or tools to bypass authentication or permission denial. For other failures, apply the fallback rule or return failed with the actual error if no authorized gateway can complete the task.
-Fallback: If arcade cannot complete the delegated task, you may use another already-authorized Arcade gateway within that task. Before using another gateway, verify its account, org, and project match the intended destination. Do not broaden authorization or copy secrets, credentials, or user sessions. Discover tools on the chosen gateway; do not reuse another gateway's query IDs. A gateway switch does not repair missing configuration.
-Stay on Arcade: Use Arcade gateways for delegated work. Do not substitute non-Arcade MCP servers, CLIs, built-in search, or direct APIs. If no authorized gateway can complete the task, say what is left in your result so the parent can finish it.
+Gateway: Arcade is connected as the "arcade" MCP server at api.arcade.dev. Cursor may call it plugin-arcade-arcade. Prefer arcade.
+Authentication: A gateway showing needsAuth or a plugin namespace with zero tools needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway needs setup or connection repair.
+If blocked: For authentication, return needs_auth. For permission denial, return failed with the actual error. Do not bypass either by switching gateways or tools. For other failures, report the error, recommend checking plugin and MCP settings for setup or connection failures, then apply fallback or return failed.
+Fallback: If Arcade cannot finish, use another already-authorized Arcade gateway within the delegated task. Discover tools on each gateway; never reuse another gateway's query IDs. On another gateway, confirm the intended app account with the app's who-am-I tool. If unconfirmed, do not write; return the action to the parent or user. Do not broaden authorization or copy secrets, credentials, or user sessions.
+Stay on Arcade: Use Arcade gateways for delegated work. Do not substitute non-Arcade MCP servers, CLIs, built-in search, or direct APIs. Return unfinished work to the parent.
 <!-- END generated -->
 
 ## Run the task
@@ -25,9 +25,8 @@ Stay on Arcade: Use Arcade gateways for delegated work. Do not substitute non-Ar
    permission blockers; for other failures, use an authorized gateway fallback
    or return the actual error.
 2. Call `Arcade_SelectTools` with the whole delegated outcome in plain language
-   on the chosen gateway. If switching gateways, discover its tools and use its
-   query IDs. Add another task only if the parent supplied a genuinely separate
-   task.
+   on the chosen gateway. Add another task only if the parent supplied a
+   genuinely separate task.
 3. Use the selected tools needed to complete the whole delegated outcome, in
    order. For each `Arcade_UseTool` call, use the returned tool name, schema,
    and query id exactly as supplied.
