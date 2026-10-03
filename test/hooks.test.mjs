@@ -117,12 +117,14 @@ const DELEGATE_SCOPE = [
   /Do not substitute non-Arcade MCP servers, CLIs, built-in search, or direct APIs/,
   /Return unfinished work to the parent/,
   /another already-authorized Arcade gateway within the delegated task/,
+  /For an unconfirmed write or unidentified read account, return needs_confirmation\./,
   /For permission denial, return failed with the actual error/,
 ];
 
 const FALLBACK_RULES = [
+  /If the arcade server cannot finish,/,
   /confirm the intended app account with the app's who-am-I tool/,
-  /If unconfirmed, do not write; return the action to the parent or user/,
+  /If unconfirmed, do not write; for reads, name the source account\./,
   /Discover tools on each gateway; never reuse another gateway's query IDs/,
   /Do not broaden authorization or copy secrets, credentials, or user sessions/,
   /Do not bypass either by switching gateways or tools/,
@@ -131,11 +133,12 @@ const FALLBACK_RULES = [
 
 const PARENT_FALLBACK_RULES = [
   /another already-authorized Arcade gateway or other available tools within the authorized task/,
+  /For an unconfirmed write or unidentified read account, ask the user\./,
   /For permission denial, stop and ask the user to resolve it/,
 ];
 
 const CORE_RULES = {
-  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server/, /try-arcade/, /arcade-operator/, /work Arcade can't finish/]],
+  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server/, /try-arcade/, /arcade-operator/, /The parent may finish work the arcade server cannot complete under the try-arcade fallback rules\.$/]],
   CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
   SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
   SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /stop and ask the user to authenticate/, /needsAuth/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
