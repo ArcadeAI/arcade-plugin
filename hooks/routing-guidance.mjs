@@ -5,7 +5,7 @@
  */
 
 const CURSOR_NAME =
-  "Cursor may call it plugin-arcade-arcade.";
+  "It may appear as plugin-arcade-arcade. That is the same gateway";
 
 const GATEWAY =
   'Arcade is connected as the "arcade" MCP server at ' +
