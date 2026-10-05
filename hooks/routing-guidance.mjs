@@ -9,7 +9,13 @@ const CURSOR_NAME =
 
 const GATEWAY =
   'Arcade is connected as the "arcade" MCP server at ' +
-  `api.arcade.dev. ${CURSOR_NAME} Prefer arcade.`;
+  `api.arcade.dev. ${CURSOR_NAME}. Prefer arcade.`;
+
+const DELEGATE_GATEWAY =
+  'Arcade is connected as the "arcade" MCP server at api.arcade.dev. ' +
+  "It may be called plugin-arcade-arcade. Prefer arcade, but if needed use another " +
+  "Arcade gateway to find the tool you need. If none exist, say what is left " +
+  "in your result so that the parent agent can finish it.";
 
 const GATEWAY_CHECK =
   "Discover tools on each gateway; never reuse another gateway's query IDs. " +
@@ -69,7 +75,7 @@ const PARENT_RULES = [
   line("Fallback", PARENT_FALLBACK),
 ];
 const DELEGATE_RULES = [
-  line("Gateway", GATEWAY),
+  line("Gateway", DELEGATE_GATEWAY),
   line("Authentication", AUTH_DEFINITION),
   line("If blocked", AUTH_ACTION_DELEGATE),
   line("Fallback", DELEGATE_FALLBACK),

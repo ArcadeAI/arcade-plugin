@@ -152,7 +152,17 @@ const PARENT_LABELS = new Set(["PROMPT_REMINDER", "CURSOR_RULE", "SESSION_CONTEX
 const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP server only|use only arcade/;
 
 test("every routing text keeps the core routing rules", () => {
-  for (const [label, [text, phrases]] of Object.entries(CORE_RULES)) {
+  const shippedRules = {
+    "clients/cursor/rules/arcade.mdc": CORE_RULES.CURSOR_RULE[1],
+    "skills/try-arcade/SKILL.md": CORE_RULES.SKILL_RULES[1],
+    "agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+    "com.github.copilot/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+  };
+  const texts = {
+    ...CORE_RULES,
+    ...Object.fromEntries(Object.entries(shippedRules).map(([path, phrases]) => [path, [readRepoFile(path), phrases]])),
+  };
+  for (const [label, [text, phrases]] of Object.entries(texts)) {
     for (const phrase of phrases) {
       assert.match(text.replace(/\s+/g, " "), phrase, label);
     }
