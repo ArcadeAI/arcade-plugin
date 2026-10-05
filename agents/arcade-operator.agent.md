@@ -12,7 +12,7 @@ decisions that belong to the parent or user.
 ## Gateway rules
 
 <!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
-Gateway: Arcade is connected as the "arcade" MCP server at api.arcade.dev. Cursor may call it plugin-arcade-arcade. Prefer arcade.
+Gateway: Arcade is connected as the "arcade" MCP server at api.arcade.dev. It may be called plugin-arcade-arcade. Prefer arcade, but if needed use another Arcade gateway to find the tool you need. If none exist, say what is left in your result so that the parent agent can finish it. 
 Authentication: A gateway showing needsAuth or a plugin namespace with zero tools needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway needs setup or connection repair.
 If blocked: For authentication, return needs_auth. For permission denial, return failed with the actual error. Do not bypass either by switching gateways or tools. For other failures, report the error, recommend checking plugin and MCP settings for setup or connection failures, then apply fallback or return failed.
 Fallback: If the arcade server cannot finish, use another already-authorized Arcade gateway within the delegated task. Discover tools on each gateway; never reuse another gateway's query IDs. Do not broaden authorization or copy secrets, credentials, or user sessions. On another gateway, confirm the intended app account with the app's who-am-I tool. Write only through a confirmed account, and name the source account for reads. If you can't, return needs_confirmation.
