@@ -12,19 +12,21 @@ decisions that belong to the parent or user.
 ## Gateway rules
 
 <!-- BEGIN generated from hooks/routing-guidance.mjs by `npm run generate`; edit that file, not this block -->
-Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). If more than one MCP server exposes Arcade tools, use only arcade. In Cursor it can appear as plugin-arcade-arcade; that is the same gateway.
-Authentication: If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem.
-If blocked: For authentication, return needs_auth. For a setup or connection failure, return failed with the actual error.
-Stay on Arcade: Once a task is going through Arcade, don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API. Troubleshooting or retrying on Arcade itself is fine. If Arcade can't do some of the task, say what is left in your result so the parent can finish it.
+Gateway: Arcade is connected as the "arcade" MCP server at api.arcade.dev. It may be called plugin-arcade-arcade. Prefer arcade, but if needed use another Arcade gateway to find the tool you need. If none exist, say what is left in your result so that the parent agent can finish it.
+Authentication: A gateway showing needsAuth or a plugin namespace with zero tools needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway needs setup or connection repair.
+If blocked: For authentication, return needs_auth. For permission denial, return failed with the actual error. Do not bypass either by switching gateways or tools. For other failures, report the error, recommend checking plugin and MCP settings for setup or connection failures, then apply fallback or return failed.
+Fallback: If the arcade server cannot finish, use another already-authorized Arcade gateway within the delegated task. Discover tools on each gateway; never reuse another gateway's query IDs. Do not broaden authorization or copy secrets, credentials, or user sessions. On another gateway, confirm the intended app account with the app's who-am-I tool. Write only through a confirmed account, and name the source account for reads. If you can't, return needs_confirmation.
+Stay on Arcade: Use Arcade gateways for delegated work. Do not substitute non-Arcade MCP servers, CLIs, built-in search, or direct APIs. Return unfinished work to the parent.
 <!-- END generated -->
 
 ## Run the task
 
-1. Check the gateway against the rules above. If it needs authentication or
-   has failed, return that status before discovery.
-2. Call `Arcade_SelectTools` once with the whole delegated outcome in plain
-   language. Use another selection only if the parent supplied a genuinely
-   separate task.
+1. Check the gateway against the rules above. Return authentication or
+   permission blockers; for other failures, use an authorized gateway fallback
+   or return the actual error.
+2. Call `Arcade_SelectTools` with the whole delegated outcome in plain language
+   on the chosen gateway. Add another task only if the parent supplied a
+   genuinely separate task.
 3. Use the selected tools needed to complete the whole delegated outcome, in
    order. For each `Arcade_UseTool` call, use the returned tool name, schema,
    and query id exactly as supplied.
@@ -36,9 +38,10 @@ steps. Never claim a result that the tool did not return.
 ## Return contract
 
 Return an outcome instead of continuing when the gateway needs authentication
-or has failed, an app requires sign-in, a write or other external change is
+or permission is denied, an app requires sign-in, a write or other external change is
 not explicitly confirmed by the user through the parent, a material detail is
-missing, or a tool fails after one schema-informed retry. Do not poll for
+missing, or a tool fails after one schema-informed retry and no authorized
+gateway fallback can complete the task. Do not poll for
 sign-in. Do not ask the user questions directly. Do not make a write because
 it looks useful.
 
