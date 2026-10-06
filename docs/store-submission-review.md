@@ -5,6 +5,11 @@ local validator or green public GitHub check does not establish store approval.
 Record evidence against the exact version submitted, then resolve the directory's
 actual findings before publishing.
 
+This checklist is an acceptance record, not an executable release gate. Neither
+the telemetry hook nor CI checks these approvals. Repository installs can consume
+the branch independently of GitHub release tags; do not assume that withholding
+a tagged release prevents collection from a merged default-on build.
+
 ## Required evidence
 
 - Record repository, submitted plugin path, branch or tag, full commit SHA,

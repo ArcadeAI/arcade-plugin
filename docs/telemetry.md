@@ -1,8 +1,10 @@
 # Plugin telemetry
 
 The Arcade plugin sends scoped usage events to Arcade's PostHog by default.
-Claude Code and Copilot CLI hooks locally classify prompts across sessions to
-recognize app-related work. Prompts classified as unrelated send no event.
+Claude Code and Copilot CLI hooks inspect prompts locally in every session where
+telemetry is enabled to recognize app-related work. Relevance state belongs to
+that session; it does not carry between sessions. Prompts classified as unrelated
+send no event.
 Direct Arcade tool calls remain observable, even without a classified prompt.
 Alternative MCP, CLI, and web tools send events only during app-related work.
 
@@ -56,12 +58,19 @@ For testing, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a different host.
 
 ## Where it runs
 
-In Claude Code (CLI, IDE extensions, desktop Code tab, Cowork) and GitHub
-Copilot CLI. VS Code reads Copilot's hook file but doesn't give hooks the
-plugin's path, so every hook checks for its script and exits without doing
-anything. VS Code sends no telemetry. Cursor isn't wired up; its hook input
-includes the user's email. claude.ai, ChatGPT, and Codex don't run plugin
-hooks.
+The Claude Code and Copilot CLI adapters are wired for telemetry. Claude's
+adapter is also used by IDE extensions, the desktop Code tab, and Cowork;
+local CLI validation does not establish actual event delivery or accessible
+opt-out in each of those surfaces. Validate the submitted version in each
+surface before claiming that coverage.
+
+The VS Code adapter checks for its script at the plugin path and exits when the
+host does not provide that path; this package has no validated VS Code telemetry
+flow. Cursor isn't wired up. Its hook input can include the user's email, so an
+adapter would need to select only the allowed fields locally. claude.ai,
+ChatGPT, Codex, and OpenCode don't run telemetry hooks from this package.
+Other host-native mechanisms are outside this contract; absence of an adapter
+does not establish that the client cannot support one.
 
 Copilot CLI records MCP tool calls but doesn't record CLI or web tool use yet,
 so it sends no `Plugin built-in tool called` or `Plugin built-in tool failed`
@@ -193,7 +202,18 @@ active, even when its keyword flag is false. Turn counts do not describe whole
 tasks. Report tool-only turns separately from this denominator.
 
 `server: other_arcade` means the hook observed another connection's Arcade
-gateway tool. A live Claude Code run invoked Arcade through a claude.ai
+gateway tool. Results recognize exact gateway tool names on arbitrary MCP
+server aliases; attempts recognize only the two configured lowercase Arcade
+prefixes. UUID or capitalized aliases can therefore have results without an
+attempt event. Direct app tools on an unidentified connection may be classified
+as `other`. Gateway names are a recognition heuristic, not verified server
+provenance.
+
+Events contain no tool-call ID. Multiple calls in the same turn cannot be
+paired individually, even when their tool categories match. Count observed
+events or turn-level stages; do not present a per-attempt completion rate.
+
+A live Claude Code run invoked Arcade through a claude.ai
 connection without a PostToolUse event. A `Plugin tool attempted` event can
 show that invocation, but only `Plugin tool called` or `Plugin tool failed`
 records its outcome. Count an attempt without either outcome as **attempt
@@ -259,3 +279,12 @@ routing against independently labeled cases, including confirmation replies.
 Its results are separate from production usage events. Fixture accuracy does
 not establish real-user routing quality; prompts with no app name and coding
 work involving service names need explicit coverage.
+
+## Before enabling a submitted build
+
+Record telemetry-specific disclosure, analytics retention and processor handling,
+actual client and version 2 ingestion evidence, and the applicable store decision
+against the submitted version. See the [submission checklist](store-submission-review.md).
+These are release acceptance requirements; the current code and CI do not enforce
+them. A repository install can consume the branch before a GitHub release is
+tagged, so a later release PR is not a transmission gate.

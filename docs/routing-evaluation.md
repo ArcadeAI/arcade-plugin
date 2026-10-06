@@ -18,6 +18,20 @@ null rate, not zero success. The report includes known lexical false positives
 from local coding tasks that mention an app and false negatives from confirmations.
 Keep those cases visible rather than changing the labels to match the classifier.
 
+## Relation to the existing cost evaluation
+
+[Tool Recommendation Cost Eval](https://github.com/ArcadeAI/tool-recommendation-cost-eval)
+already provides a cross-client harness for matched Tool Recommendation on/off
+conversations, token usage, and outcome-gated cost estimates with published
+results. This command is a small lexical baseline and local observation importer;
+it does not run that harness or establish PR13's effect on routing or cost.
+
+Before adding another client runner, decide whether to reuse that harness for a
+plugin comparison. Record the plugin SHA and client configuration for each arm,
+and cover implicit app requests, contextual follow-ups, and local coding tasks
+that name an app. Tool Recommendation on/off and plugin on/off answer different
+questions; existing cost results are not PR13 validation.
+
 ## Record a client run
 
 Run each case in a fresh, controlled session with the installed plugin version
@@ -95,4 +109,4 @@ recall on all eligible tasks, including tasks the relevance classifier missed.
 Use this controlled evaluation for that question. The evaluator reads local files
 and prints JSON; it sends no prompts, transcripts, or observations to analytics.
 
-Written by Strider, Teal's agent. Labels awaiting human review.
+Labels remain agent-authored and await human review.

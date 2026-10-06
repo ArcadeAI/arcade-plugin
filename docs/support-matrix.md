@@ -25,9 +25,19 @@ full rules reach the main conversation. Partial means some hooks run but the
 session-start text doesn't reach the main conversation. The files are
 `.claude-plugin/hooks.json` (Claude Code),
 `clients/cursor/hooks/hooks.json` (Cursor CLI), and
-`com.github.copilot/hooks/hooks.json` (Copilot CLI). Claude Code and Copilot CLI also run the telemetry hook on `SessionStart`,
-`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, and `SubagentStop`
-([what's sent](telemetry.md)); no other client sends telemetry.
+`com.github.copilot/hooks/hooks.json` (Copilot CLI).
+
+Telemetry is wired separately from routing:
+
+| Client adapter | Telemetry events |
+| --- | --- |
+| Claude Code | `UserPromptSubmit`, `PreToolUse` for the configured Arcade prefixes, `PostToolUse`, `PostToolUseFailure`, and Arcade operator `SubagentStop` |
+| Copilot CLI | `UserPromptSubmit`, MCP `PostToolUse` and `PostToolUseFailure`, and Arcade operator `SubagentStop` |
+
+Session start clears local prompt scope through the routing hook; it sends no
+telemetry event. No other adapter in this package sends telemetry. These are
+package capabilities, not a claim that other hosts have no hook or observability
+mechanisms. See [what's sent and its limits](telemetry.md).
 
 ¹ The Cursor IDE (3.21.18) lists the commands on the plugin page but not in
 the `/` menu. Other plugins' commands don't appear there either.

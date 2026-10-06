@@ -2,7 +2,17 @@
 
 [Open the dashboard](https://us.posthog.com/project/129768/dashboard/2150320).
 
-The dashboard checks whether plugin telemetry reaches PostHog. It reads Staging project 129768, plugin version `0.2.0`, over a rolling seven days. The current events came from deliberate Claude Code and Copilot CLI tests. These counts are not production usage or task-success rates, and there is no installed-user denominator. The SQL measures are noncanonical because this PostHog connection lacks `data_catalog:read`.
+This document records the Staging QA dashboard checked on September 29, 2026.
+The saved queries selected project 129768, plugin version `0.2.0`, and a rolling
+seven-day window. The captured events came from deliberate Claude Code and
+Copilot CLI tests. These counts are not production usage or task-success rates,
+and there is no installed-user denominator. The SQL measures were noncanonical
+because that PostHog connection lacked `data_catalog:read`.
+
+The dated checks below are not a live dashboard or ingestion status. Before
+validating another build, select its actual `VERSION`, refresh the queries, and
+record the new date, SHA, telemetry version, and results. Changing this document
+does not update the saved PostHog queries.
 
 ## Contract versions and chart units
 
@@ -43,7 +53,9 @@ routing miss.
 
 `Plugin tool attempted` records selection before execution. `Plugin tool called`
 records a client completion; `Plugin tool failed` records a reported failure.
-An attempt lacking either result is **attempt observed, outcome unknown**. An
+At turn level, an attempt with no observed result is **attempt observed, outcome unknown**.
+Events contain no tool-call ID, so a turn with several attempts and results cannot
+establish each attempt's outcome. An
 observed prompt lacking an Arcade event is **no call observed**, not **missed**.
 Discovery (`Arcade_ListApps`, `Arcade_SelectTools`) and authorization
 (`System_ManageAuthorization`) are separate from app tools (`Arcade_UseTool` and
@@ -71,7 +83,10 @@ queries must state which contract version they count.
 | Copilot gateway and app tool results | `Itp6kRP7` | Tool events by version-specific name or category and result |
 | Copilot operator reported status | `oETEUFSp` | Stops |
 
-Each insight's saved HogQL is the executable definition. Every event scan filters `timestamp >= now() - INTERVAL 7 DAY` and `plugin_version = '0.2.0'`. The dashboard also displays a seven-day filter.
+Each insight's saved HogQL is the executable definition. At the recorded check,
+every event scan filtered `timestamp >= now() - INTERVAL 7 DAY` and
+`plugin_version = '0.2.0'`. That version filter is QA history, not the version to
+reuse for every release. The dashboard also displayed a seven-day filter.
 
 ## Legacy QA verification on 2026-09-29 (contract version 1)
 

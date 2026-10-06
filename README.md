@@ -71,13 +71,16 @@ anything is sent, created, or deleted.
 
 ## Plugin usage events
 
-Claude Code and Copilot CLI hooks locally classify prompts across sessions to
-recognize app-related work and explicit confirmation replies. Prompts classified as unrelated
-produce no usage event. The plugin sends scoped
-[usage events](docs/telemetry.md) to Arcade's PostHog by default, including direct
-Arcade calls and alternative tools observed during app-related work.
+Claude Code and Copilot CLI hooks inspect prompts locally in enabled sessions
+to recognize app-related work and short follow-ups. Relevance state stays within
+each session. Prompts classified as unrelated produce no prompt event. The plugin
+sends scoped [usage events](docs/telemetry.md) to Arcade's PostHog through
+`p.arcade.dev` by default, including direct Arcade calls and alternative MCP
+tools observed during app-related work. Claude Code also records categories of
+observed web tools and selected CLI programs during that work; Copilot CLI
+does not record those web or CLI events.
 
-Events contain fixed categories and hashed session IDs, with no prompt text,
+Events contain fixed categories and hashed session and turn IDs, with no prompt text,
 commands, app data, name, email, or account ID. They measure observed tool use,
 not task success. Set `ARCADE_PLUGIN_TELEMETRY=0` to turn events off and stop
 the classification; routing reminders still work.
