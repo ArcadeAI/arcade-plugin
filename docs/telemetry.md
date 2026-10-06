@@ -274,15 +274,11 @@ this telemetry.
 
 ## Routing evaluation
 
-Evaluate classification and client routing on controlled, labeled cases separately
-from production usage events. Include implicit app requests, contextual follow-ups,
-and local coding tasks that name an app. Fixture accuracy does not establish
-real-user routing quality.
-
-The existing [Tool Recommendation Cost Eval](https://github.com/ArcadeAI/tool-recommendation-cost-eval)
-provides an offline cross-client harness and published results. Record the plugin
-SHA and client configuration when evaluating the plugin; Tool Recommendation
-on/off results do not establish the plugin's effect on routing or cost.
+The [routing evaluation](routing-evaluation.md) measures classification and tool
+routing against independently labeled cases, including confirmation replies.
+Its results are separate from production usage events. Fixture accuracy does
+not establish real-user routing quality; prompts with no app name and coding
+work involving service names need explicit coverage.
 
 ## Before enabling a submitted build
 

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "labelStatus": "agent-authored-awaiting-human-review",
+  "cases": [
+    { "id": "inbox-triage", "turns": ["Which unread messages from customers need a reply today? Check my inbox."], "arcadeAppropriate": true, "reason": "Requires access to the user's mailbox." },
+    { "id": "calendar-availability", "turns": ["Find a time for a call with Sam next week using my calendar."], "arcadeAppropriate": true, "reason": "Requires the user's calendar availability." },
+    { "id": "chat-followup", "turns": ["Find the launch decision in Slack and summarize who owns the follow-up."], "arcadeAppropriate": true, "reason": "Requires reading workspace messages." },
+    { "id": "issue-update", "turns": ["Move the release blocker in Linear to done and add the deployed URL."], "arcadeAppropriate": true, "reason": "Requires modifying a ticket in the user's account." },
+    { "id": "meeting-actions", "turns": ["Read yesterday's Granola notes and list the decisions I need to follow up on."], "arcadeAppropriate": true, "reason": "Requires reading the user's meeting notes." },
+    { "id": "document-lookup", "turns": ["Find the onboarding checklist in Notion and tell me what remains."], "arcadeAppropriate": true, "reason": "Requires reading a workspace document." },
+    { "id": "email-confirmation", "turns": ["Draft an email to Sam confirming the time we agreed.", "Yes, send it."], "arcadeAppropriate": true, "reason": "The final turn authorizes the preceding mailbox task." },
+    { "id": "ticket-confirmation", "turns": ["Create a ticket in Linear for the broken search button.", "Go ahead."], "arcadeAppropriate": true, "reason": "The final turn continues the preceding issue-tracker task." },
+    { "id": "local-confirmation", "turns": ["Rename this local variable to requestCount.", "Yes, do that."], "arcadeAppropriate": false, "reason": "The confirmation continues a local code edit." },
+    { "id": "slack-local-code", "turns": ["Fix this local Slack webhook parser so an absent text field returns an empty string."], "arcadeAppropriate": false, "reason": "The task edits local code and needs no workspace access." },
+    { "id": "gmail-local-code", "turns": ["Write a unit test for our Gmail payload serializer using this fixture."], "arcadeAppropriate": false, "reason": "The task uses a supplied fixture rather than mailbox data." },
+    { "id": "analytics-local-code", "turns": ["Remove the hardcoded PostHog API key from this JavaScript example."], "arcadeAppropriate": false, "reason": "The task edits supplied code and needs no analytics access." },
+    { "id": "arithmetic", "turns": ["What is seventeen multiplied by six?"], "arcadeAppropriate": false, "reason": "The task needs no connected app." },
+    { "id": "alternate-arcade-connection", "turns": ["Use my existing Arcade connection to read the Salesforce deal notes for Acme."], "arcadeAppropriate": true, "reason": "Both the plugin and another Arcade connection can satisfy this app task." },
+    { "id": "auth-blocker", "turns": ["Check my Gmail for the invoice. If authorization is required, give me the authorization link."], "arcadeAppropriate": true, "reason": "The task requires mailbox access even when authorization blocks execution." },
+    { "id": "setup-blocker", "turns": ["Search our shared Google Drive for the launch plan. I have not connected it yet."], "arcadeAppropriate": true, "reason": "The task requires a storage connection; missing setup is an execution blocker." }
+  ]
+}

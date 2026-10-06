@@ -70,5 +70,4 @@ security scanning, and human review without publishing the scanner prompt.
 Shared project notes identify GRO-398, GRO-401, GRO-399, and GRO-439 as store
 work. Confirm their live scope before adding an issue; Linear access was not
 available during preparation. Add this checklist to the matching issue and keep
-controlled routing evaluation as separate acceptance work, including implicit app
-requests, contextual follow-ups, and local coding tasks that name an app.
+[routing evaluation](routing-evaluation.md) as separate acceptance work.
