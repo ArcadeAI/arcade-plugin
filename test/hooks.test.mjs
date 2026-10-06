@@ -216,30 +216,59 @@ test("each client runs exactly the hooks it can use", () => {
 // Each client gets its routing rules from one of these texts, and some get
 // only one: Cowork's main conversation gets only the per-prompt reminder and the skill, and
 // the Cursor IDE gets only the rule and the skill. Keep the core rules in each.
-const DELEGATE_NO_SWITCH = [
-  /don't move any part of it to another MCP server, a CLI such as gh or curl, a built-in search, or a direct API/,
-  /Troubleshooting or retrying on Arcade itself is fine/,
-  /If Arcade can't do some of the task, say what is left in your result/,
+const DELEGATE_SCOPE = [
+  /Use Arcade gateways for delegated work/,
+  /Do not substitute non-Arcade MCP servers, CLIs, built-in search, or direct APIs/,
+  /Return unfinished work to the parent/,
+  /another already-authorized Arcade gateway within the delegated task/,
+  /name the source account for reads\. If you can't, return needs_confirmation\./,
+  /For permission denial, return failed with the actual error/,
+];
+
+const FALLBACK_RULES = [
+  /If the arcade server cannot finish,/,
+  /confirm the intended app account with the app's who-am-I tool/,
+  /Write only through a confirmed account, and name the source account for reads\./,
+  /Discover tools on each gateway; never reuse another gateway's query IDs/,
+  /Do not broaden authorization or copy secrets, credentials, or user sessions/,
+  /Do not bypass either by switching gateways or tools/,
+  /checking plugin and MCP settings for setup or connection failures, then apply fallback/,
+];
+
+const PARENT_FALLBACK_RULES = [
+  /another already-authorized Arcade gateway or other available tools within the authorized task/,
+  /name the source account for reads\. If you can't, ask the user\./,
+  /For permission denial, stop and ask the user to resolve it/,
 ];
 
 const CORE_RULES = {
-  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server/, /try-arcade/, /arcade-operator/]],
-  CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/]],
-  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/]],
-  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /use only arcade/, /stop and ask the user to authenticate/, /needsAuth/]],
-  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /return needs_auth/, /return failed/, /needsAuth/, ...DELEGATE_NO_SWITCH]],
-  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /return needs_auth/, /needsAuth/, /Keep tool discovery/, ...DELEGATE_NO_SWITCH]],
+  PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server/, /try-arcade/, /arcade-operator/, /arcade server cannot complete/]],
+  CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
+  SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
+  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /stop and ask the user to authenticate/, /needsAuth/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
+  OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /return needs_auth/, /return failed/, /needsAuth/, ...FALLBACK_RULES, ...DELEGATE_SCOPE]],
+  SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /try-arcade/, /return needs_auth/, /needsAuth/, /Keep tool discovery/, ...FALLBACK_RULES, ...DELEGATE_SCOPE]],
 };
 
 // The parent conversation tries Arcade first but may finish with other tools.
 // BANS_OTHER_TOOLS matches exact phrases, so a reworded ban would pass.
 const PARENT_LABELS = new Set(["PROMPT_REMINDER", "CURSOR_RULE", "SESSION_CONTEXT", "SKILL_RULES"]);
-const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP server only/;
+const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP server only|use only arcade/;
 
 test("every routing text keeps the core routing rules", () => {
-  for (const [label, [text, phrases]] of Object.entries(CORE_RULES)) {
+  const shippedRules = {
+    "clients/cursor/rules/arcade.mdc": CORE_RULES.CURSOR_RULE[1],
+    "skills/try-arcade/SKILL.md": CORE_RULES.SKILL_RULES[1],
+    "agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+    "com.github.copilot/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+  };
+  const texts = {
+    ...CORE_RULES,
+    ...Object.fromEntries(Object.entries(shippedRules).map(([path, phrases]) => [path, [readRepoFile(path), phrases]])),
+  };
+  for (const [label, [text, phrases]] of Object.entries(texts)) {
     for (const phrase of phrases) {
-      assert.match(text, phrase, label);
+      assert.match(text.replace(/\s+/g, " "), phrase, label);
     }
     if (PARENT_LABELS.has(label)) {
       assert.doesNotMatch(text, BANS_OTHER_TOOLS, label);

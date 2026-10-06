@@ -49,7 +49,7 @@ test("check mode fails with a source-naming error when a generated file is hand-
       const fullPath = join(root, path);
       if (path in FILES_WITH_GENERATED_RULES) {
         // Edit inside the block so the rules-block path is specifically tested.
-        writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("use only arcade", "use any server"));
+        writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("Gateway: Arcade is connected", "Gateway: Any server is connected"));
       } else if (FILES_WITH_GENERATED_TABLES.includes(path)) {
         // Only the tables are generated, so the edit has to be inside them.
         writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("Service categories:", "Service kinds:"));

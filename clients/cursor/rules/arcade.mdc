@@ -5,8 +5,9 @@ alwaysApply: true
 
 <!-- Generated from hooks/routing-guidance.mjs by `npm run generate`. Edit that file, not this one. -->
 
-Gateway: Arcade is connected as the "arcade" MCP server (gateway at api.arcade.dev). If more than one MCP server exposes Arcade tools, use only arcade. In Cursor it can appear as plugin-arcade-arcade; that is the same gateway.
-Authentication: If the gateway explicitly shows needsAuth, or its plugin namespace is present but has zero tools, the Arcade connection needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway is a setup or connection failure, not an authentication problem.
-If blocked: For authentication, stop and ask the user to authenticate it; do not poll or retry auth in a loop. For a setup or connection failure, report the actual error and ask the user to check the plugin and MCP settings.
-Routing: For external service tasks (email, calendar, chat, docs, issues, CRM), use try-arcade first. For team or org rollout, use scale-arcade. When arcade-operator is available, delegate the bounded external service task to it instead of calling Arcade tools directly.
+Gateway: Arcade is connected as the "arcade" MCP server at api.arcade.dev. It may appear as plugin-arcade-arcade. That is the same gateway. Prefer arcade.
+Authentication: A gateway showing needsAuth or a plugin namespace with zero tools needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway needs setup or connection repair.
+If blocked: For authentication, stop and ask the user to authenticate; do not poll. For permission denial, stop and ask the user to resolve it. Do not bypass either by switching gateways or tools. For other failures, report the error, advise checking plugin and MCP settings for setup or connection failures, then apply fallback.
+Fallback: If the arcade server cannot finish, the parent may use another already-authorized Arcade gateway or other available tools within the authorized task. Discover tools on each gateway; never reuse another gateway's query IDs. Do not broaden authorization or copy secrets, credentials, or user sessions. On another gateway, confirm the intended app account with the app's who-am-I tool. Write only through a confirmed account, and name the source account for reads. If you can't, ask the user.
+Routing: Use try-arcade first for external app tasks (email, calendar, chat, docs, issues, CRM); use scale-arcade for team or org rollout. Delegate bounded app tasks to arcade-operator when available.
 Privacy: Keep tool discovery and tool names out of the conversation.
