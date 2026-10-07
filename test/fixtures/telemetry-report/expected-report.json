@@ -1,0 +1,110 @@
+{
+  "excluded": {
+    "invalid": 1,
+    "legacy": 1
+  },
+  "groups": [
+    {
+      "host": "claude-code",
+      "plugin_version": "0.2.0",
+      "telemetry_version": 2,
+      "unit": "turn",
+      "denominators": {
+        "observed_relevant_turns": 3
+      },
+      "tool_only_turns": 1,
+      "stages": {
+        "gateway_discovery_or_selection": {
+          "count": 1,
+          "denominator": "observed_relevant_turns"
+        },
+        "authorization_check_auth_needed_true": {
+          "count": 0,
+          "denominator": "observed_relevant_turns"
+        },
+        "authorization_check_auth_needed_false": {
+          "count": 1,
+          "denominator": "observed_relevant_turns"
+        },
+        "app_action_called": {
+          "count": 1,
+          "denominator": "observed_relevant_turns"
+        },
+        "app_action_failed": {
+          "count": 1,
+          "denominator": "observed_relevant_turns"
+        },
+        "attempt_observed_outcome_unknown": {
+          "count": 1,
+          "denominator": "observed_relevant_turns"
+        },
+        "no_call_observed": {
+          "count": 1,
+          "denominator": "observed_relevant_turns"
+        }
+      },
+      "builtin_tools_called": {
+        "Bash": {
+          "gh": 1
+        }
+      },
+      "builtin_tools_failed": {},
+      "failure_kinds": {
+        "timeout": 1
+      },
+      "operator_stop_status": {
+        "completed": 1
+      }
+    },
+    {
+      "host": "copilot-cli",
+      "plugin_version": "0.2.0",
+      "telemetry_version": 2,
+      "unit": "session",
+      "denominators": {
+        "observed_relevant_sessions": 3
+      },
+      "operator_linked_sessions_excluded": 1,
+      "multi_prompt_sessions": 1,
+      "parent_attribution_unknown_sessions": 2,
+      "stages": {
+        "gateway_discovery_or_selection": {
+          "count": 1,
+          "denominator": "observed_relevant_sessions"
+        },
+        "authorization_check_auth_needed_true": {
+          "count": 0,
+          "denominator": "observed_relevant_sessions"
+        },
+        "authorization_check_auth_needed_false": {
+          "count": 0,
+          "denominator": "observed_relevant_sessions"
+        },
+        "app_action_called": {
+          "count": 1,
+          "denominator": "observed_relevant_sessions"
+        },
+        "app_action_failed": {
+          "count": 0,
+          "denominator": "observed_relevant_sessions"
+        },
+        "no_call_observed": {
+          "count": 2,
+          "denominator": "observed_relevant_sessions"
+        }
+      },
+      "failure_kinds": {},
+      "operator_stop_status": {
+        "needs_auth": 1
+      }
+    }
+  ],
+  "limits": [
+    "Counts describe plugin hook observations only, not task outcomes or whether Arcade was needed.",
+    "Prompt events are limited to locally classified app-related work; unrelated prompts are absent.",
+    "Claude Code turn counts and Copilot CLI session counts must not be combined into one rate.",
+    "Copilot CLI does not emit tool-attempt events; attempt stages apply only to Claude Code.",
+    "Multiple tool calls in one turn or session cannot be paired without a tool-call ID.",
+    "The Arcade MCP gateway remains the canonical source for request, auth, discovery, and tool-call telemetry."
+  ]
+}

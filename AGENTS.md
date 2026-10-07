@@ -14,6 +14,17 @@ for a marked rules block.
 - Hooks: add a hook or a client in `hooks/hook-hosts.mjs`, never in a
   `hooks.json`. A new client also needs its expected output in
   `test/hooks.test.mjs`.
+- Telemetry: `hooks/telemetry-contract.mjs` defines every event, property,
+  and allowed value; change them there only. Client-specific hook input mapping
+  lives only in `hooks/telemetry-adapters/<host>.mjs`. Wire a client through
+  `HOSTS.telemetry` in `hooks/hook-hosts.mjs` (generated manifests follow
+  that source). `telemetry.mjs` prints nothing; only `telemetry-send.mjs` may
+  touch the network (a test enforces both). `TELEMETRY_ENABLED` in
+  `hooks/telemetry-config.mjs` stays `false` without separate approval; while
+  false, `npm run generate` writes no telemetry hooks. Reporting and maintained
+  docs for exports live in `scripts/telemetry-report.mjs` and
+  `docs/telemetry.md`. `test/telemetry-report.test.mjs` cross-checks adapters
+  when `hooks/telemetry-adapters/<host>.mjs` exists on the branch.
 - Codex hooks are blocked upstream ([docs/install/codex.md](docs/install/codex.md)).
   Don't remove the root `$schema` to force them; that breaks Agent Plugins
   conformance.

@@ -27,6 +27,19 @@ session-start text doesn't reach the main conversation. The files are
 `clients/cursor/hooks/hooks.json` (Cursor CLI), and
 `com.github.copilot/hooks/hooks.json` (Copilot CLI).
 
+Telemetry adapters are separate from routing. **`TELEMETRY_ENABLED` is false**
+in this build, so manifests include no telemetry hooks and nothing is sent.
+When enabled, wiring comes from `hooks/hook-hosts.mjs`:
+
+| Client adapter | Telemetry events (when enabled) |
+| --- | --- |
+| Claude Code | `UserPromptSubmit`, `PreToolUse` on `mcp__plugin_*` and `mcp__claude_ai_arcade__`, MCP `PostToolUse` / `PostToolUseFailure`, built-in `WebFetch` / `WebSearch` / listed `Bash` CLIs, Arcade operator `SubagentStop` |
+| Copilot CLI | `UserPromptSubmit`, MCP `PostToolUse` / `PostToolUseFailure` (`<server>-<tool>`), Arcade operator `SubagentStop` with `subagent_session` (no `PreToolUse`, no `turn`, no built-in tools) |
+
+Session start clears local prompt scope through the routing hook; it sends no
+telemetry event. No other adapter in this package sends telemetry. See
+[what's sent and its limits](telemetry.md).
+
 ¹ The Cursor IDE (3.21.18) lists the commands on the plugin page but not in
 the `/` menu. Other plugins' commands don't appear there either.
 ² The IDE (3.21.18) and Cloud Agents don't run plugin hooks, so the
@@ -37,10 +50,12 @@ load the always-apply rule.
 ⁴ Cowork runs the prompt and subagent hooks but doesn't add the session-start
 text, so its main conversation gets the short reminder and the skill, not the
 full rules.
-⁵ Copilot CLI drops the output of prompt hooks from config files, so it gets
-session and subagent hooks only.
+⁵ Copilot CLI drops the output of **routing** prompt hooks from config files,
+so the main conversation gets session and subagent hooks only. Telemetry still
+hooks `UserPromptSubmit` when enabled; `reminder_sent` is always `false` there.
 ⁶ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
-`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet.
+`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet;
+`runOnlyIfScriptExists` makes those commands no-ops without a plugin path.
 ⁷ Blocked upstream; see [codex.md](install/codex.md).
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
