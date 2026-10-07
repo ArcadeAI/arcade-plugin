@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv2020Module from "ajv/dist/2020.js";
-import { EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
+import { allowedProperties, EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
 
 const Ajv2020 = /** @type {new (options?: object) => import("ajv").default} */ (
   /** @type {any} */ (Ajv2020Module).default ?? Ajv2020Module
@@ -22,6 +22,30 @@ const validateRow = new Ajv2020({ allErrors: true }).compile(eventSchema());
 
 /** @param {unknown} row */
 const isValidRow = (row) => validateRow(row) === true;
+
+/**
+ * Keeps only contract fields so PostHog export metadata does not fail validation.
+ * @param {unknown} raw
+ * @returns {{ event: string, distinct_id: string, properties: Record<string, unknown> } | null}
+ */
+export const normalizeExportRow = (raw) => {
+  if (!raw || typeof raw !== "object") return null;
+  const record = /** @type {Record<string, unknown>} */ (raw);
+  const { event, distinct_id, properties } = record;
+  if (typeof event !== "string" || typeof distinct_id !== "string") return null;
+  if (!properties || typeof properties !== "object" || Array.isArray(properties)) return null;
+  if (!KNOWN_EVENTS.has(event)) return null;
+  const props = /** @type {Record<string, unknown>} */ (properties);
+  const keep = allowedProperties(event);
+  /** @type {Record<string, unknown>} */
+  const trimmed = {};
+  for (const key of keep) {
+    if (Object.prototype.hasOwnProperty.call(props, key)) {
+      trimmed[key] = props[key];
+    }
+  }
+  return { event, distinct_id, properties: trimmed };
+};
 
 /** @param {unknown} row */
 const isLegacyRow = (row) => {
@@ -122,12 +146,7 @@ const countTurnStages = (turnIds, byTurn) => {
 };
 
 /** @param {{ event: string, properties: Record<string, unknown> }[]} rows */
-const gatewayRow = (rows) =>
-  rows.some(
-    (row) =>
-      (OUTCOME_EVENTS.has(row.event) || row.event === "Plugin tool failed") &&
-      DISCOVERY_TOOLS.has(toolName(row)),
-  );
+const gatewayRow = (rows) => rows.some(isDiscoveryRow);
 
 /**
  * @param {{ event: string, properties: Record<string, unknown> }[]} rows
@@ -214,13 +233,11 @@ const buildClaudeGroup = (rows) => {
     (turn) => !relevantTurns.has(turn) && (byTurn.get(turn) ?? []).some((row) => row.event !== "Plugin prompt submitted"),
   ).length;
 
-  const stageTurns = relevantTurns;
-
   return {
     unit: "turn",
     denominators: { observed_relevant_turns: relevantTurns.size },
     tool_only_turns: toolOnlyTurns,
-    stages: countTurnStages(stageTurns, byTurn),
+    stages: countTurnStages(relevantTurns, byTurn),
     builtin_tools_called: builtinCounts(rows, "Plugin built-in tool called"),
     builtin_tools_failed: builtinCounts(rows, "Plugin built-in tool failed"),
     failure_kinds: failureKindCounts(rows),
@@ -341,11 +358,11 @@ export const buildReport = (events) => {
   const groups = new Map();
 
   for (const raw of events) {
-    if (!raw || typeof raw !== "object") {
+    const row = normalizeExportRow(raw);
+    if (row === null) {
       invalid += 1;
       continue;
     }
-    const row = /** @type {{ event: string, distinct_id: string, properties: Record<string, unknown> }} */ (raw);
     if (isLegacyRow(row)) {
       legacy += 1;
       continue;
