@@ -9,7 +9,6 @@ import { isTaskNotification, shouldRemind } from "./prompt-filters.mjs";
 import { isOperatorAgentType } from "./routing-guidance.mjs";
 import {
   classifyPrompt,
-  serviceForToolkit,
   serviceForToolName,
 } from "./telemetry-classify.mjs";
 import { commandUsesCli } from "./telemetry-commands.mjs";
@@ -60,10 +59,12 @@ const withService = (properties, service) =>
  * @param {Record<string, any> | undefined} toolInput
  */
 export const arcadeToolProperties = (server, tool, toolInput) => {
+  // Arcade_UseTool names the app tool in its input, e.g. "Gmail.ListEmails".
   const service =
     tool === "Arcade_UseTool"
       ? serviceForToolName(toolInput?.tool_name)
       : serviceForToolName(tool);
+  // A recognized toolkit prefix does not establish that its tool name is public.
   const isGateway = /** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool);
   const category = isGateway ? tool : service !== null ? "app_tool" : "other";
   return withService({ server, tool: category }, service);
@@ -86,6 +87,9 @@ export const builtinToolProperties = (toolName, toolInput, cli) => {
   if (toolName === "WebFetch" || toolName === "WebSearch") return { tool: toolName };
   if (toolName !== "Bash" || typeof cli !== "string") return null;
   if (!(/** @type {readonly string[]} */ (BASH_CLIS).includes(cli))) return null;
+  // `cli` comes from the hook entry's `if` condition. Checking the command as
+  // well keeps a client that ignores `if` from reporting every CLI on every
+  // Bash call.
   if (!commandUsesCli(toolInput?.command, cli)) return null;
   return withService({ tool: "Bash", cli }, CLI_SERVICES[cli]);
 };
@@ -108,6 +112,7 @@ const promptProperties = (prompt, adapter) => {
   };
 };
 
+// The parent's SubagentStop names the subagent's session ID as agent_id.
 const subagentSession = (/** @type {unknown} */ agentId) =>
   typeof agentId === "string" && agentId !== "" ? { subagent_session: shortHash(agentId) } : {};
 
@@ -184,6 +189,7 @@ const keepAllowed = (event, properties) => {
  * when the input is not something the contract tracks.
  * @param {HookInput | null | undefined} input
  * @param {{ adapter: TelemetryAdapter, os: string, arcadeUsedBefore: boolean, cli?: string, appWork: boolean }} options
+ *   `cli` is the hook command's `--cli` argument, set only on Bash entries.
  */
 export const buildEvent = (input, { adapter, os, arcadeUsedBefore, cli, appWork }) => {
   if (!input || typeof input !== "object") return null;
@@ -201,6 +207,8 @@ export const buildEvent = (input, { adapter, os, arcadeUsedBefore, cli, appWork 
     os: oneOf(os, OS_NAMES, "other"),
     $process_person_profile: false,
     $geoip_disable: true,
+    // PostHog stores the request's IP unless the event sets one. Null and ""
+    // are replaced; a fixed placeholder is kept.
     $ip: "0.0.0.0",
     arcade_used_before: arcadeUsedBefore === true,
   };
