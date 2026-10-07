@@ -362,7 +362,7 @@ test("clearSessionScope respects enabled, opt-out, and SessionStart source", () 
 
 test("every telemetry source file starts with @ts-check", () => {
   const files = readdirSync(path.join(ROOT, "hooks"))
-    .filter((file) => file.startsWith("telemetry"))
+    .filter((file) => file.startsWith("telemetry") && file.endsWith(".mjs"))
     .map((file) => `hooks/${file}`);
   const adapterDir = path.join(ROOT, "hooks", "telemetry-adapters");
   try {
