@@ -39,6 +39,8 @@ const claudeToolProperties = (toolName, toolInput) => {
   if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
     return arcadeToolProperties("other_arcade", tool, toolInput);
   }
+  // Some connectors name the service in the server, not the tool, e.g.
+  // mcp__claude_ai_Gmail__search_threads. Only the category is sent.
   const serverParts = toolName.slice("mcp__".length, splitAt).split(/[^A-Za-z0-9]+/);
   const service =
     serviceForToolName(tool) ?? serverParts.map(serviceForToolkit).find(Boolean);
@@ -77,6 +79,8 @@ const normalize = (raw) => ({
   last_assistant_message: raw.last_assistant_message,
 });
 
+// `if` is a Claude Code permission rule so the hook does not start for other commands;
+// `extraArgs` pass the CLI name through to builtinToolProperties.
 /** @param {"PostToolUse" | "PostToolUseFailure"} event */
 const bashHookRows = (event) =>
   BASH_CLIS.map((cli) => ({
@@ -90,6 +94,7 @@ const bashHookRows = (event) =>
 const claudeCodeAdapter = {
   host: "claude-code",
   dataVariable: "CLAUDE_PLUGIN_DATA",
+  // Claude Code reads these as set for any non-empty value, even "0" or "false".
   optOutSwitches: [
     { name: "DISABLE_TELEMETRY", anyValue: true },
     { name: "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", anyValue: true },
