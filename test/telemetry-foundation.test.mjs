@@ -8,7 +8,8 @@ import { after, test } from "node:test";
 import { EVENTS, eventSchema } from "../hooks/telemetry-contract.mjs";
 import { EVENT_ENV, PLUGIN_VERSION, POSTHOG_KEY, TELEMETRY_ENABLED } from "../hooks/telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "../hooks/telemetry-events.mjs";
-import { isOptedOut, runTelemetry } from "../hooks/telemetry-run.mjs";
+import { SCOPE_DIRECTORY, scopeForInput } from "../hooks/hook-scope.mjs";
+import { clearSessionScope, isOptedOut, runTelemetry } from "../hooks/telemetry-run.mjs";
 import { ROOT, runHook } from "./helpers.mjs";
 import fakeAdapter, { FAKE_ARCADE_PREFIX, FAKE_OTHER_PREFIX } from "./fixtures/telemetry-fake-adapter.mjs";
 import {
@@ -306,6 +307,66 @@ test("only telemetry-send.mjs uses network APIs in hooks", () => {
 test("telemetry.mjs prints nothing", () => {
   const source = readFileSync(path.join(ROOT, "hooks", "telemetry.mjs"), "utf8");
   assert.doesNotMatch(source, /\bconsole\.(log|info|warn|error)\b/);
+});
+
+test("telemetry.mjs statically imports only telemetry-config", () => {
+  const source = readFileSync(path.join(ROOT, "hooks", "telemetry.mjs"), "utf8");
+  const staticImports = [...source.matchAll(/^import\s.+from\s+["'](.+?)["']/gm)].map((match) => match[1]);
+  assert.deepEqual(staticImports, ["./telemetry-config.mjs"]);
+});
+
+test("clearSessionScope respects enabled, opt-out, and SessionStart source", () => {
+  const seedScope = (dir) => {
+    scopeForInput(
+      hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar", session_id: "scope-session" }),
+      { host: fakeAdapter.host, requiresTurn: fakeAdapter.requiresTurn, dir, now: 1000 },
+    );
+    const scopeDir = path.join(dir, SCOPE_DIRECTORY);
+    assert.equal(readdirSync(scopeDir).length, 1);
+    return scopeDir;
+  };
+  const baseEnv = (dir) => telemetryEnv(fakeAdapter, dir, "http://127.0.0.1:9");
+
+  const offDir = makeTempDir();
+  const offScope = seedScope(offDir);
+  clearSessionScope({
+    adapter: fakeAdapter,
+    env: baseEnv(offDir),
+    input: { session_id: "scope-session", source: "startup" },
+    enabled: false,
+  });
+  assert.equal(readdirSync(offScope).length, 1, "disabled telemetry leaves scope files");
+
+  const optedDir = makeTempDir();
+  const optedScope = seedScope(optedDir);
+  clearSessionScope({
+    adapter: fakeAdapter,
+    env: { ...baseEnv(optedDir), ARCADE_PLUGIN_TELEMETRY: "0" },
+    input: { session_id: "scope-session", source: "startup" },
+    enabled: true,
+  });
+  assert.equal(readdirSync(optedScope).length, 1, "opt-out leaves scope files");
+
+  const compactDir = makeTempDir();
+  const compactScope = seedScope(compactDir);
+  clearSessionScope({
+    adapter: fakeAdapter,
+    env: baseEnv(compactDir),
+    input: { session_id: "scope-session", source: "compact" },
+    enabled: true,
+  });
+  assert.equal(readdirSync(compactScope).length, 1, "compact session start keeps scope");
+
+  const freshDir = makeTempDir();
+  const freshScope = seedScope(freshDir);
+  assert.equal(readdirSync(freshScope).length, 1);
+  clearSessionScope({
+    adapter: fakeAdapter,
+    env: baseEnv(freshDir),
+    input: { session_id: "scope-session", source: "startup" },
+    enabled: true,
+  });
+  assert.equal(readdirSync(freshScope).length, 0, "normal session start clears scope");
 });
 
 test("every telemetry source file starts with @ts-check", () => {

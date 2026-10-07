@@ -7,9 +7,9 @@ import { TELEMETRY_ENABLED } from "./telemetry-config.mjs";
 
 if (!TELEMETRY_ENABLED) process.exit(0);
 
-import { hostFromArgs, readInput } from "./hook-hosts.mjs";
-import { loadTelemetryAdapter } from "./telemetry-adapter.mjs";
-import { runTelemetry } from "./telemetry-run.mjs";
+const { hostFromArgs, readInput } = await import("./hook-hosts.mjs");
+const { loadTelemetryAdapter } = await import("./telemetry-adapter.mjs");
+const { runTelemetry } = await import("./telemetry-run.mjs");
 
 try {
   const adapterHost = hostFromArgs(process.argv)?.telemetry;

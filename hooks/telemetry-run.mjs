@@ -53,6 +53,34 @@ const markArcadeUsed = (/** @type {string} */ dir) => {
   writeFileSync(path.join(dir, ARCADE_USED_FILE), "true", { mode: 0o600 });
 };
 
+/**
+ * Clears prompt scope on session start when telemetry is active and not opted out.
+ * @param {object} options
+ * @param {TelemetryAdapter} options.adapter
+ * @param {NodeJS.ProcessEnv} [options.env]
+ * @param {Record<string, any>} [options.input]
+ * @param {boolean} [options.enabled]
+ */
+export const clearSessionScope = ({
+  adapter,
+  env = process.env,
+  input = {},
+  enabled = false,
+}) => {
+  try {
+    if (!enabled && !TELEMETRY_ENABLED) return;
+    if (isOptedOut(adapter.optOutSwitches, env)) return;
+    const dir = env[adapter.dataVariable];
+    if (!dir || !path.isAbsolute(dir)) return;
+    scopeForInput(
+      { ...adapter.normalize(input), hook_event_name: "SessionStart" },
+      { host: adapter.host, requiresTurn: adapter.requiresTurn, dir },
+    );
+  } catch {
+    // Scope clearing must never affect the session.
+  }
+};
+
 const defaultSend = (/** @type {object} */ event, env = process.env) => {
   const child = spawn(process.execPath, [SENDER], {
     detached: true,
