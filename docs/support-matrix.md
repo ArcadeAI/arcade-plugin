@@ -33,7 +33,7 @@ When enabled, wiring comes from `hooks/hook-hosts.mjs`:
 
 | Client adapter | Telemetry events (when enabled) |
 | --- | --- |
-| Claude Code | `UserPromptSubmit`, `PreToolUse` on `mcp__plugin_*` and `mcp__claude_ai_arcade__`, MCP `PostToolUse` / `PostToolUseFailure`, built-in `WebFetch` / `WebSearch` / listed `Bash` CLIs, Arcade operator `SubagentStop` |
+| Claude Code | `UserPromptSubmit`, `PreToolUse` on `^(?:mcp__plugin_arcade_arcade__\|mcp__claude_ai_arcade__)`, MCP `PostToolUse` / `PostToolUseFailure`, built-in `WebFetch` / `WebSearch` / listed `Bash` CLIs, Arcade operator `SubagentStop` |
 | Copilot CLI | `UserPromptSubmit`, MCP `PostToolUse` / `PostToolUseFailure` (`<server>-<tool>`), Arcade operator `SubagentStop` with `subagent_session` (no `PreToolUse`, no `turn`, no built-in tools) |
 
 Session start clears local prompt scope through the routing hook; it sends no

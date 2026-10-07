@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { TELEMETRY_HOSTS } from "../hooks/telemetry-contract.mjs";
 import { loadTelemetryAdapter } from "../hooks/telemetry-adapter.mjs";
-import { buildReport, parseExportedEvents } from "../scripts/telemetry-report.mjs";
+import { buildReport, normalizeExportRow, parseExportedEvents } from "../scripts/telemetry-report.mjs";
 import { assertMatchesContract, captureTelemetry, hookInput, tempDataDir } from "./telemetry-helpers.mjs";
 import { ROOT } from "./helpers.mjs";
 
@@ -43,6 +43,31 @@ const collectKeys = (value, keys = []) => {
 test("buildReport matches the telemetry-report fixture", () => {
   const { events, expected } = loadFixture();
   assert.deepEqual(buildReport(events), expected);
+});
+
+test("buildReport strips PostHog export fields before validating", () => {
+  const { events, expected } = loadFixture();
+  const noisy = events.map((row) => {
+    if (!row || typeof row !== "object" || !row.properties) return row;
+    return {
+      ...row,
+      timestamp: "2026-01-01T00:00:00.000Z",
+      uuid: "550e8400-e29b-41d4-a716-446655440000",
+      properties: {
+        ...row.properties,
+        $lib: "posthog-node",
+        $lib_version: "5.0.0",
+      },
+    };
+  });
+  for (const row of noisy) {
+    if (row?.event?.startsWith("Plugin")) {
+      const trimmed = normalizeExportRow(row);
+      assert.ok(trimmed);
+      assert.equal(trimmed.properties.$lib, undefined);
+    }
+  }
+  assert.deepEqual(buildReport(noisy), expected);
 });
 
 test("CLI prints the same JSON as buildReport", () => {
