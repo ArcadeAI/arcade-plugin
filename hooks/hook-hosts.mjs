@@ -39,15 +39,26 @@ export const HOSTS = {
   },
   // Copilot CLI. PascalCase names put it in its VS Code-compatible mode
   // (snake_case SessionStart input; SubagentStart still sends camelCase
-  // agentName in 1.0.88); it drops prompt-hook output, so there's no prompt hook.
-  // VS Code reads this file too but doesn't expand ${PLUGIN_ROOT} for Agent
-  // Plugins hooks or pass their output to the model (pluginParsers.ts,
-  // copilotPluginConverters.ts on microsoft/vscode main, 2026-09).
+  // agentName in 1.0.88); it drops prompt-hook output, so it has no prompt
+  // reminder hook. The other events it lists run only telemetry.
+  // VS Code reads this file too but doesn't set or expand ${PLUGIN_ROOT} for
+  // Agent Plugins hooks or pass their output to the model (pluginParsers.ts,
+  // copilotPluginConverters.ts on microsoft/vscode main, 2026-09), so each
+  // command checks that its script exists and otherwise exits 0 without output.
   copilot: {
     manifest: "com.github.copilot/hooks/hooks.json",
     format: "flat",
     rootVariable: "PLUGIN_ROOT",
-    events: { SessionStart: "SessionStart", SubagentStart: "SubagentStart" },
+    runOnlyIfScriptExists: true,
+    telemetry: "copilot-cli",
+    events: {
+      SessionStart: "SessionStart",
+      SubagentStart: "SubagentStart",
+      UserPromptSubmit: "UserPromptSubmit",
+      PostToolUse: "PostToolUse",
+      PostToolUseFailure: "PostToolUseFailure",
+      SubagentStop: "SubagentStop",
+    },
     contextOutput: (eventName, text) => ({
       additionalContext: text,
       hookSpecificOutput: { hookEventName: eventName, additionalContext: text },
