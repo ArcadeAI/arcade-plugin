@@ -43,6 +43,7 @@ const readArcadeUsed = (/** @type {string} */ dir) => {
   }
 };
 
+// Bash hook entries pass `--cli <name>`; buildEvent checks the value.
 const cliFromArgs = (/** @type {string[]} */ argv) => {
   const flag = argv.indexOf("--cli");
   return flag === -1 ? undefined : argv[flag + 1];
@@ -82,6 +83,10 @@ export const clearSessionScope = ({
 };
 
 const defaultSend = (/** @type {object} */ event, env = process.env) => {
+  // Claude Code kills hook processes when the session exits, so the network
+  // call runs in a detached child that can outlive this hook. The event goes
+  // in an environment variable, not an argument, because other users on the
+  // machine can read a process's arguments but not its environment.
   const child = spawn(process.execPath, [SENDER], {
     detached: true,
     stdio: "ignore",
@@ -113,6 +118,8 @@ export const runTelemetry = async ({
 }) => {
   try {
     if (!enabled && !TELEMETRY_ENABLED) return;
+    // The client always sets this. Without an absolute data folder there is
+    // nowhere to keep the arcade-used flag, so nothing is sent.
     const dir = env[adapter.dataVariable];
     if (!dir || !path.isAbsolute(dir)) return;
     if (isOptedOut(adapter.optOutSwitches, env)) return;
