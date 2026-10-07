@@ -1,14 +1,14 @@
 // @ts-check
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { HOOKS, HOSTS, telemetryHookRows } from "../hooks/hook-hosts.mjs";
 import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../hooks/hook-scope.mjs";
-import { ARCADE_USED_FILE } from "../hooks/telemetry-config.mjs";
+import { ARCADE_USED_FILE, EVENT_ENV } from "../hooks/telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "../hooks/telemetry-events.mjs";
 import { isOptedOut, runTelemetry } from "../hooks/telemetry-run.mjs";
 import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../hooks/telemetry-adapters/copilot-cli.mjs";
@@ -83,6 +83,32 @@ const POWERSHELL = (process.platform === "win32" ? ["pwsh", "powershell.exe"] : 
 );
 
 const skipOnWindows = { skip: process.platform === "win32" && "the command field is for macOS and Linux" };
+
+// Classified as app work, so these hooks would send an event if the hard-OFF gate were open.
+const SENDABLE_PROMPT = copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?" });
+
+const SEND_SCRIPT = path.join(ROOT, "hooks", "telemetry-send.mjs");
+// Async spawn keeps this process's event loop free so the in-process server can answer.
+const exitCode = (command, args, options) =>
+  new Promise((resolve) => spawn(command, args, { ...options, stdio: "ignore" }).on("exit", resolve));
+const sendWithNode = (env) => exitCode(process.execPath, [SEND_SCRIPT], { env });
+
+// Asserts nothing reached the server, then proves the hook environment resolves to it,
+// so the empty request list could not come from sending somewhere else.
+const assertCaptureObservesSend = async (server, env, send = sendWithNode) => {
+  assert.deepEqual(server.requests, []);
+  const event = buildEvent(SENDABLE_PROMPT, {
+    adapter: copilotAdapter,
+    os: "linux",
+    arcadeUsedBefore: false,
+    appWork: true,
+  });
+  assert.ok(event);
+  assert.equal(await send({ ...env, [EVENT_ENV]: JSON.stringify(event) }), 0);
+  await waitForRequests(server.requests, 1);
+  assert.equal(server.requests.length, 1);
+  assert.equal(JSON.parse(server.requests[0].body).event, "Plugin prompt submitted");
+};
 
 const enabledManifest = JSON.parse(readFileSync(path.join(FIXTURE_DIR, "hooks.enabled.json"), "utf8"));
 const enabledTelemetryEntries = () =>
@@ -357,14 +383,15 @@ test("enabled telemetry commands exit quietly while telemetry is off", skipOnWin
   const server = await startServer();
   const cwd = mkdtempSync(path.join(os.tmpdir(), "arcade-copilot-telemetry-off-"));
   const dataDir = mkdtempSync(path.join(os.tmpdir(), "arcade-copilot-data-"));
+  const captureEnv = { COPILOT_PLUGIN_DATA: dataDir, ARCADE_PLUGIN_TELEMETRY: "1", ARCADE_PLUGIN_TELEMETRY_HOST: server.url };
   try {
     for (const { command } of enabledTelemetryEntries()) {
       for (const extra of [{}, { PLUGIN_ROOT: ROOT }]) {
         const result = spawnSync(command, {
           shell: true,
           cwd,
-          env: hookEnv({ ...extra, COPILOT_PLUGIN_DATA: dataDir, ARCADE_PLUGIN_TELEMETRY: "1" }),
-          input: JSON.stringify(copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "calendar" })),
+          env: hookEnv({ ...extra, ...captureEnv }),
+          input: JSON.stringify(SENDABLE_PROMPT),
           encoding: "utf8",
         });
         assert.equal(result.status, 0, command);
@@ -373,7 +400,7 @@ test("enabled telemetry commands exit quietly while telemetry is off", skipOnWin
       }
     }
     await sleep(200);
-    assert.deepEqual(server.requests, []);
+    await assertCaptureObservesSend(server, hookEnv(captureEnv));
     assert.deepEqual(readdirSync(dataDir), []);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
@@ -393,13 +420,13 @@ test(
       const runPs = (script, env, input) =>
         spawnSync(String(POWERSHELL), ["-NoProfile", "-NonInteractive", "-Command", script], {
           cwd,
-          env: hookEnv(env),
+          env: hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url, ...env }),
           input,
           encoding: "utf8",
         });
       for (const { powershell } of enabledTelemetryEntries()) {
         assert.ok(powershell);
-        const input = JSON.stringify(copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "calendar" }));
+        const input = JSON.stringify(SENDABLE_PROMPT);
         const skipped = runPs(powershell, {}, input);
         assert.equal(skipped.status, 0);
         assert.equal(skipped.stdout, "");
@@ -408,7 +435,13 @@ test(
         assert.equal(ran.stdout, "");
       }
       await sleep(200);
-      assert.deepEqual(server.requests, []);
+      await assertCaptureObservesSend(server, hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url }), (env) =>
+        exitCode(
+          String(POWERSHELL),
+          ["-NoProfile", "-NonInteractive", "-Command", `& '${process.execPath}' '${SEND_SCRIPT}'; exit $LASTEXITCODE`],
+          { cwd, env },
+        ),
+      );
       assert.deepEqual(readdirSync(dataDir), []);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
