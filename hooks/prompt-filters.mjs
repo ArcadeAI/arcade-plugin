@@ -10,7 +10,7 @@ const CONTINUATION_WORDS = new Set([
 
 const MAX_CONTINUATION_WORDS = 2;
 
-const isBareContinuation = (prompt) => {
+export const isBareContinuation = (prompt) => {
   const words = prompt
     .toLowerCase()
     .replace(/[^a-z\s]/g, " ")
@@ -24,6 +24,14 @@ const isBareContinuation = (prompt) => {
 // user didn't write these.
 export const isTaskNotification = (prompt) =>
   typeof prompt === "string" && prompt.trimStart().startsWith("<task-notification>");
+
+export const isConfirmation = (prompt) => {
+  if (typeof prompt !== "string") return false;
+  if (isBareContinuation(prompt)) return true;
+  const text = prompt.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(?:(?:yes|yeah|yep|ok|okay|sure|please) )?(?:go ahead(?: and)? )?(?:send|post|create|schedule|book|reply|submit|do)(?: it| that| them| the draft| the message)(?: please)?$/.test(text)
+    || text === "go ahead";
+};
 
 export const shouldRemind = (prompt) =>
   typeof prompt === "string" &&
