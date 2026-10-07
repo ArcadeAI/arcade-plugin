@@ -53,7 +53,8 @@ export const FILE_SOURCES = {
   // The hook manifest paths in the list come from hook-hosts.mjs.
   ".gitattributes": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
   // hook-hosts.mjs supplies the events, scripts, and timeout; the script writes
-  // the version, entry type, nesting, and command template.
+  // the version, entry type, nesting, and command template. With telemetry
+  // enabled, the adapter that hook-hosts.mjs names supplies telemetry entries.
   ...Object.fromEntries(
     Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"]]),
   ),
@@ -113,21 +114,60 @@ const fillRulesBlock = (text, rules, path) => {
   return `${text.slice(0, begin + RULES_BLOCK_BEGIN.length)}\n${rules}\n${text.slice(end)}`;
 };
 
-const hookCommand = (hostName, script) =>
-  `node "\${${HOSTS[hostName].rootVariable}}/hooks/${script}" --host ${hostName}`;
+/**
+ * The command fields of one hook entry. With `runOnlyIfScriptExists`, the
+ * command runs the script only if the file is there, so a client that leaves
+ * the root variable unset (VS Code) gets exit 0 and no output. `powershell`
+ * is intended for Windows (not verified); it has no double quotes because VS
+ * Code is expected to pass it as one argument to `powershell.exe -Command`.
+ */
+const hookCommandFields = (hostName, script) => {
+  const { rootVariable, runOnlyIfScriptExists } = HOSTS[hostName];
+  const scriptPath = `\${${rootVariable}}/hooks/${script}`;
+  const command = `node "${scriptPath}" --host ${hostName}`;
+  if (!runOnlyIfScriptExists) return { command };
+  const psPath = `($env:${rootVariable} + '/hooks/${script}')`;
+  return {
+    command: `if [ -f "${scriptPath}" ]; then ${command}; fi`,
+    powershell: `if ($env:${rootVariable} -and (Test-Path -LiteralPath ${psPath})) { node ${psPath} --host ${hostName} }`,
+  };
+};
 
-
-// Claude Code nests each command in a group: { hooks: { Event: [{ hooks: [entry] }] } }.
-// Cursor, Copilot CLI, and VS Code take the entries directly and need version 1.
-const buildHookManifest = (hostName) => {
+// Claude Code nests each command in a group: { hooks: { Event: [{ matcher, hooks: [entry] }] } },
+// with one group per event and matcher. Cursor, Copilot CLI, and VS Code take
+// the entries directly and need version 1.
+export const buildHookManifest = (hostName, hookRows = HOOKS) => {
+  const host = HOSTS[hostName];
+  const nested = host.format === "nested";
   const hooks = {};
-  for (const { event, script } of HOOKS) {
-    const name = HOSTS[hostName].events ? HOSTS[hostName].events[event] : event;
+  for (const hook of hookRows) {
+    if (hook.hosts && !hook.hosts.includes(hostName)) continue;
+    const name = host.events ? host.events[hook.event] : hook.event;
     if (!name) continue;
-    const entry = { type: "command", command: hookCommand(hostName, script), timeout: HOOK_TIMEOUT_SEC };
-    hooks[name] = HOSTS[hostName].format === "nested" ? [{ hooks: [entry] }] : [entry];
+    hooks[name] ??= [];
+    if (!nested) {
+      if (hook.if || hook.extraArgs) {
+        throw new Error(`${hook.script} entry for ${hostName} has if or extra args, which the flat format does not support`);
+      }
+      const entry = { type: "command", ...hookCommandFields(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC };
+      hooks[name].push({ ...entry, ...(hook.matcher ? { matcher: hook.matcher } : {}) });
+      continue;
+    }
+    const { command } = hookCommandFields(hostName, hook.script);
+    const entry = {
+      type: "command",
+      ...(hook.if ? { if: hook.if } : {}),
+      command: [command, ...(hook.extraArgs ?? [])].join(" "),
+      timeout: HOOK_TIMEOUT_SEC,
+    };
+    let group = hooks[name].find((existing) => existing.matcher === hook.matcher);
+    if (!group) {
+      group = { ...(hook.matcher ? { matcher: hook.matcher } : {}), hooks: [] };
+      hooks[name].push(group);
+    }
+    group.hooks.push(entry);
   }
-  return HOSTS[hostName].format === "nested" ? { hooks } : { version: 1, hooks };
+  return nested ? { hooks } : { version: 1, hooks };
 };
 
 /** Every generated file and its contents, from the sources in `root`. */
