@@ -70,7 +70,7 @@ export const arcadeToolProperties = (server, tool, toolInput) => {
 };
 
 /**
- * @param {string | null | undefined} service
+ * @param {string | null | undefined} service Contract service category (e.g. `email`), when known.
  */
 export const otherServerProperties = (service) => withService({ server: "other" }, service);
 
