@@ -54,16 +54,9 @@ export const FILE_SOURCES = {
   ".gitattributes": ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"],
   // hook-hosts.mjs supplies the events, scripts, and timeout; the script writes
   // the version, entry type, nesting, and command template. With telemetry
-  // enabled, the client's adapter supplies its telemetry entries.
+  // enabled, the adapter that hook-hosts.mjs names supplies telemetry entries.
   ...Object.fromEntries(
-    Object.values(HOSTS).map((h) => [
-      h.manifest,
-      [
-        "hooks/hook-hosts.mjs",
-        ...(h.telemetry ? ["hooks/telemetry-config.mjs", `hooks/telemetry-adapters/${h.telemetry}.mjs`] : []),
-        "scripts/generate-manifests.mjs",
-      ],
-    ]),
+    Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs", "scripts/generate-manifests.mjs"]]),
   ),
   "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
   // A copy of the operator with its rules block filled in.
