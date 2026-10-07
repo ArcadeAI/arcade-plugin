@@ -8,7 +8,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { HOOKS, HOSTS, telemetryHookRows } from "../hooks/hook-hosts.mjs";
 import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../hooks/hook-scope.mjs";
-import { ARCADE_USED_FILE, EVENT_ENV } from "../hooks/telemetry-config.mjs";
+import { ARCADE_USED_FILE, EVENT_ENV, OPT_OUT_ENV } from "../hooks/telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "../hooks/telemetry-events.mjs";
 import { isOptedOut, runTelemetry } from "../hooks/telemetry-run.mjs";
 import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../hooks/telemetry-adapters/copilot-cli.mjs";
@@ -72,7 +72,15 @@ const runFixture = async (fixture, dataDir) => {
   return captureTelemetry({ adapter: copilotAdapter, input: fixture.input, dataDir });
 };
 
-const PLUGIN_VARIABLES = ["PLUGIN_ROOT", "COPILOT_PLUGIN_DATA", "CLAUDE_PLUGIN_DATA"];
+// An inherited opt-out would make the hook skip even with the hard-OFF gate open.
+const PLUGIN_VARIABLES = [
+  "PLUGIN_ROOT",
+  "COPILOT_PLUGIN_DATA",
+  "CLAUDE_PLUGIN_DATA",
+  OPT_OUT_ENV,
+  "DO_NOT_TRACK",
+  ...copilotAdapter.optOutSwitches.map(({ name }) => name),
+];
 const hookEnv = (extra = {}) => ({
   ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !PLUGIN_VARIABLES.includes(name))),
   ...extra,
