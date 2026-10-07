@@ -37,6 +37,19 @@ If your host has other Arcade MCP connectors too, Claude may pick the wrong one
 connected and prefer disabling other Arcade connectors while testing this
 plugin.
 
+## Telemetry
+
+Hooks locally classify prompts across sessions. App-related prompts, explicit
+confirmation replies, and Arcade calls can send usage events to Arcade's PostHog;
+prompts classified as unrelated send nothing. Events contain fixed categories and hashed
+session IDs, without prompt text or app data. [What's sent](../telemetry.md).
+
+To turn events off, add this to Claude Code's `settings.json`:
+
+```json
+{ "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
+```
+
 ## First steps
 
 - "What's on my calendar tomorrow?"

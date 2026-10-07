@@ -10,6 +10,7 @@ edited by hand. The package ships no credentials.
 | `plugin.json`, `mcp.json`, `VERSION` | identity, gateway URL, version, Codex listing metadata |
 | `hooks/routing-guidance.mjs` | the routing rules, as sentences |
 | `hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
+| `hooks/telemetry-contract.mjs` | every telemetry event, property, and allowed value; the tables in `docs/telemetry.md` |
 | `agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
 | `skills/` | the skills, outside the generated rules block in try-arcade |
 
@@ -67,7 +68,7 @@ it follows the same Arcade discovery and execution loop itself.
 │  https://api.arcade.dev/mcp/arcade                           │
 │                                                              │
 │  only external capability boundary                           │
-│  canonical telemetry lives here, not in the plugin           │
+│  canonical tool-call records live here                       │
 └──────────────────────────────────────────────────────────────┘
                 │
                 ▼
@@ -85,6 +86,25 @@ success or narrating tool internals.
 
 The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
-model to self-report tokens, turns, or success, and it ships no telemetry hook.
-If a host-specific hook later adds supplemental signals, it must be explicit,
-opt-in, and documented as non-portable.
+model to self-report tokens, turns, or success.
+
+In Claude Code and Copilot CLI, hooks locally classify prompts across sessions.
+Only prompts classified as app-related or mentioning Arcade, and their explicit
+confirmation replies, send a prompt event. The routing reminder doesn't use the
+classifier; it goes on every prompt except short acknowledgements and
+background task results. Direct Arcade calls remain observable;
+alternative MCP, CLI, and web tools require an active app-related prompt.
+Session starts and other subagents' stops send no events.
+
+Prompt relevance state expires after 30 minutes, and an unrelated substantive
+prompt closes it. Confirmation replies keep the original expiry. State contains
+a relevance boolean, expiry, and a hashed prompt ID, without conversation text. See
+[docs/telemetry.md](docs/telemetry.md) for the local storage and event contract.
+
+Usage events are on by default and have no ID lasting across sessions. Set
+`ARCADE_PLUGIN_TELEMETRY=0` to disable transmission; local routing still works.
+The detached `hooks/telemetry-send.mjs` sends events without making the turn wait
+on the network. `hooks/telemetry-contract.mjs` defines every event and property;
+the generator writes the documentation tables and tests check event builders
+against the contract. The Arcade gateway remains the source for canonical tool
+outcomes; a client completion event does not establish task success.
