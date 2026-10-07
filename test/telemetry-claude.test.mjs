@@ -296,7 +296,7 @@ test("Claude opt-out switches send nothing and write no data dir files", async (
 
 test("enabled Claude manifest wiring matches hooks.enabled.json", async () => {
   const rows = [
-    ...HOOKS,
+    ...HOOKS.filter((hook) => hook.script !== "telemetry.mjs"),
     ...(await telemetryHookRows()).filter((row) => row.hosts.includes("claude-code")),
   ];
   const built = buildHookManifest("claude-code", rows);
@@ -308,7 +308,7 @@ test("enabled Claude manifest wiring matches hooks.enabled.json", async () => {
   assert.equal(readRepoFile(HOSTS["claude-code"].manifest).includes("telemetry.mjs"), false);
 });
 
-test("PreToolUse and PostToolUse telemetry groups match PR #13 Claude wiring", () => {
+test("PreToolUse and PostToolUse nest MCP, web, and per-CLI Bash telemetry groups", () => {
   const enabled = JSON.parse(readFileSync(
     path.join(ROOT, "test/fixtures/telemetry/claude-code/hooks.enabled.json"),
     "utf8",
