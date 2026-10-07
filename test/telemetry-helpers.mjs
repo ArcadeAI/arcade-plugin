@@ -6,12 +6,89 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
+import { after } from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import { eventSchema } from "../hooks/telemetry-contract.mjs";
 import { PLUGIN_VERSION } from "../hooks/telemetry-config.mjs";
+import { runTelemetry } from "../hooks/telemetry-run.mjs";
 import { ROOT } from "./helpers.mjs";
+
+const TELEMETRY_ENV_BLOCKLIST = [
+  "ARCADE_PLUGIN_TELEMETRY",
+  "DO_NOT_TRACK",
+  "DISABLE_TELEMETRY",
+  "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+  "COPILOT_OFFLINE",
+  "CLAUDE_PLUGIN_DATA",
+  "COPILOT_PLUGIN_DATA",
+];
+
+/** @type {string[]} */
+const tempDataDirs = [];
+let tempDataCleanupRegistered = false;
+
+/** Absolute path of a fresh temp directory; removed after the test run finishes. */
+export const tempDataDir = () => {
+  if (!tempDataCleanupRegistered) {
+    after(() => {
+      for (const dir of tempDataDirs) rmSync(dir, { recursive: true, force: true });
+      tempDataDirs.length = 0;
+    });
+    tempDataCleanupRegistered = true;
+  }
+  const dir = mkdtempSync(path.join(os.tmpdir(), "arcade-telemetry-"));
+  tempDataDirs.push(dir);
+  return dir;
+};
+
+/**
+ * @param {import("../hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter
+ * @param {string | null} dataDir
+ * @param {NodeJS.ProcessEnv} overrides
+ */
+const captureEnv = (adapter, dataDir, overrides) => {
+  const env = { ...process.env };
+  for (const key of TELEMETRY_ENV_BLOCKLIST) delete env[key];
+  if (dataDir !== null) env[adapter.dataVariable] = dataDir;
+  return { ...env, ...overrides };
+};
+
+/**
+ * @param {object} options
+ * @param {import("../hooks/telemetry-adapter.mjs").TelemetryAdapter} options.adapter
+ * @param {Record<string, any>} options.input
+ * @param {NodeJS.ProcessEnv} [options.env]
+ * @param {string[]} [options.argv]
+ * @param {string | null} [options.dataDir]
+ * @param {number} [options.now]
+ * @returns {Promise<{ sent: object[], dataDir: string | null }>}
+ */
+export const captureTelemetry = async ({
+  adapter,
+  input,
+  env: envOverrides = {},
+  argv = [],
+  dataDir,
+  now,
+}) => {
+  const resolvedDir = dataDir === undefined ? tempDataDir() : dataDir;
+  /** @type {object[]} */
+  const sent = [];
+  await runTelemetry({
+    input,
+    adapter,
+    argv,
+    env: captureEnv(adapter, resolvedDir, envOverrides),
+    enabled: true,
+    now,
+    send: (event) => sent.push(event),
+  });
+  return { sent, dataDir: resolvedDir };
+};
 
 const validateEvent = new Ajv2020({ allErrors: true }).compile(eventSchema());
 
