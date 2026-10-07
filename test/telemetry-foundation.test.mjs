@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -292,14 +292,12 @@ test("only the detached sender does network I/O", () => {
     assert.doesNotMatch(source, networkImport, file);
   }
   const adapterDir = path.join(ROOT, "hooks", "telemetry-adapters");
-  try {
+  if (existsSync(adapterDir)) {
     for (const file of readdirSync(adapterDir).filter((f) => f.endsWith(".mjs"))) {
       const label = `telemetry-adapters/${file}`;
       const source = readFileSync(path.join(adapterDir, file), "utf8");
       assert.doesNotMatch(source, networkImport, label);
     }
-  } catch {
-    // adapters ship in client slices
   }
 });
 
@@ -314,7 +312,7 @@ test("telemetry.mjs statically imports only telemetry-config", () => {
   assert.deepEqual(staticImports, ["./telemetry-config.mjs"]);
 });
 
-test("clearSessionScope respects enabled, opt-out, and SessionStart source", () => {
+test("clearSessionScope off-state (enabled false) respects opt-out and SessionStart source", () => {
   const seedScope = (dir) => {
     scopeForInput(
       hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar", session_id: "scope-session" }),
