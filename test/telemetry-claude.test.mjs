@@ -305,6 +305,9 @@ test("enabled Claude manifest wiring matches hooks.enabled.json", async () => {
     "utf8",
   ));
   assert.deepEqual(built, expected);
+});
+
+test("checked-in Claude manifest has no telemetry rows", () => {
   assert.equal(readRepoFile(HOSTS["claude-code"].manifest).includes("telemetry.mjs"), false);
 });
 
