@@ -4,8 +4,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { authNeeded, failureKind } from "../hooks/telemetry-failures.mjs";
 import { commandUsesCli } from "../hooks/telemetry-commands.mjs";
+import { ROOT } from "./helpers.mjs";
 
-const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
 const fixture = (name) => {
   const data = JSON.parse(readFileSync(path.join(ROOT, "test/fixtures/hook-inputs", name), "utf8"));
   return data;
