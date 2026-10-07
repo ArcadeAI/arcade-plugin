@@ -11,6 +11,7 @@ import {
   SKILL_RULES,
 } from "../hooks/routing-guidance.mjs";
 import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../hooks/hook-hosts.mjs";
+import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -25,6 +26,9 @@ export const FILES_WITH_GENERATED_RULES = {
   [OPERATOR]: OPERATOR_RULES,
   "skills/try-arcade/SKILL.md": SKILL_RULES,
 };
+
+/** Hand-written files whose event tables are generated from hooks/telemetry-contract.mjs. */
+export const FILES_WITH_GENERATED_TABLES = [TELEMETRY_DOC];
 
 /** Generated copy → the file it is copied from. */
 export const COPIED_FILES = {
@@ -63,6 +67,7 @@ export const FILE_SOURCES = {
   "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR, "hooks/routing-guidance.mjs"],
   [OPERATOR]: ["hooks/routing-guidance.mjs"],
   "skills/try-arcade/SKILL.md": ["hooks/routing-guidance.mjs"],
+  [TELEMETRY_DOC]: ["hooks/telemetry-contract.mjs"],
 };
 
 /** Formats an array of source paths as a human-readable list. */
@@ -88,6 +93,9 @@ export const requireSources = (path, fileSources) => {
 const outOfDateError = (path) => {
   if (path in FILES_WITH_GENERATED_RULES) {
     return `${path}: the rules block is out of date. Run npm run generate. If you edited the block by hand, make the change in hooks/routing-guidance.mjs instead.`;
+  }
+  if (FILES_WITH_GENERATED_TABLES.includes(path)) {
+    return `${path}: the telemetry tables are out of date. Run npm run generate. If you edited the tables by hand, make the change in hooks/telemetry-contract.mjs instead.`;
   }
   const sources = FILE_SOURCES[path];
   const joined = joinSources(sources);
@@ -266,6 +274,10 @@ const buildFiles = (root) => {
 
   for (const [path, rules] of Object.entries(FILES_WITH_GENERATED_RULES)) {
     files.set(path, fillRulesBlock(readText(root, path), rules, path));
+  }
+
+  for (const path of FILES_WITH_GENERATED_TABLES) {
+    files.set(path, fillTelemetryTables(readText(root, path)));
   }
 
   // Every output must have a source entry so error messages can name it.
