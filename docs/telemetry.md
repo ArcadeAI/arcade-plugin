@@ -1,26 +1,36 @@
 # Plugin telemetry
 
-The Arcade plugin sends scoped usage events to Arcade's PostHog by default.
-Claude Code and Copilot CLI hooks inspect prompts locally in every session where
-telemetry is enabled to recognize app-related work. Relevance state belongs to
-that session; it does not carry between sessions. Prompts classified as unrelated
-send no event.
-Direct Arcade tool calls remain observable, even without a classified prompt.
-Alternative MCP, CLI, and web tools send events only during app-related work.
+**Telemetry is off in this build.** The plugin sends no usage events, and
+`npm run generate` writes no telemetry hooks into any client manifest.
+`TELEMETRY_ENABLED` in `hooks/telemetry-config.mjs` stays `false` until
+collection is separately approved after ingestion, opt-outs, privacy, and
+distribution requirements are verified.
 
-Events carry hashed session IDs, with no ID lasting across sessions. They
-exclude prompt text, commands, app data, names, email addresses, and Arcade
+The sections below describe what **would** be sent when telemetry is turned on,
+how to read exported events, and how that relates to gateway telemetry and
+offline routing evaluation. Nothing here implies that this package currently
+transmits data.
+
+When enabled, Claude Code and Copilot CLI hooks would inspect prompts locally
+in each session to recognize app-related work. Relevance state belongs to that
+session; it does not carry between sessions. Prompts classified as unrelated
+would send no event. Direct Arcade tool calls would remain observable even
+without a classified prompt. Alternative MCP, CLI, and web tools would send
+events only during app-related work.
+
+Events would carry hashed session IDs, with no ID lasting across sessions. They
+would exclude prompt text, commands, app data, names, email addresses, and Arcade
 account IDs. These observations do not establish task success or whether
 Arcade was needed. Install and signed-in-user counts require gateway data.
 
 ## Prompt scope
 
-A prompt matching the local app classifier or mentioning Arcade opens a
-30-minute observation period
-for its session. A short explicit confirmation such as “yes, send it” continues
-that period without extending its expiry. An unrelated substantive prompt
-closes it. Background task notifications leave the current period unchanged.
-Expired, absent, or invalid state produces no alternative-tool telemetry.
+A prompt matching the local app classifier or mentioning Arcade would open a
+30-minute observation period for its session. A short explicit confirmation such
+as “yes, send it” would continue that period without extending its expiry. An
+unrelated substantive prompt would close it. Background task notifications would
+leave the current period unchanged. Expired, absent, or invalid state would
+produce no alternative-tool telemetry.
 
 `could_use_arcade` and `service_hints` describe keywords in the current prompt,
 not the preceding task. A confirmation reply can therefore send a scoped prompt
@@ -31,7 +41,11 @@ Session starts send no usage event. Only the Arcade operator's stop reports
 send subagent events. The routing reminder goes on every prompt except short
 acknowledgements and background task results, whether or not telemetry is on.
 
-## Turning it off
+## Opt-outs when telemetry is on
+
+While `TELEMETRY_ENABLED` is `false`, these switches are inert but documented
+for a future enabled build. They are implemented in `hooks/telemetry-run.mjs`
+and each client's adapter in `hooks/telemetry-adapters/`.
 
 Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 `settings.json`:
@@ -40,13 +54,13 @@ Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 { "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
 ```
 
-`false`, `off`, and `no` also work. It is also off when `DO_NOT_TRACK` is set
-to anything but those values, and when Claude Code's own `DISABLE_TELEMETRY`
-or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set to any value. Like Claude
-Code, the plugin reads `0` and `false` on those two as set.
+`false`, `off`, and `no` also work. Telemetry is also off when `DO_NOT_TRACK`
+is set to anything but those values, and when Claude Code's own
+`DISABLE_TELEMETRY` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set to any
+value. Like Claude Code, the plugin reads `0` and `false` on those two as set.
 
-With telemetry off, the client still invokes its configured Node hooks. The
-telemetry hook exits before classifying the prompt or storing state, and the
+With telemetry opted out, the client still invokes its configured Node hooks.
+The telemetry hook exits before classifying the prompt or storing state, and the
 routing hook still adds its reminder. An environment variable cannot remove
 hooks from the manifest.
 
@@ -54,33 +68,33 @@ In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
 `copilot`. `COPILOT_OFFLINE=true` also turns it off (along with all other
 Copilot network activity).
 
-For testing, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a different host.
+For testing an enabled build, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a
+different host.
 
 ## Where it runs
 
-The Claude Code and Copilot CLI adapters are wired for telemetry. Claude's
-adapter is also used by IDE extensions, the desktop Code tab, and Cowork;
-local CLI validation does not establish actual event delivery or accessible
-opt-out in each of those surfaces. Validate the submitted version in each
-surface before claiming that coverage.
+The Claude Code and Copilot CLI adapters are the only ones wired for telemetry
+in `hooks/hook-hosts.mjs`. Claude's adapter is also used by IDE extensions, the
+desktop Code tab, and Cowork; local CLI validation does not establish actual
+event delivery or accessible opt-out in each of those surfaces.
 
 The VS Code adapter checks for its script at the plugin path and exits when the
 host does not provide that path; this package has no validated VS Code telemetry
-flow. Cursor isn't wired up. Its hook input can include the user's email, so an
+flow. Cursor is not wired up. Its hook input can include the user's email, so an
 adapter would need to select only the allowed fields locally. claude.ai,
 ChatGPT, Codex, and OpenCode don't run telemetry hooks from this package.
 Other host-native mechanisms are outside this contract; absence of an adapter
 does not establish that the client cannot support one.
 
 Copilot CLI records MCP tool calls but doesn't record CLI or web tool use yet,
-so it sends no `Plugin built-in tool called` or `Plugin built-in tool failed`
+so it would send no `Plugin built-in tool called` or `Plugin built-in tool failed`
 events.
 
 ## What is stored on your machine
 
-Each client's plugin data folder contains its own `arcade-used` flag, readable
-only by you. It holds `true` after an Arcade call succeeds in that client plugin
-installation and supplies `arcade_used_before`.
+When telemetry is enabled, each client's plugin data folder contains its own
+`arcade-used` flag, readable only by you. It holds `true` after an Arcade call
+succeeds in that client plugin installation and supplies `arcade_used_before`.
 
 Prompt relevance state lives in `prompt-scope/<sha256(host:session_id)>.json` in
 the same folder. It contains a relevance boolean, expiry timestamp, and optional
@@ -88,8 +102,9 @@ hashed prompt ID that ties tool calls to their prompt. It contains no prompt tex
 commands, tool arguments, or service content. Expired state cannot authorize
 observation. The next prompt-state write removes expired or malformed entries;
 at most 256 session state files are retained. Session start clears that
-session's state, except after Claude Code compacts the conversation. Claude alternative-tool observations require a matching hashed
-prompt ID; an absent prompt ID cannot authorize those observations.
+session's state, except after Claude Code compacts the conversation. Claude
+alternative-tool observations require a matching hashed prompt ID; an absent
+prompt ID cannot authorize those observations.
 
 - Claude Code: `~/.claude/plugins/data/<plugin id>/`
 - Copilot CLI: `~/.copilot/plugin-data/<…>/`
@@ -156,11 +171,33 @@ commands that match (the hook `if` field, Claude Code 2.1.246 and later).
 
 The plugin drops any property not listed on this page before sending.
 
-PostHog sees the IP address the request comes from, like any web request, but
-doesn't store it: every event sets `$ip` to `0.0.0.0`, and location lookup is
-off.
+PostHog would see the IP address the request comes from, like any web request,
+but would not store it: every event sets `$ip` to `0.0.0.0`, and location
+lookup is off.
+
+## Gateway telemetry
+
+The Arcade MCP gateway (`https://api.arcade.dev/mcp/arcade`) remains the
+canonical source for request, authentication, discovery, tool-call, and
+completion telemetry. Plugin events are supplemental observations from client
+hooks. They do not replace gateway records and cannot prove task success on
+their own.
 
 ## Reading the numbers
+
+Export PostHog rows in the shape `{ event, distinct_id, properties, timestamp? }`
+and aggregate them locally:
+
+```bash
+node scripts/telemetry-report.mjs path/to/export.jsonl
+```
+
+The script prints JSON with counts, denominators, and a `limits` list. It
+validates each row against `hooks/telemetry-contract.mjs`, counts invalid rows
+and legacy rows (no `telemetry_version`) separately, and excludes both from
+grouped counts. Groups are split by `host`, `plugin_version`, and
+`telemetry_version`. Claude Code and Copilot CLI are never combined into one
+denominator.
 
 These events measure what plugin hooks observed, not whether Arcade was needed
 or whether the user's task succeeded. `could_use_arcade` and `service_hints`
@@ -189,6 +226,26 @@ version. Keep the number of
 observed prompt units and sessions visible even when a chart has no app actions.
 Do not extrapolate rates from a test sample or telemetry-enabled sessions to all users.
 Do not mix Claude turns with Copilot session counts in one rate.
+
+Report field meanings (from `scripts/telemetry-report.mjs`):
+
+- `observed_relevant_turns` / `observed_relevant_sessions`: distinct Claude
+  `turn` values or Copilot `session` values with a `Plugin prompt submitted`
+  event, after Copilot operator-linked child sessions are excluded from the
+  session denominator.
+- `tool_only_turns`: Claude turns with tool events but no prompt event in that
+  turn (reported outside the turn denominator).
+- `attempt_observed_outcome_unknown`: Claude turns with a `Plugin tool
+  attempted` on an Arcade connection but no `Plugin tool called` or `Plugin tool
+  failed` on that connection in the same turn.
+- `no_call_observed`: relevant turns or sessions with no Arcade MCP tool event
+  (`Plugin tool attempted`, `Plugin tool called`, or `Plugin tool failed` on
+  `server: arcade` or `other_arcade`).
+- `parent_attribution_unknown_sessions`: Copilot sessions with a prompt event
+  that are not operator-linked children and have no operator stop on that
+  session to confirm parent/child linkage.
+- Stage counts use the denominators above; they are not paired attempt/result
+  metrics and do not imply recall, precision, or task success.
 
 ### Claude Code turns
 
@@ -282,13 +339,20 @@ real-user routing quality.
 The existing [Tool Recommendation Cost Eval](https://github.com/ArcadeAI/tool-recommendation-cost-eval)
 provides an offline cross-client harness and published results. Record the plugin
 SHA and client configuration when evaluating the plugin; Tool Recommendation
-on/off results do not establish the plugin's effect on routing or cost.
+on/off results do not establish the plugin's effect on routing or cost. Plugin
+telemetry and that harness are complementary; neither replaces the other.
 
-## Before enabling a submitted build
+## Before turning it on
 
-Record telemetry-specific disclosure, analytics retention and processor handling,
-actual client and version 2 ingestion evidence, and the applicable store decision
-against the submitted version. See the [submission checklist](store-submission-review.md).
-These are release acceptance requirements; the current code and CI do not enforce
-them. A repository install can consume the branch before a GitHub release is
-tagged, so a later release PR is not a transmission gate.
+Separate approval is required before setting `TELEMETRY_ENABLED` to `true` and
+shipping telemetry hooks. Confirm, outside this repository:
+
+- user-facing disclosure and privacy policy coverage for plugin usage events
+- analytics retention and processor handling for the PostHog project
+- verified ingestion per client and `telemetry_version` for the build under review
+- opt-out switches verified on each supported client surface
+- applicable store or distribution decisions for builds that transmit data
+
+These are release acceptance requirements; the current code and CI do not
+enforce them. A repository install can consume a branch before a GitHub release
+is tagged, so a later release PR is not a transmission gate.

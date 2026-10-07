@@ -27,6 +27,19 @@ session-start text doesn't reach the main conversation. The files are
 `clients/cursor/hooks/hooks.json` (Cursor CLI), and
 `com.github.copilot/hooks/hooks.json` (Copilot CLI).
 
+Telemetry adapters are separate from routing. **`TELEMETRY_ENABLED` is false**
+in this build, so manifests include no telemetry hooks and nothing is sent.
+When enabled, wiring comes from `hooks/hook-hosts.mjs`:
+
+| Client adapter | Telemetry events (when enabled) |
+| --- | --- |
+| Claude Code | `UserPromptSubmit`, `PreToolUse` for configured Arcade prefixes, `PostToolUse`, `PostToolUseFailure`, and Arcade operator `SubagentStop` |
+| Copilot CLI | `UserPromptSubmit`, MCP `PostToolUse` and `PostToolUseFailure`, and Arcade operator `SubagentStop` |
+
+Session start clears local prompt scope through the routing hook; it sends no
+telemetry event. No other adapter in this package sends telemetry. See
+[what's sent and its limits](telemetry.md).
+
 ¹ The Cursor IDE (3.21.18) lists the commands on the plugin page but not in
 the `/` menu. Other plugins' commands don't appear there either.
 ² The IDE (3.21.18) and Cloud Agents don't run plugin hooks, so the

@@ -69,6 +69,15 @@ anything is sent, created, or deleted.
 - Privacy: tasks run through Arcade's hosted gateway and the apps you
   connect — [privacy policy](https://www.arcade.dev/privacy-policy).
 
+## Plugin usage events (off in this build)
+
+Claude Code and Copilot CLI include telemetry adapters, but **`TELEMETRY_ENABLED`
+is `false`**: this package sends no usage events and generates no telemetry
+hooks in client manifests. [docs/telemetry.md](docs/telemetry.md) describes
+the event contract, what would be stored locally when enabled, opt-outs, and how
+to aggregate exports with `scripts/telemetry-report.mjs`. The Arcade MCP
+gateway remains the canonical source for request and tool-call telemetry.
+
 ## Develop
 
 Agents editing this repo should read [AGENTS.md](AGENTS.md).

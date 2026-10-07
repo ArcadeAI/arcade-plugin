@@ -26,6 +26,14 @@ from config files, so there's no per-prompt reminder here. VS Code reads the
 same file but can't run Agent Plugins hook commands yet, so it relies on the
 skills.
 
+## Telemetry
+
+Telemetry is **off** in this build: Copilot CLI loads no telemetry hooks from
+generated manifests and sends nothing. A future enabled build would record MCP
+tool use and operator stops as described in [telemetry.md](../telemetry.md).
+Set `ARCADE_PLUGIN_TELEMETRY=0` or `COPILOT_OFFLINE=true` to opt out when
+telemetry is on.
+
 ## First steps
 
 - "What's on my calendar tomorrow?"
