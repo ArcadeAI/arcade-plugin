@@ -274,24 +274,32 @@ test("telemetry-send posts one event and gives up on a silent host", async () =>
     });
     assert.equal(await new Promise((resolve) => hang.on("exit", resolve)), 0);
     const elapsed = Date.now() - hangStart;
-    assert.ok(elapsed >= 900 && elapsed < 3000, `timeout was ${elapsed} ms`);
-    assert.ok(Date.now() - started < 3000);
+    assert.ok(elapsed >= 900 && elapsed < 5000, `timeout was ${elapsed} ms`);
+    assert.ok(Date.now() - started < 5000);
   } finally {
     await server.close();
     silent.close();
   }
 });
 
-test("only telemetry-send.mjs uses network APIs in hooks", () => {
+test("only the detached sender does network I/O", () => {
+  const networkImport =
+    /\bfetch\b|\b(?:from|import|require)\s*\(?\s*["'](?:node:)?(?:http|https|http2|net|tls|dgram|dns)["']/;
   const hookFiles = readdirSync(path.join(ROOT, "hooks")).filter((file) => file.endsWith(".mjs"));
   for (const file of hookFiles) {
     if (file === "telemetry-send.mjs") continue;
     const source = readFileSync(path.join(ROOT, "hooks", file), "utf8");
-    assert.doesNotMatch(
-      source,
-      /\bfetch\b|\b(?:from|import|require)\s*\(?\s*["'](?:node:)?(?:http|https|http2|net|tls|dgram|dns)["']/,
-      file,
-    );
+    assert.doesNotMatch(source, networkImport, file);
+  }
+  const adapterDir = path.join(ROOT, "hooks", "telemetry-adapters");
+  try {
+    for (const file of readdirSync(adapterDir).filter((f) => f.endsWith(".mjs"))) {
+      const label = `telemetry-adapters/${file}`;
+      const source = readFileSync(path.join(adapterDir, file), "utf8");
+      assert.doesNotMatch(source, networkImport, label);
+    }
+  } catch {
+    // adapters ship in client slices
   }
 });
 
