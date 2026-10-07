@@ -23,7 +23,8 @@ for a marked rules block.
   `hooks/telemetry-config.mjs` stays `false` without separate approval; while
   false, `npm run generate` writes no telemetry hooks. Reporting and maintained
   docs for exports live in `scripts/telemetry-report.mjs` and
-  `docs/telemetry.md`.
+  `docs/telemetry.md`. `test/telemetry-report.test.mjs` cross-checks adapters
+  when `hooks/telemetry-adapters/<host>.mjs` exists on the branch.
 - Codex hooks are blocked upstream ([docs/install/codex.md](docs/install/codex.md)).
   Don't remove the root `$schema` to force them; that breaks Agent Plugins
   conformance.

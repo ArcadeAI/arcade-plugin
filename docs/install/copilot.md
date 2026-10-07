@@ -28,11 +28,16 @@ skills.
 
 ## Telemetry
 
-Telemetry is **off** in this build: Copilot CLI loads no telemetry hooks from
-generated manifests and sends nothing. A future enabled build would record MCP
-tool use and operator stops as described in [telemetry.md](../telemetry.md).
-Set `ARCADE_PLUGIN_TELEMETRY=0` or `COPILOT_OFFLINE=true` to opt out when
-telemetry is on.
+Telemetry is **off** in this build: generated manifests include no telemetry
+hooks and nothing is sent. When enabled, `hooks/telemetry-adapters/copilot-cli.mjs`
+records MCP tools as `<server>-<tool>`, operator stops with `subagent_session`,
+and session-scoped prompt state under `COPILOT_PLUGIN_DATA` (no `turn`, no
+`PreToolUse`, no built-in CLI/web events). See [telemetry.md](../telemetry.md).
+
+**Repo coverage:** in-process fixtures and `npm run verify:copilot` (**1.0.88**).
+Not live sessions, Windows PowerShell hook commands, or VS Code agent sessions.
+Shared `com.github.copilot/hooks/hooks.json` uses `runOnlyIfScriptExists` so VS
+Code exits quietly without a plugin path.
 
 ## First steps
 

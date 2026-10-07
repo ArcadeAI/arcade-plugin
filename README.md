@@ -77,6 +77,8 @@ hooks in client manifests. [docs/telemetry.md](docs/telemetry.md) describes
 the event contract, what would be stored locally when enabled, opt-outs, and how
 to aggregate exports with `scripts/telemetry-report.mjs`. The Arcade MCP
 gateway remains the canonical source for request and tool-call telemetry.
+Adapter behavior is covered by in-process tests when those files are present;
+see [docs/telemetry.md](docs/telemetry.md) for what CI does and does not exercise.
 
 ## Develop
 

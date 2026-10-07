@@ -55,9 +55,10 @@ Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 ```
 
 `false`, `off`, and `no` also work. Telemetry is also off when `DO_NOT_TRACK`
-is set to anything but those values, and when Claude Code's own
-`DISABLE_TELEMETRY` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set to any
-value. Like Claude Code, the plugin reads `0` and `false` on those two as set.
+is set to any non-empty value other than `0`, `false`, `off`, or `no`. In
+Claude Code, `DISABLE_TELEMETRY` and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
+opt out when set to **any** non-empty value (including `0` and `false`), matching
+Claude's own telemetry switches.
 
 With telemetry opted out, the client still invokes its configured Node hooks.
 The telemetry hook exits before classifying the prompt or storing state, and the
@@ -65,8 +66,9 @@ routing hook still adds its reminder. An environment variable cannot remove
 hooks from the manifest.
 
 In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
-`copilot`. `COPILOT_OFFLINE=true` also turns it off (along with all other
-Copilot network activity).
+`copilot`. `COPILOT_OFFLINE` uses the same `0` / `false` / `off` / `no` semantics
+as `ARCADE_PLUGIN_TELEMETRY`; any other non-empty value turns telemetry off
+(along with other Copilot network activity).
 
 For testing an enabled build, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a
 different host.
@@ -74,21 +76,38 @@ different host.
 ## Where it runs
 
 The Claude Code and Copilot CLI adapters are the only ones wired for telemetry
-in `hooks/hook-hosts.mjs`. Claude's adapter is also used by IDE extensions, the
-desktop Code tab, and Cowork; local CLI validation does not establish actual
-event delivery or accessible opt-out in each of those surfaces.
+in `hooks/hook-hosts.mjs` (`hooks/telemetry-adapters/claude-code.mjs` and
+`hooks/telemetry-adapters/copilot-cli.mjs`). Claude maps MCP tools under
+`mcp__plugin_<plugin>_<mcpServer>__` (this plugin's gateway) and
+`mcp__claude_ai_arcade__` (the claude.ai Arcade connection). Attempt events
+(`PreToolUse`) are emitted only for those two prefixes. Copilot maps MCP tools
+as `<server>-<tool>` (for example `arcade-Arcade_SelectTools` when the MCP
+server name matches `mcp.json`). Copilot sends no `turn`, no `PreToolUse`
+attempt events, and no built-in CLI or web tool events.
 
-The VS Code adapter checks for its script at the plugin path and exits when the
-host does not provide that path; this package has no validated VS Code telemetry
-flow. Cursor is not wired up. Its hook input can include the user's email, so an
-adapter would need to select only the allowed fields locally. claude.ai,
-ChatGPT, Codex, and OpenCode don't run telemetry hooks from this package.
-Other host-native mechanisms are outside this contract; absence of an adapter
-does not establish that the client cannot support one.
+Claude ties alternative-tool observations to the hashed `turn` for the
+current `prompt_id` (`requiresTurn: true`). Copilot keeps prompt scope per
+`session` without a prompt ID (`requiresTurn: false`).
 
-Copilot CLI records MCP tool calls but doesn't record CLI or web tool use yet,
-so it would send no `Plugin built-in tool called` or `Plugin built-in tool failed`
-events.
+Local state uses `CLAUDE_PLUGIN_DATA` (Claude Code) and `COPILOT_PLUGIN_DATA`
+(Copilot CLI) for `arcade-used` and `prompt-scope/` files.
+
+Copilot's manifest is shared with VS Code. Hook commands use
+`runOnlyIfScriptExists`: each command checks that its script exists at
+`${PLUGIN_ROOT}` and exits quietly when the path is missing, so VS Code does
+not run telemetry today. Cursor is not wired up; its hook input can include the
+user's email. claude.ai, ChatGPT, Codex, and OpenCode don't run telemetry hooks
+from this package.
+
+### What CI exercises (when adapters are present)
+
+| Adapter | Tested in this repo | Not covered here |
+| --- | --- | --- |
+| Claude Code | In-process hook captures, contract tests, `scripts/telemetry-report.mjs` cross-check, `claude plugin validate --strict` on **2.1.258** | Live user sessions, IDE extensions, desktop Code tab, Cowork delivery and opt-out |
+| Copilot CLI | In-process captures, fixture JSON, report cross-check, `npm run verify:copilot` on **1.0.88** | Live sessions, Windows PowerShell hook commands, VS Code agent sessions |
+
+Those checks do not prove end-user transmission while `TELEMETRY_ENABLED` is
+`false`; they validate the adapters and reporting math for an enabled build.
 
 ## What is stored on your machine
 

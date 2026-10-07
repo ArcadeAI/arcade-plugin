@@ -33,8 +33,8 @@ When enabled, wiring comes from `hooks/hook-hosts.mjs`:
 
 | Client adapter | Telemetry events (when enabled) |
 | --- | --- |
-| Claude Code | `UserPromptSubmit`, `PreToolUse` for configured Arcade prefixes, `PostToolUse`, `PostToolUseFailure`, and Arcade operator `SubagentStop` |
-| Copilot CLI | `UserPromptSubmit`, MCP `PostToolUse` and `PostToolUseFailure`, and Arcade operator `SubagentStop` |
+| Claude Code | `UserPromptSubmit`, `PreToolUse` on `mcp__plugin_*` and `mcp__claude_ai_arcade__`, MCP `PostToolUse` / `PostToolUseFailure`, built-in `WebFetch` / `WebSearch` / listed `Bash` CLIs, Arcade operator `SubagentStop` |
+| Copilot CLI | `UserPromptSubmit`, MCP `PostToolUse` / `PostToolUseFailure` (`<server>-<tool>`), Arcade operator `SubagentStop` with `subagent_session` (no `PreToolUse`, no `turn`, no built-in tools) |
 
 Session start clears local prompt scope through the routing hook; it sends no
 telemetry event. No other adapter in this package sends telemetry. See
@@ -50,10 +50,12 @@ load the always-apply rule.
 ⁴ Cowork runs the prompt and subagent hooks but doesn't add the session-start
 text, so its main conversation gets the short reminder and the skill, not the
 full rules.
-⁵ Copilot CLI drops the output of prompt hooks from config files, so it gets
-session and subagent hooks only.
+⁵ Copilot CLI drops the output of **routing** prompt hooks from config files,
+so the main conversation gets session and subagent hooks only. Telemetry still
+hooks `UserPromptSubmit` when enabled; `reminder_sent` is always `false` there.
 ⁶ VS Code reads `com.github.copilot/hooks/hooks.json` but doesn't expand
-`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet.
+`${PLUGIN_ROOT}` for Agent Plugins hooks or pass their output to the model yet;
+`runOnlyIfScriptExists` makes those commands no-ops without a plugin path.
 ⁷ Blocked upstream; see [codex.md](install/codex.md).
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
