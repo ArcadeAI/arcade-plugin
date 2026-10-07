@@ -84,6 +84,8 @@ export const scopeForInput = (input, { host, requiresTurn, dir, now = Date.now()
   const file = dir && path.isAbsolute(dir) && session
     ? path.join(dir, SCOPE_DIRECTORY, `${hash(`${host}:${session}`)}.json`) : null;
   if (input.hook_event_name === "SessionStart") {
+    // Claude Code also sends SessionStart after compacting a conversation. The
+    // session and turn continue, so their scope does too.
     if (file && input.source !== "compact") rmSync(file, { force: true });
     return fallback;
   }
@@ -102,6 +104,7 @@ export const scopeForInput = (input, { host, requiresTurn, dir, now = Date.now()
     try {
       writeState(file, state, now);
     } catch {
+      // Remove stale relevance when a new prompt cannot be stored.
       try { rmSync(file, { force: true }); } catch {}
     }
   }

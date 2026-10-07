@@ -49,6 +49,8 @@ test("every command in every generated hooks.json runs and prints what its clien
   for (const [hostName, { manifest, rootVariable }] of Object.entries(HOSTS)) {
     for (const [event, entries] of Object.entries(JSON.parse(readRepoFile(manifest)).hooks)) {
       for (const { command } of entries.flatMap((entry) => entry.hooks ?? [entry])) {
+        // Telemetry prints nothing; the telemetry tests run its commands.
+        if (command.includes("/hooks/telemetry.mjs")) continue;
         const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
           shell: true,
           input: HOOK_INPUT,
@@ -102,11 +104,21 @@ test("in VS Code every Copilot hook command exits 0 without output", skipOnWindo
   }
 });
 
+/** Checks the output of a Copilot hook run with PLUGIN_ROOT set to the repo. */
+const assertCopilotHookRan = (event, command, result, label) => {
+  if (command.includes("/hooks/telemetry.mjs")) {
+    assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+    assert.equal(result.stdout, "", label);
+    return;
+  }
+  assertPrintsContext("copilot", event, result, label);
+};
+
 test("in Copilot CLI every Copilot hook command runs with PLUGIN_ROOT set only in the environment", skipOnWindows, () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "arcade-copilot-"));
   for (const { event, command } of copilotEntries()) {
     const result = spawnSync(command, { shell: true, cwd, env: hookEnv({ PLUGIN_ROOT: ROOT }), input: HOOK_INPUT, encoding: "utf8" });
-    assertPrintsContext("copilot", event, result, `${event} ${command}`);
+    assertCopilotHookRan(event, command, result, `${event} ${command}`);
   }
 });
 
@@ -130,7 +142,7 @@ test("every Copilot hook's powershell command skips without PLUGIN_ROOT and runs
     assert.equal(skipped.status, 0, `${powershell}: ${skipped.stderr}`);
     assert.equal(skipped.stdout, "", powershell);
     assert.equal(skipped.stderr, "", powershell);
-    assertPrintsContext("copilot", event, runPowerShell(powershell, hookEnv({ PLUGIN_ROOT: ROOT })), powershell);
+    assertCopilotHookRan(event, powershell, runPowerShell(powershell, hookEnv({ PLUGIN_ROOT: ROOT })), powershell);
   }
 });
 
