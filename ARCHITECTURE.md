@@ -85,6 +85,12 @@ success or narrating tool internals.
 
 The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
-model to self-report tokens, turns, or success, and it ships no telemetry hook.
-If a host-specific hook later adds supplemental signals, it must be explicit,
-opt-in, and documented as non-portable.
+model to self-report tokens, turns, or success.
+
+Optional client hooks in `hooks/telemetry-adapters/` can send supplemental,
+scoped usage events when `TELEMETRY_ENABLED` is `true` and the user has not
+opted out. **This build keeps `TELEMETRY_ENABLED` false**, so no telemetry
+hooks are generated and nothing is sent. See [docs/telemetry.md](docs/telemetry.md)
+for the contract, opt-outs, local state, and `scripts/telemetry-report.mjs`
+for aggregating exports. Gateway telemetry remains authoritative; plugin events
+do not establish task success.
