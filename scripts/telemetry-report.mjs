@@ -24,7 +24,7 @@ const validateRow = new Ajv2020({ allErrors: true }).compile(eventSchema());
 const isValidRow = (row) => validateRow(row) === true;
 
 /**
- * Keeps only contract fields so PostHog export metadata does not fail validation.
+ * Drops export envelope fields and PostHog `$` noise; other properties must match the contract.
  * @param {unknown} raw
  * @returns {{ event: string, distinct_id: string, properties: Record<string, unknown> } | null}
  */
@@ -36,13 +36,11 @@ export const normalizeExportRow = (raw) => {
   if (!properties || typeof properties !== "object" || Array.isArray(properties)) return null;
   if (!KNOWN_EVENTS.has(event)) return null;
   const props = /** @type {Record<string, unknown>} */ (properties);
-  const keep = allowedProperties(event);
+  const allowed = new Set(allowedProperties(event));
   /** @type {Record<string, unknown>} */
-  const trimmed = {};
-  for (const key of keep) {
-    if (Object.prototype.hasOwnProperty.call(props, key)) {
-      trimmed[key] = props[key];
-    }
+  const trimmed = { ...props };
+  for (const key of Object.keys(trimmed)) {
+    if (key.startsWith("$") && !allowed.has(key)) delete trimmed[key];
   }
   return { event, distinct_id, properties: trimmed };
 };
