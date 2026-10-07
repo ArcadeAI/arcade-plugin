@@ -56,7 +56,7 @@ const resolveExpected = (fixture, input) => {
   if (extra.subagent_session === SUBAGENT_ID) {
     extra.subagent_session = hash16(SUBAGENT_ID);
   }
-  const sessionId = input.session_id ?? input.sessionId ?? SESSION_ID;
+  const sessionId = input.session_id ?? SESSION_ID;
   const event = expectedEvent(fixture.expected.event, extra, copilotAdapter, sessionId, undefined);
   const os = /** @type {readonly string[]} */ (["darwin", "linux", "win32"]).includes(process.platform)
     ? process.platform
@@ -109,7 +109,7 @@ for (const file of fixtureFiles()) {
   });
 }
 
-test("Copilot events never carry turn and PreToolUse sends no attempt event", async () => {
+test("Copilot-shaped hook input never carries turn and PreToolUse sends no attempt event", async () => {
   const dataDir = tempDataDir();
   await captureTelemetry({
     adapter: copilotAdapter,
@@ -342,7 +342,7 @@ test("malformed stdin sends nothing through runTelemetry", async () => {
 
 test("enabled Copilot manifest wiring matches hooks.enabled.json", async () => {
   const rows = [
-    ...HOOKS,
+    ...HOOKS.filter((hook) => hook.script !== "telemetry.mjs"),
     ...(await telemetryHookRows()).filter((row) => row.hosts.includes("copilot")),
   ];
   const built = buildHookManifest("copilot", rows);
@@ -424,24 +424,37 @@ test("the Copilot MCP tool matcher picks server tools, not built-ins", () => {
   for (const name of ["Bash", "Agent", "view"]) assert.doesNotMatch(name, matcher);
 });
 
-test("normalize maps tool_result and agentName without leaking raw fields", () => {
+test("normalize reads tool_result text_result_for_llm and ignores top-level tool_response", () => {
   const normalized = copilotAdapter.normalize({
-    sessionId: SESSION_ID,
-    agentName: OPERATOR,
+    session_id: SESSION_ID,
+    agent_type: OPERATOR,
     tool_name: "arcade-System_ManageAuthorization",
+    tool_response: '{"providers":[{"status":"authorization_required"}]}',
     tool_result: { result_type: "success", text_result_for_llm: '{"providers":[]}' },
     transcript_path: "/SECRET/path",
     cwd: "/SECRET/cwd",
   });
-  assert.equal(normalized.session_id, SESSION_ID);
-  assert.equal(normalized.agent_type, OPERATOR);
   assert.equal(normalized.tool_response, '{"providers":[]}');
-  assert.equal(normalized.transcript_path, undefined);
+  assert.equal(normalized.prompt_id, undefined);
+  assert.equal(normalized.session_id, SESSION_ID);
+  const withPromptId = copilotAdapter.normalize({ session_id: SESSION_ID, prompt_id: "turn-1" });
+  assert.equal(withPromptId.prompt_id, "turn-1");
   const built = buildEvent(
     { ...normalized, hook_event_name: "PostToolUse" },
     { adapter: copilotAdapter, os: "darwin", arcadeUsedBefore: false, appWork: true },
   );
+  assert.equal(built?.properties.auth_needed, false);
   assertNoLeak(JSON.stringify(built), /SECRET/i);
+});
+
+test("normalize does not map SubagentStart camelCase fields into hook input", () => {
+  const normalized = copilotAdapter.normalize({
+    sessionId: SESSION_ID,
+    agentName: OPERATOR,
+    agentDisplayName: "arcade-operator",
+  });
+  assert.equal(normalized.session_id, undefined);
+  assert.equal(normalized.agent_type, undefined);
 });
 
 test("Copilot CLI sends no built-in tool events", () => {

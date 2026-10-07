@@ -27,8 +27,10 @@ const normalize = (raw) => {
   const input = {};
   const hook_event_name = pickString(raw.hook_event_name);
   if (hook_event_name) input.hook_event_name = hook_event_name;
-  const session_id = pickString(raw.session_id) ?? pickString(raw.sessionId);
+  const session_id = pickString(raw.session_id);
   if (session_id) input.session_id = session_id;
+  const prompt_id = pickString(raw.prompt_id);
+  if (prompt_id) input.prompt_id = prompt_id;
   const source = pickString(raw.source);
   if (source) input.source = source;
   if (raw.prompt !== undefined) input.prompt = raw.prompt;
@@ -37,20 +39,16 @@ const normalize = (raw) => {
   if (raw.tool_input !== undefined && raw.tool_input !== null && typeof raw.tool_input === "object") {
     input.tool_input = raw.tool_input;
   }
-  let tool_response = raw.tool_response;
   if (
-    tool_response === undefined &&
     raw.tool_result !== null &&
     typeof raw.tool_result === "object" &&
     typeof raw.tool_result.text_result_for_llm === "string"
   ) {
-    tool_response = raw.tool_result.text_result_for_llm;
+    input.tool_response = raw.tool_result.text_result_for_llm;
   }
-  if (tool_response !== undefined) input.tool_response = tool_response;
   if (raw.error !== undefined) input.error = raw.error;
   if (raw.is_interrupt !== undefined) input.is_interrupt = raw.is_interrupt;
-  const agent_type =
-    pickString(raw.agent_type) ?? pickString(raw.agentName) ?? pickString(raw.agent_name);
+  const agent_type = pickString(raw.agent_type);
   if (agent_type) input.agent_type = agent_type;
   const agent_id = pickString(raw.agent_id);
   if (agent_id) input.agent_id = agent_id;
@@ -64,7 +62,9 @@ const normalize = (raw) => {
  */
 const toolProperties = (toolName, toolInput) => {
   if (typeof toolName !== "string") return null;
+  // Arcade tool names never contain "-", so the last one ends the server name.
   const splitAt = toolName.lastIndexOf("-");
+  // Built-in tools (Bash, Agent) have no server prefix.
   if (splitAt <= 0 || splitAt === toolName.length - 1) return null;
   const server = toolName.slice(0, splitAt);
   const tool = toolName.slice(splitAt + 1);
@@ -84,6 +84,8 @@ const toolProperties = (toolName, toolInput) => {
 const copilotCliAdapter = {
   host: "copilot-cli",
   dataVariable: "COPILOT_PLUGIN_DATA",
+  // Copilot documents "true" and doesn't say which other values it
+  // accepts, so any value that isn't clearly off counts.
   optOutSwitches: [{ name: "COPILOT_OFFLINE", anyValue: false }],
   requiresTurn: false,
   promptReminder: false,
