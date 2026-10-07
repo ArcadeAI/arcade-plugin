@@ -155,12 +155,18 @@ const authRow = (rows, needed) =>
     (row) => isAuthRow(row) && row.properties.auth_needed === needed,
   );
 
-/** @param {{ event: string, properties: Record<string, unknown> }[]} arcadeRows */
-const attemptWithoutOutcome = (arcadeRows) => {
-  const hasAttempt = arcadeRows.some((row) => row.event === "Plugin tool attempted");
-  const hasOutcome = arcadeRows.some((row) => OUTCOME_EVENTS.has(row.event));
-  return hasAttempt && !hasOutcome;
-};
+/**
+ * An outcome only settles attempts on its own `server` category, so an `other_arcade`
+ * result cannot hide an `arcade` attempt. Within a category the check is turn-level.
+ * @param {{ event: string, properties: Record<string, unknown> }[]} arcadeRows
+ */
+const attemptWithoutOutcome = (arcadeRows) =>
+  ["arcade", "other_arcade"].some((server) => {
+    const onServer = arcadeRows.filter((row) => row.properties.server === server);
+    const hasAttempt = onServer.some((row) => row.event === "Plugin tool attempted");
+    const hasOutcome = onServer.some((row) => OUTCOME_EVENTS.has(row.event));
+    return hasAttempt && !hasOutcome;
+  });
 
 /**
  * @param {{ event: string, properties: Record<string, unknown> }[]} rows
@@ -343,6 +349,7 @@ const REPORT_LIMITS = [
   "Claude Code turn counts and Copilot CLI session counts must not be combined into one rate.",
   "Copilot CLI does not emit tool-attempt events; attempt stages apply only to Claude Code.",
   "Multiple tool calls in one turn or session cannot be paired without a tool-call ID.",
+  "Attempt outcomes are checked per server category; other_arcade pools every other Arcade connection, so an outcome there cannot be tied to the connection or call that was attempted.",
   "The Arcade MCP gateway remains the canonical source for request, auth, discovery, and tool-call telemetry.",
 ];
 
@@ -395,6 +402,18 @@ export const buildReport = (events) => {
   };
 };
 
+/** Thrown for unparseable input; the message never contains the input text. */
+export class ExportParseError extends Error {}
+
+/** @param {string} text @param {string} where */
+const parseJson = (text, where) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ExportParseError(`${where} is not valid JSON`);
+  }
+};
+
 /**
  * @param {string} text
  * @returns {unknown[]}
@@ -402,12 +421,12 @@ export const buildReport = (events) => {
 export const parseExportedEvents = (text) => {
   const trimmed = text.trim();
   if (!trimmed) return [];
-  if (trimmed.startsWith("[")) return JSON.parse(trimmed);
+  if (trimmed.startsWith("[")) return parseJson(trimmed, "the array");
   return trimmed
     .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
+    .map((line, index) => ({ line: line.trim(), number: index + 1 }))
+    .filter(({ line }) => line)
+    .map(({ line, number }) => parseJson(line, `line ${number}`));
 };
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -416,6 +435,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.error("usage: node scripts/telemetry-report.mjs <file.jsonl|file.json>");
     process.exit(1);
   }
-  const report = buildReport(parseExportedEvents(readFileSync(file, "utf8")));
-  console.log(JSON.stringify(report, null, 2));
+  /** @type {unknown[]} */
+  let events;
+  try {
+    events = parseExportedEvents(readFileSync(file, "utf8"));
+  } catch (error) {
+    // Error text from JSON.parse or the runtime can quote the input, so print only our own message.
+    const reason = error instanceof ExportParseError ? error.message : "the file could not be read";
+    console.error(`telemetry-report: ${reason}; no report was produced`);
+    process.exit(1);
+  }
+  console.log(JSON.stringify(buildReport(events), null, 2));
 }

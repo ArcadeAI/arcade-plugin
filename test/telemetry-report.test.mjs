@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { test } from "node:test";
@@ -91,6 +91,78 @@ test("CLI prints the same JSON as buildReport", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), expected);
   assert.deepEqual(buildReport(events).excluded, { invalid: 1, legacy: 1 });
+});
+
+const claudeRow = (event, extra) => ({
+  event,
+  distinct_id: "aaaaaaaaaaaaaaaa",
+  properties: {
+    session: "aaaaaaaaaaaaaaaa",
+    turn: "1111111111111111",
+    host: "claude-code",
+    plugin_version: "0.2.0",
+    telemetry_version: 2,
+    os: "linux",
+    arcade_used_before: false,
+    $process_person_profile: false,
+    $geoip_disable: true,
+    $ip: "0.0.0.0",
+    ...extra,
+  },
+});
+
+const unknownOutcomeCount = (rows) => {
+  for (const row of rows) assertMatchesContract(row);
+  const report = buildReport(rows);
+  assert.deepEqual(report.excluded, { invalid: 0, legacy: 0 });
+  return report.groups[0].stages.attempt_observed_outcome_unknown.count;
+};
+
+test("an outcome on one Arcade server category does not settle an attempt on the other", () => {
+  const prompt = claudeRow("Plugin prompt submitted", { could_use_arcade: true, service_hints: ["email"], reminder_sent: false });
+  const attempt = (server) => claudeRow("Plugin tool attempted", { server, tool: "Arcade_UseTool" });
+  const called = (server) => claudeRow("Plugin tool called", { server, tool: "Arcade_SelectTools" });
+  const failed = (server) => claudeRow("Plugin tool failed", { server, tool: "Arcade_UseTool", failure_kind: "timeout" });
+
+  assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), called("other_arcade")]), 1);
+  assert.equal(unknownOutcomeCount([prompt, attempt("other_arcade"), failed("arcade")]), 1);
+  assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), called("arcade")]), 0);
+  assert.equal(unknownOutcomeCount([prompt, attempt("other_arcade"), failed("other_arcade")]), 0);
+  assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), attempt("other_arcade"), called("arcade")]), 1);
+  // Turn-level only: one outcome on a category settles every attempt on that category.
+  assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), attempt("arcade"), called("arcade")]), 0);
+});
+
+test("report limits state that other_arcade pools connections and calls are not paired", () => {
+  const limits = buildReport([]).limits.join("\n");
+  assert.match(limits, /other_arcade.*pools/i);
+  assert.match(limits, /cannot be paired/i);
+});
+
+test("CLI rejects malformed JSON without echoing the input", (t) => {
+  const marker = "SYNTHETIC-PRIVATE-MARKER-7f3a";
+  const dir = tempDataDir();
+  const valid = readFileSync(path.join(FIXTURE_DIR, "events.jsonl"), "utf8").split("\n")[0];
+  const inputs = {
+    "lines.jsonl": `${valid}\n{"event":"Plugin prompt submitted","properties":{"prompt":"${marker}"\n`,
+    "array.json": `[{"event":"${marker}",}]`,
+    "bare.jsonl": `${marker} not json`,
+  };
+  for (const [name, contents] of Object.entries(inputs)) {
+    const file = path.join(dir, name);
+    writeFileSync(file, contents);
+    const result = spawnSync(process.execPath, [path.join(ROOT, "scripts/telemetry-report.mjs"), file], {
+      encoding: "utf8",
+    });
+    t.diagnostic(`${name}: ${result.stderr.trim()}`);
+    assert.notEqual(result.status, 0, name);
+    assert.equal(result.stdout, "", name);
+    assert.match(result.stderr, /^telemetry-report: /, name);
+    for (const stream of [result.stdout, result.stderr]) {
+      assert.equal(stream.includes(marker), false, `${name}: ${stream}`);
+      assert.equal(stream.includes("Plugin prompt submitted"), false, `${name}: ${stream}`);
+    }
+  }
 });
 
 test("report keys avoid forbidden metric names and hosts stay separate", () => {

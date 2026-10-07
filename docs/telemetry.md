@@ -220,7 +220,9 @@ fields such as `prompt` or `cwd` make a row invalid. It counts invalid rows and
 legacy rows (no `telemetry_version`) separately, and excludes both from grouped
 counts. Groups are split by `host`, `plugin_version`, and
 `telemetry_version`. Claude Code and Copilot CLI are never combined into one
-denominator.
+denominator. If the file is not valid JSON or JSON Lines, the script exits
+nonzero with a short message naming the failing line, prints no report, and
+does not echo the file's contents.
 
 These events measure what plugin hooks observed, not whether Arcade was needed
 or whether the user's task succeeded. `could_use_arcade` and `service_hints`
@@ -259,8 +261,12 @@ Report field meanings (from `scripts/telemetry-report.mjs`):
 - `tool_only_turns`: Claude turns with tool events but no prompt event in that
   turn (reported outside the turn denominator).
 - `attempt_observed_outcome_unknown`: Claude turns with a `Plugin tool
-  attempted` on an Arcade connection but no `Plugin tool called` or `Plugin tool
-  failed` on that connection in the same turn.
+  attempted` on a `server` category (`arcade` or `other_arcade`) but no `Plugin
+  tool called` or `Plugin tool failed` on that same category in the same turn.
+  An outcome on one category never settles an attempt on the other.
+  `other_arcade` pools every other Arcade connection, and one outcome settles
+  every attempt on its category in the turn, so the check cannot pair a result
+  with a particular connection or call.
 - `no_call_observed`: relevant turns or sessions with no Arcade MCP tool event
   (`Plugin tool attempted`, `Plugin tool called`, or `Plugin tool failed` on
   `server: arcade` or `other_arcade`).
@@ -293,10 +299,10 @@ Events contain no tool-call ID. Multiple calls in the same turn cannot be
 paired individually, even when their tool categories match. Count observed
 events or turn-level stages; do not present a per-attempt completion rate.
 
-A live Claude Code run invoked Arcade through a claude.ai
-connection without a PostToolUse event. A `Plugin tool attempted` event can
-show that invocation, but only `Plugin tool called` or `Plugin tool failed`
-records its outcome. Count an attempt without either outcome as **attempt
+A tool invocation is not always followed by a PostToolUse or
+PostToolUseFailure event. A `Plugin tool attempted` event can show the
+invocation, but only `Plugin tool called` or `Plugin tool failed` records its
+outcome. Count an attempt without either outcome as **attempt
 observed, outcome unknown**, not app action success. It does not set
 `arcade_used_before`. Label flagged turns with no Arcade tool event **no call
 observed**, not **missed**. A direct app tool on another gateway may appear

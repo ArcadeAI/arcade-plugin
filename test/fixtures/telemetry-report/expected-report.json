@@ -105,6 +105,7 @@
     "Claude Code turn counts and Copilot CLI session counts must not be combined into one rate.",
     "Copilot CLI does not emit tool-attempt events; attempt stages apply only to Claude Code.",
     "Multiple tool calls in one turn or session cannot be paired without a tool-call ID.",
+    "Attempt outcomes are checked per server category; other_arcade pools every other Arcade connection, so an outcome there cannot be tied to the connection or call that was attempted.",
     "The Arcade MCP gateway remains the canonical source for request, auth, discovery, and tool-call telemetry."
   ]
 }
