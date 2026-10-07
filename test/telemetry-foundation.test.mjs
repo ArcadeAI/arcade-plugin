@@ -15,6 +15,7 @@ import fakeAdapter, { FAKE_ARCADE_PREFIX, FAKE_OTHER_PREFIX } from "./fixtures/t
 import {
   assertMatchesContract,
   assertNoLeak,
+  captureTelemetry,
   expectedEvent,
   hash16,
   hookInput,
@@ -191,50 +192,40 @@ test("runTelemetry opt-out matrix sends nothing and writes no files", async () =
   }
 });
 
-test("runTelemetry enabled fixture emits allowed fields and sets arcade-used once", async () => {
-  const server = await startServer();
-  try {
-    const dataDir = makeTempDir();
-    const env = telemetryEnv(fakeAdapter, dataDir, server.url);
-    const send = [];
-    await runTelemetry({
-      input: hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar" }),
-      adapter: fakeAdapter,
-      env,
-      enabled: true,
-      send: (event) => send.push(event),
-    });
-    await runTelemetry({
-      input: hookInput({
-        hook_event_name: "PostToolUse",
-        tool_name: `${FAKE_ARCADE_PREFIX}Gmail_ListEmails`,
-        prompt_id: PROMPT_ID,
-      }),
-      adapter: fakeAdapter,
-      env,
-      enabled: true,
-      send: (event) => send.push(event),
-    });
-    await runTelemetry({
-      input: hookInput({
-        hook_event_name: "PreToolUse",
-        tool_name: `${FAKE_ARCADE_PREFIX}Gmail_ListEmails`,
-        prompt_id: PROMPT_ID,
-      }),
-      adapter: fakeAdapter,
-      env,
-      enabled: true,
-      send: (event) => send.push(event),
-    });
-    assert.equal(send.length, 3);
-    for (const event of send) assertMatchesContract(event);
-    assert.equal(send[1].properties.arcade_used_before, false);
-    assert.equal(readFileSync(path.join(dataDir, "arcade-used"), "utf8"), "true");
-    assert.equal(send[2].properties.arcade_used_before, true);
-    assert.equal(isArcadeCall(send[2]), false);
-  } finally {
-    await server.close();
-  }
+test("captureTelemetry carries scope and sets arcade-used across prompt then tool events", async () => {
+  const { sent: promptSent, dataDir } = await captureTelemetry({
+    adapter: fakeAdapter,
+    input: hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar" }),
+  });
+  assert.equal(promptSent.length, 1);
+  assertMatchesContract(promptSent[0]);
+
+  const { sent: toolSent } = await captureTelemetry({
+    adapter: fakeAdapter,
+    dataDir,
+    input: hookInput({
+      hook_event_name: "PostToolUse",
+      tool_name: `${FAKE_ARCADE_PREFIX}Gmail_ListEmails`,
+      prompt_id: PROMPT_ID,
+    }),
+  });
+  assert.equal(toolSent.length, 1);
+  assertMatchesContract(toolSent[0]);
+  assert.equal(toolSent[0].properties.arcade_used_before, false);
+  assert.equal(readFileSync(path.join(dataDir, "arcade-used"), "utf8"), "true");
+
+  const { sent: attemptSent } = await captureTelemetry({
+    adapter: fakeAdapter,
+    dataDir,
+    input: hookInput({
+      hook_event_name: "PreToolUse",
+      tool_name: `${FAKE_ARCADE_PREFIX}Gmail_ListEmails`,
+      prompt_id: PROMPT_ID,
+    }),
+  });
+  assert.equal(attemptSent.length, 1);
+  assert.equal(attemptSent[0].properties.arcade_used_before, true);
+  assert.equal(isArcadeCall(attemptSent[0]), false);
 });
 
 test("runTelemetry survives malformed input and send failures", async () => {
