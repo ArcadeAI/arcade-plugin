@@ -70,6 +70,18 @@ test("buildReport strips PostHog export fields before validating", () => {
   assert.deepEqual(buildReport(noisy), expected);
 });
 
+test("buildReport rejects leaked hook fields in export properties", () => {
+  const { events } = loadFixture();
+  const sample = events.find(
+    (row) => row.event === "Plugin prompt submitted" && row.properties?.telemetry_version === 2,
+  );
+  assert.ok(sample);
+  const withPrompt = { ...sample, properties: { ...sample.properties, prompt: "secret text" } };
+  const withCwd = { ...sample, properties: { ...sample.properties, cwd: "/Users/secret" } };
+  assert.equal(buildReport([withPrompt]).excluded.invalid, 1);
+  assert.equal(buildReport([withCwd]).excluded.invalid, 1);
+});
+
 test("CLI prints the same JSON as buildReport", () => {
   const { events, expected } = loadFixture();
   const file = path.join(FIXTURE_DIR, "events.jsonl");

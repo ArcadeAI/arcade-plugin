@@ -211,10 +211,14 @@ and aggregate them locally:
 node scripts/telemetry-report.mjs path/to/export.jsonl
 ```
 
-The script prints JSON with counts, denominators, and a `limits` list. It
-validates each row against `hooks/telemetry-contract.mjs`, counts invalid rows
-and legacy rows (no `telemetry_version`) separately, and excludes both from
-grouped counts. Groups are split by `host`, `plugin_version`, and
+The script prints JSON with counts, denominators, and a `limits` list. Before
+validating, it ignores export envelope fields outside
+`{ event, distinct_id, properties }` (such as `timestamp` and `uuid`) and
+PostHog-added properties whose names start with `$` but are not on the contract
+for that event. Every other property must match the contract; leaked hook
+fields such as `prompt` or `cwd` make a row invalid. It counts invalid rows and
+legacy rows (no `telemetry_version`) separately, and excludes both from grouped
+counts. Groups are split by `host`, `plugin_version`, and
 `telemetry_version`. Claude Code and Copilot CLI are never combined into one
 denominator.
 
