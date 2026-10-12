@@ -9,6 +9,7 @@ import { isTaskNotification, shouldRemind } from "./prompt-filters.mjs";
 import { isOperatorAgentType } from "./routing-guidance.mjs";
 import {
   classifyPrompt,
+  serviceForToolkit,
   serviceForToolName,
 } from "./telemetry-classify.mjs";
 import { commandUsesCli } from "./telemetry-commands.mjs";
@@ -74,6 +75,24 @@ export const arcadeToolProperties = (server, tool, toolInput) => {
  * @param {string | null | undefined} service Contract service category (e.g. `email`), when known.
  */
 export const otherServerProperties = (service) => withService({ server: "other" }, service);
+
+/**
+ * Properties for a tool on an MCP server other than this plugin's Arcade
+ * server. A gateway tool name means another Arcade server. Some connectors
+ * name the service in the server, not the tool (e.g. claude_ai_Gmail); only
+ * the category is sent.
+ * @param {string} server
+ * @param {string} tool
+ * @param {Record<string, any> | undefined} toolInput
+ */
+export const otherServerToolProperties = (server, tool, toolInput) => {
+  if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
+    return arcadeToolProperties("other_arcade", tool, toolInput);
+  }
+  const service =
+    serviceForToolName(tool) ?? server.split(/[^A-Za-z0-9]+/).map(serviceForToolkit).find(Boolean);
+  return otherServerProperties(service);
+};
 
 /**
  * Properties for a WebFetch, WebSearch, or listed-CLI Bash call, or null to

@@ -1,30 +1,39 @@
 // @ts-check
 
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import os from "node:os";
+import { spawnSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { HOOKS, HOSTS, telemetryHookRows } from "../hooks/hook-hosts.mjs";
 import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../hooks/hook-scope.mjs";
-import { ARCADE_USED_FILE, EVENT_ENV, OPT_OUT_ENV } from "../hooks/telemetry-config.mjs";
+import { ARCADE_USED_FILE } from "../hooks/telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "../hooks/telemetry-events.mjs";
-import { isOptedOut, runTelemetry } from "../hooks/telemetry-run.mjs";
+import { isOptedOut } from "../hooks/telemetry-run.mjs";
 import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../hooks/telemetry-adapters/copilot-cli.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
-import { readRepoFile, ROOT } from "./helpers.mjs";
+import {
+  findPowerShell,
+  powerShellArgs,
+  readRepoFile,
+  ROOT,
+  runPowerShell,
+  skipOnWindows,
+  skipWithoutPowerShell,
+} from "./helpers.mjs";
 import {
   assertMatchesContract,
   assertNoLeak,
+  assertSilentThenServerReachable,
   captureTelemetry,
   expectedEvent,
   hash16,
+  hookEnv,
   runTelemetryScript,
-  sleep,
+  SEND_SCRIPT,
+  spawnExitCode,
   startServer,
   tempDataDir,
-  waitForRequests,
 } from "./telemetry-helpers.mjs";
 
 const FIXTURE_DIR = path.join(ROOT, "test/fixtures/telemetry/copilot-cli");
@@ -72,51 +81,11 @@ const runFixture = async (fixture, dataDir) => {
   return captureTelemetry({ adapter: copilotAdapter, input: fixture.input, dataDir });
 };
 
-// An inherited opt-out would make the hook skip even with the hard-OFF gate open.
-const PLUGIN_VARIABLES = [
-  "PLUGIN_ROOT",
-  "COPILOT_PLUGIN_DATA",
-  "CLAUDE_PLUGIN_DATA",
-  OPT_OUT_ENV,
-  "DO_NOT_TRACK",
-  ...copilotAdapter.optOutSwitches.map(({ name }) => name),
-];
-const hookEnv = (extra = {}) => ({
-  ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !PLUGIN_VARIABLES.includes(name))),
-  ...extra,
-});
-
-const POWERSHELL = (process.platform === "win32" ? ["pwsh", "powershell.exe"] : ["pwsh"]).find(
-  (exe) => !spawnSync(exe, ["-NoProfile", "-NonInteractive", "-Command", "exit 0"]).error,
-);
-
-const skipOnWindows = { skip: process.platform === "win32" && "the command field is for macOS and Linux" };
-
 // Classified as app work, so these hooks would send an event if the hard-OFF gate were open.
 const SENDABLE_PROMPT = copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?" });
 
-const SEND_SCRIPT = path.join(ROOT, "hooks", "telemetry-send.mjs");
-// Async spawn keeps this process's event loop free so the in-process server can answer.
-const exitCode = (command, args, options) =>
-  new Promise((resolve) => spawn(command, args, { ...options, stdio: "ignore" }).on("exit", resolve));
-const sendWithNode = (env) => exitCode(process.execPath, [SEND_SCRIPT], { env });
-
-// Asserts nothing reached the server, then proves the hook environment resolves to it,
-// so the empty request list could not come from sending somewhere else.
-const assertCaptureObservesSend = async (server, env, send = sendWithNode) => {
-  assert.deepEqual(server.requests, []);
-  const event = buildEvent(SENDABLE_PROMPT, {
-    adapter: copilotAdapter,
-    os: "linux",
-    arcadeUsedBefore: false,
-    appWork: true,
-  });
-  assert.ok(event);
-  assert.equal(await send({ ...env, [EVENT_ENV]: JSON.stringify(event) }), 0);
-  await waitForRequests(server.requests, 1);
-  assert.equal(server.requests.length, 1);
-  assert.equal(JSON.parse(server.requests[0].body).event, "Plugin prompt submitted");
-};
+const assertNothingSent = (server, env, send) =>
+  assertSilentThenServerReachable({ server, adapter: copilotAdapter, input: SENDABLE_PROMPT, env, send });
 
 const enabledManifest = JSON.parse(readFileSync(path.join(FIXTURE_DIR, "hooks.enabled.json"), "utf8"));
 const enabledTelemetryEntries = () =>
@@ -361,15 +330,10 @@ test("opt-out and missing data dir send nothing", async () => {
   assert.equal(isOptedOut(copilotAdapter.optOutSwitches, { COPILOT_OFFLINE: "false" }), false);
 });
 
-test("malformed stdin sends nothing through runTelemetry", async () => {
-  const dataDir = tempDataDir();
-  const sent = [];
-  await runTelemetry({
-    input: { session_id: SESSION_ID, hook_event_name: "UserPromptSubmit" },
+test("malformed hook input without a prompt sends nothing", async () => {
+  const { sent } = await captureTelemetry({
     adapter: copilotAdapter,
-    env: { ...process.env, COPILOT_PLUGIN_DATA: dataDir },
-    enabled: true,
-    send: (event) => sent.push(event),
+    input: { session_id: SESSION_ID, hook_event_name: "UserPromptSubmit" },
   });
   assert.equal(sent.length, 0);
 });
@@ -389,8 +353,8 @@ test("checked-in Copilot manifest has no telemetry rows", () => {
 
 test("enabled telemetry commands exit quietly while telemetry is off", skipOnWindows, async () => {
   const server = await startServer();
-  const cwd = mkdtempSync(path.join(os.tmpdir(), "arcade-copilot-telemetry-off-"));
-  const dataDir = mkdtempSync(path.join(os.tmpdir(), "arcade-copilot-data-"));
+  const cwd = tempDataDir();
+  const dataDir = tempDataDir();
   const captureEnv = { COPILOT_PLUGIN_DATA: dataDir, ARCADE_PLUGIN_TELEMETRY: "1", ARCADE_PLUGIN_TELEMETRY_HOST: server.url };
   try {
     for (const { command } of enabledTelemetryEntries()) {
@@ -407,31 +371,23 @@ test("enabled telemetry commands exit quietly while telemetry is off", skipOnWin
         assert.equal(result.stderr, "", command);
       }
     }
-    await sleep(200);
-    await assertCaptureObservesSend(server, hookEnv(captureEnv));
+    await assertNothingSent(server, hookEnv(captureEnv));
     assert.deepEqual(readdirSync(dataDir), []);
   } finally {
-    rmSync(cwd, { recursive: true, force: true });
-    rmSync(dataDir, { recursive: true, force: true });
     await server.close();
   }
 });
 
 test(
   "enabled telemetry powershell commands exit quietly while telemetry is off",
-  { skip: !POWERSHELL && "pwsh not found" },
+  skipWithoutPowerShell(),
   async () => {
     const server = await startServer();
-    const cwd = mkdtempSync(path.join(os.tmpdir(), "arcade-copilot-ps-"));
-    const dataDir = mkdtempSync(path.join(os.tmpdir(), "arcade-copilot-ps-data-"));
+    const cwd = tempDataDir();
+    const dataDir = tempDataDir();
     try {
       const runPs = (script, env, input) =>
-        spawnSync(String(POWERSHELL), ["-NoProfile", "-NonInteractive", "-Command", script], {
-          cwd,
-          env: hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url, ...env }),
-          input,
-          encoding: "utf8",
-        });
+        runPowerShell(script, { cwd, env: hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url, ...env }), input });
       for (const { powershell } of enabledTelemetryEntries()) {
         assert.ok(powershell);
         const input = JSON.stringify(SENDABLE_PROMPT);
@@ -442,18 +398,15 @@ test(
         assert.equal(ran.status, 0);
         assert.equal(ran.stdout, "");
       }
-      await sleep(200);
-      await assertCaptureObservesSend(server, hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url }), (env) =>
-        exitCode(
-          String(POWERSHELL),
-          ["-NoProfile", "-NonInteractive", "-Command", `& '${process.execPath}' '${SEND_SCRIPT}'; exit $LASTEXITCODE`],
+      await assertNothingSent(server, hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url }), (env) =>
+        spawnExitCode(
+          String(findPowerShell()),
+          powerShellArgs(`& '${process.execPath}' '${SEND_SCRIPT}'; exit $LASTEXITCODE`),
           { cwd, env },
         ),
       );
       assert.deepEqual(readdirSync(dataDir), []);
     } finally {
-      rmSync(cwd, { recursive: true, force: true });
-      rmSync(dataDir, { recursive: true, force: true });
       await server.close();
     }
   },

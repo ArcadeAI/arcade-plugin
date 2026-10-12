@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import http from "node:http";
@@ -13,19 +13,35 @@ import path from "node:path";
 import { after } from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import { eventSchema } from "../hooks/telemetry-contract.mjs";
-import { PLUGIN_VERSION } from "../hooks/telemetry-config.mjs";
+import { EVENT_ENV, PLUGIN_VERSION } from "../hooks/telemetry-config.mjs";
+import { buildEvent } from "../hooks/telemetry-events.mjs";
 import { runTelemetry } from "../hooks/telemetry-run.mjs";
 import { ROOT } from "./helpers.mjs";
 
+// An inherited opt-out would make a hook skip even with the hard-OFF gate open,
+// so tests that expect silence would pass for the wrong reason.
 const TELEMETRY_ENV_BLOCKLIST = [
   "ARCADE_PLUGIN_TELEMETRY",
+  "ARCADE_PLUGIN_TELEMETRY_HOST",
   "DO_NOT_TRACK",
   "DISABLE_TELEMETRY",
   "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
   "COPILOT_OFFLINE",
   "CLAUDE_PLUGIN_DATA",
   "COPILOT_PLUGIN_DATA",
+  "PLUGIN_ROOT",
 ];
+
+/**
+ * process.env without inherited opt-outs, telemetry destination, plugin root
+ * or data dirs, plus `overrides`.
+ * @param {NodeJS.ProcessEnv} [overrides]
+ */
+export const hookEnv = (overrides = {}) => {
+  const env = { ...process.env };
+  for (const key of TELEMETRY_ENV_BLOCKLIST) delete env[key];
+  return { ...env, ...overrides };
+};
 
 /** @type {string[]} */
 const tempDataDirs = [];
@@ -50,12 +66,8 @@ export const tempDataDir = () => {
  * @param {string | null} dataDir
  * @param {NodeJS.ProcessEnv} overrides
  */
-const captureEnv = (adapter, dataDir, overrides) => {
-  const env = { ...process.env };
-  for (const key of TELEMETRY_ENV_BLOCKLIST) delete env[key];
-  if (dataDir !== null) env[adapter.dataVariable] = dataDir;
-  return { ...env, ...overrides };
-};
+const captureEnv = (adapter, dataDir, overrides) =>
+  hookEnv({ ...(dataDir === null ? {} : { [adapter.dataVariable]: dataDir }), ...overrides });
 
 /**
  * @param {object} options
@@ -182,5 +194,43 @@ export const runTelemetryScript = (stdin, env, hostName = "claude-code", extraAr
   spawnSync(process.execPath, [path.join(ROOT, "hooks", "telemetry.mjs"), "--host", hostName, ...extraArgs], {
     input: stdin,
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    env: hookEnv(env),
   });
+
+export const SEND_SCRIPT = path.join(ROOT, "hooks", "telemetry-send.mjs");
+
+/**
+ * Async spawn keeps this process's event loop free so an in-process server can answer.
+ * @param {string} command
+ * @param {string[]} args
+ * @param {import("node:child_process").SpawnOptions} options
+ * @returns {Promise<number | null>}
+ */
+export const spawnExitCode = (command, args, options) =>
+  new Promise((resolve) => spawn(command, args, { ...options, stdio: "ignore" }).on("exit", resolve));
+
+/** @param {NodeJS.ProcessEnv} env */
+export const sendWithNode = (env) => spawnExitCode(process.execPath, [SEND_SCRIPT], { env });
+
+/**
+ * Asserts nothing reached `server`, then sends the event `input` would build
+ * through `send` with `env` and asserts it arrives. That proves the hooks'
+ * environment resolves to the server, so the empty request list could not
+ * come from sending somewhere else.
+ * @param {object} options
+ * @param {{ requests: { body: string }[] }} options.server
+ * @param {import("../hooks/telemetry-adapter.mjs").TelemetryAdapter} options.adapter
+ * @param {Record<string, any>} options.input A hook input classified as app work.
+ * @param {NodeJS.ProcessEnv} options.env
+ * @param {(env: NodeJS.ProcessEnv) => Promise<number | null>} [options.send]
+ */
+export const assertSilentThenServerReachable = async ({ server, adapter, input, env, send = sendWithNode }) => {
+  await sleep(200);
+  assert.deepEqual(server.requests, []);
+  const event = buildEvent(input, { adapter, os: "linux", arcadeUsedBefore: false, appWork: true });
+  assert.ok(event);
+  assert.equal(await send({ ...env, [EVENT_ENV]: JSON.stringify(event) }), 0);
+  await waitForRequests(server.requests, 1);
+  assert.equal(server.requests.length, 1);
+  assert.equal(JSON.parse(server.requests[0].body).event, event.event);
+};

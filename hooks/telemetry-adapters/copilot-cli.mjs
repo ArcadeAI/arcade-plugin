@@ -1,13 +1,8 @@
 // @ts-check
 
 import {
-  serviceForToolkit,
-  serviceForToolName,
-} from "../telemetry-classify.mjs";
-import { GATEWAY_TOOLS } from "../telemetry-contract.mjs";
-import {
   arcadeToolProperties,
-  otherServerProperties,
+  otherServerToolProperties,
 } from "../telemetry-events.mjs";
 
 /** @typedef {import("../telemetry-adapter.mjs").TelemetryAdapter} TelemetryAdapter */
@@ -71,13 +66,7 @@ const toolProperties = (toolName, toolInput) => {
   if (server === COPILOT_ARCADE_SERVER) {
     return arcadeToolProperties("arcade", tool, toolInput);
   }
-  if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
-    return arcadeToolProperties("other_arcade", tool, toolInput);
-  }
-  const serverParts = server.split(/[^A-Za-z0-9]+/);
-  const service =
-    serviceForToolName(tool) ?? serverParts.map(serviceForToolkit).find(Boolean);
-  return otherServerProperties(service);
+  return otherServerToolProperties(server, tool, toolInput);
 };
 
 /** @type {TelemetryAdapter} */
