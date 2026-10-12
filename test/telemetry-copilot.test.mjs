@@ -470,7 +470,7 @@ test("telemetry.mjs with --host copilot exits quietly while disabled", () => {
   const dataDir = tempDataDir();
   const result = runTelemetryScript(
     JSON.stringify(copilotInput({ hook_event_name: "PostToolUse", tool_name: "arcade-Gmail_ListEmails" })),
-    { COPILOT_PLUGIN_DATA: dataDir },
+    { COPILOT_PLUGIN_DATA: dataDir, ARCADE_PLUGIN_TELEMETRY_HOST: "http://127.0.0.1:9" },
     "copilot",
   );
   assert.equal(result.status, 0);

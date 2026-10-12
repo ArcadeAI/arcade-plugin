@@ -18,8 +18,8 @@ import { buildEvent } from "../hooks/telemetry-events.mjs";
 import { runTelemetry } from "../hooks/telemetry-run.mjs";
 import { ROOT } from "./helpers.mjs";
 
-// An inherited opt-out would make a hook skip even with the hard-OFF gate open,
-// so tests that expect silence would pass for the wrong reason.
+// An inherited opt-out, destination, plugin root or data dir would make a
+// silence test pass for the wrong reason or send somewhere other than its server.
 const TELEMETRY_ENV_BLOCKLIST = [
   "ARCADE_PLUGIN_TELEMETRY",
   "ARCADE_PLUGIN_TELEMETRY_HOST",
@@ -45,17 +45,14 @@ export const hookEnv = (overrides = {}) => {
 
 /** @type {string[]} */
 const tempDataDirs = [];
-let tempDataCleanupRegistered = false;
+// Registered at load so it runs after the whole file; `after` inside a test runs after that test only.
+after(() => {
+  for (const dir of tempDataDirs) rmSync(dir, { recursive: true, force: true });
+  tempDataDirs.length = 0;
+});
 
 /** Absolute path of a fresh temp directory; removed after the test run finishes. */
 export const tempDataDir = () => {
-  if (!tempDataCleanupRegistered) {
-    after(() => {
-      for (const dir of tempDataDirs) rmSync(dir, { recursive: true, force: true });
-      tempDataDirs.length = 0;
-    });
-    tempDataCleanupRegistered = true;
-  }
   const dir = mkdtempSync(path.join(os.tmpdir(), "arcade-telemetry-"));
   tempDataDirs.push(dir);
   return dir;
@@ -225,7 +222,7 @@ export const sendWithNode = (env) => spawnExitCode(process.execPath, [SEND_SCRIP
  * @param {(env: NodeJS.ProcessEnv) => Promise<number | null>} [options.send]
  */
 export const assertSilentThenServerReachable = async ({ server, adapter, input, env, send = sendWithNode }) => {
-  await sleep(200);
+  await sleep(300);
   assert.deepEqual(server.requests, []);
   const event = buildEvent(input, { adapter, os: "linux", arcadeUsedBefore: false, appWork: true });
   assert.ok(event);

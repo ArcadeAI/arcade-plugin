@@ -37,8 +37,11 @@ export const skipWithoutPowerShell = () => ({ skip: !findPowerShell() && "pwsh n
  * @param {string} script
  * @param {import("node:child_process").SpawnSyncOptions} options
  */
-export const runPowerShell = (script, options) =>
-  spawnSync(String(findPowerShell()), powerShellArgs(script), { encoding: "utf8", ...options });
+export const runPowerShell = (script, options) => {
+  const exe = findPowerShell();
+  if (!exe) throw new Error("PowerShell not found; guard the test with skipWithoutPowerShell()");
+  return spawnSync(exe, powerShellArgs(script), { encoding: "utf8", ...options });
+};
 
 // The `command` field is the macOS and Linux form; cmd.exe can't run it.
 export const skipOnWindows = { skip: process.platform === "win32" && "the command field is for macOS and Linux" };
