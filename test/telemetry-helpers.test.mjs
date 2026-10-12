@@ -28,7 +28,10 @@ test("directories from earlier tests still exist", () => {
   for (const dir of made) if (!existsSync(dir)) throw new Error("removed early: " + dir);
 });
 `);
-  const result = spawnSync(process.execPath, [file], { encoding: "utf8" });
+  // Without NODE_TEST_CONTEXT the child prints readable TAP instead of the runner's binary protocol.
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, [file], { encoding: "utf8", env });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const dirs = [...result.stdout.matchAll(/^TEMP_DIR (.+)$/gm)].map((match) => match[1]);
   assert.equal(dirs.length, 3, result.stdout);
