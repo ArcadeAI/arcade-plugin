@@ -4,18 +4,16 @@
  * `--host <name>` so the script prints the output format that client reads.
  */
 
+import { loadTelemetryAdapter } from "./telemetry-adapter.mjs";
+import { TELEMETRY_ENABLED } from "./telemetry-config.mjs";
+
 export const HOOK_TIMEOUT_SEC = 5;
 
 /**
- * One entry per hook script. The event is Claude Code's name for it; a client
- * with an `events` map uses its own names and only gets the events it lists.
+ * Each client that runs plugin hooks. `runOnlyIfScriptExists` makes each
+ * command check for its script first. `telemetry` names the client's adapter
+ * in hooks/telemetry-adapters/ (see hooks/telemetry-adapter.mjs).
  */
-export const HOOKS = [
-  { script: "session-start.mjs", event: "SessionStart" },
-  { script: "user-prompt-submit.mjs", event: "UserPromptSubmit" },
-  { script: "subagent-start.mjs", event: "SubagentStart" },
-];
-
 export const HOSTS = {
   "claude-code": {
     // Not hooks/hooks.json: Cursor falls back to that default path and would
@@ -55,6 +53,39 @@ export const HOSTS = {
     }),
   },
 };
+
+/**
+ * The telemetry hook entries of every client with a `telemetry` adapter,
+ * whether or not telemetry is enabled. Tests use this to check the wiring.
+ */
+export const telemetryHookRows = async () => {
+  const rows = [];
+  for (const [hostName, host] of Object.entries(HOSTS)) {
+    if (!host.telemetry) continue;
+    const adapter = await loadTelemetryAdapter(host.telemetry);
+    for (const row of adapter.hookRows) {
+      rows.push({ script: "telemetry.mjs", ...row, hosts: [hostName] });
+    }
+  }
+  return rows;
+};
+
+/**
+ * One entry per hook command. The event is Claude Code's name for it; a client
+ * with an `events` map uses its own names and only gets the events it lists.
+ * `hosts` limits an entry to some clients. `matcher` picks the tools a tool
+ * event runs for. `if` (a Claude Code permission rule such as "Bash(gh *)"
+ * that keeps the hook from starting for other commands) and `extraArgs`
+ * (added to the command) work only in the nested format.
+ */
+export const HOOKS = [
+  { script: "session-start.mjs", event: "SessionStart" },
+  // Copilot CLI drops prompt-hook output, so only Claude Code runs this one.
+  { script: "user-prompt-submit.mjs", event: "UserPromptSubmit", hosts: ["claude-code"] },
+  { script: "subagent-start.mjs", event: "SubagentStart" },
+  // No telemetry hooks are written while telemetry is off (telemetry-config.mjs).
+  ...(TELEMETRY_ENABLED ? await telemetryHookRows() : []),
+];
 
 /** The client named by `--host`, or null if it's missing or unknown. */
 export const hostFromArgs = (argv) => {

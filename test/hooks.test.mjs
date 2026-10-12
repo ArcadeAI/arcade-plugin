@@ -36,6 +36,8 @@ test("every command in every generated hooks.json runs and prints what its clien
   for (const [hostName, { manifest, rootVariable }] of Object.entries(HOSTS)) {
     for (const [event, entries] of Object.entries(JSON.parse(readRepoFile(manifest)).hooks)) {
       for (const { command } of entries.flatMap((entry) => entry.hooks ?? [entry])) {
+        // Telemetry prints nothing; the telemetry tests run its commands.
+        if (command.includes("/hooks/telemetry.mjs")) continue;
         const label = `${hostName} ${event}`;
         const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
           shell: true,
