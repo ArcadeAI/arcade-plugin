@@ -13,8 +13,8 @@ import { isOptedOut } from "../hooks/telemetry-run.mjs";
 import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../hooks/telemetry-adapters/copilot-cli.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import {
-  findPowerShell,
   powerShellArgs,
+  powerShellExe,
   readRepoFile,
   ROOT,
   runPowerShell,
@@ -400,7 +400,7 @@ test(
       }
       await assertNothingSent(server, hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url }), (env) =>
         spawnExitCode(
-          String(findPowerShell()),
+          powerShellExe(),
           powerShellArgs(`& '${process.execPath}' '${SEND_SCRIPT}'; exit $LASTEXITCODE`),
           { cwd, env },
         ),

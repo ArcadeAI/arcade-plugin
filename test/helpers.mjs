@@ -31,17 +31,20 @@ export const findPowerShell = () => {
   return powerShell;
 };
 
+export const powerShellExe = () => {
+  const exe = findPowerShell();
+  if (!exe) throw new Error("PowerShell not found; guard the test with skipWithoutPowerShell()");
+  return exe;
+};
+
 export const skipWithoutPowerShell = () => ({ skip: !findPowerShell() && "pwsh not found" });
 
 /**
  * @param {string} script
  * @param {import("node:child_process").SpawnSyncOptions} options
  */
-export const runPowerShell = (script, options) => {
-  const exe = findPowerShell();
-  if (!exe) throw new Error("PowerShell not found; guard the test with skipWithoutPowerShell()");
-  return spawnSync(exe, powerShellArgs(script), { encoding: "utf8", ...options });
-};
+export const runPowerShell = (script, options) =>
+  spawnSync(powerShellExe(), powerShellArgs(script), { encoding: "utf8", ...options });
 
 // The `command` field is the macOS and Linux form; cmd.exe can't run it.
 export const skipOnWindows = { skip: process.platform === "win32" && "the command field is for macOS and Linux" };
