@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { EVENT_ENV } from "../hooks/telemetry-config.mjs";
 import { BASH_CLIS } from "../hooks/telemetry-contract.mjs";
 import { HOOKS, HOSTS, telemetryHookRows } from "../hooks/hook-hosts.mjs";
 import { SCOPE_TTL_MS } from "../hooks/hook-scope.mjs";
@@ -346,10 +347,12 @@ test("every enabled telemetry command exits quietly with telemetry off", async (
   const server = await startServer();
   try {
     const dataDir = tempDataDir();
-    const stdin = JSON.stringify(hookInput({ hook_event_name: "SessionStart" }));
-    const env = telemetryEnv(adapter, dataDir, server.url);
+    // A sendable prompt with no inherited opt-out, so an open gate would post.
+    const input = hookInput({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?" });
+    const clearedOptOuts = Object.fromEntries(adapter.optOutSwitches.map(({ name }) => [name, ""]));
+    const env = telemetryEnv(adapter, dataDir, server.url, clearedOptOuts);
     for (const row of rows) {
-      const result = runTelemetryScript(stdin, env, "claude-code", row.extraArgs ?? []);
+      const result = runTelemetryScript(JSON.stringify(input), env, "claude-code", row.extraArgs ?? []);
       assert.equal(result.status, 0, `${row.event} ${row.matcher ?? ""}: ${result.stderr}`);
       assert.equal(result.stdout, "", row.event);
       assert.equal(result.stderr, "", row.event);
@@ -357,6 +360,15 @@ test("every enabled telemetry command exits quietly with telemetry off", async (
     await sleep(300);
     assert.deepEqual(server.requests, []);
     assert.deepEqual(readdirSync(dataDir), []);
+
+    const event = buildEvent(input, { adapter, os: "linux", arcadeUsedBefore: false, appWork: true });
+    assert.ok(event);
+    const sent = spawnSync(process.execPath, [path.join(ROOT, "hooks", "telemetry-send.mjs")], {
+      env: { ...process.env, ...env, [EVENT_ENV]: JSON.stringify(event) },
+    });
+    assert.equal(sent.status, 0);
+    await waitForRequests(server.requests, 1);
+    assert.equal(server.requests.length, 1);
   } finally {
     await server.close();
   }
