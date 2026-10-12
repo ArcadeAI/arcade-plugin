@@ -3,12 +3,10 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { EVENT_ENV } from "../hooks/telemetry-config.mjs";
 import { BASH_CLIS } from "../hooks/telemetry-contract.mjs";
 import { HOOKS, HOSTS, telemetryHookRows } from "../hooks/hook-hosts.mjs";
 import { SCOPE_TTL_MS } from "../hooks/hook-scope.mjs";
 import { buildEvent, isArcadeCall } from "../hooks/telemetry-events.mjs";
-import { runTelemetry } from "../hooks/telemetry-run.mjs";
 import adapter, {
   ARCADE_TOOL_PREFIX,
   CLAUDE_AI_ARCADE_TOOL_PREFIX,
@@ -19,15 +17,15 @@ import { eventCases } from "./fixtures/telemetry/claude-code/event-cases.mjs";
 import {
   assertMatchesContract,
   assertNoLeak,
+  assertSilentThenServerReachable,
   captureTelemetry,
   expectedEvent,
+  hookEnv,
   hookInput,
   runTelemetryScript,
-  sleep,
   startServer,
   telemetryEnv,
   tempDataDir,
-  waitForRequests,
 } from "./telemetry-helpers.mjs";
 
 const OPERATOR = "arcade:arcade-operator";
@@ -223,76 +221,62 @@ test("direct Arcade calls are observed without prompt scope; other and built-in 
 
 test("arcade-used is set only by a successful Arcade gateway call", async () => {
   const dataDir = tempDataDir();
-  const env = telemetryEnv(adapter, dataDir, "http://127.0.0.1:9");
-  const send = [];
-  await runTelemetry({
+  const other = await captureTelemetry({
     adapter,
-    env,
-    enabled: true,
+    dataDir,
     input: hookInput({ hook_event_name: "PostToolUse", tool_name: "mcp__granola__Granola_ListMeetings" }),
-    send: (e) => send.push(e),
   });
   assert.deepEqual(readdirSync(dataDir), []);
-  await runTelemetry({
+  const attempt = await captureTelemetry({
     adapter,
-    env,
-    enabled: true,
+    dataDir,
     input: hookInput({
       hook_event_name: "PreToolUse",
       tool_name: `${CLAUDE_AI_ARCADE_TOOL_PREFIX}GoogleCalendar_ListEvents`,
       tool_input: { query: "SECRET private meeting" },
     }),
-    send: (e) => send.push(e),
   });
   assert.deepEqual(readdirSync(dataDir), []);
-  await runTelemetry({
+  const arcade = await captureTelemetry({
     adapter,
-    env,
-    enabled: true,
+    dataDir,
     input: hookInput({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Gmail_ListEmails` }),
-    send: (e) => send.push(e),
   });
   assert.equal(readFileSync(path.join(dataDir, "arcade-used"), "utf8"), "true");
   if (process.platform !== "win32") {
     assert.equal(statSync(path.join(dataDir, "arcade-used")).mode & 0o777, 0o600);
   }
-  const attempt = send.find((e) => e.event === "Plugin tool attempted");
-  assert.ok(attempt);
-  assertNoLeak(JSON.stringify(attempt), /SECRET|private meeting/);
-  const flags = send.map((e) => e.properties.arcade_used_before).sort();
-  assert.deepEqual(flags, [false, false]);
+  assert.equal(other.sent.length, 0);
+  assert.equal(attempt.sent.length, 1);
+  assert.equal(attempt.sent[0].event, "Plugin tool attempted");
+  assertNoLeak(JSON.stringify(attempt.sent[0]), /SECRET|private meeting/);
+  assert.equal(arcade.sent.length, 1);
+  assert.deepEqual([attempt.sent[0], arcade.sent[0]].map((e) => e.properties.arcade_used_before), [false, false]);
 });
 
 test("Claude opt-out switches send nothing and write no data dir files", async () => {
-  const server = await startServer();
-  try {
-    const sent = [];
-    const base = hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar" });
-    const sessionStart = hookInput({ hook_event_name: "SessionStart", source: "startup" });
-    const cases = [
-      ["DISABLE_TELEMETRY=1", { DISABLE_TELEMETRY: "1" }],
-      ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }],
-      ["DISABLE_TELEMETRY=0", { DISABLE_TELEMETRY: "0" }],
-      ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=false", { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "false" }],
-      ["ARCADE_PLUGIN_TELEMETRY=0", { ARCADE_PLUGIN_TELEMETRY: "0" }],
-      ["DO_NOT_TRACK=1", { DO_NOT_TRACK: "1" }],
-      ["missing CLAUDE_PLUGIN_DATA", { CLAUDE_PLUGIN_DATA: "" }],
-      ["relative CLAUDE_PLUGIN_DATA", { CLAUDE_PLUGIN_DATA: "relative/data" }],
-    ];
-    for (const [label, extra] of cases) {
-      const dataDir = tempDataDir();
-      const env = telemetryEnv(adapter, dataDir, server.url, extra);
-      for (const input of [sessionStart, base]) {
-        await runTelemetry({ adapter, input, env, enabled: true, send: (e) => sent.push(e) });
-      }
-      assert.deepEqual(readdirSync(dataDir), [], label);
+  const base = hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar" });
+  const sessionStart = hookInput({ hook_event_name: "SessionStart", source: "startup" });
+  const cases = [
+    ["DISABLE_TELEMETRY=1", { DISABLE_TELEMETRY: "1" }],
+    ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }],
+    ["DISABLE_TELEMETRY=0", { DISABLE_TELEMETRY: "0" }],
+    ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=false", { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "false" }],
+    ["ARCADE_PLUGIN_TELEMETRY=0", { ARCADE_PLUGIN_TELEMETRY: "0" }],
+    ["DO_NOT_TRACK=1", { DO_NOT_TRACK: "1" }],
+    ["missing CLAUDE_PLUGIN_DATA", { CLAUDE_PLUGIN_DATA: "" }],
+    ["relative CLAUDE_PLUGIN_DATA", { CLAUDE_PLUGIN_DATA: "relative/data" }],
+  ];
+  for (const [label, env] of cases) {
+    const dataDir = tempDataDir();
+    for (const input of [sessionStart, base]) {
+      const { sent } = await captureTelemetry({ adapter, input, dataDir, env });
+      assert.deepEqual(sent, [], label);
     }
-    await sleep(200);
-    assert.deepEqual(server.requests, []);
-    assert.deepEqual(sent, []);
-  } finally {
-    await server.close();
+    assert.deepEqual(readdirSync(dataDir), [], label);
   }
+  const control = await captureTelemetry({ adapter, input: base });
+  assert.equal(control.sent.length, 1, "the same prompt sends without an opt-out");
 });
 
 test("enabled Claude manifest wiring matches hooks.enabled.json", async () => {
@@ -347,28 +331,17 @@ test("every enabled telemetry command exits quietly with telemetry off", async (
   const server = await startServer();
   try {
     const dataDir = tempDataDir();
-    // A sendable prompt with no inherited opt-out, so an open gate would post.
+    // A sendable prompt; runTelemetryScript drops inherited opt-outs, so an open gate would post.
     const input = hookInput({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?" });
-    const clearedOptOuts = Object.fromEntries(adapter.optOutSwitches.map(({ name }) => [name, ""]));
-    const env = telemetryEnv(adapter, dataDir, server.url, clearedOptOuts);
+    const env = telemetryEnv(adapter, dataDir, server.url);
     for (const row of rows) {
       const result = runTelemetryScript(JSON.stringify(input), env, "claude-code", row.extraArgs ?? []);
       assert.equal(result.status, 0, `${row.event} ${row.matcher ?? ""}: ${result.stderr}`);
       assert.equal(result.stdout, "", row.event);
       assert.equal(result.stderr, "", row.event);
     }
-    await sleep(300);
-    assert.deepEqual(server.requests, []);
+    await assertSilentThenServerReachable({ server, adapter, input, env: hookEnv(env) });
     assert.deepEqual(readdirSync(dataDir), []);
-
-    const event = buildEvent(input, { adapter, os: "linux", arcadeUsedBefore: false, appWork: true });
-    assert.ok(event);
-    const sent = spawnSync(process.execPath, [path.join(ROOT, "hooks", "telemetry-send.mjs")], {
-      env: { ...process.env, ...env, [EVENT_ENV]: JSON.stringify(event) },
-    });
-    assert.equal(sent.status, 0);
-    await waitForRequests(server.requests, 1);
-    assert.equal(server.requests.length, 1);
   } finally {
     await server.close();
   }

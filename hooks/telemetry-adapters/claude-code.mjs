@@ -3,12 +3,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { serviceForToolkit, serviceForToolName } from "../telemetry-classify.mjs";
-import { BASH_CLIS, GATEWAY_TOOLS } from "../telemetry-contract.mjs";
+import { BASH_CLIS } from "../telemetry-contract.mjs";
 import {
   arcadeToolProperties,
   builtinToolProperties as sharedBuiltinToolProperties,
-  otherServerProperties,
+  otherServerToolProperties,
 } from "../telemetry-events.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -36,15 +35,7 @@ const claudeToolProperties = (toolName, toolInput) => {
   if (toolName.startsWith(CLAUDE_AI_ARCADE_TOOL_PREFIX)) {
     return arcadeToolProperties("other_arcade", tool, toolInput);
   }
-  if (/** @type {readonly string[]} */ (GATEWAY_TOOLS).includes(tool)) {
-    return arcadeToolProperties("other_arcade", tool, toolInput);
-  }
-  // Some connectors name the service in the server, not the tool, e.g.
-  // mcp__claude_ai_Gmail__search_threads. Only the category is sent.
-  const serverParts = toolName.slice("mcp__".length, splitAt).split(/[^A-Za-z0-9]+/);
-  const service =
-    serviceForToolName(tool) ?? serverParts.map(serviceForToolkit).find(Boolean);
-  return otherServerProperties(service ?? undefined);
+  return otherServerToolProperties(toolName.slice("mcp__".length, splitAt), tool, toolInput);
 };
 
 /**
