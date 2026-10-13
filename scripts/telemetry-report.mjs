@@ -293,6 +293,9 @@ const buildCopilotGroup = (rows) => {
   const denominatorSessions = new Set(
     [...promptSessions].filter((session) => !linkedChildren.has(session)),
   );
+  // Only prompt sessions actually removed from the denominator. A stop whose
+  // child never sent a prompt does not count.
+  const operatorLinkedSessionsExcluded = promptSessions.size - denominatorSessions.size;
 
   const multiPromptSessions = [...denominatorSessions].filter((session) => {
     const count = prompts.filter((row) => String(row.properties.session) === session).length;
@@ -332,7 +335,7 @@ const buildCopilotGroup = (rows) => {
   return {
     unit: "session",
     denominators: { observed_relevant_sessions: denominatorSessions.size },
-    operator_linked_sessions_excluded: linkedChildren.size,
+    operator_linked_sessions_excluded: operatorLinkedSessionsExcluded,
     multi_prompt_sessions: multiPromptSessions,
     parent_attribution_unknown_sessions: parentAttributionUnknown,
     stages: sharedStageReport(countSharedStages(sessionUnits), "observed_relevant_sessions"),

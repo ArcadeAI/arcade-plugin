@@ -262,6 +262,9 @@ Report field meanings (from `scripts/telemetry-report.mjs`):
   `turn` values or Copilot `session` values with a `Plugin prompt submitted`
   event, after Copilot operator-linked child sessions are excluded from the
   session denominator.
+- `operator_linked_sessions_excluded`: Copilot prompt sessions left out of
+  that session denominator because an operator stop named them as
+  `subagent_session`. A stop whose child sent no prompt does not increase it.
 - `tool_only_turns`: Claude turns with tool events but no prompt event in that
   turn (reported outside the turn denominator).
 - `attempt_observed_outcome_unknown`: Claude turns with a `Plugin tool

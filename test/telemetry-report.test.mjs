@@ -138,6 +138,49 @@ test("an outcome on one Arcade server category does not settle an attempt on the
   assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), attempt("arcade"), called("arcade")]), 0);
 });
 
+const copilotRow = (event, session, extra) => ({
+  event,
+  distinct_id: session,
+  properties: {
+    session,
+    host: "copilot-cli",
+    plugin_version: "0.2.0",
+    telemetry_version: 2,
+    os: "linux",
+    arcade_used_before: false,
+    $process_person_profile: false,
+    $geoip_disable: true,
+    $ip: "0.0.0.0",
+    ...extra,
+  },
+});
+
+test("operator_linked_sessions_excluded counts prompt sessions removed from the denominator", () => {
+  const parent = "bbbbbbbbbbbbbbbb";
+  const child = "cccccccccccccccc";
+  const prompt = (session) =>
+    copilotRow("Plugin prompt submitted", session, {
+      could_use_arcade: true,
+      service_hints: [],
+      reminder_sent: false,
+    });
+  const stop = copilotRow("Plugin subagent stopped", parent, {
+    agent: "arcade-operator",
+    status: "needs_auth",
+    subagent_session: child,
+  });
+
+  for (const row of [prompt(parent), prompt(child), stop]) assertMatchesContract(row);
+
+  const orphanStop = buildReport([prompt(parent), stop]);
+  assert.equal(orphanStop.groups[0].operator_linked_sessions_excluded, 0);
+  assert.deepEqual(orphanStop.groups[0].denominators, { observed_relevant_sessions: 1 });
+
+  const linked = buildReport([prompt(parent), prompt(child), stop]);
+  assert.equal(linked.groups[0].operator_linked_sessions_excluded, 1);
+  assert.deepEqual(linked.groups[0].denominators, { observed_relevant_sessions: 1 });
+});
+
 test("report limits state that other_arcade pools connections and calls are not paired", () => {
   const limits = buildReport([]).limits.join("\n");
   assert.match(limits, /other_arcade.*pools/i);
