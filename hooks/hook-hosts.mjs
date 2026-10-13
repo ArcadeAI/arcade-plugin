@@ -21,6 +21,7 @@ export const HOSTS = {
     manifest: ".claude-plugin/hooks.json",
     format: "nested",
     rootVariable: "CLAUDE_PLUGIN_ROOT",
+    telemetry: "claude-code",
     contextOutput: (eventName, text) => ({
       hookSpecificOutput: { hookEventName: eventName, additionalContext: text },
     }),
