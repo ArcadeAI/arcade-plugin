@@ -38,8 +38,10 @@ event with `could_use_arcade: false` and no service hints. Keyword matching can
 misclassify prompts; the labeled evaluation measures that limitation separately.
 
 Session starts send no usage event. Only the Arcade operator's stop reports
-send subagent events. The routing reminder goes on every prompt except short
-acknowledgements and background task results, whether or not telemetry is on.
+send subagent events. Claude Code adds its routing reminder on every prompt
+except short acknowledgements and background task results, whether or not
+telemetry is on. Copilot CLI has no routing reminder hook, so `reminder_sent`
+stays false there.
 
 ## Opt-outs when telemetry is on
 
@@ -61,14 +63,16 @@ opt out when set to **any** non-empty value (including `0` and `false`), matchin
 Claude's own telemetry switches.
 
 With telemetry opted out, the client still invokes its configured Node hooks.
-The telemetry hook exits before classifying the prompt or storing state, and the
-routing hook still adds its reminder. An environment variable cannot remove
-hooks from the manifest.
+The telemetry hook exits before classifying the prompt or storing state. Claude
+Code's routing hook still adds its reminder. An environment variable cannot
+remove hooks from the manifest.
 
-In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY=0` in your shell before starting
-`copilot`. `COPILOT_OFFLINE` uses the same `0` / `false` / `off` / `no` semantics
-as `ARCADE_PLUGIN_TELEMETRY`; any other non-empty value turns telemetry off
-(along with other Copilot network activity).
+In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY` to `0`, `false`, `off`, or `no`
+in your shell before starting `copilot`. Any other value, including an unset
+variable, leaves that switch inactive. `COPILOT_OFFLINE` turns telemetry off
+when it is set to any non-empty value other than `0`, `false`, `off`, or `no`.
+An unset or empty `COPILOT_OFFLINE`, and those four values, leave telemetry on
+through this switch.
 
 For testing an enabled build, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a
 different host.
@@ -99,7 +103,7 @@ not run telemetry today. Cursor is not wired up; its hook input can include the
 user's email. claude.ai, ChatGPT, Codex, and OpenCode don't run telemetry hooks
 from this package.
 
-### What CI exercises (when adapters are present)
+### What CI exercises
 
 | Adapter | Tested in this repo | Not covered here |
 | --- | --- | --- |

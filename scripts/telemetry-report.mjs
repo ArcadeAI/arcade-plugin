@@ -107,42 +107,6 @@ const isAppActionCalledRow = (row) =>
 const isAppActionFailedRow = (row) =>
   row.event === "Plugin tool failed" && APP_ACTION_TOOLS.has(toolName(row));
 
-/**
- * @param {Set<string>} turnIds
- * @param {Map<string, { event: string, properties: Record<string, unknown> }[]>} byTurn
- */
-const countTurnStages = (turnIds, byTurn) => {
-  let gateway = 0;
-  let authNeededTrue = 0;
-  let authNeededFalse = 0;
-  let appCalled = 0;
-  let appFailed = 0;
-  let attemptOutcomeUnknown = 0;
-  let noCallObserved = 0;
-
-  for (const turn of turnIds) {
-    const rows = byTurn.get(turn) ?? [];
-    const arcadeRows = rows.filter(isArcadeMcpRow);
-    if (gatewayRow(rows)) gateway += 1;
-    if (authRow(rows, true)) authNeededTrue += 1;
-    if (authRow(rows, false)) authNeededFalse += 1;
-    if (rows.some(isAppActionCalledRow)) appCalled += 1;
-    if (rows.some(isAppActionFailedRow)) appFailed += 1;
-    if (attemptWithoutOutcome(arcadeRows)) attemptOutcomeUnknown += 1;
-    if (arcadeRows.length === 0) noCallObserved += 1;
-  }
-
-  return {
-    gateway_discovery_or_selection: { count: gateway, denominator: "observed_relevant_turns" },
-    authorization_check_auth_needed_true: { count: authNeededTrue, denominator: "observed_relevant_turns" },
-    authorization_check_auth_needed_false: { count: authNeededFalse, denominator: "observed_relevant_turns" },
-    app_action_called: { count: appCalled, denominator: "observed_relevant_turns" },
-    app_action_failed: { count: appFailed, denominator: "observed_relevant_turns" },
-    attempt_observed_outcome_unknown: { count: attemptOutcomeUnknown, denominator: "observed_relevant_turns" },
-    no_call_observed: { count: noCallObserved, denominator: "observed_relevant_turns" },
-  };
-};
-
 /** @param {{ event: string, properties: Record<string, unknown> }[]} rows */
 const gatewayRow = (rows) => rows.some(isDiscoveryRow);
 
@@ -167,6 +131,63 @@ const attemptWithoutOutcome = (arcadeRows) =>
     const hasOutcome = onServer.some((row) => OUTCOME_EVENTS.has(row.event));
     return hasAttempt && !hasOutcome;
   });
+
+/**
+ * The six stages both hosts share. Each entry is one Claude turn or one Copilot session.
+ * @param {Iterable<{ event: string, properties: Record<string, unknown> }[]>} units
+ */
+const countSharedStages = (units) => {
+  let gateway = 0;
+  let authNeededTrue = 0;
+  let authNeededFalse = 0;
+  let appCalled = 0;
+  let appFailed = 0;
+  let noCallObserved = 0;
+
+  for (const rows of units) {
+    const arcadeRows = rows.filter(isArcadeMcpRow);
+    if (gatewayRow(rows)) gateway += 1;
+    if (authRow(rows, true)) authNeededTrue += 1;
+    if (authRow(rows, false)) authNeededFalse += 1;
+    if (rows.some(isAppActionCalledRow)) appCalled += 1;
+    if (rows.some(isAppActionFailedRow)) appFailed += 1;
+    if (arcadeRows.length === 0) noCallObserved += 1;
+  }
+
+  return { gateway, authNeededTrue, authNeededFalse, appCalled, appFailed, noCallObserved };
+};
+
+/**
+ * @param {ReturnType<typeof countSharedStages>} counts
+ * @param {string} denominator
+ * @param {Record<string, { count: number, denominator: string }>} [beforeNoCall]
+ *   Claude inserts attempt_observed_outcome_unknown here. Copilot omits it.
+ */
+const sharedStageReport = (counts, denominator, beforeNoCall = {}) => ({
+  gateway_discovery_or_selection: { count: counts.gateway, denominator },
+  authorization_check_auth_needed_true: { count: counts.authNeededTrue, denominator },
+  authorization_check_auth_needed_false: { count: counts.authNeededFalse, denominator },
+  app_action_called: { count: counts.appCalled, denominator },
+  app_action_failed: { count: counts.appFailed, denominator },
+  ...beforeNoCall,
+  no_call_observed: { count: counts.noCallObserved, denominator },
+});
+
+/**
+ * @param {Set<string>} turnIds
+ * @param {Map<string, { event: string, properties: Record<string, unknown> }[]>} byTurn
+ */
+const countTurnStages = (turnIds, byTurn) => {
+  const denominator = "observed_relevant_turns";
+  const units = [...turnIds].map((turn) => byTurn.get(turn) ?? []);
+  let attemptOutcomeUnknown = 0;
+  for (const rows of units) {
+    if (attemptWithoutOutcome(rows.filter(isArcadeMcpRow))) attemptOutcomeUnknown += 1;
+  }
+  return sharedStageReport(countSharedStages(units), denominator, {
+    attempt_observed_outcome_unknown: { count: attemptOutcomeUnknown, denominator },
+  });
+};
 
 /**
  * @param {{ event: string, properties: Record<string, unknown> }[]} rows
@@ -306,23 +327,7 @@ const buildCopilotGroup = (rows) => {
     bySession.set(session, list);
   }
 
-  let gateway = 0;
-  let authNeededTrue = 0;
-  let authNeededFalse = 0;
-  let appCalled = 0;
-  let appFailed = 0;
-  let noCallObserved = 0;
-
-  for (const session of denominatorSessions) {
-    const sessionRows = bySession.get(session) ?? [];
-    const arcadeRows = sessionRows.filter(isArcadeMcpRow);
-    if (gatewayRow(sessionRows)) gateway += 1;
-    if (authRow(sessionRows, true)) authNeededTrue += 1;
-    if (authRow(sessionRows, false)) authNeededFalse += 1;
-    if (sessionRows.some(isAppActionCalledRow)) appCalled += 1;
-    if (sessionRows.some(isAppActionFailedRow)) appFailed += 1;
-    if (arcadeRows.length === 0) noCallObserved += 1;
-  }
+  const sessionUnits = [...denominatorSessions].map((session) => bySession.get(session) ?? []);
 
   return {
     unit: "session",
@@ -330,14 +335,7 @@ const buildCopilotGroup = (rows) => {
     operator_linked_sessions_excluded: linkedChildren.size,
     multi_prompt_sessions: multiPromptSessions,
     parent_attribution_unknown_sessions: parentAttributionUnknown,
-    stages: {
-      gateway_discovery_or_selection: { count: gateway, denominator: "observed_relevant_sessions" },
-      authorization_check_auth_needed_true: { count: authNeededTrue, denominator: "observed_relevant_sessions" },
-      authorization_check_auth_needed_false: { count: authNeededFalse, denominator: "observed_relevant_sessions" },
-      app_action_called: { count: appCalled, denominator: "observed_relevant_sessions" },
-      app_action_failed: { count: appFailed, denominator: "observed_relevant_sessions" },
-      no_call_observed: { count: noCallObserved, denominator: "observed_relevant_sessions" },
-    },
+    stages: sharedStageReport(countSharedStages(sessionUnits), "observed_relevant_sessions"),
     failure_kinds: failureKindCounts(rows),
     operator_stop_status: operatorStatusCounts(rows),
   };

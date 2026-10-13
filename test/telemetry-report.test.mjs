@@ -1,12 +1,13 @@
 // @ts-check
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { test } from "node:test";
 import { TELEMETRY_HOSTS } from "../hooks/telemetry-contract.mjs";
 import { loadTelemetryAdapter } from "../hooks/telemetry-adapter.mjs";
+import { ARCADE_TOOL_PREFIX } from "../hooks/telemetry-adapters/claude-code.mjs";
 import { buildReport, normalizeExportRow, parseExportedEvents } from "../scripts/telemetry-report.mjs";
 import { assertMatchesContract, captureTelemetry, hookInput, tempDataDir } from "./telemetry-helpers.mjs";
 import { ROOT } from "./helpers.mjs";
@@ -129,6 +130,10 @@ test("an outcome on one Arcade server category does not settle an attempt on the
   assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), called("arcade")]), 0);
   assert.equal(unknownOutcomeCount([prompt, attempt("other_arcade"), failed("other_arcade")]), 0);
   assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), attempt("other_arcade"), called("arcade")]), 1);
+  // Order within the turn does not matter: an earlier outcome still settles its category.
+  assert.equal(unknownOutcomeCount([prompt, called("arcade"), attempt("arcade")]), 0);
+  assert.equal(unknownOutcomeCount([prompt, failed("other_arcade"), attempt("other_arcade")]), 0);
+  assert.equal(unknownOutcomeCount([prompt, called("other_arcade"), attempt("arcade")]), 1);
   // Turn-level only: one outcome on a category settles every attempt on that category.
   assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), attempt("arcade"), called("arcade")]), 0);
 });
@@ -165,22 +170,42 @@ test("CLI rejects malformed JSON without echoing the input", (t) => {
   }
 });
 
+test("empty input produces a report with no groups", () => {
+  assert.deepEqual(parseExportedEvents(""), []);
+  assert.deepEqual(parseExportedEvents(" \n\n"), []);
+  const report = buildReport([]);
+  assert.deepEqual(report.excluded, { invalid: 0, legacy: 0 });
+  assert.deepEqual(report.groups, []);
+  assert.ok(report.limits.length > 0);
+
+  const file = path.join(tempDataDir(), "empty.jsonl");
+  writeFileSync(file, "");
+  const result = spawnSync(process.execPath, [path.join(ROOT, "scripts/telemetry-report.mjs"), file], {
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), report);
+});
+
 test("report keys avoid forbidden metric names and hosts stay separate", () => {
-  const { events } = loadFixture();
+  const { events, expected } = loadFixture();
   const report = buildReport(events);
   for (const key of collectKeys(report)) {
     assert.doesNotMatch(key, FORBIDDEN_KEY, key);
   }
-  const hosts = report.groups.map((group) => group.host);
-  assert.deepEqual(new Set(hosts), new Set(hosts));
-  for (const group of report.groups) {
-    if (group.host === "copilot-cli") {
-      assert.equal(group.stages.attempt_observed_outcome_unknown, undefined);
-    }
-    if (group.host === "claude-code") {
-      assert.ok(group.stages.attempt_observed_outcome_unknown);
-    }
-  }
+  assert.deepEqual(
+    report.groups.map((group) => group.host),
+    ["claude-code", "copilot-cli"],
+  );
+  const byHost = Object.fromEntries(report.groups.map((group) => [group.host, group]));
+  const expectedByHost = Object.fromEntries(expected.groups.map((group) => [group.host, group]));
+  assert.equal(byHost["claude-code"].unit, "turn");
+  assert.equal(byHost["copilot-cli"].unit, "session");
+  assert.deepEqual(byHost["claude-code"].stages, expectedByHost["claude-code"].stages);
+  assert.deepEqual(byHost["copilot-cli"].stages, expectedByHost["copilot-cli"].stages);
+  assert.equal(byHost["copilot-cli"].stages.attempt_observed_outcome_unknown, undefined);
+  assert.ok(byHost["claude-code"].stages.attempt_observed_outcome_unknown);
+  assert.notDeepEqual(byHost["claude-code"].stages, byHost["copilot-cli"].stages);
 });
 
 const authStatusResponse = (statuses) => [
@@ -193,12 +218,6 @@ const authStatusResponse = (statuses) => [
   },
 ];
 
-const claudeArcadePrefix = () => {
-  const plugin = JSON.parse(readFileSync(path.join(ROOT, "plugin.json"), "utf8"));
-  const [server] = Object.keys(JSON.parse(readFileSync(path.join(ROOT, "mcp.json"), "utf8")).mcpServers);
-  return `mcp__plugin_${plugin.name}_${server}__`;
-};
-
 const COPILOT_SESSION = "dd3beb80-4471-4513-99a4-a57d3d7c08df";
 const COPILOT_SUBAGENT = "57946be7-1a73-40ca-a042-abb0f68d9445";
 const COPILOT_OPERATOR = "arcade:arcade-operator";
@@ -206,7 +225,6 @@ const COPILOT_OPERATOR = "arcade:arcade-operator";
 /** @param {import("../hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter */
 const runClaudeCrossCheck = async (adapter) => {
   const dataDir = tempDataDir();
-  const prefix = claudeArcadePrefix();
   const session = "cross-check-claude-session";
   /** @type {object[]} */
   const events = [];
@@ -224,22 +242,22 @@ const runClaudeCrossCheck = async (adapter) => {
   const p3 = "turn-three-33333333";
   const p4 = "turn-four-44444444";
   await cap({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?", prompt_id: p1 });
-  await cap({ hook_event_name: "PostToolUse", tool_name: `${prefix}Arcade_SelectTools`, prompt_id: p1 });
+  await cap({ hook_event_name: "PostToolUse", tool_name: `${ARCADE_TOOL_PREFIX}Arcade_SelectTools`, prompt_id: p1 });
   await cap({
     hook_event_name: "PostToolUse",
-    tool_name: `${prefix}System_ManageAuthorization`,
+    tool_name: `${ARCADE_TOOL_PREFIX}System_ManageAuthorization`,
     tool_response: authStatusResponse(["authorized"]),
     prompt_id: p1,
   });
   await cap({
     hook_event_name: "PostToolUse",
-    tool_name: `${prefix}Arcade_UseTool`,
+    tool_name: `${ARCADE_TOOL_PREFIX}Arcade_UseTool`,
     tool_input: { tool_name: "Gmail.ListEmails" },
     prompt_id: p1,
   });
   await cap({
     hook_event_name: "PostToolUseFailure",
-    tool_name: `${prefix}Slack_SendMessage`,
+    tool_name: `${ARCADE_TOOL_PREFIX}Slack_SendMessage`,
     error: "rate limited",
     prompt_id: p1,
   });
@@ -252,7 +270,7 @@ const runClaudeCrossCheck = async (adapter) => {
   await cap({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?", prompt_id: p3 });
   await cap({
     hook_event_name: "PreToolUse",
-    tool_name: `${prefix}Arcade_UseTool`,
+    tool_name: `${ARCADE_TOOL_PREFIX}Arcade_UseTool`,
     tool_input: { tool_name: "Gmail.ListEmails" },
     prompt_id: p3,
   });
@@ -349,12 +367,7 @@ const copilotCrossCheckExpectation = (group) => {
 };
 
 for (const host of TELEMETRY_HOSTS) {
-  test(`adapter cross-check buildReport counts for ${host}`, async (t) => {
-    const adapterPath = path.join(ROOT, "hooks/telemetry-adapters", `${host}.mjs`);
-    if (!existsSync(adapterPath)) {
-      t.skip(`${host} adapter not in this branch`);
-      return;
-    }
+  test(`adapter cross-check buildReport counts for ${host}`, async () => {
     const adapter = await loadTelemetryAdapter(host);
     const events = host === "claude-code" ? await runClaudeCrossCheck(adapter) : await runCopilotCrossCheck(adapter);
     for (const event of events) assertMatchesContract(event);
@@ -364,6 +377,7 @@ for (const host of TELEMETRY_HOSTS) {
     const group = report.groups[0];
     assert.equal(group.host, host);
     if (host === "claude-code") claudeCrossCheckExpectation(group);
-    else copilotCrossCheckExpectation(group);
+    else if (host === "copilot-cli") copilotCrossCheckExpectation(group);
+    else assert.fail(`no cross-check for ${host}`);
   });
 }
