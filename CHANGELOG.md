@@ -4,6 +4,15 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/ArcadeAI/arcade-plugin/compare/v0.2.1...v0.3.0) (2026-10-13)
+
+
+### Features
+
+* **telemetry:** add default-off telemetry foundation (1/4, GRO-305) ([#26](https://github.com/ArcadeAI/arcade-plugin/issues/26)) ([6f4cdc7](https://github.com/ArcadeAI/arcade-plugin/commit/6f4cdc7695b1953cdb2b7d207e53e5abb9738d1c))
+* **telemetry:** add the Claude Code telemetry adapter (2/4, GRO-305) ([#27](https://github.com/ArcadeAI/arcade-plugin/issues/27)) ([f2bb5c9](https://github.com/ArcadeAI/arcade-plugin/commit/f2bb5c945ae47d02117ee22bc99388d9659f3978))
+* **telemetry:** add the Copilot CLI telemetry adapter and guard Copilot hooks in VS Code (3/4, GRO-305) ([#28](https://github.com/ArcadeAI/arcade-plugin/issues/28)) ([8f417b6](https://github.com/ArcadeAI/arcade-plugin/commit/8f417b680540012d984fb2868c5ea7267ff83129))
+
 ## [0.2.1](https://github.com/ArcadeAI/arcade-plugin/compare/v0.2.0...v0.2.1) (2026-10-06)
 
 
