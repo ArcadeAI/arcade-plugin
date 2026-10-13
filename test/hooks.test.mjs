@@ -11,7 +11,15 @@ import {
   SKILL_RULES,
   SUBAGENT_CONTEXT,
 } from "../hooks/routing-guidance.mjs";
-import { readRepoFile, ROOT, runHook } from "./helpers.mjs";
+import {
+  readRepoFile,
+  ROOT,
+  runHook,
+  runPowerShell,
+  skipOnWindows,
+  skipWithoutPowerShell,
+} from "./helpers.mjs";
+import { hookEnv, tempDataDir } from "./telemetry-helpers.mjs";
 
 // This is a second copy of each client's hook output format, kept here on
 // purpose so that changing a client's format in the hooks also requires
@@ -32,25 +40,92 @@ test("every client in the hook table has an expected output format", () => {
   assert.deepEqual(Object.keys(EXPECTED_OUTPUT).sort(), Object.keys(HOSTS).sort());
 });
 
+const HOOK_INPUT = JSON.stringify({ prompt: "What's on my calendar?", agent_type: "Explore" });
+
+const assertPrintsContext = (hostName, event, result, label) => {
+  assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+  const out = JSON.parse(result.stdout);
+  const text = out.hookSpecificOutput?.additionalContext ?? out.additional_context;
+  assert.ok(text, `${label}: no context in ${result.stdout}`);
+  assert.deepEqual(out, EXPECTED_OUTPUT[hostName](event, text), label);
+};
+
 test("every command in every generated hooks.json runs and prints what its client reads", () => {
   for (const [hostName, { manifest, rootVariable }] of Object.entries(HOSTS)) {
     for (const [event, entries] of Object.entries(JSON.parse(readRepoFile(manifest)).hooks)) {
       for (const { command } of entries.flatMap((entry) => entry.hooks ?? [entry])) {
         // Telemetry prints nothing; the telemetry tests run its commands.
         if (command.includes("/hooks/telemetry.mjs")) continue;
-        const label = `${hostName} ${event}`;
         const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
           shell: true,
-          input: JSON.stringify({ prompt: "What's on my calendar?", agent_type: "Explore" }),
+          input: HOOK_INPUT,
           encoding: "utf8",
         });
-        assert.equal(result.status, 0, `${label}: ${result.stderr}`);
-        const out = JSON.parse(result.stdout);
-        const text = out.hookSpecificOutput?.additionalContext ?? out.additional_context;
-        assert.ok(text, `${label}: no context in ${result.stdout}`);
-        assert.deepEqual(out, EXPECTED_OUTPUT[hostName](event, text), label);
+        assertPrintsContext(hostName, event, result, `${hostName} ${event}`);
       }
     }
+  }
+});
+
+// VS Code reads com.github.copilot/hooks/hooks.json but runs each command as
+// written, through `spawn(command, { shell: true })` from the workspace root,
+// without setting or replacing PLUGIN_ROOT (microsoft/vscode main, 2026-09:
+// pluginParsers.ts, hookExecutor.ts). Copilot CLI replaces ${PLUGIN_ROOT} in
+// the command and also sets it in the environment.
+const copilotEntries = () =>
+  Object.entries(JSON.parse(readRepoFile(HOSTS.copilot.manifest)).hooks).flatMap(([event, entries]) =>
+    entries.map((entry) => ({ event, ...entry })),
+  );
+
+const VSCODE_INPUT = JSON.stringify({
+  hook_event_name: "SessionStart",
+  session_id: "vscode-session",
+  cwd: "/workspace",
+  prompt: "What's on my calendar?",
+  agent_type: "Explore",
+});
+
+test("in VS Code every Copilot hook command exits 0 without output", skipOnWindows, () => {
+  const cwd = tempDataDir();
+  for (const extra of [{}, { PLUGIN_ROOT: "/nonexistent" }]) {
+    for (const { event, command } of copilotEntries()) {
+      const label = `${event} ${command} ${JSON.stringify(extra)}`;
+      const result = spawnSync(command, { shell: true, cwd, env: hookEnv(extra), input: VSCODE_INPUT, encoding: "utf8" });
+      assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+      assert.equal(result.stdout, "", label);
+      assert.equal(result.stderr, "", label);
+    }
+  }
+});
+
+/** Checks the output of a Copilot hook run with PLUGIN_ROOT set to the repo. */
+const assertCopilotHookRan = (event, command, result, label) => {
+  if (command.includes("/hooks/telemetry.mjs")) {
+    assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+    assert.equal(result.stdout, "", label);
+    return;
+  }
+  assertPrintsContext("copilot", event, result, label);
+};
+
+test("in Copilot CLI every Copilot hook command runs with PLUGIN_ROOT set only in the environment", skipOnWindows, () => {
+  const cwd = tempDataDir();
+  for (const { event, command } of copilotEntries()) {
+    const result = spawnSync(command, { shell: true, cwd, env: hookEnv({ PLUGIN_ROOT: ROOT }), input: HOOK_INPUT, encoding: "utf8" });
+    assertCopilotHookRan(event, command, result, `${event} ${command}`);
+  }
+});
+
+test("every Copilot hook's powershell command skips without PLUGIN_ROOT and runs with it", skipWithoutPowerShell(), () => {
+  const cwd = tempDataDir();
+  const run = (script, env) => runPowerShell(script, { cwd, env, input: HOOK_INPUT });
+  for (const { event, command, powershell } of copilotEntries()) {
+    assert.ok(powershell, `${event} ${command}: no powershell command`);
+    const skipped = run(powershell, hookEnv());
+    assert.equal(skipped.status, 0, `${powershell}: ${skipped.stderr}`);
+    assert.equal(skipped.stdout, "", powershell);
+    assert.equal(skipped.stderr, "", powershell);
+    assertCopilotHookRan(event, powershell, run(powershell, hookEnv({ PLUGIN_ROOT: ROOT })), powershell);
   }
 });
 
