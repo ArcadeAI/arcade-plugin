@@ -74,8 +74,8 @@ anything is sent, created, or deleted.
 Claude Code and Copilot CLI include telemetry adapters, but **`TELEMETRY_ENABLED`
 is `false`**: this package sends no usage events and generates no telemetry
 hooks in client manifests. [docs/telemetry.md](docs/telemetry.md) describes
-the event contract, what would be stored locally when enabled, opt-outs, and how
-to aggregate exports with `scripts/telemetry-report.mjs`. The Arcade MCP
+the event contract, what would be stored locally when enabled, opt-outs, and
+the separate approval required before collection can be enabled. The Arcade MCP
 gateway remains the canonical source for request and tool-call telemetry.
 Adapter behavior is covered by in-process tests;
 see [docs/telemetry.md](docs/telemetry.md) for what CI does and does not exercise.

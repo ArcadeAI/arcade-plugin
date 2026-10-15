@@ -92,6 +92,6 @@ Optional client hooks in `hooks/telemetry-adapters/` can send supplemental,
 scoped usage events when `TELEMETRY_ENABLED` is `true` and the user has not
 opted out. **This build keeps `TELEMETRY_ENABLED` false**, so no telemetry
 hooks are generated and nothing is sent. See [docs/telemetry.md](docs/telemetry.md)
-for the contract, opt-outs, local state, and `scripts/telemetry-report.mjs`
-for aggregating exports. Gateway telemetry remains authoritative; plugin events
-do not establish task success.
+for the contract, opt-outs, local state, and the separate approval required
+before collection can be enabled. Gateway telemetry remains authoritative;
+plugin events do not establish task success.

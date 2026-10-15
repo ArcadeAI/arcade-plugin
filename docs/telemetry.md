@@ -7,9 +7,8 @@ collection is separately approved after ingestion, opt-outs, privacy, and
 distribution requirements are verified.
 
 The sections below describe what **would** be sent when telemetry is turned on,
-how to read exported events, and how that relates to gateway telemetry and
-offline routing evaluation. Nothing here implies that this package currently
-transmits data.
+its privacy and opt-out controls, and the approval required before enabling it.
+Nothing here implies that this package currently transmits data.
 
 When enabled, Claude Code and Copilot CLI hooks would inspect prompts locally
 in each session to recognize app-related work. Relevance state belongs to that
@@ -107,12 +106,11 @@ from this package.
 
 | Adapter | Tested in this repo | Not covered here |
 | --- | --- | --- |
-| Claude Code | In-process hook captures, contract tests, `scripts/telemetry-report.mjs` cross-check, `claude plugin validate --strict` on **2.1.258** (runs on the committed manifest, which has no telemetry hooks; no CLI has validated a manifest with telemetry hooks enabled) | Live user sessions, IDE extensions, desktop Code tab, Cowork delivery and opt-out |
-| Copilot CLI | In-process captures, fixture JSON, report cross-check, `npm run verify:copilot` on **1.0.88** (runs on the committed manifest, which has no telemetry hooks; checks only MCP servers and skills; no CLI has validated a manifest with telemetry hooks enabled) | Live sessions, Windows PowerShell hook commands, VS Code agent sessions |
+| Claude Code | In-process hook captures, contract tests, `claude plugin validate --strict` on **2.1.258** (runs on the committed manifest, which has no telemetry hooks; no CLI has validated a manifest with telemetry hooks enabled) | Live user sessions, IDE extensions, desktop Code tab, Cowork delivery and opt-out |
+| Copilot CLI | In-process captures, fixture JSON, contract tests, `npm run verify:copilot` on **1.0.88** (runs on the committed manifest, which has no telemetry hooks; checks only MCP servers and skills; no CLI has validated a manifest with telemetry hooks enabled) | Live sessions, Windows PowerShell hook commands, VS Code agent sessions |
 
 None of these checks prove end-user transmission while `TELEMETRY_ENABLED` is
-`false`. The in-process tests and report cross-check validate the adapters and
-reporting math for an enabled build.
+`false`. The in-process tests exercise adapter behavior for an enabled build.
 
 ## What is stored on your machine
 
@@ -179,9 +177,8 @@ picked from are never sent. During an app-related observation period, a Bash
 command sends an event only when one of its
 commands starts with a listed program; commands that call a program by its
 full path, such as `/opt/homebrew/bin/gh`, are not counted. A command that runs
-two listed programs, such as `gh … && curl …`, sends one event for each, so
-count CLI use by turn, not by event. Claude Code starts these hooks only for
-commands that match (the hook `if` field, Claude Code 2.1.246 and later).
+two listed programs, such as `gh … && curl …`, sends one event for each.
+Claude Code starts these hooks only for commands that match (the hook `if` field, Claude Code 2.1.246 and later).
 
 ## Never sent
 
@@ -207,159 +204,28 @@ completion telemetry. Plugin events are supplemental observations from client
 hooks. They do not replace gateway records and cannot prove task success on
 their own.
 
-## Reading the numbers
+## Observation limits
 
-Export PostHog rows with the fields `event`, `distinct_id`, `properties`, and
-optionally `timestamp`, then aggregate them locally:
+Plugin events describe what hooks observed. They do not establish whether Arcade
+was needed or whether a user's task succeeded. `could_use_arcade` and
+`service_hints` are local keyword classifications, and unrelated prompts are
+excluded. Neither host sends a task ID.
 
-```bash
-node scripts/telemetry-report.mjs path/to/export.jsonl
-```
+Claude Code supplies a hashed `turn`; Copilot CLI supplies only a hashed
+`session`, which can contain multiple prompts. Detached delivery can change
+event arrival order. Tool attempts, completions, and failures are separate
+observations; timestamps alone cannot pair calls or establish a task outcome.
 
-The script prints JSON with counts, denominators, and a `limits` list. Before
-validating, it ignores export fields outside
-`{ event, distinct_id, properties }` (such as `timestamp` and `uuid`) and
-PostHog-added properties whose names start with `$` but are not on the contract
-for that event. The contract's own `$` properties (`$ip`, `$geoip_disable`,
-`$process_person_profile`) may be missing, because PostHog can drop them on
-import, but when present they must match the contract, so a row with a real IP
-address is invalid. Every other property must match the contract; leaked hook
-fields such as `prompt` or `cwd` make a row invalid. A row with a known event
-and no `telemetry_version` counts as legacy only if every property key is on
-the contract for that event; a row that carries any additional property (such
-as `prompt` or `cwd`) counts as invalid instead. It counts invalid rows and
-legacy rows separately, and excludes both from grouped counts. Groups are split
-by `host`, `plugin_version`, and `telemetry_version`. Claude Code and Copilot
-CLI are never combined into one denominator. For JSONL input, a line that is
-not valid JSON causes the script to exit nonzero with a message naming that
-line number; for JSON array input that fails to parse, the message says the
-file is not valid JSON without naming a line. Either way the script prints no
-report and does not echo the file's contents.
+MCP server and gateway tool names are recognition heuristics, not verified
+connection provenance. Copilot's server names do not identify which plugin
+installed them. Operator stop events can link a child session to its parent;
+missing stops and other subagents leave that attribution incomplete. Session
+hashes do not link activity across sessions.
 
-These events measure what plugin hooks observed, not whether Arcade was needed
-or whether the user's task succeeded. `could_use_arcade` and `service_hints`
-come from a local keyword classifier. A flagged prompt is a candidate for
-review, not a confirmed opportunity. Prompt events are selected by relevance,
-so they cannot measure the share of all prompts needing Arcade; unrelated
-prompts are deliberately absent. Use labeled task evaluations to score routing, and compare the
-plugin with a baseline or variant before attributing a change to it.
-Neither host emits a task ID.
-
-Keep the observation stages separate:
-
-| Stage | Evidence | What it establishes |
-| --- | --- | --- |
-| Tool attempt (Claude Code) | `Plugin tool attempted` on PreToolUse | The model invoked a tool. An attempt alone has no observed outcome. |
-| Gateway discovery or selection | `Plugin tool called` or `Plugin tool failed` for `Arcade_ListApps` or `Arcade_SelectTools` | The discovery or selection call completed or failed; a successful selection is not an app action. |
-| Authorization check | `System_ManageAuthorization`, reported separately | `auth_needed: true` means its answer said sign-in was needed. A check alone says nothing about app use; `false` does not prove every app is connected. |
-| App action | `Arcade_UseTool` or `app_tool`, split by `Plugin tool called` and `Plugin tool failed` | The hook observed a tool completion or failure. Tools with an unrecognized service category are `other` and cannot be assigned to this stage. Neither outcome proves the user's task succeeded. |
-| No Arcade call observed | A prompt with no Arcade tool event in the observable group | The hooks saw no call. This is not a routing miss without an independently labeled need and complete tool visibility. |
-
-Count each unit once at each stage, and show the denominator, host, date range,
-plugin version, telemetry version, and observation coverage beside every rate.
-`telemetry_version: 2` identifies scoped events; a missing value identifies the
-legacy contract. Keep those populations separate, even at the same plugin
-version. Keep the number of
-observed prompt units and sessions visible even when a chart has no app actions.
-Do not extrapolate rates from a test sample or telemetry-enabled sessions to all users.
-Do not mix Claude turns with Copilot session counts in one rate.
-
-Report field glossary (`scripts/telemetry-report.mjs`). These definitions are
-authoritative. The host sections below add attribution and scope only.
-
-- `observed_relevant_turns` / `observed_relevant_sessions`: distinct Claude
-  `turn` values or Copilot `session` values with a `Plugin prompt submitted`
-  event, after Copilot operator-linked child sessions are excluded from the
-  session denominator.
-- `operator_linked_sessions_excluded`: Copilot prompt sessions left out of
-  that session denominator because an operator stop named them as
-  `subagent_session`. A stop whose child sent no prompt does not increase it.
-- `tool_only_turns`: Claude turns with tool events but no prompt event in that
-  turn (reported outside the turn denominator).
-- `tool_only_sessions`: Copilot sessions (after operator child sessions are
-  attributed to their parent) that are not in `observed_relevant_sessions` and
-  have at least one row whose event is not `Plugin prompt submitted` (reported
-  outside the session denominator). The Copilot counterpart of `tool_only_turns`.
-  Child sessions are attributed one level up only, so rows from an operator
-  started inside another operator are counted under the middle session.
-- `attempt_observed_outcome_unknown`: Claude turns with a `Plugin tool
-  attempted` on a `server` category (`arcade` or `other_arcade`) but no `Plugin
-  tool called` or `Plugin tool failed` on that same category in the same turn.
-  An outcome on one category never counts as the outcome for an attempt on the other.
-  `other_arcade` groups every other Arcade connection together, and one outcome
-  counts as the outcome for every attempt on its category in the turn, so the
-  check cannot pair a result with a particular connection or call.
-- `no_call_observed`: relevant turns or sessions with no Arcade MCP tool event
-  (`Plugin tool attempted`, `Plugin tool called`, or `Plugin tool failed` on
-  `server: arcade` or `other_arcade`).
-- `parent_attribution_unknown_sessions`: Copilot sessions with a prompt event
-  that are not operator-linked children and have no operator stop on that
-  session to confirm parent/child linkage.
-- Stage counts use the denominators above; they are not paired attempt/result
-  metrics and do not imply recall, precision, or task success.
-
-### Claude Code turns
-
-Claude Code filters background task results from prompt events. Group tool
-events with the same `turn`, including an arcade-operator's events, and report
-sessions and turns separately. A short follow-up such as “yes, send it” is a
-separate observed turn while scope is active, even when its keyword flag is
-false.
-
-`server: other_arcade` means the hook observed another connection's Arcade
-gateway tool. Results recognize exact gateway tool names on arbitrary MCP
-server aliases; attempts recognize only the two configured lowercase Arcade
-prefixes. UUID or capitalized aliases can therefore have results without an
-attempt event. Direct app tools on an unidentified connection may be classified
-as `other`. Gateway names are a recognition heuristic, not verified server
-provenance.
-
-A built-in CLI or web event is a tool observation, not evidence of fallback.
-Only call it a possible fallback after linking it to a labeled Arcade-eligible
-task and establishing that it served the same request.
-`arcade_used_before: false` says no Arcade call has previously succeeded for
-that client plugin installation; it does not describe another client on the
-same machine or prove that the gateway or a particular app was unconnected.
-
-### Copilot CLI sessions
-
-Copilot CLI supplies no `prompt_id` or `turn`. Report multiple-prompt sessions
-separately. Session starts are not transmitted and cannot define top-level
-sessions.
-
-An Arcade operator's stop report carries `subagent_session`, equal to that
-operator's own event `session`. Include that operator's tool events with the
-parent. Other subagents do not send stop reports, so their prompt sessions
-cannot be reliably distinguished from top-level sessions.
-
-Detached event delivery can change arrival order. A missing operator stop or a
-rolling-window boundary can also remove a parent link. Do not reconstruct
-per-prompt outcomes from timestamps alone or link resumed tasks across sessions.
-
-Copilot names MCP tools `<server>-<tool>` with no plugin prefix, so an MCP
-server named `arcade` counts as `server: arcade` even if this plugin did not
-install it. Copilot sends no built-in CLI or web events; its `arcade-operator`
-can report `status: unknown`. Do not infer a fallback or task result from
-either absence.
-
-### Failure and outcome limits
-
-`failure_kind` is a local classifier of error text, not a server error code.
-An app sign-in failure can be `tool_error` when its wording does not match the
-classifier; bad input, rate limits, and upstream errors can also get that
-value.
-
-`auth_needed: true` on an authorization check reports a service still needing
-sign-in; operator `status: needs_auth` is the model's report, not a verified
-server status. `auth_required`, `session_expired`, `timeout`, and `unreachable`
-match known client or MCP SDK error wording; other wording can classify
-differently. Copilot does not report interrupted calls, so its `interrupted`
-category is empty.
-
-Operator status describes its report, not the parent task's result. The hooks
-do not send final answers or satisfaction signals. Task success, true routing
-misses, and improvement from this plugin require labeled evaluations outside
-this telemetry.
+`failure_kind` is classified locally from error text, and `auth_needed` reflects
+the authorization tool's response. An operator's `status` is the model's report
+of its own work. These values are not verified server status or task-success
+signals. Routing quality requires labeled evaluations outside this telemetry.
 
 ## Routing evaluation
 

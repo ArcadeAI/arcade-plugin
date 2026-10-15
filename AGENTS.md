@@ -22,10 +22,10 @@ come from `hooks/telemetry-contract.mjs`; never edit inside those markers).
   that source). `telemetry.mjs` prints nothing; only `telemetry-send.mjs` may
   touch the network (a test enforces both). `TELEMETRY_ENABLED` in
   `hooks/telemetry-config.mjs` stays `false` without separate approval; while
-  false, `npm run generate` writes no telemetry hooks. Reporting and maintained
-  docs for exports live in `scripts/telemetry-report.mjs` and
-  `docs/telemetry.md`. `test/telemetry-report.test.mjs` cross-checks every
-  adapter named by the contract and fails if that adapter file is missing.
+  false, `npm run generate` writes no telemetry hooks. `docs/telemetry.md`
+  documents the event contract, privacy, opt-outs, and approval before enabling.
+  `scripts/telemetry-docs.mjs` generates its event tables from the contract;
+  keep its tests in `test/telemetry-docs.test.mjs`.
 - Codex hooks are blocked upstream ([docs/install/codex.md](docs/install/codex.md)).
   Don't remove the root `$schema` to force them; that breaks Agent Plugins
   conformance.
