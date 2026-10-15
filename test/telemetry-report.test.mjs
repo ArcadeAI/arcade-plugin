@@ -119,7 +119,7 @@ const unknownOutcomeCount = (rows) => {
   return report.groups[0].stages.attempt_observed_outcome_unknown.count;
 };
 
-test("an outcome on one Arcade server category does not settle an attempt on the other", () => {
+test("an outcome on one Arcade server category does not count as the outcome for an attempt on the other", () => {
   const prompt = claudeRow("Plugin prompt submitted", { could_use_arcade: true, service_hints: ["email"], reminder_sent: false });
   const attempt = (server) => claudeRow("Plugin tool attempted", { server, tool: "Arcade_UseTool" });
   const called = (server) => claudeRow("Plugin tool called", { server, tool: "Arcade_SelectTools" });
@@ -130,11 +130,11 @@ test("an outcome on one Arcade server category does not settle an attempt on the
   assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), called("arcade")]), 0);
   assert.equal(unknownOutcomeCount([prompt, attempt("other_arcade"), failed("other_arcade")]), 0);
   assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), attempt("other_arcade"), called("arcade")]), 1);
-  // Order within the turn does not matter: an earlier outcome still settles its category.
+  // Order within the turn does not matter: an earlier outcome still counts for its category.
   assert.equal(unknownOutcomeCount([prompt, called("arcade"), attempt("arcade")]), 0);
   assert.equal(unknownOutcomeCount([prompt, failed("other_arcade"), attempt("other_arcade")]), 0);
   assert.equal(unknownOutcomeCount([prompt, called("other_arcade"), attempt("arcade")]), 1);
-  // Turn-level only: one outcome on a category settles every attempt on that category.
+  // Turn-level only: one outcome on a category counts for every attempt on that category.
   assert.equal(unknownOutcomeCount([prompt, attempt("arcade"), attempt("arcade"), called("arcade")]), 0);
 });
 
@@ -228,6 +228,19 @@ test("empty input produces a report with no groups", () => {
   });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), report);
+});
+
+test("a missing input file exits 1 with one stderr line and no report", () => {
+  const file = path.join(tempDataDir(), "does-not-exist.jsonl");
+  const result = spawnSync(process.execPath, [path.join(ROOT, "scripts/telemetry-report.mjs"), file], {
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(
+    result.stderr,
+    "telemetry-report: the file could not be read or the report could not be built; no report was produced\n",
+  );
 });
 
 test("report keys avoid forbidden metric names and hosts stay separate", () => {
@@ -396,6 +409,7 @@ const copilotCrossCheckExpectation = (group) => {
   assert.deepEqual(group.denominators, { observed_relevant_sessions: 1 });
   assert.equal(group.operator_linked_sessions_excluded, 1);
   assert.equal(group.multi_prompt_sessions, 0);
+  assert.equal(group.tool_only_sessions, 0);
   assert.equal(group.parent_attribution_unknown_sessions, 0);
   assert.deepEqual(group.stages, {
     gateway_discovery_or_selection: { count: 1, denominator: "observed_relevant_sessions" },

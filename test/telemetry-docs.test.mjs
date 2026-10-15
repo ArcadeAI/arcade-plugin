@@ -16,10 +16,10 @@ import { ROOT } from "./helpers.mjs";
 test("buildTelemetryTables lists every contract event and common property", () => {
   const tables = buildTelemetryTables();
   for (const eventName of Object.keys(EVENTS)) {
-    assert.ok(tables.includes(eventName), `tables must include event "${eventName}"`);
+    assert.ok(tables.includes(`| \`${eventName}\` |`), `tables must include a row for event "${eventName}"`);
   }
   for (const propName of Object.keys(COMMON_PROPERTIES)) {
-    assert.ok(tables.includes(propName), `tables must include common property "${propName}"`);
+    assert.ok(tables.includes(`| \`${propName}\` |`), `tables must include a row for common property "${propName}"`);
   }
   assert.match(tables, /Service categories:/);
 });

@@ -62,7 +62,7 @@ const isLegacyRow = (row) => {
 
 /**
  * @param {Record<string, unknown>} properties
- * @returns {{ host: string, plugin_version: string, telemetry_version: number | "legacy" }}
+ * @returns {{ host: string, plugin_version: string, telemetry_version: number }}
  */
 const groupKey = (properties) => ({
   host: String(properties.host),
@@ -413,8 +413,8 @@ const parseJson = (text, where) => {
  * @returns {unknown[]}
  */
 export const parseExportedEvents = (text) => {
-  if (!text.trim()) return [];
   const trimmed = text.trim();
+  if (!trimmed) return [];
   if (trimmed.startsWith("[")) return parseJson(trimmed, "the file");
   return text
     .split("\n")
@@ -434,7 +434,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.log(JSON.stringify(buildReport(events), null, 2));
   } catch (error) {
     // Error text from JSON.parse or the runtime can quote the input, so print only our own message.
-    const reason = error instanceof ExportParseError ? error.message : "the report could not be built";
+    const reason = error instanceof ExportParseError ? error.message : "the file could not be read or the report could not be built";
     console.error(`telemetry-report: ${reason}; no report was produced`);
     process.exit(1);
   }

@@ -110,8 +110,9 @@ from this package.
 | Claude Code | In-process hook captures, contract tests, `scripts/telemetry-report.mjs` cross-check, `claude plugin validate --strict` on **2.1.258** (runs on the committed manifest, which has no telemetry hooks; no CLI has validated a manifest with telemetry hooks enabled) | Live user sessions, IDE extensions, desktop Code tab, Cowork delivery and opt-out |
 | Copilot CLI | In-process captures, fixture JSON, report cross-check, `npm run verify:copilot` on **1.0.88** (runs on the committed manifest, which has no telemetry hooks; checks only MCP servers and skills; no CLI has validated a manifest with telemetry hooks enabled) | Live sessions, Windows PowerShell hook commands, VS Code agent sessions |
 
-Those checks do not prove end-user transmission while `TELEMETRY_ENABLED` is
-`false`; they validate the adapters and reporting math for an enabled build.
+None of these checks prove end-user transmission while `TELEMETRY_ENABLED` is
+`false`. The in-process tests and report cross-check validate the adapters and
+reporting math for an enabled build.
 
 ## What is stored on your machine
 
@@ -274,7 +275,9 @@ Report field meanings (from `scripts/telemetry-report.mjs`):
 - `tool_only_sessions`: Copilot sessions (after operator child sessions are
   attributed to their parent) that are not in `observed_relevant_sessions` and
   have at least one row whose event is not `Plugin prompt submitted` (reported
-  outside the session denominator). Mirrors `tool_only_turns` for Claude Code.
+  outside the session denominator). The Copilot counterpart of `tool_only_turns`.
+  Child sessions are attributed one level up only, so rows from an operator
+  started inside another operator are counted under the middle session.
 - `attempt_observed_outcome_unknown`: Claude turns with a `Plugin tool
   attempted` on a `server` category (`arcade` or `other_arcade`) but no `Plugin
   tool called` or `Plugin tool failed` on that same category in the same turn.
