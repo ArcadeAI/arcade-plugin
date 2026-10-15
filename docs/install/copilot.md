@@ -26,6 +26,20 @@ from config files, so there's no per-prompt reminder here. VS Code reads the
 same file but can't run Agent Plugins hook commands yet, so it relies on the
 skills.
 
+## Telemetry
+
+Telemetry is **off** in this build: generated manifests include no telemetry
+hooks and nothing is sent. When enabled, `hooks/telemetry-adapters/copilot-cli.mjs`
+records MCP tools as `<server>-<tool>`, operator stops with `subagent_session`,
+and session-scoped prompt state under `COPILOT_PLUGIN_DATA` (no `turn`, no
+`PreToolUse`, no built-in CLI/web events). See
+[telemetry.md](../telemetry.md) for opt-outs (`ARCADE_PLUGIN_TELEMETRY=0` and
+`COPILOT_OFFLINE`) and
+[what CI exercises](../telemetry.md#what-ci-exercises).
+
+Shared `com.github.copilot/hooks/hooks.json` uses `runOnlyIfScriptExists` so VS
+Code exits quietly without a plugin path.
+
 ## First steps
 
 - "What's on my calendar tomorrow?"

@@ -17,6 +17,9 @@ VS Code loads root `plugin.json` as an Agent Plugin: 2 skills, the gateway,
 and `arcade-operator` from `com.github.copilot/agents/`. It does not read the
 `.cursor-plugin/` adapter. No lifecycle hooks: VS Code doesn't yet run Agent
 Plugins hook commands with the plugin's path or pass their output to the model.
+Copilot hook commands check that the script exists at the plugin path and exit
+when the path is missing; this package has no validated VS Code telemetry flow,
+and nothing is sent from VS Code.
 
 If you already installed the plugin via Copilot CLI, VS Code may auto-discover
 it from `~/.copilot/installed-plugins/`. Install in one place.
