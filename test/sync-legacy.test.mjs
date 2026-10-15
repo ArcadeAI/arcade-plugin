@@ -13,6 +13,7 @@ import {
   diffTrees,
   entryFromBytes,
   gitBlobSha,
+  githubRefPath,
   isExcluded,
   liveSyncGate,
   materializeMirror,
@@ -66,6 +67,11 @@ const run = async (repo, sourceFiles, { pulls = [], sourceSha = SOURCE_SHA, sour
     assert.equal(git(repo, ["rev-parse", "main"]).trim(), before);
   }
 };
+
+test("githubRefPath encodes a slash in a nested branch", () => {
+  assert.equal(githubRefPath("main"), "heads/main");
+  assert.equal(githubRefPath("sync/canonical-main"), "heads/sync%2Fcanonical-main");
+});
 
 test("gitBlobSha matches git hash-object", () => {
   const repo = initRepo({ "hello.txt": "hello\n" });
@@ -412,7 +418,7 @@ test("the GitHub client creates one draft pull and never writes main", async () 
     if (url.endsWith("/git/ref/heads/main") && options.method === "GET") {
       return jsonResponse(200, { object: { sha: mainSha, type: "commit" } });
     }
-    if (url.endsWith("/git/ref/heads/sync/canonical-main") && options.method === "GET") return jsonResponse(404);
+    if (url.endsWith("/git/ref/heads/sync%2Fcanonical-main") && options.method === "GET") return jsonResponse(404);
     if (url.endsWith(`/git/commits/${mainSha}`)) return jsonResponse(200, { tree: { sha: treeSha } });
     if (url.includes("/git/trees/") && options.method === "GET") {
       return jsonResponse(200, { truncated: false, tree: [{ path: "old.txt", mode: "100644", type: "blob", sha: blobSha }] });
@@ -441,6 +447,14 @@ test("the GitHub client creates one draft pull and never writes main", async () 
   assert.equal(pull.body.head, SYNC_CONTRACT.syncBranch);
   const ref = writes.find((call) => call.method === "POST" && call.url.endsWith("/git/refs"));
   assert.equal(ref.body.ref, "refs/heads/sync/canonical-main");
+  assert.equal(
+    calls.some((call) => call.method === "GET" && call.url.endsWith("/git/ref/heads/sync%2Fcanonical-main")),
+    true,
+  );
+  assert.equal(
+    calls.some((call) => call.method === "GET" && call.url.includes("head=arcadeai-labs:sync%2Fcanonical-main")),
+    true,
+  );
   assert.equal(writes.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 1);
 });
 
@@ -454,7 +468,7 @@ test("a failed GitHub pull create deletes only the new sync ref", async () => {
     if (url.endsWith("/git/ref/heads/main") && options.method === "GET") {
       return jsonResponse(200, { object: { sha: mainSha } });
     }
-    if (url.endsWith("/git/ref/heads/sync/canonical-main") && options.method === "GET") {
+    if (url.endsWith("/git/ref/heads/sync%2Fcanonical-main") && options.method === "GET") {
       return syncSha ? jsonResponse(200, { object: { sha: syncSha } }) : jsonResponse(404);
     }
     if (url.includes("/git/commits/")) return jsonResponse(200, { tree: { sha: "3".repeat(40) } });
@@ -468,7 +482,7 @@ test("a failed GitHub pull create deletes only the new sync ref", async () => {
     }
     if (url.includes("/pulls?") && options.method === "GET") return jsonResponse(200, []);
     if (url.endsWith("/pulls") && options.method === "POST") return jsonResponse(500, { message: "no" });
-    if (options.method === "DELETE" && url.endsWith("/git/refs/heads/sync/canonical-main")) {
+    if (options.method === "DELETE" && url.endsWith("/git/refs/heads/sync%2Fcanonical-main")) {
       syncSha = null;
       return jsonResponse(204);
     }
@@ -485,7 +499,7 @@ test("a failed GitHub pull create deletes only the new sync ref", async () => {
   );
   assert.equal(calls.some((call) => call.url.includes("heads/main") && call.method !== "GET"), false);
   assert.equal(calls.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 1);
-  assert.equal(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/git/refs/heads/sync/canonical-main")), true);
+  assert.equal(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/git/refs/heads/sync%2Fcanonical-main")), true);
 });
 
 test("an existing GitHub pull is patched and not created again", async () => {
@@ -495,7 +509,7 @@ test("an existing GitHub pull is patched and not created again", async () => {
   const fetch = async (url, options) => {
     calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : null });
     if (url.endsWith("/git/ref/heads/main") && options.method === "GET") return jsonResponse(200, { object: { sha: mainSha } });
-    if (url.endsWith("/git/ref/heads/sync/canonical-main") && options.method === "GET") {
+    if (url.endsWith("/git/ref/heads/sync%2Fcanonical-main") && options.method === "GET") {
       return jsonResponse(200, { object: { sha: syncSha } });
     }
     if (url.includes(`/git/commits/${syncSha}`)) return jsonResponse(200, { tree: { sha: "3".repeat(40) } });
@@ -506,7 +520,7 @@ test("an existing GitHub pull is patched and not created again", async () => {
     if (url.includes("/pulls?") && options.method === "GET") {
       return jsonResponse(200, [{ number: 4, title: "old", body: "Source-SHA: cccccccccccccccccccccccccccccccccccccccc\n" }]);
     }
-    if (options.method === "PATCH" && url.endsWith("/git/refs/heads/sync/canonical-main")) return jsonResponse(200, {});
+    if (options.method === "PATCH" && url.endsWith("/git/refs/heads/sync%2Fcanonical-main")) return jsonResponse(200, {});
     if (options.method === "PATCH" && url.endsWith("/pulls/4")) return jsonResponse(200, {});
     return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
   };

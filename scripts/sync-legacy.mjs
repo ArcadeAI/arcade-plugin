@@ -420,6 +420,10 @@ export const createGitDestination = ({ repo, pulls, failCreate = false, failSwap
   },
 });
 
+/** GitHub git-ref path. Nested branch names must encode `/` as `%2F`. */
+export const githubRefPath = (branch) =>
+  `heads/${branch.split("/").map((part) => encodeURIComponent(part)).join("%2F")}`;
+
 /** Destination port that talks to the GitHub REST API. Tests pass `fetch`. */
 export const createGithubDestination = ({ repo, token, fetch }) => {
   const api = async (method, path, body) => {
@@ -442,7 +446,7 @@ export const createGithubDestination = ({ repo, token, fetch }) => {
 
   return {
     async getBranchSha(branch) {
-      const data = await api("GET", `/repos/${repo}/git/ref/heads/${branch}`);
+      const data = await api("GET", `/repos/${repo}/git/ref/${githubRefPath(branch)}`);
       return data?.object?.sha ?? null;
     },
     async readFiles(sha) {
@@ -484,25 +488,23 @@ export const createGithubDestination = ({ repo, token, fetch }) => {
         throw new Error(`refusing to update protected branch ${branch}`);
       }
       if (to === null) {
-        const current = await api("GET", `/repos/${repo}/git/ref/heads/${branch}`);
+        const current = await api("GET", `/repos/${repo}/git/ref/${githubRefPath(branch)}`);
         if (current?.object?.sha !== from) {
           throw new Error(`refusing to delete ${branch}; it is no longer ${from}`);
         }
-        await api("DELETE", `/repos/${repo}/git/refs/heads/${branch}`);
+        await api("DELETE", `/repos/${repo}/git/refs/${githubRefPath(branch)}`);
         return;
       }
       if (from === null) {
         await api("POST", `/repos/${repo}/git/refs`, { ref: `refs/heads/${branch}`, sha: to });
         return;
       }
-      await api("PATCH", `/repos/${repo}/git/refs/heads/${branch}`, { sha: to, force: false });
+      await api("PATCH", `/repos/${repo}/git/refs/${githubRefPath(branch)}`, { sha: to, force: false });
     },
     async findOpenPull(branch) {
       const owner = repo.split("/")[0];
-      const pulls = await api(
-        "GET",
-        `/repos/${repo}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
-      );
+      const head = `${encodeURIComponent(owner)}:${branch.split("/").map((part) => encodeURIComponent(part)).join("%2F")}`;
+      const pulls = await api("GET", `/repos/${repo}/pulls?state=open&head=${head}`);
       const pull = pulls[0];
       return pull ? { number: pull.number, title: pull.title, body: pull.body ?? "", branch } : null;
     },
