@@ -24,7 +24,7 @@ const validateRow = new Ajv2020({ allErrors: true }).compile(eventSchema());
 const isValidRow = (row) => validateRow(row) === true;
 
 /**
- * Drops export envelope fields and PostHog `$` noise; other properties must match the contract.
+ * Drops export fields outside event, distinct_id, and properties, and PostHog `$` properties not on the contract.
  * @param {unknown} raw
  * @returns {{ event: string, distinct_id: string, properties: Record<string, unknown> } | null}
  */
@@ -49,13 +49,15 @@ export const normalizeExportRow = (raw) => {
 const isLegacyRow = (row) => {
   if (!row || typeof row !== "object") return false;
   const record = /** @type {{ event?: string, properties?: Record<string, unknown> }} */ (row);
-  return (
-    typeof record.event === "string" &&
-    KNOWN_EVENTS.has(record.event) &&
-    record.properties &&
-    typeof record.properties === "object" &&
-    record.properties.telemetry_version === undefined
-  );
+  if (
+    typeof record.event !== "string" ||
+    !KNOWN_EVENTS.has(record.event) ||
+    !record.properties ||
+    typeof record.properties !== "object" ||
+    record.properties.telemetry_version !== undefined
+  ) return false;
+  const allowed = new Set(allowedProperties(record.event));
+  return Object.keys(record.properties).every((key) => allowed.has(key));
 };
 
 /**
@@ -65,8 +67,7 @@ const isLegacyRow = (row) => {
 const groupKey = (properties) => ({
   host: String(properties.host),
   plugin_version: String(properties.plugin_version),
-  telemetry_version:
-    properties.telemetry_version === undefined ? "legacy" : Number(properties.telemetry_version),
+  telemetry_version: Number(properties.telemetry_version),
 });
 
 /** @param {string} server */
@@ -120,8 +121,8 @@ const authRow = (rows, needed) =>
   );
 
 /**
- * An outcome only settles attempts on its own `server` category, so an `other_arcade`
- * result cannot hide an `arcade` attempt. Within a category the check is turn-level.
+ * An outcome only counts as the outcome for attempts on its own `server` category, so an
+ * `other_arcade` result cannot hide an `arcade` attempt. Within a category the check is turn-level.
  * @param {{ event: string, properties: Record<string, unknown> }[]} arcadeRows
  */
 const attemptWithoutOutcome = (arcadeRows) =>
@@ -255,7 +256,7 @@ const buildClaudeGroup = (rows) => {
   }
 
   const toolOnlyTurns = [...byTurn.keys()].filter(
-    (turn) => !relevantTurns.has(turn) && (byTurn.get(turn) ?? []).some((row) => row.event !== "Plugin prompt submitted"),
+    (turn) => !relevantTurns.has(turn),
   ).length;
 
   return {
@@ -279,19 +280,17 @@ const buildCopilotGroup = (rows) => {
 
   /** @type {Map<string, string>} */
   const childToParent = new Map();
-  const linkedChildren = new Set();
   for (const row of rows) {
     if (row.event !== "Plugin subagent stopped") continue;
     const parent = String(row.properties.session);
     const child = row.properties.subagent_session;
     if (typeof child === "string" && child) {
       childToParent.set(child, parent);
-      linkedChildren.add(child);
     }
   }
 
   const denominatorSessions = new Set(
-    [...promptSessions].filter((session) => !linkedChildren.has(session)),
+    [...promptSessions].filter((session) => !childToParent.has(session)),
   );
   // Only prompt sessions actually removed from the denominator. A stop whose
   // child never sent a prompt does not count.
@@ -313,30 +312,28 @@ const buildCopilotGroup = (rows) => {
 
   /** @type {Map<string, { event: string, properties: Record<string, unknown> }[]>} */
   const bySession = new Map();
-  /** @param {{ event: string, properties: Record<string, unknown> }} row */
-  const attributeSession = (row) => {
-    const session = String(row.properties.session);
-    if (linkedChildren.has(session)) {
-      const parent = childToParent.get(session);
-      return parent ?? session;
-    }
-    return session;
-  };
-
   for (const row of rows) {
-    const session = attributeSession(row);
-    const list = bySession.get(session) ?? [];
+    const session = String(row.properties.session);
+    const key = childToParent.get(session) ?? session;
+    const list = bySession.get(key) ?? [];
     list.push(row);
-    bySession.set(session, list);
+    bySession.set(key, list);
   }
 
   const sessionUnits = [...denominatorSessions].map((session) => bySession.get(session) ?? []);
+
+  const toolOnlySessions = [...bySession.keys()].filter(
+    (session) =>
+      !denominatorSessions.has(session) &&
+      (bySession.get(session) ?? []).some((row) => row.event !== "Plugin prompt submitted"),
+  ).length;
 
   return {
     unit: "session",
     denominators: { observed_relevant_sessions: denominatorSessions.size },
     operator_linked_sessions_excluded: operatorLinkedSessionsExcluded,
     multi_prompt_sessions: multiPromptSessions,
+    tool_only_sessions: toolOnlySessions,
     parent_attribution_unknown_sessions: parentAttributionUnknown,
     stages: sharedStageReport(countSharedStages(sessionUnits), "observed_relevant_sessions"),
     failure_kinds: failureKindCounts(rows),
@@ -350,7 +347,7 @@ const REPORT_LIMITS = [
   "Claude Code turn counts and Copilot CLI session counts must not be combined into one rate.",
   "Copilot CLI does not emit tool-attempt events; attempt stages apply only to Claude Code.",
   "Multiple tool calls in one turn or session cannot be paired without a tool-call ID.",
-  "Attempt outcomes are checked per server category; other_arcade pools every other Arcade connection, so an outcome there cannot be tied to the connection or call that was attempted.",
+  "Attempt outcomes are checked per server category; other_arcade groups every other Arcade connection together, so an outcome there cannot be tied to the connection or call that was attempted.",
   "The Arcade MCP gateway remains the canonical source for request, auth, discovery, and tool-call telemetry.",
 ];
 
@@ -388,11 +385,7 @@ export const buildReport = (events) => {
   for (const [key, rows] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const meta = groupKey(rows[0].properties);
     const body =
-      meta.host === "claude-code"
-        ? buildClaudeGroup(rows)
-        : meta.host === "copilot-cli"
-          ? buildCopilotGroup(rows)
-          : { unit: "unknown", denominators: {}, stages: {} };
+      meta.host === "claude-code" ? buildClaudeGroup(rows) : buildCopilotGroup(rows);
     reportGroups.push({ ...meta, ...body });
   }
 
@@ -420,10 +413,10 @@ const parseJson = (text, where) => {
  * @returns {unknown[]}
  */
 export const parseExportedEvents = (text) => {
+  if (!text.trim()) return [];
   const trimmed = text.trim();
-  if (!trimmed) return [];
-  if (trimmed.startsWith("[")) return parseJson(trimmed, "the array");
-  return trimmed
+  if (trimmed.startsWith("[")) return parseJson(trimmed, "the file");
+  return text
     .split("\n")
     .map((line, index) => ({ line: line.trim(), number: index + 1 }))
     .filter(({ line }) => line)
@@ -436,15 +429,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.error("usage: node scripts/telemetry-report.mjs <file.jsonl|file.json>");
     process.exit(1);
   }
-  /** @type {unknown[]} */
-  let events;
   try {
-    events = parseExportedEvents(readFileSync(file, "utf8"));
+    const events = parseExportedEvents(readFileSync(file, "utf8"));
+    console.log(JSON.stringify(buildReport(events), null, 2));
   } catch (error) {
     // Error text from JSON.parse or the runtime can quote the input, so print only our own message.
-    const reason = error instanceof ExportParseError ? error.message : "the file could not be read";
+    const reason = error instanceof ExportParseError ? error.message : "the report could not be built";
     console.error(`telemetry-report: ${reason}; no report was produced`);
     process.exit(1);
   }
-  console.log(JSON.stringify(buildReport(events), null, 2));
 }

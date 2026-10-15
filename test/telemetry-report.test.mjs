@@ -181,9 +181,9 @@ test("operator_linked_sessions_excluded counts prompt sessions removed from the 
   assert.deepEqual(linked.groups[0].denominators, { observed_relevant_sessions: 1 });
 });
 
-test("report limits state that other_arcade pools connections and calls are not paired", () => {
+test("report limits state that other_arcade groups connections and calls are not paired", () => {
   const limits = buildReport([]).limits.join("\n");
-  assert.match(limits, /other_arcade.*pools/i);
+  assert.match(limits, /other_arcade.*groups every other Arcade connection together/i);
   assert.match(limits, /cannot be paired/i);
 });
 
@@ -237,18 +237,18 @@ test("report keys avoid forbidden metric names and hosts stay separate", () => {
     assert.doesNotMatch(key, FORBIDDEN_KEY, key);
   }
   assert.deepEqual(
-    report.groups.map((group) => group.host),
-    ["claude-code", "copilot-cli"],
+    report.groups.map((group) => [group.host, group.plugin_version]),
+    [["claude-code", "0.2.0"], ["claude-code", "0.3.0"], ["copilot-cli", "0.2.0"]],
   );
-  const byHost = Object.fromEntries(report.groups.map((group) => [group.host, group]));
-  const expectedByHost = Object.fromEntries(expected.groups.map((group) => [group.host, group]));
-  assert.equal(byHost["claude-code"].unit, "turn");
-  assert.equal(byHost["copilot-cli"].unit, "session");
-  assert.deepEqual(byHost["claude-code"].stages, expectedByHost["claude-code"].stages);
-  assert.deepEqual(byHost["copilot-cli"].stages, expectedByHost["copilot-cli"].stages);
-  assert.equal(byHost["copilot-cli"].stages.attempt_observed_outcome_unknown, undefined);
-  assert.ok(byHost["claude-code"].stages.attempt_observed_outcome_unknown);
-  assert.notDeepEqual(byHost["claude-code"].stages, byHost["copilot-cli"].stages);
+  const byGroup = Object.fromEntries(report.groups.map((group) => [`${group.host}/${group.plugin_version}`, group]));
+  const expectedByGroup = Object.fromEntries(expected.groups.map((group) => [`${group.host}/${group.plugin_version}`, group]));
+  assert.equal(byGroup["claude-code/0.2.0"].unit, "turn");
+  assert.equal(byGroup["copilot-cli/0.2.0"].unit, "session");
+  assert.deepEqual(byGroup["claude-code/0.2.0"].stages, expectedByGroup["claude-code/0.2.0"].stages);
+  assert.deepEqual(byGroup["copilot-cli/0.2.0"].stages, expectedByGroup["copilot-cli/0.2.0"].stages);
+  assert.equal(byGroup["copilot-cli/0.2.0"].stages.attempt_observed_outcome_unknown, undefined);
+  assert.ok(byGroup["claude-code/0.2.0"].stages.attempt_observed_outcome_unknown);
+  assert.notDeepEqual(byGroup["claude-code/0.2.0"].stages, byGroup["copilot-cli/0.2.0"].stages);
 });
 
 const authStatusResponse = (statuses) => [
@@ -408,6 +408,120 @@ const copilotCrossCheckExpectation = (group) => {
   assert.equal(group.stages.attempt_observed_outcome_unknown, undefined);
   assert.deepEqual(group.operator_stop_status, { needs_auth: 1 });
 };
+
+test("tool_only_sessions counts Copilot sessions with no prompt and at least one non-prompt row", () => {
+  const toolOnlySession = "a0a0a0a0a0a0a0a0";
+  const row = copilotRow("Plugin tool called", toolOnlySession, {
+    server: "arcade",
+    tool: "Arcade_UseTool",
+    service: "email",
+  });
+  assertMatchesContract(row);
+  const report = buildReport([row]);
+  assert.deepEqual(report.excluded, { invalid: 0, legacy: 0 });
+  assert.equal(report.groups[0].denominators.observed_relevant_sessions, 0);
+  assert.equal(report.groups[0].tool_only_sessions, 1);
+});
+
+test("tool_only_sessions attributes child rows to parent before counting", () => {
+  const parent = "b0b0b0b0b0b0b0b0";
+  const child = "c0c0c0c0c0c0c0c0";
+  const stop = copilotRow("Plugin subagent stopped", parent, {
+    agent: "arcade-operator",
+    status: "needs_auth",
+    subagent_session: child,
+  });
+  const childPrompt = copilotRow("Plugin prompt submitted", child, {
+    could_use_arcade: true,
+    service_hints: [],
+    reminder_sent: false,
+  });
+  const childTool = copilotRow("Plugin tool called", child, {
+    server: "arcade",
+    tool: "Arcade_UseTool",
+    service: "email",
+  });
+  for (const r of [stop, childPrompt, childTool]) assertMatchesContract(r);
+  const report = buildReport([stop, childPrompt, childTool]);
+  assert.deepEqual(report.excluded, { invalid: 0, legacy: 0 });
+  assert.equal(report.groups[0].operator_linked_sessions_excluded, 1);
+  assert.equal(report.groups[0].denominators.observed_relevant_sessions, 0);
+  assert.equal(report.groups[0].tool_only_sessions, 1);
+});
+
+test("a legacy row with an extra property counts as invalid, not legacy", () => {
+  const base = {
+    event: "Plugin prompt submitted",
+    distinct_id: "aaaaaaaaaaaaaaaa",
+    properties: {
+      session: "aaaaaaaaaaaaaaaa",
+      host: "claude-code",
+      plugin_version: "0.2.0",
+      os: "linux",
+      arcade_used_before: false,
+      $process_person_profile: false,
+      $geoip_disable: true,
+      $ip: "0.0.0.0",
+      could_use_arcade: true,
+      service_hints: [],
+      reminder_sent: false,
+    },
+  };
+  // Without extra property: counts as legacy (no telemetry_version, all keys allowed).
+  assert.deepEqual(buildReport([base]).excluded, { invalid: 0, legacy: 1 });
+  // With extra property: counts as invalid.
+  const withPrompt = { ...base, properties: { ...base.properties, prompt: "SECRET" } };
+  assert.deepEqual(buildReport([withPrompt]).excluded, { invalid: 1, legacy: 0 });
+  const withCwd = { ...base, properties: { ...base.properties, cwd: "/home/secret" } };
+  assert.deepEqual(buildReport([withCwd]).excluded, { invalid: 1, legacy: 0 });
+});
+
+test("parseExportedEvents reports the physical line number including blank lines", () => {
+  const blankLines = "\n\n\n";
+  const validLine = '{"event":"Plugin prompt submitted","distinct_id":"aaaaaaaaaaaaaaaa","properties":{"session":"aaaaaaaaaaaaaaaa","host":"claude-code","plugin_version":"0.2.0","telemetry_version":2,"os":"linux","arcade_used_before":false,"$process_person_profile":false,"$geoip_disable":true,"$ip":"0.0.0.0","could_use_arcade":false,"service_hints":[],"reminder_sent":false}}';
+  const badLine = "{bad";
+  // 3 blank lines + valid row on line 4 + bad row on line 5
+  assert.throws(
+    () => parseExportedEvents(`${blankLines}${validLine}\n${badLine}`),
+    (err) => err.message === "line 5 is not valid JSON",
+  );
+});
+
+test("parseExportedEvents reports 'the file is not valid JSON' for a bad JSON array", () => {
+  assert.throws(
+    () => parseExportedEvents("[{bad}]"),
+    (err) => err.message === "the file is not valid JSON",
+  );
+});
+
+test("a Copilot session whose only tool event is server other counts as no_call_observed", () => {
+  const session = "d0d0d0d0d0d0d0d0";
+  const prompt = copilotRow("Plugin prompt submitted", session, {
+    could_use_arcade: true,
+    service_hints: ["chat"],
+    reminder_sent: false,
+  });
+  const otherTool = copilotRow("Plugin tool called", session, { server: "other" });
+  for (const r of [prompt, otherTool]) assertMatchesContract(r);
+  const report = buildReport([prompt, otherTool]);
+  assert.deepEqual(report.excluded, { invalid: 0, legacy: 0 });
+  const group = report.groups[0];
+  assert.equal(group.denominators.observed_relevant_sessions, 1);
+  assert.equal(group.stages.no_call_observed.count, 1);
+  assert.equal(group.stages.app_action_called.count, 0);
+});
+
+test("a Claude turn whose only tool event is server other counts as no_call_observed", () => {
+  const prompt = claudeRow("Plugin prompt submitted", { could_use_arcade: true, service_hints: ["chat"], reminder_sent: false });
+  const otherTool = claudeRow("Plugin tool called", { server: "other" });
+  for (const r of [prompt, otherTool]) assertMatchesContract(r);
+  const report = buildReport([prompt, otherTool]);
+  assert.deepEqual(report.excluded, { invalid: 0, legacy: 0 });
+  const group = report.groups[0];
+  assert.equal(group.denominators.observed_relevant_turns, 1);
+  assert.equal(group.stages.no_call_observed.count, 1);
+  assert.equal(group.stages.app_action_called.count, 0);
+});
 
 for (const host of TELEMETRY_HOSTS) {
   test(`adapter cross-check buildReport counts for ${host}`, async () => {
