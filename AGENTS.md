@@ -5,9 +5,10 @@ For agents editing **arcade-plugin** itself.
 Client-specific files are generated. Edit the source, run `npm run generate`,
 then `npm run verify` (it fails if a generated file was edited by hand).
 [ARCHITECTURE.md](ARCHITECTURE.md) lists the sources; `.gitattributes` lists
-every fully generated file. `skills/try-arcade/SKILL.md` and
-`agents/arcade-operator.agent.md` are hand-written except
-for a marked rules block.
+every fully generated file. `skills/try-arcade/SKILL.md`,
+`agents/arcade-operator.agent.md`, and `docs/telemetry.md` are hand-written
+except for a marked generated block (the event tables in docs/telemetry.md
+come from `hooks/telemetry-contract.mjs`; never edit inside those markers).
 
 - Routing rules: edit `hooks/routing-guidance.mjs`, never the rules text in
   the Cursor rule, arcade-operator, or try-arcade.

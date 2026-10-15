@@ -10,6 +10,7 @@ edited by hand. The package ships no credentials.
 | `plugin.json`, `mcp.json`, `VERSION` | identity, gateway URL, version, Codex listing metadata |
 | `hooks/routing-guidance.mjs` | the routing rules, as sentences |
 | `hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
+| `hooks/telemetry-contract.mjs` | the telemetry event contract; also generates the event tables in docs/telemetry.md |
 | `agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
 | `skills/` | the skills, outside the generated rules block in try-arcade |
 

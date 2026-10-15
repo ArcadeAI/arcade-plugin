@@ -10,12 +10,17 @@ import {
   TELEMETRY_BLOCK_BEGIN,
   TELEMETRY_BLOCK_END,
 } from "../scripts/telemetry-docs.mjs";
+import { COMMON_PROPERTIES, EVENTS } from "../hooks/telemetry-contract.mjs";
 import { ROOT } from "./helpers.mjs";
 
 test("buildTelemetryTables lists every contract event and common property", () => {
   const tables = buildTelemetryTables();
-  assert.match(tables, /Plugin prompt submitted/);
-  assert.match(tables, /telemetry_version/);
+  for (const eventName of Object.keys(EVENTS)) {
+    assert.ok(tables.includes(eventName), `tables must include event "${eventName}"`);
+  }
+  for (const propName of Object.keys(COMMON_PROPERTIES)) {
+    assert.ok(tables.includes(propName), `tables must include common property "${propName}"`);
+  }
   assert.match(tables, /Service categories:/);
 });
 

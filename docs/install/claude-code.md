@@ -48,7 +48,9 @@ prefixes, and stores scope under `CLAUDE_PLUGIN_DATA`. See
 `DISABLE_TELEMETRY`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`) and limits.
 
 **Repo coverage:** in-process hook tests and `claude plugin validate --strict`
-(**2.1.258**). Not live sessions, IDE extensions, desktop Code tab, or Cowork.
+(**2.1.258**) on the committed manifest, which has no telemetry hooks. No CLI
+has validated a manifest with telemetry hooks enabled. Not live sessions, IDE
+extensions, desktop Code tab, or Cowork.
 
 ## First steps
 

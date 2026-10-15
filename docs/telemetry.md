@@ -107,8 +107,8 @@ from this package.
 
 | Adapter | Tested in this repo | Not covered here |
 | --- | --- | --- |
-| Claude Code | In-process hook captures, contract tests, `scripts/telemetry-report.mjs` cross-check, `claude plugin validate --strict` on **2.1.258** | Live user sessions, IDE extensions, desktop Code tab, Cowork delivery and opt-out |
-| Copilot CLI | In-process captures, fixture JSON, report cross-check, `npm run verify:copilot` on **1.0.88** | Live sessions, Windows PowerShell hook commands, VS Code agent sessions |
+| Claude Code | In-process hook captures, contract tests, `scripts/telemetry-report.mjs` cross-check, `claude plugin validate --strict` on **2.1.258** (runs on the committed manifest, which has no telemetry hooks; no CLI has validated a manifest with telemetry hooks enabled) | Live user sessions, IDE extensions, desktop Code tab, Cowork delivery and opt-out |
+| Copilot CLI | In-process captures, fixture JSON, report cross-check, `npm run verify:copilot` on **1.0.88** (runs on the committed manifest, which has no telemetry hooks; checks only MCP servers and skills; no CLI has validated a manifest with telemetry hooks enabled) | Live sessions, Windows PowerShell hook commands, VS Code agent sessions |
 
 Those checks do not prove end-user transmission while `TELEMETRY_ENABLED` is
 `false`; they validate the adapters and reporting math for an enabled build.
@@ -208,25 +208,29 @@ their own.
 
 ## Reading the numbers
 
-Export PostHog rows in the shape `{ event, distinct_id, properties, timestamp? }`
-and aggregate them locally:
+Export PostHog rows with the fields `event`, `distinct_id`, `properties`, and
+optionally `timestamp`, then aggregate them locally:
 
 ```bash
 node scripts/telemetry-report.mjs path/to/export.jsonl
 ```
 
 The script prints JSON with counts, denominators, and a `limits` list. Before
-validating, it ignores export envelope fields outside
+validating, it ignores export fields outside
 `{ event, distinct_id, properties }` (such as `timestamp` and `uuid`) and
 PostHog-added properties whose names start with `$` but are not on the contract
 for that event. Every other property must match the contract; leaked hook
-fields such as `prompt` or `cwd` make a row invalid. It counts invalid rows and
-legacy rows (no `telemetry_version`) separately, and excludes both from grouped
-counts. Groups are split by `host`, `plugin_version`, and
-`telemetry_version`. Claude Code and Copilot CLI are never combined into one
-denominator. If the file is not valid JSON or JSON Lines, the script exits
-nonzero with a short message naming the failing line, prints no report, and
-does not echo the file's contents.
+fields such as `prompt` or `cwd` make a row invalid. A row with a known event
+and no `telemetry_version` counts as legacy only if every property key is on
+the contract for that event; a row that carries any additional property (such
+as `prompt` or `cwd`) counts as invalid instead. It counts invalid rows and
+legacy rows separately, and excludes both from grouped counts. Groups are split
+by `host`, `plugin_version`, and `telemetry_version`. Claude Code and Copilot
+CLI are never combined into one denominator. For JSONL input, a line that is
+not valid JSON causes the script to exit nonzero with a message naming that
+line number; for JSON array input that fails to parse, the message says the
+file is not valid JSON without naming a line. Either way the script prints no
+report and does not echo the file's contents.
 
 These events measure what plugin hooks observed, not whether Arcade was needed
 or whether the user's task succeeded. `could_use_arcade` and `service_hints`
@@ -267,13 +271,17 @@ Report field meanings (from `scripts/telemetry-report.mjs`):
   `subagent_session`. A stop whose child sent no prompt does not increase it.
 - `tool_only_turns`: Claude turns with tool events but no prompt event in that
   turn (reported outside the turn denominator).
+- `tool_only_sessions`: Copilot sessions (after operator child sessions are
+  attributed to their parent) that are not in `observed_relevant_sessions` and
+  have at least one row whose event is not `Plugin prompt submitted` (reported
+  outside the session denominator). Mirrors `tool_only_turns` for Claude Code.
 - `attempt_observed_outcome_unknown`: Claude turns with a `Plugin tool
   attempted` on a `server` category (`arcade` or `other_arcade`) but no `Plugin
   tool called` or `Plugin tool failed` on that same category in the same turn.
-  An outcome on one category never settles an attempt on the other.
-  `other_arcade` pools every other Arcade connection, and one outcome settles
-  every attempt on its category in the turn, so the check cannot pair a result
-  with a particular connection or call.
+  An outcome on one category never counts as the outcome for an attempt on the other.
+  `other_arcade` groups every other Arcade connection together, and one outcome
+  counts as the outcome for every attempt on its category in the turn, so the
+  check cannot pair a result with a particular connection or call.
 - `no_call_observed`: relevant turns or sessions with no Arcade MCP tool event
   (`Plugin tool attempted`, `Plugin tool called`, or `Plugin tool failed` on
   `server: arcade` or `other_arcade`).
@@ -327,14 +335,14 @@ same machine or prove that the gateway or a particular app was unconnected.
 Copilot CLI supplies no `prompt_id` or `turn`. Count distinct sessions with a
 scoped `Plugin prompt submitted` event as **observed relevant sessions**. Report
 multiple-prompt sessions separately. This is not a count of all sessions, user
-tasks, or turns. Session starts are not transmitted and cannot define roots.
+tasks, or turns. Session starts are not transmitted and cannot define top-level sessions.
 
 An Arcade operator's stop report carries `subagent_session`, equal to that
 operator's own event `session`. Exclude known linked operator prompts from the
 parent-session denominator and include their tool events with the parent.
 Other subagents do not send stop reports, so their prompt sessions cannot be
-reliably distinguished from roots. Report that parent attribution is unknown
-rather than labeling every unlinked session as a root.
+reliably distinguished from top-level sessions. Report that parent attribution
+is unknown rather than labeling every unlinked session as a top-level session.
 
 Detached event delivery can change arrival order. A missing operator stop or a
 rolling-window boundary can also remove a parent link. Do not reconstruct
@@ -391,4 +399,4 @@ shipping telemetry hooks. Confirm, outside this repository:
 
 These are release acceptance requirements; the current code and CI do not
 enforce them. A repository install can consume a branch before a GitHub release
-is tagged, so a later release PR is not a transmission gate.
+is tagged, so a branch install can transmit data before any release is tagged.
