@@ -192,8 +192,13 @@ const assertSourceSha = (sourceSha) => {
 
 /**
  * Open or update one draft pull request on the legacy sync branch.
- * Never updates the destination base branch. On a write failure after moving
- * the sync branch, moves that branch back and does not open a second pull.
+ * Never updates the destination base branch.
+ * A failed create on a sync branch this run created deletes that branch.
+ * A failed create or update on an existing sync branch leaves the
+ * fast-forward in place and does not open a second pull request.
+ * When that retained branch matches the canonical tree, the destination
+ * base does not, and no pull request is open, the result is `blocked`
+ * and nothing is written.
  */
 export const runSync = async ({
   sourceFiles,
@@ -225,6 +230,32 @@ export const runSync = async ({
   return result;
 };
 
+/**
+ * The sync branch already matches the canonical tree, but that tree is not on
+ * the destination base and no pull request is open. Refuse to reopen a closed
+ * pull request or to report the retained branch as delivered.
+ */
+const blockedUnmergedSync = ({ contract, sourceSha, syncSha, baseSha, plan, basePlan }) => ({
+  action: "blocked",
+  outcome: "action-required",
+  pr: null,
+  plan,
+  basePlan,
+  sourceSha,
+  syncBranch: contract.syncBranch,
+  syncSha,
+  baseBranch: contract.destBaseBranch,
+  baseSha,
+  reason: `Action required: ${contract.syncBranch} at ${syncSha} matches canonical ${sourceSha}, but ${contract.destBaseBranch} at ${baseSha} does not, and no open pull request exists.`,
+  recovery: [
+    `This run did not create a commit, move ${contract.syncBranch}, open a pull request, or update ${contract.destBaseBranch}.`,
+    `Inspect the retained branch and any closed pull request from ${contract.syncBranch} into ${contract.destBaseBranch}.`,
+    "If that pull request was closed or rejected on purpose, leave it closed.",
+    `If pull creation failed and the branch should still be reviewed, open one draft pull request from ${contract.syncBranch} into ${contract.destBaseBranch} by hand.`,
+    "Do not reopen a deliberately closed pull request from this automation.",
+  ].join(" "),
+});
+
 const syncBody = async ({ sourceFiles, sourceSha, destination, contract }) => {
   const baseSha = await destination.getBranchSha(contract.destBaseBranch);
   const syncSha = await destination.getBranchSha(contract.syncBranch);
@@ -239,6 +270,13 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, contract }) => {
     if (open && !open.body.includes(`Source-SHA: ${sourceSha}`)) {
       await destination.updatePull({ number: open.number, title, body });
       return { action: "update-provenance", pr: open.number, plan };
+    }
+    if (!open && syncSha && syncSha !== baseSha) {
+      const baseFiles = await destination.readFiles(baseSha);
+      const basePlan = diffTrees(baseFiles, desired);
+      if (!basePlan.noop) {
+        return blockedUnmergedSync({ contract, sourceSha, syncSha, baseSha, plan, basePlan });
+      }
     }
     return { action: "noop", pr: open?.number ?? null, plan };
   }
@@ -262,9 +300,10 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, contract }) => {
     });
     return { action: "create", pr: pr.number, commit: newSha, plan };
   } catch (error) {
-    // A new branch has no pull request yet, so delete it. An existing pull
-    // request already tracks the branch; leave the fast-forward in place
-    // rather than force-moving the branch backward.
+    // A branch created by this attempt has no pull request yet, so delete it.
+    // An existing branch stays at the fast-forward. The next run reports that
+    // retained head as blocked when it matches the canonical tree and no
+    // pull request is open, instead of moving the branch backward.
     if (syncSha === null) {
       try {
         await destination.compareAndSwap({ branch: contract.syncBranch, from: newSha, to: null });
@@ -526,6 +565,16 @@ const printPlan = (sourceRepo, destRepo) => {
   process.stdout.write(`${JSON.stringify({ action: "plan", ...plan }, null, 2)}\n`);
 };
 
+/** Print a sync result. Blocked delivery exits non-zero so a workflow cannot treat it as success. */
+export const reportSyncResult = (result, { stdout = process.stdout, stderr = process.stderr } = {}) => {
+  stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (result.action === "blocked") {
+    stderr.write(`${result.reason}\n${result.recovery}\n`);
+    return 1;
+  }
+  return 0;
+};
+
 const applyLive = async () => {
   const gate = liveSyncGate(process.env);
   if (!gate.ok) {
@@ -551,7 +600,7 @@ const applyLive = async () => {
     sourceMessage,
     destination,
   });
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  process.exitCode = reportSyncResult(result);
 };
 
 const main = async () => {

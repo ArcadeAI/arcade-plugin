@@ -31,15 +31,16 @@ the canonical MIT notice.
 
 ## Run behavior
 
-The script compares the canonical tree with the legacy sync branch (or legacy
-main, when that branch does not exist yet) and then:
+The script compares the canonical tree with the legacy sync branch when that
+branch exists, and with legacy main otherwise.
 
-- additions, changes, and deletions become one new commit on `sync/canonical-main`
-- a matching tree is a no-op: no commit and no second pull request
-- a repeated run with the same tree updates nothing
-- an open sync pull request is updated in place, including its `Source-SHA` line
-- a failed pull-request create deletes the sync branch it just created
-- a failed update of an existing pull request leaves that fast-forward commit in place and does not open a second pull request
+- additions, changes, and deletions become one new commit on `sync/canonical-main`, then one draft pull request is opened or the existing open pull request is updated
+- a destination base that already has that tree is a no-op, including when the retained sync branch points at the same tree
+- a repeated run with the same tree and an open sync pull request updates nothing, except a stale `Source-SHA` line on that pull request
+- an open sync pull request is updated in place when the canonical tree changes
+- a failed pull-request create deletes the sync branch only when this run created that branch
+- a failed pull-request create or update on an already existing sync branch leaves that fast-forward commit in place and does not open a second pull request
+- a later run is blocked when the retained sync branch matches the canonical tree, the destination base does not, and no pull request is open. The command prints `action` `blocked` with `outcome` `action-required` and exits 1. It does not create a commit, move a branch, open a pull request, or reopen a closed pull request. A human inspects any closed pull request, leaves a deliberate close in place, and otherwise opens one draft pull request from `sync/canonical-main` into `main` by hand
 - `main` and `master` are rejected as update targets
 
 The commit and pull request body record `Source-SHA` and `Source-Repo`.

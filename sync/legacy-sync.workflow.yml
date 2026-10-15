@@ -31,6 +31,8 @@ jobs:
           node-version-file: package.json
 
       - name: Mirror canonical main onto the legacy sync pull request
+        # A retained unmerged sync branch with no open pull request exits 1
+        # and prints action "blocked". The job stays red until a human recovers.
         run: node scripts/sync-legacy.mjs --apply
         env:
           SYNC_LEGACY_APPLY: "1"

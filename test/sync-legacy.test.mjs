@@ -18,6 +18,7 @@ import {
   liveSyncGate,
   materializeMirror,
   readGitTree,
+  reportSyncResult,
   repositoryControlsDocument,
   runSync,
 } from "../scripts/sync-legacy.mjs";
@@ -178,6 +179,147 @@ test("matching trees are a no-op and a second run does not open another pull", a
     assert.equal(second.result.pr, 1);
     assert.equal(pulls.length, 1);
     assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), head);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("a closed unmerged sync pull with a matching branch is blocked and does not reopen", async () => {
+  const repo = initRepo({
+    "docs/migration/repository-controls.md": controls(),
+    "pkg/file.txt": "base\n",
+  });
+  const main = git(repo, ["rev-parse", "main"]).trim();
+  try {
+    const pulls = [];
+    const created = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(created.result.action, "create");
+    pulls[0].state = "closed";
+    const retained = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    const blocked = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(blocked.result.action, "blocked");
+    assert.equal(blocked.result.outcome, "action-required");
+    assert.equal(blocked.result.pr, null);
+    assert.equal(blocked.result.plan.noop, true);
+    assert.equal(blocked.result.basePlan.noop, false);
+    assert.match(blocked.result.reason, /Action required:/);
+    assert.match(blocked.result.reason, new RegExp(retained));
+    assert.match(blocked.result.reason, /no open pull request/);
+    assert.match(blocked.result.recovery, /leave it closed/);
+    assert.match(blocked.result.recovery, /by hand/);
+    assert.match(blocked.result.recovery, /Do not reopen a deliberately closed pull request/);
+    assert.equal(pulls.length, 1);
+    assert.equal(pulls[0].state, "closed");
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+    assert.equal(git(repo, ["rev-parse", "main"]).trim(), main);
+    const repeat = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(repeat.result.action, "blocked");
+    assert.equal(pulls.length, 1);
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("a failed pull create on an existing branch is blocked on retry without a new pull", async () => {
+  const repo = initRepo({
+    "docs/migration/repository-controls.md": controls(),
+    "pkg/file.txt": "base\n",
+  });
+  const main = git(repo, ["rev-parse", "main"]).trim();
+  git(repo, ["branch", SYNC_CONTRACT.syncBranch, "main"]);
+  try {
+    const pulls = [];
+    await assert.rejects(
+      run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls, failCreate: true }),
+      /mock pull create failed/,
+    );
+    assert.equal(pulls.length, 0);
+    const retained = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    assert.notEqual(retained, main);
+    assert.equal(git(repo, ["show", `${retained}:pkg/file.txt`]), "synced\n");
+    const destination = createGitDestination({ repo, pulls });
+    let commits = 0;
+    let pullsCreated = 0;
+    let swaps = 0;
+    destination.createCommit = async () => {
+      commits += 1;
+      throw new Error("retry must not create a commit");
+    };
+    destination.createPull = async () => {
+      pullsCreated += 1;
+      throw new Error("retry must not create a pull");
+    };
+    destination.compareAndSwap = async () => {
+      swaps += 1;
+      throw new Error("retry must not move a branch");
+    };
+    const blocked = await runSync({
+      sourceFiles: sourceFrom({ "pkg/file.txt": "synced\n" }),
+      sourceSha: SOURCE_SHA,
+      destination,
+    });
+    assert.equal(blocked.action, "blocked");
+    assert.equal(blocked.outcome, "action-required");
+    assert.equal(blocked.pr, null);
+    assert.equal(commits, 0);
+    assert.equal(pullsCreated, 0);
+    assert.equal(swaps, 0);
+    assert.equal(pulls.length, 0);
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+    assert.equal(git(repo, ["rev-parse", "main"]).trim(), main);
+    const again = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(again.result.action, "blocked");
+    assert.equal(pulls.length, 0);
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("a merged destination base stays a no-op when the sync branch is retained", async () => {
+  const repo = initRepo({
+    "docs/migration/repository-controls.md": controls(),
+    "pkg/file.txt": "base\n",
+  });
+  try {
+    const pulls = [];
+    const created = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(created.result.action, "create");
+    const retained = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    git(repo, ["merge", "--no-ff", SYNC_CONTRACT.syncBranch, "-m", "merge sync"]);
+    const merged = git(repo, ["rev-parse", "main"]).trim();
+    assert.notEqual(merged, retained);
+    pulls[0].state = "closed";
+    const again = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(again.result.action, "noop");
+    assert.equal(again.result.pr, null);
+    assert.equal(pulls.length, 1);
+    assert.equal(pulls[0].state, "closed");
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+    assert.equal(git(repo, ["rev-parse", "main"]).trim(), merged);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("an open sync pull with a stale Source-SHA is refreshed without a new commit", async () => {
+  const repo = initRepo({
+    "docs/migration/repository-controls.md": controls(),
+    "pkg/file.txt": "base\n",
+  });
+  try {
+    const pulls = [];
+    const created = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(created.result.action, "create");
+    const retained = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    pulls[0].body = pulls[0].body.replace(`Source-SHA: ${SOURCE_SHA}`, `Source-SHA: ${"c".repeat(40)}`);
+    const refreshed = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls, sourceSha: NEXT_SHA });
+    assert.equal(refreshed.result.action, "update-provenance");
+    assert.equal(refreshed.result.pr, 1);
+    assert.equal(pulls.length, 1);
+    assert.match(pulls[0].body, new RegExp(`Source-SHA: ${NEXT_SHA}`));
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -500,6 +642,79 @@ test("a failed GitHub pull create deletes only the new sync ref", async () => {
   assert.equal(calls.some((call) => call.url.includes("heads/main") && call.method !== "GET"), false);
   assert.equal(calls.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 1);
   assert.equal(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/git/refs/heads/sync%2Fcanonical-main")), true);
+});
+
+test("a blocked result is a failed delivery and a no-op is not", () => {
+  const out = [];
+  const err = [];
+  const sink = (chunks) => ({
+    write(text) {
+      chunks.push(text);
+    },
+  });
+  const blocked = {
+    action: "blocked",
+    outcome: "action-required",
+    reason: "Action required: retained branch",
+    recovery: "Open one draft pull request by hand. Do not reopen a deliberately closed pull request.",
+  };
+  assert.equal(reportSyncResult(blocked, { stdout: sink(out), stderr: sink(err) }), 1);
+  assert.match(out.join(""), /"action": "blocked"/);
+  assert.match(err.join(""), /Action required: retained branch/);
+  assert.match(err.join(""), /by hand/);
+  const quiet = [];
+  assert.equal(reportSyncResult({ action: "noop", pr: null }, { stdout: sink(quiet), stderr: sink([]) }), 0);
+  assert.match(quiet.join(""), /"action": "noop"/);
+});
+
+test("the GitHub client blocks a retained matching branch without writes", async () => {
+  const calls = [];
+  const mainSha = "1".repeat(40);
+  const syncSha = "8".repeat(40);
+  const mainTree = "3".repeat(40);
+  const syncTree = "6".repeat(40);
+  const plugin = entryFromBytes("100644", "{\"version\":\"0.7.0\"}\n");
+  const notice = entryFromBytes("100644", repositoryControlsDocument());
+  const fetch = async (url, options) => {
+    calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : null });
+    if (url.endsWith("/git/ref/heads/main") && options.method === "GET") return jsonResponse(200, { object: { sha: mainSha } });
+    if (url.endsWith("/git/ref/heads/sync%2Fcanonical-main") && options.method === "GET") {
+      return jsonResponse(200, { object: { sha: syncSha } });
+    }
+    if (url.endsWith(`/git/commits/${mainSha}`)) return jsonResponse(200, { tree: { sha: mainTree } });
+    if (url.endsWith(`/git/commits/${syncSha}`)) return jsonResponse(200, { tree: { sha: syncTree } });
+    if (url.includes(`/git/trees/${mainTree}`)) {
+      return jsonResponse(200, { truncated: false, tree: [{ path: "old.txt", mode: "100644", type: "blob", sha: "2".repeat(40) }] });
+    }
+    if (url.includes(`/git/trees/${syncTree}`)) {
+      return jsonResponse(200, {
+        truncated: false,
+        tree: [
+          { path: "plugin.json", mode: "100644", type: "blob", sha: plugin.blobSha },
+          { path: SYNC_CONTRACT.preserve[0], mode: "100644", type: "blob", sha: notice.blobSha },
+        ],
+      });
+    }
+    if (url.includes("/pulls?") && options.method === "GET") return jsonResponse(200, []);
+    return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
+  };
+  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch });
+  const result = await runSync({
+    sourceFiles: sourceFrom({ "plugin.json": "{\"version\":\"0.7.0\"}\n" }),
+    sourceSha: SOURCE_SHA,
+    destination,
+  });
+  assert.equal(result.action, "blocked");
+  assert.equal(result.outcome, "action-required");
+  assert.equal(result.pr, null);
+  assert.equal(result.syncSha, syncSha);
+  assert.equal(result.baseSha, mainSha);
+  assert.equal(result.plan.noop, true);
+  assert.equal(result.basePlan.noop, false);
+  assert.equal(result.basePlan.additions.includes("plugin.json"), true);
+  assert.equal(result.basePlan.deletions.includes("old.txt"), true);
+  assert.equal(calls.some((call) => call.method !== "GET"), false);
+  assert.equal(calls.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 0);
 });
 
 test("an existing GitHub pull is patched and not created again", async () => {
