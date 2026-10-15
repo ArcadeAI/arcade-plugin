@@ -463,6 +463,14 @@ test("tool_only_sessions attributes child rows to parent before counting", () =>
   assert.equal(report.groups[0].tool_only_sessions, 1);
 });
 
+test("PostHog $ properties may be missing from an export but must match when present", () => {
+  const prompt = claudeRow("Plugin prompt submitted", { could_use_arcade: true, service_hints: [], reminder_sent: false });
+  const { $ip, $geoip_disable, $process_person_profile, ...stripped } = prompt.properties;
+  assert.deepEqual(buildReport([{ ...prompt, properties: stripped }]).excluded, { invalid: 0, legacy: 0 });
+  const realIp = { ...prompt, properties: { ...prompt.properties, $ip: "203.0.113.5" } };
+  assert.deepEqual(buildReport([realIp]).excluded, { invalid: 1, legacy: 0 });
+});
+
 test("a legacy row with an extra property counts as invalid, not legacy", () => {
   const base = {
     event: "Plugin prompt submitted",

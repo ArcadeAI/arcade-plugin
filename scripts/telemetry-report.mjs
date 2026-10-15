@@ -18,7 +18,21 @@ const MCP_EVENTS = new Set(["Plugin tool attempted", "Plugin tool called", "Plug
 const OUTCOME_EVENTS = new Set(["Plugin tool called", "Plugin tool failed"]);
 const APP_ACTION_TOOLS = new Set(["Arcade_UseTool", "app_tool"]);
 
-const validateRow = new Ajv2020({ allErrors: true }).compile(eventSchema());
+/**
+ * The sending schema, except PostHog's own `$` properties are optional: PostHog can
+ * strip them on import (for example when the project discards client IPs). When
+ * present they must still match the contract, so a row with a real IP is invalid.
+ */
+const exportSchema = () => {
+  const schema = eventSchema();
+  for (const variant of schema.oneOf) {
+    const properties = variant.properties.properties;
+    properties.required = properties.required.filter((key) => !key.startsWith("$"));
+  }
+  return schema;
+};
+
+const validateRow = new Ajv2020({ allErrors: true }).compile(exportSchema());
 
 /** @param {unknown} row */
 const isValidRow = (row) => validateRow(row) === true;

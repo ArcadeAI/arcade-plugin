@@ -220,7 +220,10 @@ The script prints JSON with counts, denominators, and a `limits` list. Before
 validating, it ignores export fields outside
 `{ event, distinct_id, properties }` (such as `timestamp` and `uuid`) and
 PostHog-added properties whose names start with `$` but are not on the contract
-for that event. Every other property must match the contract; leaked hook
+for that event. The contract's own `$` properties (`$ip`, `$geoip_disable`,
+`$process_person_profile`) may be missing, because PostHog can drop them on
+import, but when present they must match the contract, so a row with a real IP
+address is invalid. Every other property must match the contract; leaked hook
 fields such as `prompt` or `cwd` make a row invalid. A row with a known event
 and no `telemetry_version` counts as legacy only if every property key is on
 the contract for that event; a row that carries any additional property (such
