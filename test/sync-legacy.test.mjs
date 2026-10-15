@@ -215,6 +215,33 @@ test("a failed pull create rolls the sync branch back and does not write main", 
   }
 });
 
+test("a failed pull update keeps the fast-forward and does not open a second pull", async () => {
+  const repo = initRepo({ "docs/migration/repository-controls.md": controls(), "pkg/file.txt": "v1\n" });
+  const main = git(repo, ["rev-parse", "main"]).trim();
+  try {
+    const pulls = [];
+    const created = await run(repo, sourceFrom({ "pkg/file.txt": "v1\n", "extra.txt": "one\n" }), { pulls });
+    assert.equal(created.result.action, "create");
+    const destination = createGitDestination({ repo, pulls });
+    destination.updatePull = async () => {
+      throw new Error("mock pull update failed");
+    };
+    await assert.rejects(
+      runSync({
+        sourceFiles: sourceFrom({ "pkg/file.txt": "v2\n" }),
+        sourceSha: NEXT_SHA,
+        destination,
+      }),
+      /mock pull update failed/,
+    );
+    assert.equal(pulls.length, 1);
+    assert.equal(git(repo, ["show", `${SYNC_CONTRACT.syncBranch}:pkg/file.txt`]), "v2\n");
+    assert.equal(git(repo, ["rev-parse", "main"]).trim(), main);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test("a failed ref update does not open a pull request", async () => {
   const repo = initRepo({ "docs/migration/repository-controls.md": controls() });
   try {

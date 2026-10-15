@@ -262,10 +262,15 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, contract }) => {
     });
     return { action: "create", pr: pr.number, commit: newSha, plan };
   } catch (error) {
-    try {
-      await destination.compareAndSwap({ branch: contract.syncBranch, from: newSha, to: syncSha });
-    } catch (rollbackError) {
-      throw new Error(`sync write failed and rollback failed: ${rollbackError.message}`, { cause: error });
+    // A new branch has no pull request yet, so delete it. An existing pull
+    // request already tracks the branch; leave the fast-forward in place
+    // rather than force-moving the branch backward.
+    if (syncSha === null) {
+      try {
+        await destination.compareAndSwap({ branch: contract.syncBranch, from: newSha, to: null });
+      } catch (rollbackError) {
+        throw new Error(`sync write failed and rollback failed: ${rollbackError.message}`, { cause: error });
+      }
     }
     throw error;
   }

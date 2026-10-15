@@ -38,7 +38,8 @@ main, when that branch does not exist yet) and then:
 - a matching tree is a no-op: no commit and no second pull request
 - a repeated run with the same tree updates nothing
 - an open sync pull request is updated in place, including its `Source-SHA` line
-- a failed pull-request write moves the sync branch back to its previous SHA
+- a failed pull-request create deletes the sync branch it just created
+- a failed update of an existing pull request leaves that fast-forward commit in place and does not open a second pull request
 - `main` and `master` are rejected as update targets
 
 The commit and pull request body record `Source-SHA` and `Source-Repo`.
