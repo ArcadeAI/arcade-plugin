@@ -13,7 +13,7 @@
     "agent-skills",
     "connected-apps"
   ],
-  "version": "0.3.0",
+  "version": "0.7.0",
   "hooks": "./.claude-plugin/hooks.json",
   "mcpServers": {
     "arcade": {
