@@ -59,19 +59,15 @@ export const normalizeExportRow = (raw) => {
   return { event, distinct_id, properties: trimmed };
 };
 
-/** @param {unknown} row */
+/**
+ * `row` is a successfully normalized export row. A missing `telemetry_version`
+ * is legacy only when every property key is on the contract; extra keys stay invalid.
+ * @param {{ event: string, properties: Record<string, unknown> }} row
+ */
 const isLegacyRow = (row) => {
-  if (!row || typeof row !== "object") return false;
-  const record = /** @type {{ event?: string, properties?: Record<string, unknown> }} */ (row);
-  if (
-    typeof record.event !== "string" ||
-    !KNOWN_EVENTS.has(record.event) ||
-    !record.properties ||
-    typeof record.properties !== "object" ||
-    record.properties.telemetry_version !== undefined
-  ) return false;
-  const allowed = new Set(allowedProperties(record.event));
-  return Object.keys(record.properties).every((key) => allowed.has(key));
+  if (row.properties.telemetry_version !== undefined) return false;
+  const allowed = new Set(allowedProperties(row.event));
+  return Object.keys(row.properties).every((key) => allowed.has(key));
 };
 
 /**

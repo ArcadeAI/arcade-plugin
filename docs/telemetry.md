@@ -264,7 +264,8 @@ observed prompt units and sessions visible even when a chart has no app actions.
 Do not extrapolate rates from a test sample or telemetry-enabled sessions to all users.
 Do not mix Claude turns with Copilot session counts in one rate.
 
-Report field meanings (from `scripts/telemetry-report.mjs`):
+Report field glossary (`scripts/telemetry-report.mjs`). These definitions are
+authoritative. The host sections below add attribution and scope only.
 
 - `observed_relevant_turns` / `observed_relevant_sessions`: distinct Claude
   `turn` values or Copilot `session` values with a `Plugin prompt submitted`
@@ -299,14 +300,11 @@ Report field meanings (from `scripts/telemetry-report.mjs`):
 
 ### Claude Code turns
 
-The denominator is distinct `turn` values with a `Plugin prompt submitted`
-event. This is a count of observed relevant turns, not all prompts or tasks.
-Exclude tool-only turns: Claude Code filters background task results
-from prompt events. Group tool events with the same `turn`, including an
-arcade-operator's events, and report sessions and turns separately. A short
-follow-up such as “yes, send it” is a separate observed turn while scope is
-active, even when its keyword flag is false. Turn counts do not describe whole
-tasks. Report tool-only turns separately from this denominator.
+Claude Code filters background task results from prompt events. Group tool
+events with the same `turn`, including an arcade-operator's events, and report
+sessions and turns separately. A short follow-up such as “yes, send it” is a
+separate observed turn while scope is active, even when its keyword flag is
+false.
 
 `server: other_arcade` means the hook observed another connection's Arcade
 gateway tool. Results recognize exact gateway tool names on arbitrary MCP
@@ -315,19 +313,6 @@ prefixes. UUID or capitalized aliases can therefore have results without an
 attempt event. Direct app tools on an unidentified connection may be classified
 as `other`. Gateway names are a recognition heuristic, not verified server
 provenance.
-
-Events contain no tool-call ID. Multiple calls in the same turn cannot be
-paired individually, even when their tool categories match. Count observed
-events or turn-level stages; do not present a per-attempt completion rate.
-
-A tool invocation is not always followed by a PostToolUse or
-PostToolUseFailure event. A `Plugin tool attempted` event can show the
-invocation, but only `Plugin tool called` or `Plugin tool failed` records its
-outcome. Count an attempt without either outcome as **attempt
-observed, outcome unknown**, not app action success. It does not set
-`arcade_used_before`. Label flagged turns with no Arcade tool event **no call
-observed**, not **missed**. A direct app tool on another gateway may appear
-as `server: other`, without an identifiable Arcade call.
 
 A built-in CLI or web event is a tool observation, not evidence of fallback.
 Only call it a possible fallback after linking it to a labeled Arcade-eligible
@@ -338,17 +323,14 @@ same machine or prove that the gateway or a particular app was unconnected.
 
 ### Copilot CLI sessions
 
-Copilot CLI supplies no `prompt_id` or `turn`. Count distinct sessions with a
-scoped `Plugin prompt submitted` event as **observed relevant sessions**. Report
-multiple-prompt sessions separately. This is not a count of all sessions, user
-tasks, or turns. Session starts are not transmitted and cannot define top-level sessions.
+Copilot CLI supplies no `prompt_id` or `turn`. Report multiple-prompt sessions
+separately. Session starts are not transmitted and cannot define top-level
+sessions.
 
 An Arcade operator's stop report carries `subagent_session`, equal to that
-operator's own event `session`. Exclude known linked operator prompts from the
-parent-session denominator and include their tool events with the parent.
-Other subagents do not send stop reports, so their prompt sessions cannot be
-reliably distinguished from top-level sessions. Report that parent attribution
-is unknown rather than labeling every unlinked session as a top-level session.
+operator's own event `session`. Include that operator's tool events with the
+parent. Other subagents do not send stop reports, so their prompt sessions
+cannot be reliably distinguished from top-level sessions.
 
 Detached event delivery can change arrival order. A missing operator stop or a
 rolling-window boundary can also remove a parent link. Do not reconstruct

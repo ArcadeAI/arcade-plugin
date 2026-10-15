@@ -32,13 +32,11 @@ Telemetry is **off** in this build: generated manifests include no telemetry
 hooks and nothing is sent. When enabled, `hooks/telemetry-adapters/copilot-cli.mjs`
 records MCP tools as `<server>-<tool>`, operator stops with `subagent_session`,
 and session-scoped prompt state under `COPILOT_PLUGIN_DATA` (no `turn`, no
-`PreToolUse`, no built-in CLI/web events). See [telemetry.md](../telemetry.md).
+`PreToolUse`, no built-in CLI/web events). See
+[telemetry.md](../telemetry.md) for opt-outs (`ARCADE_PLUGIN_TELEMETRY=0` and
+`COPILOT_OFFLINE`) and
+[what CI exercises](../telemetry.md#what-ci-exercises).
 
-**Repo coverage:** in-process fixtures and `npm run verify:copilot` (**1.0.88**)
-on the committed manifest, which has no telemetry hooks; `verify:copilot` checks
-only MCP servers and skills. No CLI has validated a manifest with telemetry hooks
-enabled. Not live sessions, Windows PowerShell hook commands, or VS Code agent
-sessions.
 Shared `com.github.copilot/hooks/hooks.json` uses `runOnlyIfScriptExists` so VS
 Code exits quietly without a plugin path.
 

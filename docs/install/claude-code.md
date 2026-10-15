@@ -43,14 +43,11 @@ Telemetry is **off** in this build (`TELEMETRY_ENABLED` is `false`): no usage
 events are sent and generated manifests include no telemetry hooks. When
 telemetry is enabled, the adapter in `hooks/telemetry-adapters/claude-code.mjs`
 classifies prompts, records `PreToolUse` on the plugin and claude.ai Arcade
-prefixes, and stores scope under `CLAUDE_PLUGIN_DATA`. See
-[telemetry.md](../telemetry.md) for opt-outs (`ARCADE_PLUGIN_TELEMETRY=0`,
-`DISABLE_TELEMETRY`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`) and limits.
-
-**Repo coverage:** in-process hook tests and `claude plugin validate --strict`
-(**2.1.258**) on the committed manifest, which has no telemetry hooks. No CLI
-has validated a manifest with telemetry hooks enabled. Not live sessions, IDE
-extensions, desktop Code tab, or Cowork.
+prefixes, and stores scope under `CLAUDE_PLUGIN_DATA`. Opt out with
+`ARCADE_PLUGIN_TELEMETRY=0`, `DISABLE_TELEMETRY`, or
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`. See
+[telemetry.md](../telemetry.md) and
+[what CI exercises](../telemetry.md#what-ci-exercises).
 
 ## First steps
 
