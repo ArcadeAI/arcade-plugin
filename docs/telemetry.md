@@ -95,12 +95,14 @@ current `prompt_id` (`requiresTurn: true`). Copilot keeps prompt scope per
 Local state uses `CLAUDE_PLUGIN_DATA` (Claude Code) and `COPILOT_PLUGIN_DATA`
 (Copilot CLI) for `arcade-used` and `prompt-scope/` files.
 
-Copilot's manifest is shared with VS Code. Hook commands use
-`runOnlyIfScriptExists`: each command checks that its script exists at
-`${PLUGIN_ROOT}` and exits quietly when the path is missing, so VS Code does
-not run telemetry today. Cursor is not wired up; its hook input can include the
-user's email. claude.ai, ChatGPT, Codex, and OpenCode don't run telemetry hooks
-from this package.
+Copilot's manifest is shared with VS Code's Copilot sessions, which support
+session and subagent routing hooks (see the [VS Code guide](install/vscode.md)).
+`runOnlyIfScriptExists` is a defensive guard for a missing plugin path or script,
+not a VS Code capability limit. No telemetry hooks are generated while
+`TELEMETRY_ENABLED` is `false`; VS Code telemetry remains unvalidated, and
+routing-hook support does not establish telemetry delivery or opt-out behavior.
+Cursor is not wired up; its hook input can include the user's email. claude.ai,
+ChatGPT, Codex, and OpenCode don't run telemetry hooks from this package.
 
 ### What CI exercises
 

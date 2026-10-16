@@ -67,11 +67,9 @@ test("every command in every generated hooks.json runs and prints what its clien
   }
 });
 
-// VS Code reads com.github.copilot/hooks/hooks.json but runs each command as
-// written, through `spawn(command, { shell: true })` from the workspace root,
-// without setting or replacing PLUGIN_ROOT (microsoft/vscode main, 2026-09:
-// pluginParsers.ts, hookExecutor.ts). Copilot CLI replaces ${PLUGIN_ROOT} in
-// the command and also sets it in the environment.
+// Exercise the shared Copilot manifest's defensive script-existence guard.
+// Missing/invalid roots are failure cases, not a simulation of VS Code.
+// These subprocess checks do not launch a live Copilot CLI or VS Code session.
 const copilotEntries = () =>
   Object.entries(JSON.parse(readRepoFile(HOSTS.copilot.manifest)).hooks).flatMap(([event, entries]) =>
     entries.map((entry) => ({ event, ...entry })),
@@ -85,7 +83,7 @@ const VSCODE_INPUT = JSON.stringify({
   agent_type: "Explore",
 });
 
-test("in VS Code every Copilot hook command exits 0 without output", skipOnWindows, () => {
+test("every Copilot hook command exits quietly with a missing or invalid plugin root", skipOnWindows, () => {
   const cwd = tempDataDir();
   for (const extra of [{}, { PLUGIN_ROOT: "/nonexistent" }]) {
     for (const { event, command } of copilotEntries()) {
@@ -108,7 +106,7 @@ const assertCopilotHookRan = (event, command, result, label) => {
   assertPrintsContext("copilot", event, result, label);
 };
 
-test("in Copilot CLI every Copilot hook command runs with PLUGIN_ROOT set only in the environment", skipOnWindows, () => {
+test("every Copilot hook command runs with PLUGIN_ROOT set only in the environment", skipOnWindows, () => {
   const cwd = tempDataDir();
   for (const { event, command } of copilotEntries()) {
     const result = spawnSync(command, { shell: true, cwd, env: hookEnv({ PLUGIN_ROOT: ROOT }), input: HOOK_INPUT, encoding: "utf8" });
