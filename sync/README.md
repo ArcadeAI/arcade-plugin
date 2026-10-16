@@ -1,7 +1,8 @@
-# Inert legacy sync
+# Inactive legacy sync
 
-`legacy-sync.workflow.yml` is staged here so a branch push or pull request
-cannot run it. GitHub Actions only runs workflows under `.github/workflows/`.
-
-Activation steps and the copy contract are in
-[docs/migration/legacy-sync.md](../docs/migration/legacy-sync.md).
+`legacy-sync.workflow.yml` is staged here for review, not installed under
+`.github/workflows/`. Activation and a destination token need separate approval.
+`destination-check.yml` is the trusted-base integrity workflow projected only
+into the legacy repository; canonical validation and review stay unchanged.
+See `docs/migration/legacy-sync.md` for ownership, ordering, uncertainty,
+projection, bootstrap, and repository-settings boundaries.

@@ -20,7 +20,11 @@ import {
   readGitTree,
   reportSyncResult,
   repositoryControlsDocument,
-  runSync,
+  runSync as syncRun,
+  createGitSource,
+  syncCommitMessage,
+  syncPullBody,
+  selectSyncPull,
 } from "../scripts/sync-legacy.mjs";
 
 const SOURCE_SHA = "a".repeat(40);
@@ -51,6 +55,19 @@ const initRepo = (files) => {
 const controls = () => repositoryControlsDocument();
 
 const sourceFrom = (files) => new Map(Object.entries(files).map(([path, contents]) => [path, entryFromBytes("100644", contents)]));
+
+// The core requires an explicit canonical reader. Small snapshot fixtures use
+// deterministic ancestry; the regression below also exercises real Git ancestry.
+const snapshots = new Map();
+const runSync = (args) => {
+  snapshots.set(args.sourceSha, args.sourceFiles);
+  const source = args.source ?? {
+    async getBranchSha() { return args.sourceSha; },
+    async isAncestor(a, b) { return a === b || a === SOURCE_SHA && b === NEXT_SHA; },
+    async readFiles(sha) { if (!snapshots.has(sha)) throw new Error("unknown canonical snapshot"); return snapshots.get(sha); },
+  };
+  return syncRun({ ...args, source });
+};
 
 const run = async (repo, sourceFiles, { pulls = [], sourceSha = SOURCE_SHA, sourceMessage = "", failCreate = false, failSwap = false, contract } = {}) => {
   const before = git(repo, ["rev-parse", "main"]).trim();
@@ -103,7 +120,7 @@ test("desired tree drops repository controls and keeps the destination notice", 
   ]);
   assert.equal(desired.get(SYNC_CONTRACT.preserve[0]).bytes.toString(), "keep me\n");
   assert.equal(isExcluded(".github/workflows/release-please.yml"), true);
-  assert.equal(isExcluded(".github/workflows/check.yml"), false);
+  assert.equal(isExcluded(".github/workflows/check.yml"), true);
 });
 
 test("diff reports additions, changes, deletions, and no-op", () => {
@@ -227,14 +244,13 @@ test("a failed pull create on an existing branch is blocked on retry without a n
     "pkg/file.txt": "base\n",
   });
   const main = git(repo, ["rev-parse", "main"]).trim();
-  git(repo, ["branch", SYNC_CONTRACT.syncBranch, "main"]);
   try {
     const pulls = [];
-    await assert.rejects(
-      run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls, failCreate: true }),
-      /mock pull create failed/,
-    );
-    assert.equal(pulls.length, 0);
+    await run(repo, sourceFrom({ "pkg/file.txt": "v1\n" }), { pulls });
+    pulls[0].state = "closed";
+    const failed = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls, sourceSha: NEXT_SHA, failCreate: true });
+    assert.equal(failed.result.action, "blocked");
+    assert.equal(pulls.length, 1);
     const retained = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
     assert.notEqual(retained, main);
     assert.equal(git(repo, ["show", `${retained}:pkg/file.txt`]), "synced\n");
@@ -256,7 +272,7 @@ test("a failed pull create on an existing branch is blocked on retry without a n
     };
     const blocked = await runSync({
       sourceFiles: sourceFrom({ "pkg/file.txt": "synced\n" }),
-      sourceSha: SOURCE_SHA,
+      sourceSha: NEXT_SHA,
       destination,
     });
     assert.equal(blocked.action, "blocked");
@@ -265,12 +281,12 @@ test("a failed pull create on an existing branch is blocked on retry without a n
     assert.equal(commits, 0);
     assert.equal(pullsCreated, 0);
     assert.equal(swaps, 0);
-    assert.equal(pulls.length, 0);
+    assert.equal(pulls.length, 1);
     assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
     assert.equal(git(repo, ["rev-parse", "main"]).trim(), main);
-    const again = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    const again = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls, sourceSha: NEXT_SHA });
     assert.equal(again.result.action, "blocked");
-    assert.equal(pulls.length, 0);
+    assert.equal(pulls.length, 1);
     assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
   } finally {
     rmSync(repo, { recursive: true, force: true });
@@ -347,17 +363,16 @@ test("an existing sync pull is updated in place", async () => {
   }
 });
 
-test("a failed pull create rolls the sync branch back and does not write main", async () => {
+test("a failed pull create retains the review branch and does not write main", async () => {
   const repo = initRepo({ "docs/migration/repository-controls.md": controls(), "pkg/file.txt": "base\n" });
   const main = git(repo, ["rev-parse", "main"]).trim();
   try {
-    await assert.rejects(
-      run(repo, sourceFrom({ "pkg/file.txt": "changed\n" }), { failCreate: true }),
-      /mock pull create failed/,
-    );
+    const failed = await run(repo, sourceFrom({ "pkg/file.txt": "changed\n" }), { failCreate: true });
+    assert.equal(failed.result.action, "blocked");
+    assert.match(failed.result.reason, /mock pull create failed/);
     assert.equal(git(repo, ["rev-parse", "main"]).trim(), main);
     const branch = spawnSync("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${SYNC_CONTRACT.syncBranch}`], { cwd: repo });
-    assert.notEqual(branch.status, 0);
+    assert.equal(branch.status, 0);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -374,14 +389,9 @@ test("a failed pull update keeps the fast-forward and does not open a second pul
     destination.updatePull = async () => {
       throw new Error("mock pull update failed");
     };
-    await assert.rejects(
-      runSync({
-        sourceFiles: sourceFrom({ "pkg/file.txt": "v2\n" }),
-        sourceSha: NEXT_SHA,
-        destination,
-      }),
-      /mock pull update failed/,
-    );
+    const failed = await runSync({ sourceFiles: sourceFrom({ "pkg/file.txt": "v2\n" }), sourceSha: NEXT_SHA, destination });
+    assert.equal(failed.action, "blocked");
+    assert.match(failed.reason, /mock pull update failed/);
     assert.equal(pulls.length, 1);
     assert.equal(git(repo, ["show", `${SYNC_CONTRACT.syncBranch}:pkg/file.txt`]), "v2\n");
     assert.equal(git(repo, ["rev-parse", "main"]).trim(), main);
@@ -429,10 +439,11 @@ test("release-please is absent from the synced tree", async () => {
       "plugin.json": "{\"version\":\"0.7.0\"}\n",
       ".github/workflows/release-please.yml": "name: Release Please\n",
       ".github/workflows/check.yml": "name: check\n",
+      "sync/destination-check.yml": "name: mirror-integrity\n",
     });
     await run(repo, source);
     const synced = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
-    assert.equal(git(repo, ["show", `${synced}:.github/workflows/check.yml`]), "name: check\n");
+    assert.equal(git(repo, ["show", `${synced}:.github/workflows/check.yml`]), "name: mirror-integrity\n");
     const release = spawnSync("git", ["cat-file", "-e", `${synced}:.github/workflows/release-please.yml`], { cwd: repo });
     assert.notEqual(release.status, 0);
   } finally {
@@ -600,7 +611,7 @@ test("the GitHub client creates one draft pull and never writes main", async () 
   assert.equal(writes.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 1);
 });
 
-test("a failed GitHub pull create deletes only the new sync ref", async () => {
+test("a failed GitHub pull create never deletes a possibly accepted review head", async () => {
   const calls = [];
   const mainSha = "1".repeat(40);
   const createdSha = "4".repeat(40);
@@ -631,17 +642,13 @@ test("a failed GitHub pull create deletes only the new sync ref", async () => {
     return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
   };
   const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch });
-  await assert.rejects(
-    runSync({
-      sourceFiles: sourceFrom({ "plugin.json": "{}\n" }),
-      sourceSha: SOURCE_SHA,
-      destination,
-    }),
-    /GitHub POST .*\/pulls failed: 500/,
-  );
+  const failed = await runSync({ sourceFiles: sourceFrom({ "plugin.json": "{}\n" }), sourceSha: SOURCE_SHA, destination });
+  assert.equal(failed.action, "blocked");
+  assert.match(failed.reason, /GitHub POST .*\/pulls failed: 500/);
   assert.equal(calls.some((call) => call.url.includes("heads/main") && call.method !== "GET"), false);
   assert.equal(calls.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 1);
-  assert.equal(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/git/refs/heads/sync%2Fcanonical-main")), true);
+  assert.equal(calls.some((call) => call.method === "DELETE"), false);
+  assert.equal(syncSha, createdSha);
 });
 
 test("a blocked result is a failed delivery and a no-op is not", () => {
@@ -682,7 +689,7 @@ test("the GitHub client blocks a retained matching branch without writes", async
       return jsonResponse(200, { object: { sha: syncSha } });
     }
     if (url.endsWith(`/git/commits/${mainSha}`)) return jsonResponse(200, { tree: { sha: mainTree } });
-    if (url.endsWith(`/git/commits/${syncSha}`)) return jsonResponse(200, { tree: { sha: syncTree } });
+    if (url.endsWith(`/git/commits/${syncSha}`)) return jsonResponse(200, { tree: { sha: syncTree }, message: syncCommitMessage(SOURCE_SHA), parents: [{sha: mainSha}] });
     if (url.includes(`/git/trees/${mainTree}`)) {
       return jsonResponse(200, { truncated: false, tree: [{ path: "old.txt", mode: "100644", type: "blob", sha: "2".repeat(40) }] });
     }
@@ -717,40 +724,20 @@ test("the GitHub client blocks a retained matching branch without writes", async
   assert.equal(calls.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 0);
 });
 
-test("an existing GitHub pull is patched and not created again", async () => {
+test("GitHub updates refuse a changed ref and only fast-forward the expected head", async () => {
   const calls = [];
-  const mainSha = "1".repeat(40);
-  const syncSha = "8".repeat(40);
-  const fetch = async (url, options) => {
-    calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : null });
-    if (url.endsWith("/git/ref/heads/main") && options.method === "GET") return jsonResponse(200, { object: { sha: mainSha } });
-    if (url.endsWith("/git/ref/heads/sync%2Fcanonical-main") && options.method === "GET") {
-      return jsonResponse(200, { object: { sha: syncSha } });
-    }
-    if (url.includes(`/git/commits/${syncSha}`)) return jsonResponse(200, { tree: { sha: "3".repeat(40) } });
-    if (url.includes("/git/trees/") && options.method === "GET") return jsonResponse(200, { truncated: false, tree: [] });
-    if (url.endsWith("/git/blobs")) return jsonResponse(201, { sha: "5".repeat(40) });
-    if (url.endsWith("/git/trees") && options.method === "POST") return jsonResponse(201, { sha: "6".repeat(40) });
-    if (url.endsWith("/git/commits") && options.method === "POST") return jsonResponse(201, { sha: "9".repeat(40) });
-    if (url.includes("/pulls?") && options.method === "GET") {
-      return jsonResponse(200, [{ number: 4, title: "old", body: "Source-SHA: cccccccccccccccccccccccccccccccccccccccc\n" }]);
-    }
-    if (options.method === "PATCH" && url.endsWith("/git/refs/heads/sync%2Fcanonical-main")) return jsonResponse(200, {});
-    if (options.method === "PATCH" && url.endsWith("/pulls/4")) return jsonResponse(200, {});
-    return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
-  };
-  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch });
-  const result = await runSync({
-    sourceFiles: sourceFrom({ "plugin.json": "{}\n" }),
-    sourceSha: NEXT_SHA,
-    destination,
-  });
-  assert.equal(result.action, "update");
-  assert.equal(result.pr, 4);
-  const ref = calls.find((call) => call.method === "PATCH" && call.url.includes("/git/refs/"));
-  assert.equal(ref.body.force, false);
-  assert.equal(calls.some((call) => call.method === "POST" && call.url.endsWith("/pulls")), false);
-  assert.equal(calls.some((call) => call.url.includes("heads/main") && call.method !== "GET"), false);
+  let current = SOURCE_SHA;
+  const destination = createGithubDestination({ repo: SYNC_CONTRACT.destRepo, token: "test", fetch: async (url, options) => {
+    calls.push({ url, ...options });
+    if (options.method === "GET") return jsonResponse(200, { object: { sha: current } });
+    return jsonResponse(200, {});
+  } });
+  await destination.compareAndSwap({ branch: SYNC_CONTRACT.syncBranch, from: SOURCE_SHA, to: NEXT_SHA });
+  assert.deepEqual(JSON.parse(calls.find((call) => call.method === "PATCH").body), { sha: NEXT_SHA, force: false });
+  current = "c".repeat(40);
+  await assert.rejects(destination.compareAndSwap({ branch: SYNC_CONTRACT.syncBranch, from: SOURCE_SHA, to: NEXT_SHA }), /changed before update/);
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 1);
+  await assert.rejects(destination.compareAndSwap({ branch: SYNC_CONTRACT.syncBranch, from: current, to: null }), /never deletes/);
 });
 
 test("readGitTree round-trips a binary file", () => {
@@ -763,5 +750,105 @@ test("readGitTree round-trips a binary file", () => {
     assert.deepEqual([...files.get("blob.bin").bytes], [0, 255, 10]);
   } finally {
     rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("human sync-branch commits and human edits after a sync are never overwritten", async () => {
+  for (const seedSync of [false, true]) {
+    const repo = initRepo({ "pkg/file.txt": "base\n", "docs/migration/repository-controls.md": controls() });
+    try {
+      const pulls = [];
+      if (seedSync) await run(repo, sourceFrom({ "pkg/file.txt": "v1\n" }), { pulls });
+      else git(repo, ["branch", SYNC_CONTRACT.syncBranch, "main"]);
+      git(repo, ["switch", SYNC_CONTRACT.syncBranch]);
+      writeFileSync(join(repo, "manual.txt"), "human review work\n");
+      git(repo, ["add", "."]); git(repo, ["commit", "-m", "human work"]);
+      const head = git(repo, ["rev-parse", "HEAD"]).trim();
+      await assert.rejects(run(repo, sourceFrom({ "pkg/file.txt": "v2\n" }), { pulls, sourceSha: NEXT_SHA }), /unowned sync branch/);
+      assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), head);
+      assert.equal(git(repo, ["show", `${head}:manual.txt`]), "human review work\n");
+    } finally { rmSync(repo, { recursive: true, force: true }); }
+  }
+});
+
+test("a forged sync marker cannot hide a human tree edit", async () => {
+  const repo = initRepo({ "pkg/file.txt": "base\n", "docs/migration/repository-controls.md": controls() });
+  try {
+    const pulls = [];
+    await run(repo, sourceFrom({ "pkg/file.txt": "v1\n" }), { pulls });
+    git(repo, ["switch", SYNC_CONTRACT.syncBranch]);
+    writeFileSync(join(repo, "manual.txt"), "keep\n"); git(repo, ["add", "."]);
+    git(repo, ["commit", "-m", syncCommitMessage(SOURCE_SHA)]);
+    const head = git(repo, ["rev-parse", "HEAD"]).trim();
+    await assert.rejects(run(repo, sourceFrom({ "pkg/file.txt": "v2\n" }), { pulls, sourceSha: NEXT_SHA }), /human or unexpected changes/);
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), head);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
+
+test("wrong-base, unowned, fork-head, and duplicate PR matches are refused before writes", async () => {
+  const valid = { number: 1, branch: SYNC_CONTRACT.syncBranch, base: "main", headRepo: SYNC_CONTRACT.destRepo, baseRepo: SYNC_CONTRACT.destRepo, body: syncPullBody(SOURCE_SHA) };
+  for (const matches of [[{ ...valid, base: "release" }], [{ ...valid, body: "human PR" }], [{ ...valid, headRepo: "someone/omnimcp" }], [valid, { ...valid, number: 2 }]]) {
+    assert.throws(() => selectSyncPull(matches, SYNC_CONTRACT.syncBranch), /ambiguous, unowned or wrong-base/);
+  }
+  let writes = 0;
+  const destination = createGithubDestination({ repo: SYNC_CONTRACT.destRepo, token: "test", fetch: async (_url, options) => {
+    if (options.method !== "GET") writes++;
+    return jsonResponse(200, [{ number: 99, body: syncPullBody(SOURCE_SHA), head: { ref: SYNC_CONTRACT.syncBranch, repo: { full_name: SYNC_CONTRACT.destRepo } }, base: { ref: "release", repo: { full_name: SYNC_CONTRACT.destRepo } } }]);
+  } });
+  await assert.rejects(destination.findOpenPull(SYNC_CONTRACT.syncBranch), /wrong-base/);
+  assert.equal(writes, 0);
+});
+
+test("real ancestor A cannot replace B after a delayed event or a source ref rewind", async () => {
+  const sourceRepo = initRepo({ "pkg/file.txt": "A\n" });
+  const dest = initRepo({ "pkg/file.txt": "legacy\n", "docs/migration/repository-controls.md": controls() });
+  try {
+    const a = git(sourceRepo, ["rev-parse", "HEAD"]).trim();
+    writeFileSync(join(sourceRepo, "pkg/file.txt"), "B\n"); git(sourceRepo, ["add", "."]); git(sourceRepo, ["commit", "-m", "B"]);
+    const b = git(sourceRepo, ["rev-parse", "HEAD"]).trim();
+    const source = createGitSource({ repo: sourceRepo });
+    const pulls = []; const destination = createGitDestination({ repo: dest, pulls });
+    await syncRun({ sourceFiles: readGitTree(sourceRepo, b), sourceSha: b, source, destination });
+    const delivered = git(dest, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    const delayed = await syncRun({ sourceFiles: readGitTree(sourceRepo, a), sourceSha: a, source, destination });
+    assert.equal(delayed.action, "skip");
+    const rewind = await syncRun({ sourceFiles: readGitTree(sourceRepo, a), sourceSha: a, source: { ...source, async getBranchSha() { return a; } }, destination });
+    assert.equal(rewind.action, "blocked");
+    assert.equal(git(dest, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), delivered);
+    assert.equal(git(dest, ["show", `${delivered}:pkg/file.txt`]), "B\n");
+    assert.match(pulls[0].body, new RegExp(`Source-SHA: ${b}`));
+  } finally { rmSync(sourceRepo, { recursive: true, force: true }); rmSync(dest, { recursive: true, force: true }); }
+});
+
+test("a source advance during planning prevents a ref or PR write", async () => {
+  const repo = initRepo({ "pkg/file.txt": "base\n" });
+  try {
+    const destination = createGitDestination({ repo, pulls: [] });
+    destination.createCommit = async () => { throw new Error("must not create a commit"); };
+    let reads = 0;
+    const result = await syncRun({ sourceFiles: sourceFrom({ "pkg/file.txt": "A\n" }), sourceSha: SOURCE_SHA, destination, source: {
+      async getBranchSha() { return ++reads === 1 ? SOURCE_SHA : NEXT_SHA; },
+      async readFiles() { return sourceFrom({ "pkg/file.txt": "A\n" }); },
+    } });
+    assert.equal(result.action, "skip");
+    assert.equal(await destination.getBranchSha(SYNC_CONTRACT.syncBranch), null);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
+
+test("an accepted PR create with a lost response is reconciled without deleting its head", async () => {
+  for (const reconciliationFails of [false, true]) {
+    const repo = initRepo({ "pkg/file.txt": "base\n" });
+    try {
+      const pulls = []; const destination = createGitDestination({ repo, pulls });
+      const create = destination.createPull; const find = destination.findOpenPull;
+      let accepted = false;
+      destination.createPull = async (args) => { await create(args); accepted = true; throw new Error("response lost"); };
+      destination.findOpenPull = async (...args) => { if (accepted && reconciliationFails) throw new Error("network unavailable"); return find(...args); };
+      const result = await runSync({ sourceFiles: sourceFrom({ "pkg/file.txt": "new\n" }), sourceSha: SOURCE_SHA, destination });
+      assert.equal(result.action, reconciliationFails ? "blocked" : "recovered");
+      const retained = await destination.getBranchSha(SYNC_CONTRACT.syncBranch);
+      assert.ok(retained); assert.equal(pulls.length, 1); assert.equal(pulls[0].state, "open");
+      assert.equal(git(repo, ["show", `${retained}:pkg/file.txt`]), "new\n");
+    } finally { rmSync(repo, { recursive: true, force: true }); }
   }
 });
