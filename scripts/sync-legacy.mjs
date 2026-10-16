@@ -211,17 +211,21 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
   const parentFiles = syncSha ? await destination.readFiles(syncSha) : baseFiles;
   const open = await destination.findOpenPull(contract.syncBranch, contract);
   if (open && !syncSha) return blocked("Open sync PR has no branch; inspect by hand");
+  let deliveredSource = null;
   if (syncSha) {
-    const recorded = await verifyOwnedHead({ syncSha, parentFiles, baseFiles, source, destination, contract });
-    if (recorded !== sourceSha && !await source.isAncestor(recorded, sourceSha)) {
-      return blocked("Refusing to replace a newer or unrelated delivered source snapshot", { sourceSha, deliveredSource: recorded });
+    deliveredSource = await verifyOwnedHead({ syncSha, parentFiles, baseFiles, source, destination, contract });
+    if (deliveredSource !== sourceSha && !await source.isAncestor(deliveredSource, sourceSha)) {
+      return blocked("Refusing to replace a newer or unrelated delivered source snapshot", { sourceSha, deliveredSource });
     }
   }
   const desired = desiredTree({ sourceFiles, destFiles: baseFiles, contract });
   const plan = diffTrees(parentFiles, desired);
   const body = syncPullBody(sourceSha, contract);
   const title = syncPullTitle(sourceSha, contract);
-  if (plan.noop) {
+  // Even an unchanged projection needs a new head when its attested source
+  // changes. The integrity verifier trusts the commit, not the editable PR body.
+  const provenanceCommit = plan.noop && Boolean(open) && deliveredSource !== sourceSha;
+  if (plan.noop && !provenanceCommit) {
     if (open && provenance(open.body, contract) !== sourceSha) {
       if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before PR update" };
       await destination.updatePull({ number: open.number, title, body });
@@ -240,7 +244,7 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
   try {
     if (open) {
       await destination.updatePull({ number: open.number, title, body });
-      return { action: "update", pr: open.number, commit: newSha, plan };
+      return { action: provenanceCommit ? "update-provenance" : "update", pr: open.number, commit: newSha, plan };
     }
     const pr = await destination.createPull({ branch: contract.syncBranch, base: contract.destBaseBranch, title, body, draft: true });
     return { action: "create", pr: pr.number, commit: newSha, plan };

@@ -26,6 +26,7 @@ import {
   syncPullBody,
   selectSyncPull,
 } from "../scripts/sync-legacy.mjs";
+import { verifyGithubMirror, sourceProvenance } from "../scripts/verify-mirror.mjs";
 
 const SOURCE_SHA = "a".repeat(40);
 const NEXT_SHA = "b".repeat(40);
@@ -319,7 +320,7 @@ test("a merged destination base stays a no-op when the sync branch is retained",
   }
 });
 
-test("an open sync pull with a stale Source-SHA is refreshed without a new commit", async () => {
+test("an open sync pull advances head and body provenance together", async () => {
   const repo = initRepo({
     "docs/migration/repository-controls.md": controls(),
     "pkg/file.txt": "base\n",
@@ -335,7 +336,10 @@ test("an open sync pull with a stale Source-SHA is refreshed without a new commi
     assert.equal(refreshed.result.pr, 1);
     assert.equal(pulls.length, 1);
     assert.match(pulls[0].body, new RegExp(`Source-SHA: ${NEXT_SHA}`));
-    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+    const refreshedHead = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    assert.notEqual(refreshedHead, retained);
+    assert.equal(git(repo, ["rev-parse", `${refreshedHead}^`]).trim(), retained);
+    assert.equal(sourceProvenance(git(repo, ["show", "-s", "--format=%B", refreshedHead])), NEXT_SHA);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -851,4 +855,66 @@ test("an accepted PR create with a lost response is reconciled without deleting 
       assert.equal(git(repo, ["show", `${retained}:pkg/file.txt`]), "new\n");
     } finally { rmSync(repo, { recursive: true, force: true }); }
   }
+});
+
+
+test("excluded-only source updates advance commit provenance and pass trusted integrity", async () => {
+  for (const bodyAlreadyCurrent of [false, true]) {
+    const sourceRepo = initRepo({
+      "plugin.json": '{"name":"arcade","version":"0.7.0"}\n',
+      "scripts/legacy-projection.mjs": "reviewed policy\n",
+      "scripts/verify-mirror.mjs": "reviewed checker\n",
+      "sync/destination-check.yml": "trusted workflow\n",
+      "docs/migration/legacy-sync.md": "source A\n",
+    });
+    const dest = initRepo({ "pkg/legacy.txt": "legacy\n", "docs/migration/repository-controls.md": controls() });
+    try {
+      const a = git(sourceRepo, ["rev-parse", "HEAD"]).trim();
+      const base = git(dest, ["rev-parse", "HEAD"]).trim();
+      const source = createGitSource({ repo: sourceRepo });
+      const pulls = []; const destination = createGitDestination({ repo: dest, pulls });
+      const reader = {
+        main: () => source.getBranchSha("main"),
+        commit: (_repo, sha) => destination.getCommit(sha),
+        async tree(repo, sha) { return readGitTree(repo === SYNC_CONTRACT.sourceRepo ? sourceRepo : dest, sha); },
+      };
+      const event = (sha) => ({ pull_request: { head: { sha }, base: { sha: base, ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } } });
+      await syncRun({ sourceFiles: readGitTree(sourceRepo, a), sourceSha: a, source, destination });
+      const first = await destination.getBranchSha(SYNC_CONTRACT.syncBranch);
+      assert.equal((await verifyGithubMirror({ event: event(first), repository: SYNC_CONTRACT.destRepo, reader })).differences, 0);
+      writeFileSync(join(sourceRepo, "docs/migration/legacy-sync.md"), "source B, excluded-only edit\n");
+      git(sourceRepo, ["add", "."]); git(sourceRepo, ["commit", "-m", "excluded-only B"]);
+      const b = git(sourceRepo, ["rev-parse", "HEAD"]).trim();
+      // Recover mismatched state left by an older run too: do not use only PR body freshness.
+      if (bodyAlreadyCurrent) pulls[0].body = syncPullBody(b);
+      const updated = await syncRun({ sourceFiles: readGitTree(sourceRepo, b), sourceSha: b, source, destination });
+      const second = await destination.getBranchSha(SYNC_CONTRACT.syncBranch);
+      assert.notEqual(second, first);
+      assert.equal(git(dest, ["rev-parse", `${second}^`]).trim(), first);
+      assert.equal(git(dest, ["rev-parse", `${second}^{tree}`]).trim(), git(dest, ["rev-parse", `${first}^{tree}`]).trim());
+      assert.equal(updated.action, "update-provenance"); assert.equal(updated.commit, second);
+      assert.equal(sourceProvenance((await destination.getCommit(second)).message), b);
+      assert.match(pulls[0].body, new RegExp(`Source-SHA: ${b}`));
+      assert.equal((await verifyGithubMirror({ event: event(second), repository: SYNC_CONTRACT.destRepo, reader })).sourceSha, b);
+      const repeated = await syncRun({ sourceFiles: readGitTree(sourceRepo, b), sourceSha: b, source, destination });
+      assert.equal(repeated.action, "noop"); assert.equal(await destination.getBranchSha(SYNC_CONTRACT.syncBranch), second);
+      assert.equal(pulls.length, 1);
+    } finally { rmSync(sourceRepo, { recursive: true, force: true }); rmSync(dest, { recursive: true, force: true }); }
+  }
+});
+
+
+test("a stale PR body alone is repaired without another provenance commit", async () => {
+  const repo = initRepo({ "pkg/file.txt": "base\n", "docs/migration/repository-controls.md": controls() });
+  try {
+    const pulls = []; const source = sourceFrom({ "pkg/file.txt": "current\n" });
+    await run(repo, source, { pulls });
+    const head = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    pulls[0].body = syncPullBody(NEXT_SHA);
+    const repaired = await run(repo, source, { pulls });
+    assert.equal(repaired.result.action, "update-provenance");
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), head);
+    assert.equal(repaired.result.commit, undefined);
+    assert.match(pulls[0].body, new RegExp(`Source-SHA: ${SOURCE_SHA}`));
+  } finally { rmSync(repo, { recursive: true, force: true }); }
 });

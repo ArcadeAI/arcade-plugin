@@ -127,6 +127,7 @@ test("local pinned verification reads Git data without executing candidate files
   };
   try {
     const sourceFiles = source(); sourceFiles.set("candidate.mjs", entryFromBytes("100644", "throw new Error('must not execute')"));
+    sourceFiles.set("package\twith\nseparators.txt", entryFromBytes("100644", "trusted file with literal separators"));
     const sourceRepo = init("source", sourceFiles); const sha = git(sourceRepo, ["rev-parse", "HEAD"]);
     const baseFiles = files({ "old.txt": "legacy" }); const dest = init("dest", baseFiles); const baseSha = git(dest, ["rev-parse", "HEAD"]);
     rmSync(join(dest, "old.txt"));
@@ -134,5 +135,14 @@ test("local pinned verification reads Git data without executing candidate files
     git(dest, ["add", "."]); git(dest, ["commit", "-m", `mirror\n\nSource-SHA: ${sha}`]); const destSha = git(dest, ["rev-parse", "HEAD"]);
     const result = spawnSync(process.execPath, [new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname, "--source", sourceRepo, "--dest", dest, "--source-sha", sha, "--head", destSha, "--base", baseSha], { encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).differences, 0);
+    const checker = ".github/verify-mirror.mjs";
+    git(dest, ["mv", checker, `${checker}\tmissing`]);
+    git(dest, ["commit", "-m", `rename checker\n\nSource-SHA: ${sha}`]);
+    const renamed = git(dest, ["rev-parse", "HEAD"]);
+    const rejected = spawnSync(process.execPath, [new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname, "--source", sourceRepo, "--dest", dest, "--source-sha", sha, "--head", renamed, "--base", baseSha], { encoding: "utf8" });
+    assert.equal(rejected.status, 1, "a tab-suffixed checker rename must not pass bootstrap verification");
+    assert.match(rejected.stderr, /differs from trusted canonical projection/);
+    assert.ok(rejected.stderr.includes("verify-mirror.mjs\\tmissing"), rejected.stderr);
+
   } finally { rmSync(work, { recursive: true, force: true }); }
 });

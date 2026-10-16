@@ -42,8 +42,11 @@ or edits cause a refusal before mutation. An open PR must be the unique
 same-repository head into destination main, with canonical source provenance.
 Wrong-base, fork-head, unmarked and duplicate matches are refused.
 
-A known, owned open PR updates in place. A retained unmerged matching branch
-with no open PR stays blocked; automation does not reopen a deliberate close.
+A known, owned open PR updates in place. An excluded-only source change
+appends a same-tree provenance commit, so head Source-SHA and PR body both
+advance and integrity can verify that exact source. A stale PR body alone is
+repaired without another commit when the head already records current source.
+A retained unmerged matching branch with no open PR stays blocked; automation does not reopen a deliberate close.
 A destination base that already has the snapshot remains a no-op.
 
 PR-create errors can mean GitHub accepted the request but lost the response.
@@ -65,7 +68,9 @@ workflow, or additional file cannot select its own expected tree.
 
 Human/nonmirror PRs fail this mirror check and need explicit review: route
 package changes upstream, and review any intentional destination control change
-separately. Labels, actor names and branch names never grant a bypass. The
+separately. Labels, actor names and branch names never grant a bypass.
+Local NUL-delimited Git tree parsing preserves the full path after the first
+metadata tab, including literal tabs and newlines in filenames. The
 unchanged name/version/manifests are covered by exact package parity, so the
 destination does not repeat full host validation or wait for Bugbot.
 
