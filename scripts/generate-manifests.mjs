@@ -15,6 +15,9 @@ import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+// Marketplace support contact; plugin author metadata still comes from plugin.json.
+export const ACCEPTED_LISTING_OWNER_EMAIL = "support@arcade.dev";
+
 // Claude Code and Cowork only accept the operator at the default agents/ path
 // (the CLI wants .md paths in "agents", Cowork wants folders). Copilot CLI and
 // VS Code only read com.github.copilot/agents/, so that folder gets a copy.
@@ -231,7 +234,7 @@ const buildFiles = (root) => {
         name,
         // Marketplace listing text. Codex also installs from this marketplace.
         description: "Install Arcade in Claude Desktop, Cowork, Claude Code, and Codex.",
-        owner: { ...author, email: "support@arcade.dev" },
+        owner: { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL },
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
           { name, displayName, source: "./", description, author, homepage, repository, license, keywords },
