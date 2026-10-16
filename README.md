@@ -78,7 +78,7 @@ replaces the first. Use one install source per client to avoid duplicates.
 | **Claude Cowork** | ✅ | ✅ | ✅ | ✅ | — | partial |
 | **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅ |
 | **VS Code (Copilot sessions)** | ✅ | ✅ | ✅ | — | — | ✅ |
-| **Codex / ChatGPT** | ✅ | ✅ | — | — | — | — |
+| **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | — |
 | **OpenCode** | ✅ | — | — | — | — | — |
 | **Claude Desktop** | ✅ | ✅ | — | — | — | — |
 | **Any MCP client** | ✅ | — | — | — | — | — |
