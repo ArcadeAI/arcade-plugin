@@ -14,7 +14,7 @@
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { crc32, deflateRawSync } from "node:zlib";
+import { zipSync } from "fflate";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -98,59 +98,10 @@ export const packageFiles = (root = ROOT) => {
   return [...new Set(["plugin.json", "mcp.json", "LICENSE", ...listFiles(root, "skills"), ...images])];
 };
 
-// A fixed timestamp (1980-01-01, the earliest a ZIP can store) keeps the
-// archive byte-for-byte the same for the same sources.
-const DOS_TIME = 0;
-const DOS_DATE = (0 << 9) | (1 << 5) | 1;
-
-/** A minimal deflate ZIP writer, so packaging needs nothing beyond Node. */
-const zip = (entries) => {
-  const local = [];
-  const central = [];
-  let offset = 0;
-  for (const { name, data } of entries) {
-    const nameBytes = Buffer.from(name, "utf8");
-    const compressed = deflateRawSync(data);
-    const crc = crc32(data);
-    const header = Buffer.alloc(30);
-    header.writeUInt32LE(0x04034b50, 0);
-    header.writeUInt16LE(20, 4); // version needed
-    header.writeUInt16LE(0x0800, 6); // UTF-8 names
-    header.writeUInt16LE(8, 8); // deflate
-    header.writeUInt16LE(DOS_TIME, 10);
-    header.writeUInt16LE(DOS_DATE, 12);
-    header.writeUInt32LE(crc, 14);
-    header.writeUInt32LE(compressed.length, 18);
-    header.writeUInt32LE(data.length, 22);
-    header.writeUInt16LE(nameBytes.length, 26);
-    local.push(header, nameBytes, compressed);
-
-    const record = Buffer.alloc(46);
-    record.writeUInt32LE(0x02014b50, 0);
-    record.writeUInt16LE((3 << 8) | 20, 4); // made by Unix, spec 2.0
-    record.writeUInt16LE(20, 6);
-    record.writeUInt16LE(0x0800, 8);
-    record.writeUInt16LE(8, 10);
-    record.writeUInt16LE(DOS_TIME, 12);
-    record.writeUInt16LE(DOS_DATE, 14);
-    record.writeUInt32LE(crc, 16);
-    record.writeUInt32LE(compressed.length, 20);
-    record.writeUInt32LE(data.length, 24);
-    record.writeUInt16LE(nameBytes.length, 28);
-    record.writeUInt32LE((0o100644 << 16) >>> 0, 38); // regular file, rw-r--r--
-    record.writeUInt32LE(offset, 42);
-    central.push(record, nameBytes);
-    offset += header.length + nameBytes.length + compressed.length;
-  }
-  const centralSize = central.reduce((sum, part) => sum + part.length, 0);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0);
-  end.writeUInt16LE(entries.length, 8);
-  end.writeUInt16LE(entries.length, 10);
-  end.writeUInt32LE(centralSize, 12);
-  end.writeUInt32LE(offset, 16);
-  return Buffer.concat([...local, ...central, end]);
-};
+// A fixed timestamp (1980-01-01 local time, the earliest a ZIP can store),
+// fixed permissions, and a fixed entry order keep the archive byte-for-byte the
+// same for the same sources.
+const ENTRY_OPTIONS = { level: 9, mtime: new Date(1980, 0, 1), os: 3, attrs: (0o100644 << 16) >>> 0 };
 
 /** Writes the ZIP and returns its path and the paths inside it. */
 export const packageChatGPT = ({ root = ROOT, outDir = join(root, "dist") } = {}) => {
@@ -170,7 +121,7 @@ export const packageChatGPT = ({ root = ROOT, outDir = join(root, "dist") } = {}
   for (const file of files) {
     if (!statSync(join(root, file), { throwIfNoEntry: false })?.isFile()) throw new Error(`${file} is missing`);
   }
-  const archive = zip(files.map((name) => ({ name, data: readFileSync(join(root, name)) })));
+  const archive = zipSync(Object.fromEntries(files.map((name) => [name, [readFileSync(join(root, name)), ENTRY_OPTIONS]])));
   mkdirSync(outDir, { recursive: true });
   const path = join(outDir, `${plugin.name}-chatgpt-${version}.zip`);
   writeFileSync(path, archive);
