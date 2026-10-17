@@ -20,7 +20,7 @@
     "com.openai": {
       "interface": {
         "displayName": "Arcade",
-        "shortDescription": "Your agent, every app you've connected.",
+        "shortDescription": "Your agent, all your apps.",
         "developerName": "Arcade.dev",
         "category": "Productivity",
         "websiteURL": "https://arcade.dev",
