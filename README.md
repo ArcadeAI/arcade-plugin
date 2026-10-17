@@ -116,6 +116,15 @@ create the GitHub release.
 Configure paths in `release-please-config.json`. The workflow lives at
 `.github/workflows/release-please.yml`.
 
+Each release also gets `arcade-chatgpt-{VERSION}.zip`, the package to upload
+in OpenAI's plugin portal for the ChatGPT and Codex directory. It holds the
+portable plugin only (`plugin.json` at the ZIP root, `mcp.json`, `skills/`,
+the logo, and `LICENSE`), with no hooks or other clients' folders. Build it
+locally with `npm run package:chatgpt` (writes `dist/`); the build fails if
+the `extensions.com.openai.interface` listing breaks the portal's limits, such
+as the 30-character display name and subtitle (`shortDescription`). See
+OpenAI's [submission guide](https://developers.openai.com/plugins/deploy/submission).
+
 ## License
 
 [MIT](LICENSE). Copyright (c) 2024–Present Arcade AI.
