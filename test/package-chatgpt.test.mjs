@@ -17,10 +17,16 @@ test("the OpenAI listing fits the portal's limits", () => {
   assert.deepEqual(listingProblems(plugin.extensions["com.openai"].interface), []);
 });
 
-test("listingProblems reports a subtitle over 30 characters", () => {
-  assert.deepEqual(listingProblems({ shortDescription: "Your agent, every app you've connected." }), [
+test("listingProblems reports what final directory submission rejects", () => {
+  const listing = plugin.extensions["com.openai"].interface;
+  assert.deepEqual(listingProblems({ ...listing, shortDescription: "Your agent, every app you've connected." }), [
     "shortDescription is 39 characters; the limit is 30",
   ]);
+  assert.deepEqual(listingProblems({ ...listing, longDescription: undefined }), ["longDescription is required"]);
+  assert.deepEqual(listingProblems({ ...listing, defaultPrompt: ["Ask @arcade for my calendar"] }), [
+    "defaultPrompt entry must not @mention an MCP server: Ask @arcade for my calendar",
+  ]);
+  assert.deepEqual(listingProblems({ ...listing, defaultPrompt: ["Hi  there", "Hi there"] }), ["defaultPrompt entries must be unique"]);
 });
 
 const hasUnzip = !spawnSync("unzip", ["-v"]).error;

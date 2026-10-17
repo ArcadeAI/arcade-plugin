@@ -18,32 +18,64 @@ import { crc32, deflateRawSync } from "node:zlib";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// From OpenAI's "Plugin submission errors" page
-// (https://developers.openai.com/plugins/deploy/submission-errors).
+// Final directory submission rules from OpenAI's "Plugin submission errors"
+// page (https://developers.openai.com/plugins/deploy/submission-errors) and
+// the listing field reference in "Upload and submit your plugin"
+// (https://developers.openai.com/plugins/deploy/submission). Package upload
+// accepts longer draft text; these are the limits a listing must meet to be
+// submitted.
 export const LISTING_LIMITS = {
   displayName: 30,
   shortDescription: 30,
   longDescription: 4000,
+  developerName: 80,
 };
+export const LISTING_CATEGORIES = [
+  "Productivity", "Creativity", "Developer Tools", "Business & Operations", "Data & Analytics",
+  "Communication", "Education & Research", "Security", "Finance", "Healthcare", "Travel",
+  "Entertainment", "Other",
+];
+export const LISTING_URLS = ["websiteURL", "supportURL", "privacyPolicyURL", "termsOfServiceURL"];
+export const MAX_URL_LENGTH = 1024;
 export const MAX_DEFAULT_PROMPTS = 3;
 export const MAX_DEFAULT_PROMPT_LENGTH = 128;
+
+const isMultiline = (value) => /[\r\n\u2028\u2029]/.test(value);
 
 /** Returns every problem the portal would reject in the OpenAI listing. */
 export const listingProblems = (listing) => {
   const problems = [];
   for (const [key, max] of Object.entries(LISTING_LIMITS)) {
     const value = listing[key];
-    if (value === undefined) continue;
-    if (value.length > max) problems.push(`${key} is ${value.length} characters; the limit is ${max}`);
-    if (key !== "longDescription" && /[\r\n]/.test(value)) problems.push(`${key} must be one line`);
-  }
-  const prompts = listing.defaultPrompts ?? [];
-  if (prompts.length > MAX_DEFAULT_PROMPTS) problems.push(`defaultPrompts has ${prompts.length} entries; the limit is ${MAX_DEFAULT_PROMPTS}`);
-  if (new Set(prompts).size !== prompts.length) problems.push("defaultPrompts must be unique");
-  for (const prompt of prompts) {
-    if (prompt.length > MAX_DEFAULT_PROMPT_LENGTH || /[\r\n]/.test(prompt)) {
-      problems.push(`defaultPrompts entry must be one line of at most ${MAX_DEFAULT_PROMPT_LENGTH} characters: ${prompt}`);
+    if (typeof value !== "string" || value.trim() === "") {
+      problems.push(`${key} is required`);
+      continue;
     }
+    if (value.length > max) problems.push(`${key} is ${value.length} characters; the limit is ${max}`);
+    if (key !== "longDescription" && isMultiline(value)) problems.push(`${key} must be one line`);
+  }
+  if (!LISTING_CATEGORIES.includes(listing.category)) {
+    problems.push(`category must be one of: ${LISTING_CATEGORIES.join(", ")}`);
+  }
+  if (!listing.logo) problems.push("logo is required");
+  for (const key of LISTING_URLS) {
+    const value = listing[key];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || !value.startsWith("https://") || value.length > MAX_URL_LENGTH) {
+      problems.push(`${key} must be an HTTPS URL of at most ${MAX_URL_LENGTH} characters`);
+    }
+  }
+  // defaultPrompt takes one string or a list of strings.
+  const prompts = [listing.defaultPrompt ?? []].flat();
+  if (prompts.length > MAX_DEFAULT_PROMPTS) problems.push(`defaultPrompt has ${prompts.length} entries; the limit is ${MAX_DEFAULT_PROMPTS}`);
+  if (new Set(prompts.map((prompt) => prompt.normalize("NFKC").replace(/\s+/g, " ").trim())).size !== prompts.length) {
+    problems.push("defaultPrompt entries must be unique");
+  }
+  for (const prompt of prompts) {
+    if (prompt.trim() === "" || prompt.length > MAX_DEFAULT_PROMPT_LENGTH || isMultiline(prompt)) {
+      problems.push(`defaultPrompt entry must be one non-empty line of at most ${MAX_DEFAULT_PROMPT_LENGTH} characters: ${prompt}`);
+    }
+    if (/(^|\s)@\w/.test(prompt)) problems.push(`defaultPrompt entry must not @mention an MCP server: ${prompt}`);
   }
   return problems;
 };
