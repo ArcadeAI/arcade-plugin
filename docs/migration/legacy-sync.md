@@ -49,11 +49,11 @@ appends a same-tree provenance commit, so head Source-SHA and PR body both
 advance and integrity can verify that exact source. A stale PR body alone is
 repaired without another commit when the head already records current source.
 
-A retained sync branch with no open PR is built on only when destination main
-contains its head, as after a merge commit. The new commit's parent is the old
-head, so that PR is behind main and fails the mirror check; turning on
-automatic deletion avoids this. Otherwise the run is blocked and writes
-nothing:
+A retained sync branch with no open PR is used only when destination main
+contains its head, as after a merge commit. The new commit's parent is then
+current main, not the old head. Because main contains the old head, moving the
+branch is still a fast-forward, and the new PR contains main, so the mirror
+check can pass it. Otherwise the run is blocked and writes nothing:
 
 - If the branch holds the current snapshot and main does not, the recovery
   text ends with the exact PR title and body. A hand-opened draft PR needs
@@ -138,16 +138,15 @@ Turn on "Automatically delete head branches" in omnimcp. omnimcp allows squash
 and rebase merges, and after either one a kept `sync/canonical-main` holds
 commits that main does not contain. Every run is then blocked until someone
 deletes the branch by hand. With automatic deletion, the next sync run cuts a
-new branch from current main.
+new branch from current main. A merge commit does not need this setting: main
+then contains the kept branch's head, and the next run builds on main.
 
 Turn on "Require branches to be up to date before merging" for main. The
 destination check fails a PR whose head is behind main, but it runs only on
 pull request events. A commit to main after the check passed leaves the
 passing result in place. Without this rule, that PR can merge and keep a file
 from the new main commit until the next sync PR deletes it. GitHub applies
-this rule only when mirror-integrity is a required status check. The rule and
-the check both depend on automatic deletion: a sync branch kept after a merge
-commit gets its next commit on the old head, and that PR is always behind main.
+this rule only when mirror-integrity is a required status check.
 
 When a sync PR is behind main, the mirror check fails it. Close the PR and
 delete the branch; the next sync run cuts a new branch from current main. Do

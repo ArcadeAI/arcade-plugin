@@ -482,6 +482,8 @@ test("an edit to the destination-only notice on main does not block the next syn
     git(repo, ["commit", "-am", "edit repository controls"]);
     const next = await run(repo, sourceFrom({ "pkg/file.txt": "v2\n" }), { pulls, sourceSha: NEXT_SHA });
     assert.equal(next.result.action, "create");
+    // The destination check fails a pull request whose head does not contain main.
+    assert.equal(git(repo, ["show", "-s", "--format=%P", SYNC_CONTRACT.syncBranch]).trim(), git(repo, ["rev-parse", "main"]).trim());
     assert.equal(git(repo, ["show", `${SYNC_CONTRACT.syncBranch}:pkg/file.txt`]), "v2\n");
     assert.equal(git(repo, ["show", `${SYNC_CONTRACT.syncBranch}:docs/migration/repository-controls.md`]), `${controls()}\nOwner note.\n`);
   } finally {
@@ -1268,6 +1270,52 @@ test("a file that lands on destination main after the sync branch was cut fails 
     const mergedTree = git(dest, ["merge-tree", "--write-tree", "main", head]).split("\n")[0];
     assert.match(git(dest, ["ls-tree", "--name-only", mergedTree]), /^stray\.txt$/m);
     await assert.rejects(check(head), /is behind main/);
+  } finally { rmSync(sourceRepo, { recursive: true, force: true }); rmSync(dest, { recursive: true, force: true }); }
+});
+
+test("after a merge-commit merge keeps the sync branch, the next sync builds on main and passes the integrity check", async () => {
+  const sourceRepo = initRepo({
+    "plugin.json": '{"name":"arcade","version":"0.7.0"}\n',
+    "dev/scripts/legacy-projection.mjs": "reviewed policy\n",
+    "dev/scripts/verify-mirror.mjs": "reviewed checker\n",
+    "sync/destination-check.yml": "trusted workflow\n",
+  });
+  const dest = initRepo({ "pkg/legacy.txt": "legacy\n", "docs/migration/repository-controls.md": controls() });
+  try {
+    const source = createGitSource({ repo: sourceRepo });
+    const pulls = [];
+    const destination = createGitDestination({ repo: dest, pulls });
+    const reader = localMirrorReader({ sourceRepo, dest, source, destination });
+    const check = async (head) => verifyGithubMirror({
+      event: { pull_request: { head: { sha: head }, base: { sha: await destination.getBranchSha("main"), ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } } },
+      repository: SYNC_CONTRACT.destRepo,
+      reader,
+    });
+    const a = git(sourceRepo, ["rev-parse", "HEAD"]).trim();
+    assert.equal((await syncRun({ sourceFiles: readGitTree(sourceRepo, a), sourceSha: a, source, destination })).action, "create");
+    const first = await destination.getBranchSha(SYNC_CONTRACT.syncBranch);
+    git(dest, ["merge", "--no-ff", SYNC_CONTRACT.syncBranch, "-m", "merge sync"]);
+    pulls[0].state = "closed";
+    const main = git(dest, ["rev-parse", "main"]).trim();
+
+    writeFileSync(join(sourceRepo, "plugin.json"), '{"name":"arcade","version":"0.8.0"}\n');
+    git(sourceRepo, ["commit", "-am", "release 0.8.0"]);
+    const b = git(sourceRepo, ["rev-parse", "HEAD"]).trim();
+    const next = await syncRun({ sourceFiles: readGitTree(sourceRepo, b), sourceSha: b, source, destination });
+    assert.equal(next.action, "create");
+    const second = await destination.getBranchSha(SYNC_CONTRACT.syncBranch);
+    assert.equal(git(dest, ["show", "-s", "--format=%P", second]).trim(), main);
+    assert.equal(await destination.isAncestor(first, second), true);
+    assert.equal(git(dest, ["rev-parse", "main"]).trim(), main);
+    const checked = await check(second);
+    assert.equal(checked.differences, 0);
+    assert.equal(checked.sourceSha, b);
+
+    // The next run accepts the new head as an owned sync commit.
+    const repeated = await syncRun({ sourceFiles: readGitTree(sourceRepo, b), sourceSha: b, source, destination });
+    assert.equal(repeated.action, "noop");
+    assert.equal(repeated.pr, 2);
+    assert.equal(await destination.getBranchSha(SYNC_CONTRACT.syncBranch), second);
   } finally { rmSync(sourceRepo, { recursive: true, force: true }); rmSync(dest, { recursive: true, force: true }); }
 });
 

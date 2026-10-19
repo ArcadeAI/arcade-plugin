@@ -94,10 +94,8 @@ const assertSourceSha = (sourceSha) => {
  * Never updates the destination base branch.
  * Every uncertain PR write retains the review branch and reconciles before
  * reporting recovery or an explicit action-required result.
- * When that retained branch matches the canonical tree, the destination
- * base does not, and no pull request is open, the result is `blocked`
- * and nothing is written. A retained branch with no open pull request whose
- * head is not an ancestor of the destination base is also `blocked`.
+ * A retained branch with no open pull request whose head is not an ancestor
+ * of the destination base is `blocked`, and nothing is written.
  */
 export const runSync = async ({
   sourceFiles,
@@ -206,7 +204,7 @@ const withoutPreserved = (files, contract) =>
 // A name is not ownership. Check the marker, exact source provenance and tree.
 // Destination-only files are left out: their copy on main can change after the
 // branch was cut, and every sync commit takes them from main again.
-const verifyOwnedHead = async ({ syncSha, parentFiles, source, destination, contract }) => {
+const verifyOwnedHead = async ({ syncSha, syncFiles, source, destination, contract }) => {
   const commit = await destination.getCommit(syncSha);
   const recorded = provenance(commit.message, contract);
   if (!recorded || !hasSyncMarker(commit.message) || commit.parents.length !== 1) {
@@ -214,7 +212,7 @@ const verifyOwnedHead = async ({ syncSha, parentFiles, source, destination, cont
   }
   const previousFiles = await source.readFiles(recorded);
   const expected = desiredTree({ sourceFiles: previousFiles, destFiles: new Map(), contract });
-  if (!diffTrees(withoutPreserved(parentFiles, contract), withoutPreserved(expected, contract)).noop) {
+  if (!diffTrees(withoutPreserved(syncFiles, contract), withoutPreserved(expected, contract)).noop) {
     throw new Error(`refusing human or unexpected changes on ${contract.syncBranch} at ${syncSha}`);
   }
   return recorded;
@@ -242,25 +240,30 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
   if (!diffTrees(await source.readFiles(sourceSha), sourceFiles).noop) throw new Error("source files differ from the immutable canonical source SHA");
   const baseSha = await destination.getBranchSha(contract.destBaseBranch);
   const syncSha = await destination.getBranchSha(contract.syncBranch);
-  const parentSha = syncSha ?? baseSha;
   const baseFiles = await destination.readFiles(baseSha);
-  const parentFiles = syncSha ? await destination.readFiles(syncSha) : baseFiles;
+  const syncFiles = syncSha ? await destination.readFiles(syncSha) : baseFiles;
   const open = await destination.findOpenPull(contract.syncBranch, contract);
   if (open && !syncSha) return blocked("Open sync PR has no branch; inspect by hand");
   let deliveredSource = null;
   if (syncSha) {
-    deliveredSource = await verifyOwnedHead({ syncSha, parentFiles, source, destination, contract });
+    deliveredSource = await verifyOwnedHead({ syncSha, syncFiles, source, destination, contract });
     if (deliveredSource !== sourceSha && !await source.isAncestor(deliveredSource, sourceSha)) {
       return blocked("Refusing to replace a newer or unrelated delivered source snapshot", { sourceSha, deliveredSource });
     }
   }
   const desired = desiredTree({ sourceFiles, destFiles: baseFiles, contract });
-  const plan = diffTrees(parentFiles, desired);
   if (syncSha && !open && !await destination.isAncestor(syncSha, baseSha)) {
+    const plan = diffTrees(syncFiles, desired);
     const basePlan = diffTrees(baseFiles, desired);
     if (plan.noop && !basePlan.noop) return blockedUnmergedSync({ contract, sourceSha, syncSha, baseSha, plan, basePlan });
     return blockedBranchNotOnBase({ contract, sourceSha, syncSha, baseSha, plan });
   }
+  // With no open pull request, main contains any retained sync head, as after
+  // a merge commit. A commit on main still fast-forwards the sync branch, and
+  // its pull request contains main, which the destination check requires.
+  const parentSha = open ? syncSha : baseSha;
+  const parentFiles = open ? syncFiles : baseFiles;
+  const plan = diffTrees(parentFiles, desired);
   const body = syncPullBody(sourceSha, contract);
   const title = syncPullTitle(sourceSha, contract);
   // Even an unchanged projection needs a new head when its attested source
@@ -272,14 +275,10 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
       await destination.updatePull({ number: open.number, title, body });
       return { action: "update-provenance", pr: open.number, plan };
     }
-    if (!open && syncSha && syncSha !== baseSha) {
-      const basePlan = diffTrees(baseFiles, desired);
-      if (!basePlan.noop) return blockedUnmergedSync({ contract, sourceSha, syncSha, baseSha, plan, basePlan });
-    }
     return { action: "noop", pr: open?.number ?? null, plan };
   }
   if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before commit creation" };
-  const knownBlobs = new Set([...baseFiles.values(), ...parentFiles.values()].map((entry) => entry.blobSha));
+  const knownBlobs = new Set([...baseFiles.values(), ...syncFiles.values()].map((entry) => entry.blobSha));
   const newSha = await destination.createCommit({ parent: parentSha, files: desired, message: syncCommitMessage(sourceSha, contract), knownBlobs });
   if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before branch update" };
   await destination.compareAndSwap({ branch: contract.syncBranch, from: syncSha, to: newSha });
