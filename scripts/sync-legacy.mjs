@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 import {
-  SYNC_CONTRACT, desiredTree, diffTrees, entryFromBytes,
+  SYNC_CONTRACT, desiredTree, diffTrees, entryFromBytes, isPreserved,
 } from "./legacy-projection.mjs";
 export * from "./legacy-projection.mjs";
 
@@ -168,16 +168,21 @@ const blocked = (reason, details = {}) => ({
   ...details,
 });
 
+const withoutPreserved = (files, contract) =>
+  new Map([...files].filter(([path]) => !isPreserved(path, contract.preserve)));
+
 // A name is not ownership. Check the marker, exact source provenance and tree.
-const verifyOwnedHead = async ({ syncSha, parentFiles, baseFiles, source, destination, contract }) => {
+// Destination-only files are left out: their copy on main can change after the
+// branch was cut, and every sync commit takes them from main again.
+const verifyOwnedHead = async ({ syncSha, parentFiles, source, destination, contract }) => {
   const commit = await destination.getCommit(syncSha);
   const recorded = provenance(commit.message, contract);
   if (!recorded || !hasSyncMarker(commit.message) || commit.parents.length !== 1) {
     throw new Error(`refusing unowned sync branch ${contract.syncBranch} at ${syncSha}`);
   }
   const previousFiles = await source.readFiles(recorded);
-  const expected = desiredTree({ sourceFiles: previousFiles, destFiles: baseFiles, contract });
-  if (!diffTrees(parentFiles, expected).noop) {
+  const expected = desiredTree({ sourceFiles: previousFiles, destFiles: new Map(), contract });
+  if (!diffTrees(withoutPreserved(parentFiles, contract), withoutPreserved(expected, contract)).noop) {
     throw new Error(`refusing human or unexpected changes on ${contract.syncBranch} at ${syncSha}`);
   }
   return recorded;
@@ -212,7 +217,7 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
   if (open && !syncSha) return blocked("Open sync PR has no branch; inspect by hand");
   let deliveredSource = null;
   if (syncSha) {
-    deliveredSource = await verifyOwnedHead({ syncSha, parentFiles, baseFiles, source, destination, contract });
+    deliveredSource = await verifyOwnedHead({ syncSha, parentFiles, source, destination, contract });
     if (deliveredSource !== sourceSha && !await source.isAncestor(deliveredSource, sourceSha)) {
       return blocked("Refusing to replace a newer or unrelated delivered source snapshot", { sourceSha, deliveredSource });
     }

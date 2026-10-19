@@ -389,6 +389,27 @@ test("a merged destination base stays a no-op when the sync branch is retained",
   }
 });
 
+test("an edit to the destination-only notice on main does not block the next sync", async () => {
+  const repo = initRepo({
+    "docs/migration/repository-controls.md": controls(),
+    "pkg/file.txt": "base\n",
+  });
+  try {
+    const pulls = [];
+    await run(repo, sourceFrom({ "pkg/file.txt": "v1\n" }), { pulls });
+    git(repo, ["merge", "--no-ff", SYNC_CONTRACT.syncBranch, "-m", "merge sync"]);
+    pulls[0].state = "closed";
+    writeFileSync(join(repo, "docs/migration/repository-controls.md"), `${controls()}\nOwner note.\n`);
+    git(repo, ["commit", "-am", "edit repository controls"]);
+    const next = await run(repo, sourceFrom({ "pkg/file.txt": "v2\n" }), { pulls, sourceSha: NEXT_SHA });
+    assert.equal(next.result.action, "create");
+    assert.equal(git(repo, ["show", `${SYNC_CONTRACT.syncBranch}:pkg/file.txt`]), "v2\n");
+    assert.equal(git(repo, ["show", `${SYNC_CONTRACT.syncBranch}:docs/migration/repository-controls.md`]), `${controls()}\nOwner note.\n`);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test("an open sync pull advances head and body provenance together", async () => {
   const repo = initRepo({
     "docs/migration/repository-controls.md": controls(),
