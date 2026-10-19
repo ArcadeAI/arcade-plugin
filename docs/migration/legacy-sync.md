@@ -68,8 +68,9 @@ check can pass it. Otherwise the run is blocked and writes nothing:
 - In every other case, including a squash or rebase merge, the recovery text
   says to delete the branch by hand. The next run cuts a new branch from main.
 
-Automation does not reopen a deliberate close. A destination base that
-already has the snapshot remains a no-op.
+Automation does not reopen a deliberate close. When destination main already
+has the snapshot, the run is a no-op if there is no retained sync branch or
+main contains it; a branch left by a squash or rebase merge is still blocked.
 
 A sync commit references blobs that already exist in destination main or the
 sync branch head and uploads only the rest. GitHub's secondary rate limit allows 80
