@@ -37,8 +37,10 @@ snapshot is never replaced. A source advance while planning also skips.
 Concurrency limits overlap but is not relied on for commit ordering.
 
 An existing sync head needs one parent, the sync marker and exact canonical
-provenance, and a tree matching that prior source's projection. Human commits
-or edits cause a refusal before mutation. An open PR must be the unique
+provenance, and a tree matching that prior source's projection. The tree
+comparison leaves out `docs/migration/repository-controls.md`, because main's
+copy can change after the branch was cut. Human commits or edits to any other
+path cause a refusal before mutation. An open PR must be the unique
 same-repository head into destination main, with canonical source provenance.
 Wrong-base, fork-head, unmarked and duplicate matches are refused.
 
@@ -46,8 +48,25 @@ A known, owned open PR updates in place. An excluded-only source change
 appends a same-tree provenance commit, so head Source-SHA and PR body both
 advance and integrity can verify that exact source. A stale PR body alone is
 repaired without another commit when the head already records current source.
-A retained unmerged matching branch with no open PR stays blocked; automation does not reopen a deliberate close.
-A destination base that already has the snapshot remains a no-op.
+
+A retained sync branch with no open PR is built on only when destination main
+contains its head, as after a merge commit. Otherwise the run is blocked and
+writes nothing:
+
+- If the branch holds the current snapshot and main does not, the recovery
+  text ends with the exact PR title and body. A hand-opened draft PR needs
+  them, because later runs refuse a sync PR without its `Source-SHA`,
+  `Source-Repo` and `Source-Branch` lines.
+- In every other case, including a squash or rebase merge, the recovery text
+  says to delete the branch by hand. The next run cuts a new branch from main.
+
+Automation does not reopen a deliberate close. A destination base that
+already has the snapshot remains a no-op.
+
+A sync commit references blobs that already exist in its parent or base tree
+and uploads only the rest, because GitHub's secondary rate limit allows about
+80 content-creating requests per minute. The first sync onto legacy main uploads every file whose
+content legacy main lacks, which can still exceed that limit.
 
 PR-create errors can mean GitHub accepted the request but lost the response.
 The run reads back the PR and ref, reports recovery when acceptance is clear,
@@ -74,6 +93,12 @@ metadata tab, including literal tabs and newlines in filenames. The
 unchanged name/version/manifests are covered by exact package parity, so the
 destination does not repeat full host validation or wait for Bugbot.
 
+A change to `SYNC_CONTRACT` that changes the projected tree makes the next
+mirror PR's check fail, because the check runs the policy already on omnimcp
+main. Merging that PR over the red check installs the new policy. That is the
+intended path for policy changes. If mirror-integrity is a required check,
+that merge needs an administrator bypass.
+
 This first installation cannot prove its own workflow is trusted: the old
 legacy base does not contain the checker. Run the local checker from the
 reviewed canonical candidate with explicit source/head/base pins before
@@ -90,10 +115,36 @@ changed by these PRs. The current legacy main has no required status checks.
 If public-repository policy blocks `pull_request_target`, report the block;
 do not silently enable it or execute candidate code in a privileged event.
 
+## Recommended destination settings
+
+These settings are recommendations for the separate settings decision.
+
+Turn on "Automatically delete head branches" in omnimcp. omnimcp allows squash
+and rebase merges, and after either one a kept `sync/canonical-main` holds
+commits that main does not contain. Every run is then blocked until someone
+deletes the branch by hand. With automatic deletion, the next sync run cuts a
+new branch from current main.
+
+Turn on "Require branches to be up to date before merging" for main. The
+destination check verifies the PR head when the check runs, not the merge
+result, so a file that lands on omnimcp main after the sync branch was cut
+survives the merge until the next sync PR deletes it. GitHub applies this rule
+only when mirror-integrity is a required status check. The rule also depends on
+automatic deletion: a sync branch kept after a merge commit gets its next
+commit on the old head, and that PR is never up to date with main.
+
+When a sync PR is behind main, close it and delete the branch. Do not use
+"Update branch": the updated head fails the mirror check, and the next sync
+run refuses the branch. The next sync run cuts a new branch from current main.
+
 ## Activation remains separate
 
 Do not move `sync/legacy-sync.workflow.yml` into `.github/workflows/sync-legacy.yml`,
 create `LEGACY_SYNC_TOKEN`, or dispatch sync without a separate approval.
+When approved, `LEGACY_SYNC_TOKEN` is a fine-grained personal access token
+limited to `arcadeai-labs/omnimcp` with read and write access to contents,
+pull requests and workflows. Workflows access is required because the sync
+writes `.github/workflows/check.yml`.
 The complete workflow-directory exclusion prevents that activated source job
 from being copied to the destination. Source token permissions remain read-only;
 checkout does not persist credentials. Missing opt-in or token refuses live use.
