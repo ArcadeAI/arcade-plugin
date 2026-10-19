@@ -7,7 +7,7 @@ import { verifyProjection, verifyGithubMirror, createGithubReader } from "../scr
 const sourceSha = "a".repeat(40), head = "b".repeat(40), base = "c".repeat(40), later = "d".repeat(40), tag = "v0.8.0";
 const files = (input) => new Map(Object.entries(input).map(([path, value]) => [path, entryFromBytes("100644", value)]));
 const fixture = () => {
-  const sourceFiles = files({ "plugin.json": '{"version":"0.8.0"}', "binary": Buffer.from([0, 255, 128]), ".github/workflows/sync-legacy.yml": "must not escape", ...Object.fromEntries(Object.values(SYNC_CONTRACT.replacements).map((path) => [path, `trusted ${path}`])) });
+  const sourceFiles = files({ "plugin.json": '{"version":"0.8.0"}', "binary": Buffer.from([0, 255, 128]), ".github/workflows/sync-omnimcp.yml": "must not escape", ...Object.fromEntries(Object.values(SYNC_CONTRACT.replacements).map((path) => [path, `trusted ${path}`])) });
   const baseFiles = files({ "plugin.json": '{"version":"0.7.1"}', "docs/migration/repository-controls.md": "human notice" });
   const candidateFiles = desiredTree({ sourceFiles, destFiles: baseFiles });
   return { sourceFiles, baseFiles, candidateFiles };
@@ -26,7 +26,7 @@ const check = (f, reader = readerFor(f), e = event()) => verifyGithubMirror({ ev
 test("projection retains explicit exclusions/replacements and preserved controls", () => {
   const f = fixture();
   assert.equal(verifyProjection(f).differences, 0);
-  assert.equal(f.candidateFiles.has(".github/workflows/sync-legacy.yml"), false);
+  assert.equal(f.candidateFiles.has(".github/workflows/sync-omnimcp.yml"), false);
   assert.equal(f.candidateFiles.has("dev/scripts/sync-version.mjs"), false);
   assert.equal(f.candidateFiles.get(".github/sync-version.mjs"), f.sourceFiles.get("dev/scripts/sync-version.mjs"));
   assert.equal(f.candidateFiles.get("plugin.json"), f.sourceFiles.get("plugin.json"));

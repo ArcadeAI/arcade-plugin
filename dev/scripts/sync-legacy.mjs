@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Inert until the release workflow is separately activated. Git transports
-// snapshots; gh only reads release metadata and creates/reconciles draft PRs.
+// Git transports release snapshots; gh only reads release metadata and
+// creates/reconciles draft PRs.
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -185,11 +185,11 @@ const main = async () => {
     console.log(JSON.stringify({ action: "plan", ...diffTrees(destFiles, desiredTree({ sourceFiles, destFiles })) }, null, 2));
     return;
   }
-  if (!args.includes("--apply")) { console.log("legacy sync is inert; --plan compares local repositories"); return; }
+  if (!args.includes("--apply")) { console.log("--plan compares local repositories; release automation supplies --apply"); return; }
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
   if (!liveSyncGate(process.env, event)) throw new Error("live sync requires an opted-in canonical release event or Release Please call");
-  const token = process.env.LEGACY_SYNC_TOKEN;
-  if (!token) throw new Error("LEGACY_SYNC_TOKEN is required");
+  const token = process.env.OMNIMCP_SYNC_TOKEN;
+  if (!token) throw new Error("OMNIMCP_SYNC_TOKEN is required");
   const github = createGithub({ token });
   const temp = mkdtempSync(join(tmpdir(), "arcade-release-sync-"));
   try {

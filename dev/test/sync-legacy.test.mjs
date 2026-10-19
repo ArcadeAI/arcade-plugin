@@ -166,20 +166,41 @@ test("Release Please reusable caller gate accepts only opted-in canonical main r
   // queries the release API/tag and rejects unpublished/moved tags above.
 });
 
-test("inert reusable template and caller are wired to actual Release Please outputs", () => {
-  const workflow = readFileSync(new URL("../../sync/legacy-sync.workflow.yml", import.meta.url), "utf8");
-  const caller = readFileSync(new URL("../../sync/release-please-job.yml", import.meta.url), "utf8");
+test("installed release-only workflow is wired to actual Release Please outputs", () => {
+  const workflow = readFileSync(new URL("../../.github/workflows/sync-omnimcp.yml", import.meta.url), "utf8");
   const releasePlease = readFileSync(new URL("../../.github/workflows/release-please.yml", import.meta.url), "utf8");
+  const caller = releasePlease.split(/^  omnimcp-release-sync:\n/m)[1]?.split(/^  [\w-]+:\n/m)[0];
+  assert.ok(caller, "Release Please must call the installed workflow");
+  assert.match(workflow, /release:\n    types: \[published\]/);
+  assert.doesNotMatch(workflow, /^  (push|pull_request|workflow_dispatch):/m);
   assert.match(workflow, /workflow_call:\n    inputs:\n      source_tag:/);
   assert.match(workflow, /SOURCE_TAG: \$\{\{ inputs.source_tag \|\| github.event.release.tag_name \}\}/);
   assert.match(workflow, /SYNC_LEGACY_RELEASE_CALL:/);
   assert.match(caller, /needs: release-please/);
-  assert.match(caller, /release_created == 'true'/);
+  assert.match(caller, /if: needs.release-please.outputs.release_created == 'true' && github.ref == 'refs\/heads\/main'/);
   assert.match(caller, /source_tag: \$\{\{ needs.release-please.outputs.tag_name \}\}/);
-  assert.match(caller, /uses: \.\/\.github\/workflows\/sync-legacy.yml/);
+  assert.match(caller, /uses: \.\/\.github\/workflows\/sync-omnimcp.yml/);
+  for (const yaml of [workflow, caller]) assert.match(yaml, /OMNIMCP_SYNC_TOKEN: \$\{\{ secrets.OMNIMCP_SYNC_TOKEN \}\}/);
+  assert.match(workflow, /secrets:\n      OMNIMCP_SYNC_TOKEN:\n        required: true/);
   assert.match(releasePlease, /release_created: \$\{\{ steps.release.outputs.release_created \}\}/);
   assert.match(releasePlease, /tag_name: \$\{\{ steps.release.outputs.tag_name \}\}/);
-  assert.equal(existsSync(new URL("../../.github/workflows/sync-legacy.yml", import.meta.url)), false);
+  assert.match(releasePlease, /chatgpt-zip:\n    needs: release-please/);
+  for (const path of ["sync/legacy-sync.workflow.yml", "sync/release-please-job.yml"]) assert.equal(existsSync(new URL(`../../${path}`, import.meta.url)), false);
+});
+
+test("missing sync credential fails clearly before checkout or any sync command", () => {
+  const workflow = readFileSync(new URL("../../.github/workflows/sync-omnimcp.yml", import.meta.url), "utf8");
+  const guard = workflow.match(/      - name: Require omnimcp sync credential\n[\s\S]*?        run: \|\n((?:          .*\n)+)/)?.[1];
+  assert.ok(guard);
+  assert.ok(workflow.indexOf("Require omnimcp sync credential") < workflow.indexOf("uses: actions/checkout@"));
+  const script = guard.replace(/^          /gm, "");
+  const run = (token) => spawnSync("bash", ["-e", "-c", script], { encoding: "utf8", env: { ...process.env, OMNIMCP_SYNC_TOKEN: token } });
+  const missing = run("");
+  assert.equal(missing.status, 1);
+  assert.match(missing.stdout, /::error::Set the OMNIMCP_SYNC_TOKEN Actions secret in ArcadeAI\/arcade-plugin/);
+  const supplied = run("test-placeholder");
+  assert.equal(supplied.status, 0, supplied.stderr);
+  assert.equal(supplied.stdout, "");
 });
 
 test("an open unchanged snapshot refuses noop after destination main advances; closed PR remains closed", async (t) => {
