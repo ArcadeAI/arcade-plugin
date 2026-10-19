@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { verifyGithubMirror } from "../scripts/verify-mirror.mjs";
-import { runSync, readGitTree, createGitSource, createGitDestination, liveSyncGate, createGithub, syncPullBody, releaseBranch, SYNC_CONTRACT } from "../scripts/sync-legacy.mjs";
+import { runSync, readGitTree, createGitSource, createGitDestination, liveSyncGate, createGithub, syncPullBody, syncCommitMessage, desiredTree, releaseBranch, SYNC_CONTRACT } from "../scripts/sync-legacy.mjs";
 
 const git = (repo, args, input) => {
   const r = spawnSync("git", args, { cwd: repo, input, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.com", GIT_COMMITTER_NAME: "Test", GIT_COMMITTER_EMAIL: "test@example.com" } });
@@ -180,4 +180,42 @@ test("inert reusable template and caller are wired to actual Release Please outp
   assert.match(releasePlease, /release_created: \$\{\{ steps.release.outputs.release_created \}\}/);
   assert.match(releasePlease, /tag_name: \$\{\{ steps.release.outputs.tag_name \}\}/);
   assert.equal(existsSync(new URL("../../.github/workflows/sync-legacy.yml", import.meta.url)), false);
+});
+
+test("an open unchanged snapshot refuses noop after destination main advances; closed PR remains closed", async (t) => {
+  const f = fixture(t), result = await f.run();
+  f.file(f.seed, "new-main.txt", "later human change"); git(f.seed, ["add", "."]); git(f.seed, ["commit", "-m", "main advanced"]); git(f.seed, ["push", f.remote, "main"]);
+  await assert.rejects(f.run(), /main changed since this snapshot.*manually/);
+  assert.equal(git(f.remote, ["rev-parse", branch]), result.commit);
+  f.pulls[0].state = "closed";
+  assert.equal((await f.run()).action, "closed");
+});
+
+test("offline pinned bootstrap verifier reads candidate code as data and rejects mismatched pins", async (t) => {
+  const f = fixture(t), marker = join(f.root, "candidate-executed");
+  f.file(f.sourceRepo, "dev/scripts/verify-mirror.mjs", `import{writeFileSync}from'node:fs';writeFileSync(${JSON.stringify(marker)},'executed');`);
+  git(f.sourceRepo, ["add", "."]); git(f.sourceRepo, ["commit", "-m", "poison candidate code"]); git(f.sourceRepo, ["tag", "-f", tag]);
+  const result = await f.run();
+  const script = new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname;
+  const args = [script, "--source", f.sourceRepo, "--dest", f.remote, "--source-sha", result.sourceSha, "--head", result.commit, "--base", f.base];
+  const run = (a = args) => spawnSync(process.execPath, a, { encoding: "utf8", cwd: f.clone });
+  const valid = run(); assert.equal(valid.status, 0, valid.stderr);
+  assert.match(JSON.parse(valid.stdout).trust, /offline operator pins.*not live published-release approval/);
+  assert.equal(existsSync(marker), false);
+  for (const [key, value] of [["--source-sha", f.base], ["--head", f.base], ["--base", result.commit]]) {
+    const changed = [...args]; changed[changed.indexOf(key) + 1] = value; assert.notEqual(run(changed).status, 0);
+  }
+  f.file(f.sourceRepo, "after.txt", "tag moved"); git(f.sourceRepo, ["add", "."]); git(f.sourceRepo, ["commit", "-m", "later"]); git(f.sourceRepo, ["tag", "-f", tag]);
+  assert.match(run().stderr, /local release tag differs/); assert.equal(existsSync(marker), false);
+});
+
+test("offline bootstrap verifier also rejects a version downgrade", async (t) => {
+  const f = fixture(t), sourceFiles = await f.source.readFiles(f.sourceSha);
+  f.file(f.seed, "plugin.json", JSON.stringify({ version: "0.9.0" })); git(f.seed, ["add", "."]); git(f.seed, ["commit", "-m", "newer target"]); git(f.seed, ["push", f.remote, "main"]);
+  const base = await f.destination.branch("main");
+  const desired = desiredTree({ sourceFiles, destFiles: await f.destination.files(base) });
+  const commit = await f.destination.snapshot({ files: desired, parent: base, message: syncCommitMessage(f.sourceSha, tag) });
+  const script = new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname;
+  const result = spawnSync(process.execPath, [script, "--source", f.sourceRepo, "--dest", f.clone, "--source-sha", f.sourceSha, "--head", commit, "--base", base], { encoding: "utf8" });
+  assert.notEqual(result.status, 0); assert.match(result.stderr, /downgrade/);
 });

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Run from the trusted destination base. Candidate files are Git data only.
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SYNC_CONTRACT, desiredTree, diffTrees, snapshotProvenance, releaseBranch } from "./legacy-projection.mjs";
@@ -89,10 +90,40 @@ export const verifyGithubMirror = async ({ event, repository, reader }) => {
   return { ...result, sourceSha: pin.sha, tag: pin.tag, head, base };
 };
 
+const localGit = (repo, args) => {
+  const result = spawnSync("git", args, { cwd: repo, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+  if (result.status !== 0) throw new Error(result.stderr || "local Git read failed");
+  return result.stdout;
+};
+const localTree = (repo, rev) => new Map(localGit(repo, ["ls-tree", "-r", "-z", rev]).split("\0").filter(Boolean).map((record) => {
+  const tab = record.indexOf("\t"), [mode, type, blobSha] = record.slice(0, tab).split(" ");
+  if (type !== "blob" || !["100644", "100755"].includes(mode)) throw new Error("unsupported mirror entry");
+  return [record.slice(tab + 1), { mode, blobSha }];
+}));
+
+/** Bootstrap review only: read local Git objects using explicit operator pins. */
+export const verifyLocalMirror = ({ source, dest, sourceSha, head, base }) => {
+  for (const pin of [sourceSha, head, base]) assertSha(pin);
+  const pin = snapshotProvenance(localGit(dest, ["show", "-s", "--format=%B", head]));
+  if (pin.sha !== sourceSha) throw new Error("head provenance differs from operator source pin");
+  if (localGit(source, ["rev-parse", `refs/tags/${pin.tag}^{commit}`]).trim() !== sourceSha) throw new Error("local release tag differs from operator source pin");
+  localGit(source, ["merge-base", "--is-ancestor", sourceSha, `refs/heads/${SYNC_CONTRACT.sourceBranch}`]);
+  if (localGit(dest, ["show", "-s", "--format=%P", head]).trim() !== base) throw new Error("snapshot parent differs from operator base pin");
+  const sourceFiles = localTree(source, sourceSha), candidateFiles = localTree(dest, head), baseFiles = localTree(dest, base);
+  const version = (repo, rev) => JSON.parse(localGit(repo, ["show", `${rev}:plugin.json`])).version;
+  assertReleaseVersion({ sourceVersion: version(source, sourceSha), destinationVersion: version(dest, base), tag: pin.tag, sameTree: diffTrees(candidateFiles, baseFiles).noop });
+  return { ...verifyProjection({ sourceFiles, candidateFiles, baseFiles }), sourceSha, tag: pin.tag, head, base, trust: "offline operator pins; not live published-release approval" };
+};
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   (async () => {
-    if (!process.argv.includes("--github") || process.env.GITHUB_EVENT_NAME !== "pull_request_target") throw new Error("run --github from the trusted base workflow");
-    const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
-    console.log(JSON.stringify(await verifyGithubMirror({ event, repository: process.env.GITHUB_REPOSITORY, reader: createGithubReader({ token: process.env.GH_TOKEN }) }), null, 2));
-  })().catch((error) => { console.error(error.message); process.exitCode = 1; });
+    if (process.argv.includes("--github")) {
+      if (process.env.GITHUB_EVENT_NAME !== "pull_request_target") throw new Error("run --github from the trusted base workflow");
+      const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+      return verifyGithubMirror({ event, repository: process.env.GITHUB_REPOSITORY, reader: createGithubReader({ token: process.env.GH_TOKEN }) });
+    }
+    const args = process.argv.slice(2);
+    const value = (flag) => { const i = args.indexOf(flag); if (i < 0 || !args[i + 1]) throw new Error(`missing ${flag}`); return args[i + 1]; };
+    return verifyLocalMirror({ source: value("--source"), dest: value("--dest"), sourceSha: value("--source-sha"), head: value("--head"), base: value("--base") });
+  })().then((result) => console.log(JSON.stringify(result, null, 2))).catch((error) => { console.error(error.message); process.exitCode = 1; });
 }
