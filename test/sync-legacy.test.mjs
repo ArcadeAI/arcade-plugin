@@ -505,6 +505,21 @@ test("protected branches and sync markers do not write", async () => {
   }
 });
 
+test("a source message that only quotes the sync marker still syncs", async () => {
+  const repo = initRepo({ "docs/migration/repository-controls.md": controls(), "pkg/file.txt": "base\n" });
+  try {
+    const pulls = [];
+    const synced = await run(repo, sourceFrom({ "pkg/file.txt": "x\n" }), {
+      pulls,
+      sourceMessage: "docs: explain the `Legacy-Sync-Commit: true` trailer\n",
+    });
+    assert.equal(synced.result.action, "create");
+    assert.equal(pulls.length, 1);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test("release-please is absent from the synced tree", async () => {
   const repo = initRepo({ "docs/migration/repository-controls.md": controls() });
   try {

@@ -17,6 +17,8 @@ export * from "./legacy-projection.mjs";
 const PROTECTED_BRANCHES = new Set(["main", "master"]);
 const SYNC_MARKER = "Legacy-Sync-Commit: true";
 
+const hasSyncMarker = (message) => message.split("\n").includes(SYNC_MARKER);
+
 export const syncCommitMessage = (sourceSha, contract = SYNC_CONTRACT) =>
   [
     `sync: mirror ${contract.sourceRepo} ${sourceSha}`,
@@ -109,7 +111,7 @@ export const runSync = async ({
   let failure = null;
   let result = null;
   try {
-    if (sourceMessage.includes(SYNC_MARKER)) {
+    if (hasSyncMarker(sourceMessage)) {
       result = { action: "skip", reason: "source commit is a legacy sync commit" };
     } else {
       result = await syncBody({ sourceFiles, sourceSha, destination, source, contract });
@@ -170,7 +172,7 @@ const blocked = (reason, details = {}) => ({
 const verifyOwnedHead = async ({ syncSha, parentFiles, baseFiles, source, destination, contract }) => {
   const commit = await destination.getCommit(syncSha);
   const recorded = provenance(commit.message, contract);
-  if (!recorded || !commit.message.split("\n").includes(SYNC_MARKER) || commit.parents.length !== 1) {
+  if (!recorded || !hasSyncMarker(commit.message) || commit.parents.length !== 1) {
     throw new Error(`refusing unowned sync branch ${contract.syncBranch} at ${syncSha}`);
   }
   const previousFiles = await source.readFiles(recorded);
