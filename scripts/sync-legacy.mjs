@@ -164,7 +164,7 @@ const blockedUnmergedSync = ({ contract, sourceSha, syncSha, baseSha, plan, base
  * destination base. A new commit on it would open a pull request that
  * conflicts with the base, so nothing is written.
  */
-const blockedMergedSync = ({ contract, sourceSha, syncSha, baseSha, plan }) => ({
+const blockedBranchNotOnBase = ({ contract, sourceSha, syncSha, baseSha, plan }) => ({
   action: "blocked",
   outcome: "action-required",
   pr: null,
@@ -259,7 +259,7 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
   if (syncSha && !open && !await destination.isAncestor(syncSha, baseSha)) {
     const basePlan = diffTrees(baseFiles, desired);
     if (plan.noop && !basePlan.noop) return blockedUnmergedSync({ contract, sourceSha, syncSha, baseSha, plan, basePlan });
-    return blockedMergedSync({ contract, sourceSha, syncSha, baseSha, plan });
+    return blockedBranchNotOnBase({ contract, sourceSha, syncSha, baseSha, plan });
   }
   const body = syncPullBody(sourceSha, contract);
   const title = syncPullTitle(sourceSha, contract);
