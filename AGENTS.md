@@ -28,8 +28,8 @@ come from `hooks/telemetry-contract.mjs`; never edit inside those markers).
   `dev/scripts/telemetry-docs.mjs` generates its event tables from the contract;
   keep its tests in `dev/test/telemetry-docs.test.mjs`.
 - Dev tooling: keep `package.json`, its lockfile, scripts, and tests in `dev/`.
-  Claude Code runs `npm ci` when it installs a plugin whose root has
-  `package.json` and `package-lock.json`.
+  Claude Code runs a package install when a plugin's root has `package.json`
+  beside an npm or Bun lockfile.
 - Codex hooks are blocked upstream ([docs/install/codex.md](docs/install/codex.md)).
   Don't remove the root `$schema` to force them; that breaks Agent Plugins
   conformance.
