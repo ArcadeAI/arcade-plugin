@@ -153,6 +153,7 @@ export const runSync = async ({ tag, source, destination, github }) => {
     if (owned.sha !== pin.sha || owned.tag !== tag || commit.parents.length !== 1 || !diffTrees(await destination.files(existing), desired).noop) throw new Error("release branch differs or contains human work; inspect manually");
     if (!pulls.length) throw new Error("release branch retained without a PR; inspect and open manually");
     const pull = ownedPull(pulls, branch, pin.sha, tag);
+    if (pull.state === "open" && commit.parents[0] !== base) throw new Error("destination main changed since this snapshot; review a fresh snapshot manually");
     return { action: pull.state === "open" ? "noop" : "closed", pr: pull.number, sourceSha: pin.sha, tag, branch };
   }
   if (pulls.length) throw new Error("release PR already exists; never reopen an intentionally closed PR");
