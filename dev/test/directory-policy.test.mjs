@@ -26,6 +26,7 @@ const NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/;
 const PRINTABLE_ASCII = /^[\x20-\x7e]+$/;
 const REMOTE_MCP_TYPES = ["http", "sse", "ws"];
 const LAUNCHER = /\b(?:npx|bunx|uvx)\b|\b(?:pnpm|yarn)\s+dlx\b|\bpipx\s+run\b|\buv\s+run\b/;
+const PACKAGE_INSTALL = /\bnpm\s+(?:install|ci|i)\b|\b(?:pnpm|yarn|bun)\s+(?:install|add)\b|\bpip3?\s+install\b|\buv\s+pip\s+install\b/;
 const RELATIVE_IMPORT = /(?:\bfrom|\bimport\s*\(?)\s*["'](\.{1,2}\/[^"']+)["']/g;
 const ROOT_PATH = /\$\{CLAUDE_PLUGIN_ROOT\}\/([\w./-]+)/g;
 
@@ -48,9 +49,9 @@ const INLINE_CODE = /`[^`]*`/g;
 // README and changelog, only paths in backticks or code blocks count.
 const COMPONENT_FOLDERS = ["agents/", "commands/", "skills/"];
 
-// The portal held the 0.4.0 validation for a reviewer because these fields name
-// a bundled image, and its scan can raise that hold on each version. They stay
-// because Codex, ChatGPT, and Cursor show them as the listing logo.
+// The portal holds a version for a reviewer when a manifest names a bundled
+// image. These fields stay because Codex, ChatGPT, and Cursor show them as the
+// listing logo.
 const ALLOWED_MEDIA_PATH_FIELDS = [
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logo"] },
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIcon"] },
@@ -154,6 +155,8 @@ function hookCommandProblems(command) {
   }
   const launcher = command.match(LAUNCHER);
   if (launcher) problems.push(`uses the package launcher "${launcher[0]}"`);
+  const install = command.match(PACKAGE_INSTALL);
+  if (install) problems.push(`runs the package install "${install[0]}"`);
   return problems;
 }
 
@@ -405,7 +408,7 @@ test("remote MCP servers use http, sse, or ws over https or wss", () => {
   assertNone(offenders, "Rule: each remote MCP server needs type http, sse, or ws and an https:// or wss:// url (blocks).");
 });
 
-test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher", () => {
+test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher or install", () => {
   const offenders = [];
   const commands = [];
   for (const hookFile of claudeHookFiles()) {
@@ -429,11 +432,13 @@ test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher"
       .forEach((line, index) => {
         const launcher = line.match(LAUNCHER);
         if (launcher) offenders.push(`${file}:${index + 1}: package launcher "${launcher[0]}"`);
+        const install = line.match(PACKAGE_INSTALL);
+        if (install) offenders.push(`${file}:${index + 1}: package install "${install[0]}"`);
       });
   }
   assertNone(
     offenders,
-    `Rule: write each hook path in full from ${ROOT_VARIABLE}, and keep package launchers (npx, bunx, pnpm dlx, yarn dlx, uvx, pipx run, uv run) out of hook commands and the scripts they run.`,
+    `Rule: write each hook path in full from ${ROOT_VARIABLE}, and keep package launchers (npx, bunx, pnpm dlx, yarn dlx, uvx, pipx run, uv run) and package installs (npm install, npm ci, pip install, and the like) out of hook commands and the scripts they run.`,
   );
 });
 

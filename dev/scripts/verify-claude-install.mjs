@@ -16,6 +16,8 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "bun.lock", "bun.lockb"];
+// Shorter than the CI job limit, so a hung `claude` fails with its command named.
+const CLAUDE_TIMEOUT_MS = 5 * 60_000;
 
 /** The files git would commit: tracked plus untracked-but-not-ignored, minus deleted ones. */
 function listFiles(root) {
@@ -29,7 +31,10 @@ function listFiles(root) {
 }
 
 function claude(args, env) {
-  const result = spawnSync("claude", args, { env, encoding: "utf8" });
+  const result = spawnSync("claude", args, { env, encoding: "utf8", timeout: CLAUDE_TIMEOUT_MS });
+  if (result.error?.code === "ETIMEDOUT") {
+    throw new Error(`claude ${args.join(" ")} did not finish within ${CLAUDE_TIMEOUT_MS / 60_000} minutes`);
+  }
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`claude ${args.join(" ")} exited with ${result.status}:\n${result.stdout}${result.stderr}`);
