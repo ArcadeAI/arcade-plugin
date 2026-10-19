@@ -52,8 +52,8 @@ repaired without another commit when the head already records current source.
 An open PR whose head does not contain destination main fails the mirror
 check, and a new commit on that head would fail it too. The run is blocked and
 writes nothing. The recovery text says to close the PR and delete the branch
-by hand, so the next run cuts a new branch from main, and not to use "Update
-branch" with a merge commit.
+by hand; the next run cuts a new branch from main. It also says not to use
+"Update branch" with a merge commit.
 
 A retained sync branch with no open PR is used only when destination main
 contains its head, as after a merge commit. The new commit's parent is then
@@ -71,8 +71,8 @@ check can pass it. Otherwise the run is blocked and writes nothing:
 Automation does not reopen a deliberate close. A destination base that
 already has the snapshot remains a no-op.
 
-A sync commit references blobs that already exist in its parent or base tree
-and uploads only the rest. GitHub's secondary rate limit allows 80
+A sync commit references blobs that already exist in destination main or the
+sync branch head and uploads only the rest. GitHub's secondary rate limit allows 80
 content-creating requests per minute, and the first sync onto legacy main
 uploads every file whose content legacy main lacks, about 140 blobs. The run
 sends blob, tree and commit requests one second apart, at most 60 per minute.
@@ -159,9 +159,9 @@ this rule only when mirror-integrity is a required status check.
 
 When a sync PR is behind main, the mirror check fails it and sync runs are
 blocked. Close the PR and delete the branch; the next sync run cuts a new
-branch from current main. Do
-not use "Update branch" with a merge commit: that commit has no `Source-SHA`,
-so the mirror check fails and the next sync run refuses the branch.
+branch from current main. Do not use "Update branch" with a merge commit: that
+commit has no `Source-SHA`, so the mirror check fails and the next sync run
+refuses the branch.
 
 ## Activation remains separate
 
