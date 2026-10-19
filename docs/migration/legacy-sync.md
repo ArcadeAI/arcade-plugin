@@ -10,13 +10,13 @@ or performs cutover.
 Package files match the exact source SHA, with these repository controls:
 
 - `.github/workflows/` is omitted, including release and activated sync jobs.
-- `scripts/sync-legacy.mjs` and `test/sync-legacy.test.mjs` stay canonical.
-- `scripts/legacy-projection.mjs`, `scripts/verify-mirror.mjs`, and
-  `test/mirror-integrity.test.mjs` are excluded from their canonical paths.
+- `dev/scripts/sync-legacy.mjs` and `dev/test/sync-legacy.test.mjs` stay canonical.
+- `dev/scripts/legacy-projection.mjs`, `dev/scripts/verify-mirror.mjs`, and
+  `dev/test/mirror-integrity.test.mjs` are excluded from their canonical paths.
 - `sync/` and canonical `docs/migration/` are omitted.
 - `sync/destination-check.yml` becomes `.github/workflows/check.yml`.
-- `scripts/legacy-projection.mjs` becomes `.github/legacy-projection.mjs`.
-- `scripts/verify-mirror.mjs` becomes `.github/verify-mirror.mjs`.
+- `dev/scripts/legacy-projection.mjs` becomes `.github/legacy-projection.mjs`.
+- `dev/scripts/verify-mirror.mjs` becomes `.github/verify-mirror.mjs`.
 - Destination-only `docs/migration/repository-controls.md` is kept from
   trusted destination main, or generated for the initial migration.
 

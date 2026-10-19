@@ -29,12 +29,12 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version-file: package.json
+          node-version-file: dev/package.json
 
       - name: Mirror canonical main onto the legacy sync pull request
         # A retained unmerged sync branch with no open pull request exits 1
         # and prints action "blocked". The job stays red until a human recovers.
-        run: node scripts/sync-legacy.mjs --apply
+        run: node dev/scripts/sync-legacy.mjs --apply
         env:
           SYNC_LEGACY_APPLY: "1"
           LEGACY_SYNC_TOKEN: ${{ secrets.LEGACY_SYNC_TOKEN }}
