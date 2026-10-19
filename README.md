@@ -95,9 +95,12 @@ npm run verify
 
 `verify` runs:
 
-- the tests: hand-written file checks, a stale-generated-file check, and
-  every hook command in every client's manifest
-- `claude plugin validate`
+- the tests: hand-written file checks, a stale-generated-file check,
+  every hook command in every client's manifest, and the Claude plugin
+  directory's documented rules (`dev/test/directory-policy.test.mjs`)
+- `claude plugin validate`, then a real Claude Code install into a temporary
+  config that fails if Claude Code ran a package install
+  (`dev/scripts/verify-claude-install.mjs`)
 - Cursor's plugin validator (`dev/scripts/verify-cursor.mjs` downloads it at a
   pinned commit)
 - Codex and Copilot CLI checks (`dev/scripts/verify-codex.mjs`,
