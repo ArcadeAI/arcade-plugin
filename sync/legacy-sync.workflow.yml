@@ -1,13 +1,10 @@
-# INERT. This file is not installed as a GitHub Actions workflow.
-# Activation requires a separate approval to move it to
-# .github/workflows/sync-legacy.yml and to provide LEGACY_SYNC_TOKEN.
-# Do not add pull_request or a branch other than main. The script also
-# refuses to write unless the event is a push to refs/heads/main.
+# INERT. Activation separately requires moving this template into
+# .github/workflows/ and configuring LEGACY_SYNC_TOKEN.
 name: sync-legacy
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -18,28 +15,20 @@ concurrency:
 
 jobs:
   sync:
-    if: github.repository == 'ArcadeAI/arcade-plugin' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.repository == 'ArcadeAI/arcade-plugin' && !github.event.release.draft && !github.event.release.prerelease
     runs-on: ubuntu-latest
-    # A first sync spaces about 140 blob uploads one second apart, and a
-    # rate-limit retry can wait one, two, then four minutes.
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          ref: ${{ github.event.release.tag_name }}
           persist-credentials: false
           fetch-depth: 0
-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: dev/package.json
-
-      - name: Mirror canonical main onto the legacy sync pull request
-        # A retained unmerged sync branch with no open pull request exits 1
-        # and prints action "blocked". The job stays red until a human recovers.
+      - name: Propose a legacy snapshot of the published release
         run: node dev/scripts/sync-legacy.mjs --apply
         env:
           SYNC_LEGACY_APPLY: "1"
           LEGACY_SYNC_TOKEN: ${{ secrets.LEGACY_SYNC_TOKEN }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_REF: ${{ github.ref }}
-          SOURCE_SHA: ${{ github.sha }}

@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22.23.2'
-      - name: Compare Git data with trusted canonical main
+      - name: Compare Git data with the published canonical release
         run: node .github/verify-mirror.mjs --github
         env:
           GH_TOKEN: ${{ github.token }}
