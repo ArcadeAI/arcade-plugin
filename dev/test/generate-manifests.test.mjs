@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 import {
   FILE_SOURCES,
   FILES_WITH_GENERATED_RULES,
@@ -9,10 +10,11 @@ import {
   generateManifests,
   requireSources,
 } from "../scripts/generate-manifests.mjs";
-import { makeFixture, readRepoFile } from "./helpers.mjs";
+import { makeFixture, readRepoFile, ROOT } from "./helpers.mjs";
 
 // A second copy of FILE_SOURCES on purpose, so a change to a file's sources must change this test too.
 const EXPECTED_SOURCES = {
+  "plugin.json": ["dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   ".claude-plugin/marketplace.json": ["plugin.json", "dev/scripts/generate-manifests.mjs"],
@@ -53,6 +55,10 @@ test("check mode fails with a source-naming error when a generated file is hand-
       } else if (FILES_WITH_GENERATED_TABLES.includes(path)) {
         // Only the tables are generated, so the edit has to be inside them.
         writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("Service categories:", "Service kinds:"));
+      } else if (path === "plugin.json") {
+        const plugin = JSON.parse(readFileSync(fullPath, "utf8"));
+        plugin.extensions["com.openai"].interface.privacyPolicyURL = "https://example.com/stale";
+        writeFileSync(fullPath, `${JSON.stringify(plugin, null, 2)}\n`);
       } else {
         writeFileSync(fullPath, `${readFileSync(fullPath, "utf8")} `);
       }
@@ -113,6 +119,29 @@ test("a release-please version bump leaves generated files in sync", () => {
       writeFileSync(file, `${JSON.stringify(document, null, 2)}\n`);
     }
     generateManifests({ check: true, root });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Exercise the real source constant, rather than a second URL setting or an override.
+test("changing the canonical privacy URL updates both client fields", async () => {
+  const root = makeFixture();
+  try {
+    cpSync(join(ROOT, "hooks"), join(root, "hooks"), { recursive: true });
+    mkdirSync(join(root, "dev/scripts"), { recursive: true });
+    cpSync(join(ROOT, "dev/scripts/telemetry-docs.mjs"), join(root, "dev/scripts/telemetry-docs.mjs"));
+    const generator = readRepoFile("dev/scripts/generate-manifests.mjs").replace(
+      'const privacyPolicyUrl = "https://www.arcade.dev/privacy-policy/";',
+      'const privacyPolicyUrl = "https://example.com/new-policy/";',
+    );
+    writeFileSync(join(root, "dev/scripts/generate-manifests.mjs"), generator);
+    const changedGenerator = await import(pathToFileURL(join(root, "dev/scripts/generate-manifests.mjs")));
+    changedGenerator.generateManifests({ root });
+    const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
+    assert.equal(read(".claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
+    assert.equal(read("plugin.json").extensions["com.openai"].interface.privacyPolicyURL, "https://example.com/new-policy/");
+    assert.ok(!readFileSync(join(root, ".gitattributes"), "utf8").includes("\nplugin.json "));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

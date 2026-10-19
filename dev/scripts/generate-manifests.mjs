@@ -15,6 +15,9 @@ import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
+// One policy URL for both clients; plugin.json retains its other hand-written fields.
+const privacyPolicyUrl = "https://www.arcade.dev/privacy-policy/";
+
 // Claude Code and Cowork only accept the operator at the default agents/ path
 // (the CLI wants .md paths in "agents", Cowork wants folders). Copilot CLI and
 // VS Code only read com.github.copilot/agents/, so that folder gets a copy.
@@ -44,6 +47,8 @@ export const COPIED_FILES = {
  * entry here — buildFiles throws if one is missing.
  */
 export const FILE_SOURCES = {
+  // Only extensions.com.openai.interface.privacyPolicyURL is generated.
+  "plugin.json": ["dev/scripts/generate-manifests.mjs"],
   // plugin.json and mcp.json supply identity and the gateway URL; VERSION
   // supplies the version; hook-hosts.mjs supplies the hooks manifest path; the
   // script writes the fixed skills/agents/commands/rules paths.
@@ -91,6 +96,9 @@ export const requireSources = (path, fileSources) => {
 
 /** Returns the error message to throw when `path` is out of date on disk. */
 const outOfDateError = (path) => {
+  if (path === "plugin.json") {
+    return "plugin.json: extensions.com.openai.interface.privacyPolicyURL is out of date. Run npm run generate. Edit privacyPolicyUrl in dev/scripts/generate-manifests.mjs instead.";
+  }
   if (path in FILES_WITH_GENERATED_RULES) {
     return `${path}: the rules block is out of date. Run npm run generate. If you edited the block by hand, make the change in hooks/routing-guidance.mjs instead.`;
   }
@@ -220,6 +228,7 @@ const buildFiles = (root) => {
       serialize({
         ...identity,
         displayName,
+        privacyPolicyUrl,
         hooks: `./${HOSTS["claude-code"].manifest}`,
         // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
         mcpServers: { arcade: { type: "http", url } },
@@ -232,7 +241,7 @@ const buildFiles = (root) => {
         name,
         // Marketplace listing text. Codex also installs from this marketplace.
         description: "Install Arcade in Claude Desktop, Cowork, Claude Code, and Codex.",
-        owner: author,
+        owner: { ...author, email: "support@arcade.dev" },
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
           { name, displayName, source: "./", description, author, homepage, repository, license, keywords },
@@ -273,6 +282,11 @@ const buildFiles = (root) => {
       "",
     ].join("\n"),
   );
+
+  // This field is generated; the rest of the portable manifest remains source.
+  // Add it after .gitattributes so the whole file is not marked generated.
+  openaiListing.privacyPolicyURL = privacyPolicyUrl;
+  files.set("plugin.json", serialize(plugin));
 
   for (const [path, rules] of Object.entries(FILES_WITH_GENERATED_RULES)) {
     files.set(path, fillRulesBlock(readText(root, path), rules, path));

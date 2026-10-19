@@ -34,3 +34,17 @@ test("Claude manifest displays Arcade without changing the install identifier", 
   assert.equal(manifest.displayName, "Arcade");
   assert.equal(manifest.name, "arcade");
 });
+
+test("listing contact and privacy metadata agree across clients", () => {
+  const portable = JSON.parse(readRepoFile("plugin.json"));
+  const claude = JSON.parse(readRepoFile(".claude-plugin/plugin.json"));
+  const cursor = JSON.parse(readRepoFile(".cursor-plugin/plugin.json"));
+  const marketplace = JSON.parse(readRepoFile(".claude-plugin/marketplace.json"));
+  assert.equal(marketplace.owner.email, "support@arcade.dev");
+  assert.equal(claude.privacyPolicyUrl, "https://www.arcade.dev/privacy-policy/");
+  assert.equal(portable.extensions["com.openai"].interface.privacyPolicyURL, claude.privacyPolicyUrl);
+  assert.equal(portable.privacyPolicyUrl, undefined);
+  for (const author of [portable.author, claude.author, cursor.author, marketplace.plugins[0].author]) {
+    assert.equal(author.email, undefined);
+  }
+});
