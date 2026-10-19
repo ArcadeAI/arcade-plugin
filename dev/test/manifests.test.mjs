@@ -28,3 +28,9 @@ test("Claude marketplace lists the plugin as Arcade", () => {
   const [listed] = JSON.parse(readRepoFile(".claude-plugin/marketplace.json")).plugins;
   assert.equal(listed.displayName, "Arcade");
 });
+
+test("Claude manifest displays Arcade without changing the install identifier", () => {
+  const manifest = JSON.parse(readRepoFile(".claude-plugin/plugin.json"));
+  assert.equal(manifest.displayName, "Arcade");
+  assert.equal(manifest.name, "arcade");
+});

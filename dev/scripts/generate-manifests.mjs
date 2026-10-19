@@ -219,6 +219,7 @@ const buildFiles = (root) => {
       ".claude-plugin/plugin.json",
       serialize({
         ...identity,
+        displayName,
         hooks: `./${HOSTS["claude-code"].manifest}`,
         // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
         mcpServers: { arcade: { type: "http", url } },
