@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "bun.lock", "bun.lockb"];
 
 /** The files git would commit: tracked plus untracked-but-not-ignored, minus deleted ones. */
 function listFiles(root) {
@@ -59,6 +60,12 @@ function verifyInstall(repo, copy, config) {
   }
   if (existsSync(join(installed, "node_modules"))) {
     throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed with node_modules, so Claude Code ran a package install`);
+  }
+  // Claude Code keeps node_modules only when the install succeeds, so a failed
+  // or timed-out install shows up only as these files.
+  const lockfile = LOCKFILES.find((file) => existsSync(join(installed, file)));
+  if (lockfile && existsSync(join(installed, "package.json"))) {
+    throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed with package.json and ${lockfile} at its root, so Claude Code tries a package install`);
   }
   return `${plugin}@${marketplace.name} ${versions[0]} installed from ${repo} with no node_modules`;
 }

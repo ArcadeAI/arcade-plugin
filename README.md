@@ -85,7 +85,7 @@ see [docs/telemetry.md](docs/telemetry.md) for what CI does and does not exercis
 Agents editing this repo should read [AGENTS.md](AGENTS.md).
 [ARCHITECTURE.md](ARCHITECTURE.md) lists the source files and what is
 generated from them. The dev tooling (`package.json`, scripts, and tests)
-lives in `dev/`, so installing the plugin doesn't install it.
+lives in `dev/`, so installing the plugin doesn't install its packages.
 
 ```bash
 cd dev

@@ -21,7 +21,7 @@ const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "bun.lock", "bun.
 const SYSTEM_FILE_NAMES = [".ds_store", "thumbs.db", "desktop.ini", "__macosx"];
 const DEVICE_NAMES = ["con", "prn", "aux", "nul"];
 for (let n = 1; n <= 9; n++) DEVICE_NAMES.push(`com${n}`, `lpt${n}`);
-const REWRITING_ATTRIBUTES = ["export-ignore", "export-subst", "filter"];
+const REWRITING_ATTRIBUTES = ["export-ignore", "export-subst", "filter", "ident", "working-tree-encoding"];
 const NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/;
 const PRINTABLE_ASCII = /^[\x20-\x7e]+$/;
 const REMOTE_MCP_TYPES = ["http", "sse", "ws"];
@@ -43,11 +43,14 @@ const MEDIA_SIGNATURES = {
 // The lookbehind lets a match start only at the beginning of a run of path
 // characters. Without it, a long line with no match takes quadratic time.
 const MEDIA_PATH = new RegExp(`(?<![\\w./@:~-])[\\w./@:~-]+\\.(?:${Object.keys(MEDIA_SIGNATURES).join("|")})\\b`, "gi");
-const MARKDOWN_IMAGE = /!\[[^\]]*\]\([^)]*\)/g;
+const INLINE_CODE = /`[^`]*`/g;
+// Markdown that Claude Code runs as instructions. In other Markdown, such as the
+// README and changelog, only paths in backticks or code blocks count.
+const COMPONENT_FOLDERS = ["agents/", "commands/", "skills/"];
 
-// The portal holds each version for a reviewer because these fields name a
-// bundled image. They stay because Codex, ChatGPT, and Cursor show them as the
-// listing logo.
+// The portal held the 0.4.0 validation for a reviewer because these fields name
+// a bundled image, and its scan can raise that hold on each version. They stay
+// because Codex, ChatGPT, and Cursor show them as the listing logo.
 const ALLOWED_MEDIA_PATH_FIELDS = [
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logo"] },
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIcon"] },
@@ -185,6 +188,12 @@ function filesRunBy(commands) {
       if (word.startsWith(`${ROOT_VARIABLE}/`)) queue.push(posix.normalize(word.slice(ROOT_VARIABLE.length + 1)));
     }
   }
+  // A hook script can import a file by a computed name, which can't be
+  // followed, so every file in the folder of a script a hook runs is read too.
+  for (const entry of [...queue]) {
+    const folder = `${posix.dirname(entry)}/`;
+    queue.push(...REGULAR_FILES.filter((file) => file.startsWith(folder)));
+  }
   const found = new Set();
   while (queue.length > 0) {
     const file = queue.shift();
@@ -198,11 +207,23 @@ function filesRunBy(commands) {
   return [...found];
 }
 
-/** Image and font paths named in a text file, except Markdown image syntax in .md files. */
+function isProseMarkdown(file) {
+  return file.endsWith(".md") && !COMPONENT_FOLDERS.some((folder) => file.startsWith(folder));
+}
+
+/** Image and font paths named in a text file. In prose Markdown, only paths in backticks or code blocks. */
 function mediaPathMentions(file, text) {
   const mentions = [];
+  let inFence = false;
   text.split("\n").forEach((line, index) => {
-    const searchable = file.endsWith(".md") ? line.replace(MARKDOWN_IMAGE, "") : line;
+    let searchable = line;
+    if (isProseMarkdown(file)) {
+      if (/^\s{0,3}(```|~~~)/.test(line)) {
+        inFence = !inFence;
+        return;
+      }
+      if (!inFence) searchable = (line.match(INLINE_CODE) ?? []).join(" ");
+    }
     for (const [path] of searchable.matchAll(MEDIA_PATH)) {
       if (!path.includes("://")) mentions.push({ line: index + 1, path });
     }
@@ -433,6 +454,6 @@ test("no text file names a bundled image or font path", () => {
   }
   assertNone(
     offenders,
-    "Rule: refer to bundled images only with Markdown image syntax in .md files; any other mention of an image or font path is held for a reviewer.",
+    "Rule: don't name a bundled image or font path in commands, hooks, scripts, manifests, backticks, or code blocks; Markdown image syntax in a README is fine (held for a reviewer).",
   );
 });

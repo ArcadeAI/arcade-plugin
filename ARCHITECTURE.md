@@ -4,7 +4,8 @@ A portable Agent Plugin (`plugin.json`, `mcp.json`, `skills/`) plus the files
 each client needs at its own path. Every client-specific file is generated
 from a few sources by `npm run generate`; `npm run verify` fails if one was
 edited by hand. Both run from `dev/`, which holds the dev tooling so that
-installing the plugin doesn't install it. The package ships no credentials.
+installing the plugin doesn't install its packages. The package ships no
+credentials.
 
 | Source (edit these) | Holds |
 | --- | --- |
