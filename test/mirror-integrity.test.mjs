@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { SYNC_CONTRACT, desiredTree, entryFromBytes } from "../scripts/legacy-projection.mjs";
@@ -103,12 +103,18 @@ test("GitHub reader refuses truncated trees and symlinks", async () => {
   }
 });
 
+test("GitHub reader refuses submodules", async () => {
+  const tree = { tree: [{ path: "vendor/lib", mode: "160000", type: "commit", sha: head }] };
+  const reader = createGithubReader({ fetch: async (url) => ({ ok: true, async json() { return url.includes("/git/commits/") ? { tree: { sha: sourceSha } } : tree; } }) });
+  await assert.rejects(reader.tree(SYNC_CONTRACT.sourceRepo, sourceSha), /unsupported mirror entry vendor\/lib/);
+});
+
 test("destination runs only trusted base code and source checks remain full", () => {
   const workflow = readFileSync(new URL("../sync/destination-check.yml", import.meta.url), "utf8");
   assert.match(workflow, /pull_request_target:/);
   assert.match(workflow, /ref: \$\{\{ github.event.pull_request.base.sha \}\}/);
   assert.match(workflow, /contents: read/);
-  assert.doesNotMatch(workflow, /head.sha|npm |Bugbot|matrix:|secrets\./);
+  assert.doesNotMatch(workflow, /head\.sha|head\.ref|github\.head_ref|refs\/pull\/|merge_commit_sha|npm |Bugbot|matrix:|secrets\./);
   const canonical = readFileSync(new URL("../.github/workflows/check.yml", import.meta.url), "utf8");
   for (const check of ["verify:claude", "verify:cursor", "verify:codex", "verify:copilot", "Require Cursor Bugbot"]) assert.ok(canonical.includes(check));
 });
@@ -125,8 +131,12 @@ test("local pinned verification reads Git data without executing candidate files
     for (const [path, entry] of entries) { mkdirSync(join(repo, path, ".."), { recursive: true }); writeFileSync(join(repo, path), entry.bytes); }
     git(repo, ["add", "."]); git(repo, ["commit", "-m", "base"]); return repo;
   };
+  // Each candidate script writes this marker if anything imports or runs it.
+  const marker = join(work, "candidate-executed");
+  const tripwire = entryFromBytes("100644", `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(marker)}, "executed\\n");\n`);
   try {
-    const sourceFiles = source(); sourceFiles.set("candidate.mjs", entryFromBytes("100644", "throw new Error('must not execute')"));
+    const sourceFiles = source();
+    for (const path of ["candidate.mjs", "scripts/verify-mirror.mjs", "scripts/legacy-projection.mjs"]) sourceFiles.set(path, tripwire);
     sourceFiles.set("package\twith\nseparators.txt", entryFromBytes("100644", "trusted file with literal separators"));
     const sourceRepo = init("source", sourceFiles); const sha = git(sourceRepo, ["rev-parse", "HEAD"]);
     const baseFiles = files({ "old.txt": "legacy" }); const dest = init("dest", baseFiles); const baseSha = git(dest, ["rev-parse", "HEAD"]);
@@ -143,6 +153,8 @@ test("local pinned verification reads Git data without executing candidate files
     assert.equal(rejected.status, 1, "a tab-suffixed checker rename must not pass bootstrap verification");
     assert.match(rejected.stderr, /differs from trusted canonical projection/);
     assert.ok(rejected.stderr.includes("verify-mirror.mjs\\tmissing"), rejected.stderr);
-
+    assert.equal(existsSync(marker), false, "the checker executed a candidate file");
+    spawnSync(process.execPath, [join(dest, "candidate.mjs")]);
+    assert.equal(existsSync(marker), true, "the candidate file must write the marker when it runs");
   } finally { rmSync(work, { recursive: true, force: true }); }
 });
