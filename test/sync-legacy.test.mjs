@@ -23,6 +23,7 @@ import {
   createGitSource,
   syncCommitMessage,
   syncPullBody,
+  syncPullTitle,
   selectSyncPull,
 } from "../scripts/sync-legacy.mjs";
 import { verifyGithubMirror, sourceProvenance } from "../scripts/verify-mirror.mjs";
@@ -303,6 +304,34 @@ test("a closed unmerged sync pull with a matching branch is blocked and does not
     assert.equal(repeat.result.action, "blocked");
     assert.equal(pulls.length, 1);
     assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("blocked recovery gives the exact pull request title and body that later runs accept", async () => {
+  const repo = initRepo({
+    "docs/migration/repository-controls.md": controls(),
+    "pkg/file.txt": "base\n",
+  });
+  try {
+    const pulls = [];
+    await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    pulls[0].state = "closed";
+    const blocked = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls });
+    assert.equal(blocked.result.action, "blocked");
+    const handOpened = blocked.result.recovery.match(/\n\nTitle:\n(.+)\n\nBody:\n([\s\S]*)$/);
+    assert.ok(handOpened, blocked.result.recovery);
+    const [, title, body] = handOpened;
+    assert.equal(title, syncPullTitle(SOURCE_SHA));
+    assert.equal(body, syncPullBody(SOURCE_SHA));
+    // The GitHub web form submits a pull request body with CRLF line endings.
+    pulls.push({ number: 2, branch: SYNC_CONTRACT.syncBranch, base: "main", title, body: body.replaceAll("\n", "\r\n"),
+      draft: true, state: "open", headRepo: SYNC_CONTRACT.destRepo, baseRepo: SYNC_CONTRACT.destRepo });
+    const next = await run(repo, sourceFrom({ "pkg/file.txt": "v2\n" }), { pulls, sourceSha: NEXT_SHA });
+    assert.equal(next.result.action, "update");
+    assert.equal(next.result.pr, 2);
+    assert.equal(pulls[1].body, syncPullBody(NEXT_SHA));
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }

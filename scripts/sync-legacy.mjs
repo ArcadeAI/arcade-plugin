@@ -17,7 +17,10 @@ export * from "./legacy-projection.mjs";
 const PROTECTED_BRANCHES = new Set(["main", "master"]);
 const SYNC_MARKER = "Legacy-Sync-Commit: true";
 
-const hasSyncMarker = (message) => message.split("\n").includes(SYNC_MARKER);
+// Pull request bodies submitted through the GitHub web form use CRLF.
+const lines = (text) => text.split(/\r?\n/);
+
+const hasSyncMarker = (message) => lines(message).includes(SYNC_MARKER);
 
 export const syncCommitMessage = (sourceSha, contract = SYNC_CONTRACT) =>
   [
@@ -51,7 +54,7 @@ export const syncPullBody = (sourceSha, contract = SYNC_CONTRACT) =>
     "",
   ].join("\n");
 
-const syncPullTitle = (sourceSha, contract = SYNC_CONTRACT) =>
+export const syncPullTitle = (sourceSha, contract = SYNC_CONTRACT) =>
   `sync: mirror ${contract.sourceRepo} ${sourceSha.slice(0, 12)}`;
 
 /**
@@ -149,13 +152,14 @@ const blockedUnmergedSync = ({ contract, sourceSha, syncSha, baseSha, plan, base
     `Inspect the retained branch and any closed pull request from ${contract.syncBranch} into ${contract.destBaseBranch}.`,
     "If that pull request was closed or rejected on purpose, leave it closed.",
     `If pull creation failed and the branch should still be reviewed, open one draft pull request from ${contract.syncBranch} into ${contract.destBaseBranch} by hand.`,
+    "Use the title and body below exactly; later runs refuse a sync pull request without its Source-SHA, Source-Repo and Source-Branch lines.",
     "Do not reopen a deliberately closed pull request from this automation.",
-  ].join(" "),
+  ].join(" ") + `\n\nTitle:\n${syncPullTitle(sourceSha, contract)}\n\nBody:\n${syncPullBody(sourceSha, contract)}`,
 });
 
 const provenance = (message, contract) => {
   const one = (key) => {
-    const values = message.split("\n").filter((line) => line.startsWith(`${key}: `));
+    const values = lines(message).filter((line) => line.startsWith(`${key}: `));
     return values.length === 1 ? values[0].slice(key.length + 2) : null;
   };
   const sha = one("Source-SHA");
@@ -194,7 +198,7 @@ export const selectSyncPull = (pulls, branch, contract = SYNC_CONTRACT) => {
     pull.headRepo?.toLowerCase() === contract.destRepo.toLowerCase() &&
     pull.baseRepo?.toLowerCase() === contract.destRepo.toLowerCase() &&
     provenance(pull.body ?? "", contract) &&
-    (pull.body ?? "").split("\n").includes(`Source-Branch: ${contract.sourceBranch}`);
+    lines(pull.body ?? "").includes(`Source-Branch: ${contract.sourceBranch}`);
   if (pulls.length !== 1 || !valid(pulls[0])) {
     throw new Error("refusing ambiguous, unowned or wrong-base sync pull request");
   }
