@@ -5,6 +5,15 @@ name: sync-legacy
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      source_tag:
+        description: Stable release tag emitted by Release Please
+        required: true
+        type: string
+    secrets:
+      LEGACY_SYNC_TOKEN:
+        required: true
 
 permissions:
   contents: read
@@ -15,13 +24,17 @@ concurrency:
 
 jobs:
   sync:
-    if: github.repository == 'ArcadeAI/arcade-plugin' && !github.event.release.draft && !github.event.release.prerelease
+    if: >-
+      github.repository == 'ArcadeAI/arcade-plugin' &&
+      ((github.event_name == 'release' && !github.event.release.draft && !github.event.release.prerelease) ||
+       (inputs.source_tag != '' && github.ref == 'refs/heads/main' &&
+        (github.event_name == 'push' || github.event_name == 'workflow_dispatch')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ inputs.source_tag || github.event.release.tag_name }}
           persist-credentials: false
           fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -31,4 +44,6 @@ jobs:
         run: node dev/scripts/sync-legacy.mjs --apply
         env:
           SYNC_LEGACY_APPLY: "1"
+          SOURCE_TAG: ${{ inputs.source_tag || github.event.release.tag_name }}
+          SYNC_LEGACY_RELEASE_CALL: ${{ inputs.source_tag != '' && '1' || '0' }}
           LEGACY_SYNC_TOKEN: ${{ secrets.LEGACY_SYNC_TOKEN }}

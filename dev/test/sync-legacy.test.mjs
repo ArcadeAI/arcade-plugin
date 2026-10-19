@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { verifyGithubMirror } from "../scripts/verify-mirror.mjs";
@@ -155,4 +155,29 @@ test("real Git release snapshot passes trusted data-only integrity verification"
   };
   const verified = await verifyGithubMirror({ repository: SYNC_CONTRACT.destRepo, reader, event: { pull_request: { head: f.pulls[0].head, base: f.pulls[0].base } } });
   assert.equal(verified.differences, 0); assert.equal(verified.sourceSha, f.sourceSha);
+});
+
+test("Release Please reusable caller gate accepts only opted-in canonical main release tags", () => {
+  const env = { SYNC_LEGACY_APPLY: "1", SYNC_LEGACY_RELEASE_CALL: "1", SOURCE_TAG: tag, GITHUB_REPOSITORY: SYNC_CONTRACT.sourceRepo, GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/main" };
+  assert.equal(liveSyncGate(env, {}), true);
+  assert.equal(liveSyncGate({ ...env, GITHUB_EVENT_NAME: "workflow_dispatch" }, {}), true);
+  for (const change of [{ SYNC_LEGACY_RELEASE_CALL: "0" }, { SOURCE_TAG: "main" }, { SOURCE_TAG: "v0.8.0-beta.1" }, { GITHUB_REF: "refs/heads/other" }, { GITHUB_REPOSITORY: "other/repo" }, { GITHUB_EVENT_NAME: "pull_request" }]) assert.equal(liveSyncGate({ ...env, ...change }, {}), false);
+  // The gate only authorizes the event context: runSync still independently
+  // queries the release API/tag and rejects unpublished/moved tags above.
+});
+
+test("inert reusable template and caller are wired to actual Release Please outputs", () => {
+  const workflow = readFileSync(new URL("../../sync/legacy-sync.workflow.yml", import.meta.url), "utf8");
+  const caller = readFileSync(new URL("../../sync/release-please-job.yml", import.meta.url), "utf8");
+  const releasePlease = readFileSync(new URL("../../.github/workflows/release-please.yml", import.meta.url), "utf8");
+  assert.match(workflow, /workflow_call:\n    inputs:\n      source_tag:/);
+  assert.match(workflow, /SOURCE_TAG: \$\{\{ inputs.source_tag \|\| github.event.release.tag_name \}\}/);
+  assert.match(workflow, /SYNC_LEGACY_RELEASE_CALL:/);
+  assert.match(caller, /needs: release-please/);
+  assert.match(caller, /release_created == 'true'/);
+  assert.match(caller, /source_tag: \$\{\{ needs.release-please.outputs.tag_name \}\}/);
+  assert.match(caller, /uses: \.\/\.github\/workflows\/sync-legacy.yml/);
+  assert.match(releasePlease, /release_created: \$\{\{ steps.release.outputs.release_created \}\}/);
+  assert.match(releasePlease, /tag_name: \$\{\{ steps.release.outputs.tag_name \}\}/);
+  assert.equal(existsSync(new URL("../../.github/workflows/sync-legacy.yml", import.meta.url)), false);
 });

@@ -35,10 +35,15 @@ export const syncPullBody = (sourceSha, tag, contract = SYNC_CONTRACT) =>
   `${syncCommitMessage(sourceSha, tag, contract)}\nRelease snapshot only. Canonical history is not imported; destination main is never updated by this automation.\n`;
 
 export const liveSyncGate = (env, event) => {
+  if (env.SYNC_LEGACY_APPLY !== "1" || env.GITHUB_REPOSITORY !== SYNC_CONTRACT.sourceRepo) return false;
   const release = event?.release;
-  return env.SYNC_LEGACY_APPLY === "1" && env.GITHUB_REPOSITORY === SYNC_CONTRACT.sourceRepo &&
-    env.GITHUB_EVENT_NAME === "release" && event.action === "published" && release?.published_at &&
+  if (env.GITHUB_EVENT_NAME === "release") return event.action === "published" && Boolean(release?.published_at) &&
     !release.draft && !release.prerelease && env.GITHUB_REF === `refs/tags/${release.tag_name}`;
+  // Reusable workflows inherit the caller's event, not "workflow_call".
+  // Release Please's GITHUB_TOKEN releases do not emit a downstream release
+  // event; its release_created job explicitly calls the staged template.
+  if (env.SYNC_LEGACY_RELEASE_CALL !== "1" || env.GITHUB_REF !== "refs/heads/main" || !["push", "workflow_dispatch"].includes(env.GITHUB_EVENT_NAME)) return false;
+  try { releaseBranch(env.SOURCE_TAG); return true; } catch { return false; }
 };
 
 export const createGitSource = ({ repo, remote = "origin", releases }) => ({
@@ -181,7 +186,7 @@ const main = async () => {
   }
   if (!args.includes("--apply")) { console.log("legacy sync is inert; --plan compares local repositories"); return; }
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
-  if (!liveSyncGate(process.env, event)) throw new Error("live sync requires an opted-in canonical published stable release event");
+  if (!liveSyncGate(process.env, event)) throw new Error("live sync requires an opted-in canonical release event or Release Please call");
   const token = process.env.LEGACY_SYNC_TOKEN;
   if (!token) throw new Error("LEGACY_SYNC_TOKEN is required");
   const github = createGithub({ token });
@@ -190,7 +195,7 @@ const main = async () => {
     // Use gh's credential helper, keeping the token out of command arguments/URLs.
     const authEnv = { GH_TOKEN: token, GIT_CONFIG_COUNT: "2", GIT_CONFIG_KEY_0: "credential.helper", GIT_CONFIG_VALUE_0: "", GIT_CONFIG_KEY_1: "credential.helper", GIT_CONFIG_VALUE_1: "!gh auth git-credential" };
     git(temp, ["clone", "--no-checkout", `https://github.com/${SYNC_CONTRACT.destRepo}.git`, "destination"], { env: authEnv });
-    console.log(JSON.stringify(await runSync({ tag: event.release.tag_name, source: createGitSource({ repo: ROOT, releases: github }), destination: createGitDestination({ repo: join(temp, "destination"), env: authEnv }), github }), null, 2));
+    console.log(JSON.stringify(await runSync({ tag: event.release?.tag_name ?? process.env.SOURCE_TAG, source: createGitSource({ repo: ROOT, releases: github }), destination: createGitDestination({ repo: join(temp, "destination"), env: authEnv }), github }), null, 2));
   } finally { rmSync(temp, { recursive: true, force: true }); }
 };
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => { console.error(error.message); process.exitCode = 1; });
