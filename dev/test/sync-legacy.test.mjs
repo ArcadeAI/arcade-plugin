@@ -744,7 +744,7 @@ test("the GitHub client creates one draft pull and never writes main", async () 
     if (url.endsWith("/pulls") && options.method === "POST") return jsonResponse(201, { number: 7 });
     return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
   };
-  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch });
+  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch, sleep: async () => {} });
   const result = await runSync({
     sourceFiles: sourceFrom({ "plugin.json": "{\"version\":\"0.7.0\"}\n" }),
     sourceSha: SOURCE_SHA,
@@ -801,7 +801,7 @@ test("a failed GitHub pull create never deletes a possibly accepted review head"
     }
     return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
   };
-  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch });
+  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch, sleep: async () => {} });
   const failed = await runSync({ sourceFiles: sourceFrom({ "plugin.json": "{}\n" }), sourceSha: SOURCE_SHA, destination });
   assert.equal(failed.action, "blocked");
   assert.match(failed.reason, /GitHub POST .*\/pulls failed: 500/);
@@ -866,7 +866,7 @@ test("the GitHub client blocks a retained matching branch without writes", async
     if (url.includes(`/compare/${syncSha}...${mainSha}`)) return jsonResponse(200, { status: "behind" });
     return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
   };
-  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch });
+  const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch, sleep: async () => {} });
   const result = await runSync({
     sourceFiles: sourceFrom({ "plugin.json": "{\"version\":\"0.7.0\"}\n" }),
     sourceSha: SOURCE_SHA,
@@ -927,7 +927,7 @@ test("the GitHub client uploads only blobs that the parent and base trees do not
     if (options.method === "PATCH" && url.endsWith("/pulls/5")) return jsonResponse(200, {});
     return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
   };
-  const destination = createGithubDestination({ repo: SYNC_CONTRACT.destRepo, token: "test-token", fetch });
+  const destination = createGithubDestination({ repo: SYNC_CONTRACT.destRepo, token: "test-token", fetch, sleep: async () => {} });
   const result = await syncRun({ sourceFiles: next, sourceSha: NEXT_SHA, destination, source: {
     async getBranchSha() { return NEXT_SHA; },
     async isAncestor(a, b) { return a === SOURCE_SHA && b === NEXT_SHA; },
@@ -943,6 +943,103 @@ test("the GitHub client uploads only blobs that the parent and base trees do not
     "pkg/legacy-copy.txt": legacy.blobSha,
     [SYNC_CONTRACT.preserve[0]]: notice.blobSha,
   });
+});
+
+const githubResponse = (status, body, headers = {}) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: new Headers(headers),
+  async text() { return JSON.stringify(body); },
+});
+
+const SECONDARY_LIMIT = "You have exceeded a secondary rate limit. Please wait a few minutes before you try again.";
+
+/**
+ * GitHub client whose blob, tree and commit POSTs go to a fake API on a fake
+ * clock. `refuse(request, requests)` returns a response to send instead of
+ * creating the object, or null to accept it.
+ */
+const fakeGitWrites = (refuse) => {
+  const clock = { now: 0 };
+  const requests = [];
+  const waits = [];
+  const fetch = async (url, options) => {
+    const body = JSON.parse(options.body);
+    const request = { url, at: clock.now, body, refused: false };
+    requests.push(request);
+    const refusal = refuse(request, requests);
+    if (refusal) {
+      request.refused = true;
+      return refusal;
+    }
+    if (url.endsWith("/git/blobs")) return githubResponse(201, { sha: gitBlobSha(Buffer.from(body.content, "base64")) });
+    if (url.endsWith("/git/trees")) return githubResponse(201, { sha: "9".repeat(40) });
+    if (url.endsWith("/git/commits")) return githubResponse(201, { sha: "4".repeat(40) });
+    return githubResponse(500, { message: `unexpected ${options.method} ${url}` });
+  };
+  const destination = createGithubDestination({
+    repo: SYNC_CONTRACT.destRepo,
+    token: "test",
+    fetch,
+    sleep: async (ms) => { waits.push(ms); clock.now += ms; },
+    now: () => clock.now,
+  });
+  return { destination, requests, waits };
+};
+
+const oneFile = () => new Map([["pkg/a.txt", entryFromBytes("100644", "a\n")]]);
+
+test("a first sync with more new blobs than GitHub's per-minute write limit stays under the limit", async () => {
+  const onLegacyMain = entryFromBytes("100644", "already on legacy main\n");
+  const files = new Map([["pkg/kept.txt", onLegacyMain]]);
+  for (let i = 0; i < 140; i++) files.set(`pkg/file-${i}.txt`, entryFromBytes("100644", `file ${i}\n`));
+  // Like GitHub, refuse a write when 80 accepted writes fall in the last minute.
+  const { destination, requests } = fakeGitWrites((request, all) => {
+    const lastMinute = all.filter((other) => other !== request && !other.refused && request.at - other.at < 60_000);
+    return lastMinute.length >= 80 ? githubResponse(403, { message: SECONDARY_LIMIT }) : null;
+  });
+  const commit = await destination.createCommit({
+    parent: "1".repeat(40), files, message: "sync", knownBlobs: new Set([onLegacyMain.blobSha]),
+  });
+  assert.equal(commit, "4".repeat(40));
+  assert.deepEqual(requests.filter((request) => request.refused), []);
+  const uploads = requests.filter((request) => request.url.endsWith("/git/blobs"));
+  assert.equal(uploads.length, 140);
+  assert.equal(uploads.some((request) => Buffer.from(request.body.content, "base64").equals(onLegacyMain.bytes)), false);
+});
+
+test("a secondary rate limit response is retried after the wait GitHub asks for", async () => {
+  const cases = [
+    { limit: githubResponse(429, { message: SECONDARY_LIMIT }, { "retry-after": "7" }), wait: 7_000 },
+    // The fake clock starts at 0, so a reset at epoch second 30 is 30 seconds away.
+    { limit: githubResponse(403, { message: SECONDARY_LIMIT }, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "30" }), wait: 30_000 },
+    { limit: githubResponse(403, { message: SECONDARY_LIMIT }), wait: 60_000 },
+    // retry-after wins over a reset time, and a reset time counts only when no requests remain.
+    { limit: githubResponse(403, { message: SECONDARY_LIMIT }, { "retry-after": "5", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "30" }), wait: 5_000 },
+    { limit: githubResponse(403, { message: SECONDARY_LIMIT }, { "x-ratelimit-remaining": "12", "x-ratelimit-reset": "30" }), wait: 60_000 },
+  ];
+  for (const { limit, wait } of cases) {
+    const { destination, requests, waits } = fakeGitWrites((_request, all) => all.length === 1 ? limit : null);
+    assert.equal(await destination.createCommit({ parent: "1".repeat(40), files: oneFile(), message: "sync" }), "4".repeat(40));
+    assert.deepEqual(requests.map((request) => [request.url.split("/").pop(), request.refused]),
+      [["blobs", true], ["blobs", false], ["trees", false], ["commits", false]]);
+    // The retry wait, then one second before each later write.
+    assert.deepEqual(waits, [wait, 1_000, 1_000, 1_000]);
+  }
+});
+
+test("a permission 403 is not retried and a repeated rate limit gives up after three retries", async () => {
+  const denied = fakeGitWrites(() => githubResponse(403, { message: "Resource not accessible by personal access token" }));
+  await assert.rejects(denied.destination.createCommit({ parent: "1".repeat(40), files: oneFile(), message: "sync" }),
+    /403 .*Resource not accessible/);
+  assert.equal(denied.requests.length, 1);
+  assert.deepEqual(denied.waits, []);
+
+  const limited = fakeGitWrites(() => githubResponse(403, { message: SECONDARY_LIMIT }));
+  await assert.rejects(limited.destination.createCommit({ parent: "1".repeat(40), files: oneFile(), message: "sync" }),
+    /403 .*secondary rate limit/);
+  assert.equal(limited.requests.length, 4);
+  assert.deepEqual(limited.waits, [60_000, 1_000, 120_000, 1_000, 240_000, 1_000]);
 });
 
 test("GitHub ancestry uses the compare API and refuses an unknown status", async () => {
@@ -1091,6 +1188,15 @@ test("an accepted PR create with a lost response is reconciled without deleting 
 });
 
 
+// Integrity-check reader backed by local source and destination repositories.
+const localMirrorReader = ({ sourceRepo, dest, source, destination }) => ({
+  main: () => source.getBranchSha("main"),
+  destinationMain: () => destination.getBranchSha("main"),
+  commit: (_repo, sha) => destination.getCommit(sha),
+  isAncestor: (_repo, ancestor, descendant) => destination.isAncestor(ancestor, descendant),
+  async tree(repo, sha) { return readGitTree(repo === SYNC_CONTRACT.sourceRepo ? sourceRepo : dest, sha); },
+});
+
 test("excluded-only source updates advance commit provenance and pass trusted integrity", async () => {
   for (const bodyAlreadyCurrent of [false, true]) {
     const sourceRepo = initRepo({
@@ -1106,11 +1212,7 @@ test("excluded-only source updates advance commit provenance and pass trusted in
       const base = git(dest, ["rev-parse", "HEAD"]).trim();
       const source = createGitSource({ repo: sourceRepo });
       const pulls = []; const destination = createGitDestination({ repo: dest, pulls });
-      const reader = {
-        main: () => source.getBranchSha("main"),
-        commit: (_repo, sha) => destination.getCommit(sha),
-        async tree(repo, sha) { return readGitTree(repo === SYNC_CONTRACT.sourceRepo ? sourceRepo : dest, sha); },
-      };
+      const reader = localMirrorReader({ sourceRepo, dest, source, destination });
       const event = (sha) => ({ pull_request: { head: { sha }, base: { sha: base, ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } } });
       await syncRun({ sourceFiles: readGitTree(sourceRepo, a), sourceSha: a, source, destination });
       const first = await destination.getBranchSha(SYNC_CONTRACT.syncBranch);
@@ -1136,6 +1238,38 @@ test("excluded-only source updates advance commit provenance and pass trusted in
   }
 });
 
+
+test("a file that lands on destination main after the sync branch was cut fails the integrity check", async () => {
+  const sourceRepo = initRepo({
+    "plugin.json": '{"name":"arcade","version":"0.7.0"}\n',
+    "dev/scripts/legacy-projection.mjs": "reviewed policy\n",
+    "dev/scripts/verify-mirror.mjs": "reviewed checker\n",
+    "sync/destination-check.yml": "trusted workflow\n",
+  });
+  const dest = initRepo({ "pkg/legacy.txt": "legacy\n", "docs/migration/repository-controls.md": controls() });
+  try {
+    const sha = git(sourceRepo, ["rev-parse", "HEAD"]).trim();
+    const source = createGitSource({ repo: sourceRepo });
+    const destination = createGitDestination({ repo: dest, pulls: [] });
+    const reader = localMirrorReader({ sourceRepo, dest, source, destination });
+    // The event names the current main as the PR base, as a fresh payload would.
+    const check = async (head) => verifyGithubMirror({
+      event: { pull_request: { head: { sha: head }, base: { sha: await destination.getBranchSha("main"), ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } } },
+      repository: SYNC_CONTRACT.destRepo,
+      reader,
+    });
+    await syncRun({ sourceFiles: readGitTree(sourceRepo, sha), sourceSha: sha, source, destination });
+    const head = await destination.getBranchSha(SYNC_CONTRACT.syncBranch);
+    assert.equal((await check(head)).differences, 0);
+
+    writeFileSync(join(dest, "stray.txt"), "landed on main after the sync branch was cut\n");
+    git(dest, ["add", "stray.txt"]); git(dest, ["commit", "-m", "stray file on main"]);
+    // The head never had stray.txt, so merging the sync PR into main keeps it.
+    const mergedTree = git(dest, ["merge-tree", "--write-tree", "main", head]).split("\n")[0];
+    assert.match(git(dest, ["ls-tree", "--name-only", mergedTree]), /^stray\.txt$/m);
+    await assert.rejects(check(head), /is behind main/);
+  } finally { rmSync(sourceRepo, { recursive: true, force: true }); rmSync(dest, { recursive: true, force: true }); }
+});
 
 test("a stale PR body alone is repaired without another provenance commit", async () => {
   const repo = initRepo({ "pkg/file.txt": "base\n", "docs/migration/repository-controls.md": controls() });

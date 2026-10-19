@@ -339,24 +339,76 @@ export const readGitTree = (repo, rev = "HEAD") => {
 export const githubRefPath = (branch) =>
   `heads/${branch.split("/").map((part) => encodeURIComponent(part)).join("%2F")}`;
 
-/** Destination port that talks to the GitHub REST API. Tests pass `fetch`. */
-export const createGithubDestination = ({ repo, token, fetch }) => {
+// GitHub's secondary rate limit allows 80 content-creating requests per minute.
+// One second between writes keeps a long run of blob uploads under it.
+const WRITE_INTERVAL_MS = 1000;
+const RATE_LIMIT_RETRIES = 3;
+
+/**
+ * Milliseconds to wait before retrying a rate-limited response, or null when
+ * the response is not a rate limit. A 403 for missing permissions is not
+ * retried. Follows GitHub's REST guidance: `retry-after` first, then
+ * `x-ratelimit-reset` when no requests remain, then at least one minute,
+ * doubling on each retry.
+ */
+const rateLimitWaitMs = ({ status, headers, text, retry, now }) => {
+  if (status !== 429 && !(status === 403 && /rate limit/i.test(text))) return null;
+  const retryAfter = Number(headers.get("retry-after"));
+  if (retryAfter > 0) return retryAfter * 1000;
+  if (headers.get("x-ratelimit-remaining") === "0") {
+    const untilReset = Number(headers.get("x-ratelimit-reset")) * 1000 - now();
+    if (untilReset > 0) return untilReset;
+  }
+  return 60_000 * 2 ** retry;
+};
+
+/**
+ * Destination port that talks to the GitHub REST API. Tests pass `fetch`,
+ * and `sleep` and `now` to run rate-limit waits on a fake clock.
+ */
+export const createGithubDestination = ({
+  repo,
+  token,
+  fetch,
+  sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
+  now = Date.now,
+}) => {
+  const request = (method, path, body) => fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "user-agent": "arcade-plugin-legacy-sync",
+      "x-github-api-version": "2022-11-28",
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
   const api = async (method, path, body) => {
-    const response = await fetch(`https://api.github.com${path}`, {
-      method,
-      headers: {
-        accept: "application/vnd.github+json",
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-        "user-agent": "arcade-plugin-legacy-sync",
-        "x-github-api-version": "2022-11-28",
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    const response = await request(method, path, body);
     const text = await response.text();
     if (response.status === 404 && method === "GET" && path.includes("/git/ref/")) return null;
     if (!response.ok) throw new Error(`GitHub ${method} ${path} failed: ${response.status} ${text}`);
     return text ? JSON.parse(text) : null;
+  };
+
+  // A rate-limited request was rejected, and no ref points at a new blob, tree
+  // or commit until the sync branch moves, so retrying these POSTs is safe.
+  let hasWritten = false;
+  const createGitObject = async (path, body) => {
+    for (let retry = 0; ; retry++) {
+      if (hasWritten) await sleep(WRITE_INTERVAL_MS);
+      hasWritten = true;
+      const response = await request("POST", path, body);
+      const text = await response.text();
+      if (response.ok) return JSON.parse(text);
+      const wait = rateLimitWaitMs({ status: response.status, headers: response.headers, text, retry, now });
+      if (wait === null || retry === RATE_LIMIT_RETRIES) {
+        throw new Error(`GitHub POST ${path} failed: ${response.status} ${text}`);
+      }
+      await sleep(wait);
+    }
   };
 
   return {
@@ -390,13 +442,14 @@ export const createGithubDestination = ({ repo, token, fetch }) => {
     },
     // `knownBlobs` holds blob SHAs read from destination trees. Those blobs
     // already exist in the repository, so they are referenced instead of
-    // uploaded; GitHub limits how many content-creating requests run per minute.
+    // uploaded. A first sync onto legacy main can still upload more blobs
+    // than the per-minute write limit allows; `createGitObject` paces them.
     async createCommit({ parent, files, message, knownBlobs = new Set() }) {
       const tree = [];
       for (const [path, entry] of files) {
         let sha = entry.blobSha;
         if (entry.bytes && !knownBlobs.has(sha)) {
-          const blob = await api("POST", `/repos/${repo}/git/blobs`, {
+          const blob = await createGitObject(`/repos/${repo}/git/blobs`, {
             content: entry.bytes.toString("base64"),
             encoding: "base64",
           });
@@ -405,8 +458,8 @@ export const createGithubDestination = ({ repo, token, fetch }) => {
         if (!sha) throw new Error(`${path} has no blob to commit`);
         tree.push({ path, mode: entry.mode, type: "blob", sha });
       }
-      const created = await api("POST", `/repos/${repo}/git/trees`, { tree });
-      const commit = await api("POST", `/repos/${repo}/git/commits`, {
+      const created = await createGitObject(`/repos/${repo}/git/trees`, { tree });
+      const commit = await createGitObject(`/repos/${repo}/git/commits`, {
         message,
         tree: created.sha,
         parents: [parent],

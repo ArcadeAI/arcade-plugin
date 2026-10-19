@@ -50,8 +50,10 @@ advance and integrity can verify that exact source. A stale PR body alone is
 repaired without another commit when the head already records current source.
 
 A retained sync branch with no open PR is built on only when destination main
-contains its head, as after a merge commit. Otherwise the run is blocked and
-writes nothing:
+contains its head, as after a merge commit. The new commit's parent is the old
+head, so that PR is behind main and fails the mirror check; turning on
+automatic deletion avoids this. Otherwise the run is blocked and writes
+nothing:
 
 - If the branch holds the current snapshot and main does not, the recovery
   text ends with the exact PR title and body. A hand-opened draft PR needs
@@ -64,9 +66,15 @@ Automation does not reopen a deliberate close. A destination base that
 already has the snapshot remains a no-op.
 
 A sync commit references blobs that already exist in its parent or base tree
-and uploads only the rest, because GitHub's secondary rate limit allows about
-80 content-creating requests per minute. The first sync onto legacy main uploads every file whose
-content legacy main lacks, which can still exceed that limit.
+and uploads only the rest. GitHub's secondary rate limit allows 80
+content-creating requests per minute, and the first sync onto legacy main
+uploads every file whose content legacy main lacks, about 140 blobs. The run
+sends blob, tree and commit requests one second apart, at most 60 per minute.
+A 429, or a 403 that names a rate limit, is retried up to three times. The
+wait is `retry-after` seconds; otherwise the time to `x-ratelimit-reset` when
+no requests remain; otherwise one minute, doubled on each retry. A 403 for
+missing permissions fails at once. A run that gives up or times out while
+creating the commit has not moved the sync branch.
 
 PR-create errors can mean GitHub accepted the request but lost the response.
 The run reads back the PR and ref, reports recovery when acceptance is clear,
@@ -84,6 +92,13 @@ The source repository and branch are fixed; expected Source-SHA comes from
 canonical main's API ref, not candidate metadata. Exact paths, modes and blob
 hashes must match the trusted projection. A forged manifest, source trailer,
 workflow, or additional file cannot select its own expected tree.
+
+The check reads destination main from the API, not the event payload, and
+fails when the PR head does not contain that commit. A head that lacks a main
+commit merges into a tree the check never compared: a file added to main after
+the sync branch was cut would survive the merge. When the head contains main,
+the merge result has the head's tree. The check also fails if destination main
+moves while it runs. The local checker applies the same rule to its base pin.
 
 Human/nonmirror PRs fail this mirror check and need explicit review: route
 package changes upstream, and review any intentional destination control change
@@ -126,16 +141,18 @@ deletes the branch by hand. With automatic deletion, the next sync run cuts a
 new branch from current main.
 
 Turn on "Require branches to be up to date before merging" for main. The
-destination check verifies the PR head when the check runs, not the merge
-result, so a file that lands on omnimcp main after the sync branch was cut
-survives the merge until the next sync PR deletes it. GitHub applies this rule
-only when mirror-integrity is a required status check. The rule also depends on
-automatic deletion: a sync branch kept after a merge commit gets its next
-commit on the old head, and that PR is never up to date with main.
+destination check fails a PR whose head is behind main, but it runs only on
+pull request events. A commit to main after the check passed leaves the
+passing result in place. Without this rule, that PR can merge and keep a file
+from the new main commit until the next sync PR deletes it. GitHub applies
+this rule only when mirror-integrity is a required status check. The rule and
+the check both depend on automatic deletion: a sync branch kept after a merge
+commit gets its next commit on the old head, and that PR is always behind main.
 
-When a sync PR is behind main, close it and delete the branch. Do not use
-"Update branch": the updated head fails the mirror check, and the next sync
-run refuses the branch. The next sync run cuts a new branch from current main.
+When a sync PR is behind main, the mirror check fails it. Close the PR and
+delete the branch; the next sync run cuts a new branch from current main. Do
+not use "Update branch" with a merge commit: that commit has no `Source-SHA`,
+so the mirror check fails and the next sync run refuses the branch.
 
 ## Activation remains separate
 

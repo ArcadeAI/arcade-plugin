@@ -20,7 +20,9 @@ jobs:
   sync:
     if: github.repository == 'ArcadeAI/arcade-plugin' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # A first sync spaces about 140 blob uploads one second apart, and a
+    # rate-limit retry can wait one, two, then four minutes.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:

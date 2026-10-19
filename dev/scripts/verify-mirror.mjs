@@ -54,6 +54,19 @@ export const createGithubReader = ({ token, fetch = globalThis.fetch }) => {
       const ref = await api(`/repos/${SYNC_CONTRACT.sourceRepo}/git/ref/heads/${SYNC_CONTRACT.sourceBranch}`);
       return ref.object.sha;
     },
+    async destinationMain() {
+      const ref = await api(`/repos/${SYNC_CONTRACT.destRepo}/git/ref/heads/${SYNC_CONTRACT.destBaseBranch}`);
+      return ref.object.sha;
+    },
+    // Compare status describes the second commit relative to the first:
+    // "ahead" or "identical" means the second contains every commit of the first.
+    async isAncestor(repo, ancestor, descendant) {
+      assertSha(ancestor); assertSha(descendant);
+      const comparison = await api(`/repos/${repo}/compare/${ancestor}...${descendant}?per_page=1`);
+      if (comparison.status === "ahead" || comparison.status === "identical") return true;
+      if (comparison.status === "behind" || comparison.status === "diverged") return false;
+      throw new Error(`cannot establish ancestry: compare status ${comparison.status}`);
+    },
     async commit(repo, sha) { assertSha(sha); return api(`/repos/${repo}/git/commits/${sha}`); },
     async tree(repo, sha) {
       const commit = await this.commit(repo, sha);
@@ -67,7 +80,13 @@ export const createGithubReader = ({ token, fetch = globalThis.fetch }) => {
   };
 };
 
-// The expected source comes from the fixed canonical repository's main ref.
+// A head that lacks a commit on main merges into a tree this check never saw:
+// a file added on main after the sync branch was cut survives the merge.
+// When the head contains main, the merge result's tree is the head's tree.
+const behindMainError = (head, base) => new Error(`PR head ${head} is behind ${SYNC_CONTRACT.destBaseBranch} at ${base}, so the merge would keep files this check did not compare. Close the PR and delete its head branch; the next sync cuts a new branch from ${SYNC_CONTRACT.destBaseBranch}.`);
+
+// The expected source comes from the fixed canonical repository's main ref,
+// and the base from the destination's main ref, not the event payload.
 // Candidate metadata can assert that SHA but cannot select a different source,
 // exclusion list, checker, repository, or workflow policy.
 export const verifyGithubMirror = async ({ event, repository, reader }) => {
@@ -75,16 +94,19 @@ export const verifyGithubMirror = async ({ event, repository, reader }) => {
     throw new Error("integrity check only accepts PRs into the fixed legacy repository main");
   }
   const head = event.pull_request.head.sha;
-  const base = event.pull_request.base.sha;
-  assertSha(head); assertSha(base);
+  assertSha(head);
   const canonical = await reader.main(); assertSha(canonical);
   const commit = await reader.commit(SYNC_CONTRACT.destRepo, head);
   if (sourceProvenance(commit.message) !== canonical) throw new Error("Mirror source is not current trusted canonical main; refresh the mirror rather than changing its manifest.");
+  const base = await reader.destinationMain(); assertSha(base);
+  if (!await reader.isAncestor(SYNC_CONTRACT.destRepo, base, head)) throw behindMainError(head, base);
   const [sourceFiles, candidateFiles, baseFiles] = await Promise.all([
     reader.tree(SYNC_CONTRACT.sourceRepo, canonical), reader.tree(SYNC_CONTRACT.destRepo, head), reader.tree(SYNC_CONTRACT.destRepo, base),
   ]);
   const result = verifyProjection({ sourceFiles, candidateFiles, baseFiles });
   if (await reader.main() !== canonical) throw new Error("canonical main advanced during verification; rerun against the new source");
+  const baseAfter = await reader.destinationMain();
+  if (baseAfter !== base) throw behindMainError(head, baseAfter);
   return { ...result, sourceSha: canonical, head, base };
 };
 
@@ -104,6 +126,9 @@ const main = async () => {
   for (const sha of [sourceSha, head, base]) assertSha(sha);
   const commit = git(dest, ["show", "-s", "--format=%B", head]);
   if (sourceProvenance(commit) !== sourceSha) throw new Error("head provenance differs from the operator's trusted source pin");
+  const ancestry = spawnSync("git", ["merge-base", "--is-ancestor", base, head], { cwd: dest });
+  if (ancestry.status === 1) throw behindMainError(head, base);
+  if (ancestry.status !== 0) throw new Error("cannot establish ancestry of the base and head pins");
   console.log(JSON.stringify({ ...verifyProjection({ sourceFiles: localTree(source, sourceSha), candidateFiles: localTree(dest, head), baseFiles: localTree(dest, base) }), sourceSha, head, base, trust: "local operator pins; not a live source approval" }, null, 2));
 };
 

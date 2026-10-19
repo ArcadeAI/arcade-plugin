@@ -28,6 +28,11 @@ const fixture = () => {
 };
 const readerFor = (f) => ({
   async main() { return sourceSha; },
+  async destinationMain() { return base; },
+  async isAncestor(repo, ancestor, descendant) {
+    assert.equal(repo, SYNC_CONTRACT.destRepo); assert.equal(ancestor, base); assert.equal(descendant, head);
+    return true;
+  },
   async commit(repo, sha) { assert.equal(repo, SYNC_CONTRACT.destRepo); assert.equal(sha, head); return { message: `mirror\n\nSource-SHA: ${sourceSha}\n` }; },
   async tree(repo, sha) {
     if (repo === SYNC_CONTRACT.sourceRepo && sha === sourceSha) return f.sourceFiles;
@@ -89,6 +94,32 @@ test("only fixed repository/main is accepted and a source advance fails closed",
   const reader = readerFor(f); let reads = 0;
   reader.main = async () => ++reads === 1 ? sourceSha : head;
   await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader }), /advanced during verification/);
+});
+
+test("a PR head behind destination main fails before any tree is compared", async () => {
+  const reader = readerFor(fixture());
+  reader.isAncestor = async () => false;
+  reader.tree = async () => { throw new Error("compared trees for a head that lacks main"); };
+  await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader }), /is behind main/);
+});
+
+test("the base comes from destination main, not the event, and a base advance fails closed", async () => {
+  const f = fixture();
+  const stale = event(); stale.pull_request.base.sha = "d".repeat(40);
+  assert.equal((await verifyGithubMirror({ event: stale, repository: SYNC_CONTRACT.destRepo, reader: readerFor(f) })).base, base);
+  const reader = readerFor(f); let reads = 0;
+  reader.destinationMain = async () => ++reads === 1 ? base : "d".repeat(40);
+  await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader }), /is behind main at d{40}/);
+});
+
+test("GitHub reader ancestry uses the compare API and refuses an unknown status", async () => {
+  const urls = []; let status;
+  const reader = createGithubReader({ fetch: async (url) => { urls.push(url); return { ok: true, async json() { return { status }; } }; } });
+  for (status of ["ahead", "identical"]) assert.equal(await reader.isAncestor(SYNC_CONTRACT.destRepo, base, head), true);
+  for (status of ["behind", "diverged"]) assert.equal(await reader.isAncestor(SYNC_CONTRACT.destRepo, base, head), false);
+  status = undefined;
+  await assert.rejects(reader.isAncestor(SYNC_CONTRACT.destRepo, base, head), /cannot establish ancestry/);
+  assert.equal(urls[0], `https://api.github.com/repos/${SYNC_CONTRACT.destRepo}/compare/${base}...${head}?per_page=1`);
 });
 
 test("missing canonical checker assets block bootstrap", () => {
@@ -153,6 +184,11 @@ test("local pinned verification reads Git data without executing candidate files
     assert.equal(rejected.status, 1, "a tab-suffixed checker rename must not pass bootstrap verification");
     assert.match(rejected.stderr, /differs from trusted canonical projection/);
     assert.ok(rejected.stderr.includes("verify-mirror.mjs\\tmissing"), rejected.stderr);
+    // A main commit made after the candidate was cut: the candidate head lacks it.
+    const laterBase = git(dest, ["commit-tree", `${baseSha}^{tree}`, "-p", baseSha, "-m", "later main"]);
+    const behind = spawnSync(process.execPath, [new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname, "--source", sourceRepo, "--dest", dest, "--source-sha", sha, "--head", destSha, "--base", laterBase], { encoding: "utf8" });
+    assert.equal(behind.status, 1, "a head behind the base pin must not pass bootstrap verification");
+    assert.match(behind.stderr, /is behind main/);
     assert.equal(existsSync(marker), false, "the checker executed a candidate file");
     spawnSync(process.execPath, [join(dest, "candidate.mjs")]);
     assert.equal(existsSync(marker), true, "the candidate file must write the marker when it runs");
