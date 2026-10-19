@@ -1,19 +1,12 @@
 #!/usr/bin/env node
-// Run from the trusted destination base, never from the PR checkout.
-import { spawnSync } from "node:child_process";
+// Run from the trusted destination base. Candidate files are Git data only.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SYNC_CONTRACT, desiredTree, diffTrees } from "./legacy-projection.mjs";
-
-const SHA = /^[0-9a-f]{40}$/;
-const assertSha = (sha) => { if (!SHA.test(sha ?? "")) throw new Error("expected an immutable Git SHA"); };
-
-export const sourceProvenance = (message) => {
-  const lines = message.split("\n").filter((line) => line.startsWith("Source-SHA: "));
-  if (lines.length !== 1 || !SHA.test(lines[0].slice(12))) throw new Error("Not a mirror snapshot: missing or ambiguous Source-SHA; human changes need explicit review in the canonical repository or a separately reviewed control change.");
-  return lines[0].slice(12);
-};
+import { SYNC_CONTRACT, desiredTree, diffTrees, snapshotProvenance, releaseBranch } from "./legacy-projection.mjs";
+import { assertReleaseVersion } from "./sync-version.mjs";
+const assertSha = (sha) => { if (!/^[0-9a-f]{40}$/.test(sha ?? "")) throw new Error("expected an immutable Git SHA"); return sha; };
+export const sourceProvenance = (message) => snapshotProvenance(message).sha;
 
 export const verifyProjection = ({ sourceFiles, candidateFiles, baseFiles }) => {
   for (const path of Object.values(SYNC_CONTRACT.replacements)) {
@@ -25,21 +18,6 @@ export const verifyProjection = ({ sourceFiles, candidateFiles, baseFiles }) => 
   return { files: expected.size, differences: 0 };
 };
 
-const git = (repo, args) => {
-  const result = spawnSync("git", args, { cwd: repo, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
-  if (result.status !== 0) throw new Error(result.stderr || `git ${args[0]} failed`);
-  return result.stdout;
-};
-const localTree = (repo, sha) => new Map(git(repo, ["ls-tree", "-r", "-z", sha]).split("\0").filter(Boolean).map((record) => {
-  const separator = record.indexOf("\t");
-  if (separator < 0) throw new Error("malformed Git tree record");
-  const meta = record.slice(0, separator);
-  const path = record.slice(separator + 1);
-  const [mode, type, blobSha] = meta.split(" ");
-  if (type !== "blob" || !["100644", "100755"].includes(mode)) throw new Error(`unsupported mirror entry ${path}`);
-  return [path, { mode, blobSha }];
-}));
-
 export const createGithubReader = ({ token, fetch = globalThis.fetch }) => {
   const api = async (path) => {
     const response = await fetch(`https://api.github.com${path}`, { headers: {
@@ -50,27 +28,33 @@ export const createGithubReader = ({ token, fetch = globalThis.fetch }) => {
     return response.json();
   };
   return {
-    async main() {
-      const ref = await api(`/repos/${SYNC_CONTRACT.sourceRepo}/git/ref/heads/${SYNC_CONTRACT.sourceBranch}`);
-      return ref.object.sha;
+    async main(repo = SYNC_CONTRACT.sourceRepo) {
+      return assertSha((await api(`/repos/${repo}/git/ref/heads/main`)).object.sha);
     },
-    async destinationMain() {
-      const ref = await api(`/repos/${SYNC_CONTRACT.destRepo}/git/ref/heads/${SYNC_CONTRACT.destBaseBranch}`);
-      return ref.object.sha;
+    async release(tag) {
+      releaseBranch(tag);
+      const release = await api(`/repos/${SYNC_CONTRACT.sourceRepo}/releases/tags/${encodeURIComponent(tag)}`);
+      if (release.tag_name !== tag || release.draft || release.prerelease || !release.published_at) throw new Error("source must be a published stable release");
+      let object = (await api(`/repos/${SYNC_CONTRACT.sourceRepo}/git/ref/tags/${encodeURIComponent(tag)}`)).object;
+      for (let i = 0; object.type === "tag" && i < 8; i++) object = (await api(`/repos/${SYNC_CONTRACT.sourceRepo}/git/tags/${assertSha(object.sha)}`)).object;
+      if (object.type !== "commit") throw new Error("release tag does not resolve to a commit");
+      return { sha: assertSha(object.sha), tag };
     },
-    // Compare status describes the second commit relative to the first:
-    // "ahead" or "identical" means the second contains every commit of the first.
     async isAncestor(repo, ancestor, descendant) {
-      assertSha(ancestor); assertSha(descendant);
-      const comparison = await api(`/repos/${repo}/compare/${ancestor}...${descendant}?per_page=1`);
-      if (comparison.status === "ahead" || comparison.status === "identical") return true;
-      if (comparison.status === "behind" || comparison.status === "diverged") return false;
+      const comparison = await api(`/repos/${repo}/compare/${assertSha(ancestor)}...${assertSha(descendant)}?per_page=1`);
+      if (["ahead", "identical"].includes(comparison.status)) return true;
+      if (["behind", "diverged"].includes(comparison.status)) return false;
       throw new Error(`cannot establish ancestry: compare status ${comparison.status}`);
     },
-    async commit(repo, sha) { assertSha(sha); return api(`/repos/${repo}/git/commits/${sha}`); },
+    async commit(repo, sha) { return api(`/repos/${repo}/git/commits/${assertSha(sha)}`); },
+    async version(repo, sha) {
+      const file = await api(`/repos/${repo}/contents/plugin.json?ref=${assertSha(sha)}`);
+      if (file.encoding !== "base64") throw new Error("cannot read release version");
+      return JSON.parse(Buffer.from(file.content, "base64").toString("utf8")).version;
+    },
     async tree(repo, sha) {
       const commit = await this.commit(repo, sha);
-      const tree = await api(`/repos/${repo}/git/trees/${commit.tree.sha}?recursive=1`);
+      const tree = await api(`/repos/${repo}/git/trees/${assertSha(commit.tree.sha)}?recursive=1`);
       if (tree.truncated) throw new Error("GitHub tree is truncated");
       return new Map(tree.tree.filter((item) => item.type !== "tree").map((item) => {
         if (item.type !== "blob" || !["100644", "100755"].includes(item.mode)) throw new Error(`unsupported mirror entry ${item.path}`);
@@ -80,58 +64,35 @@ export const createGithubReader = ({ token, fetch = globalThis.fetch }) => {
   };
 };
 
-// A head that lacks a commit on main merges into a tree this check never saw:
-// a file added on main after the sync branch was cut survives the merge.
-// When the head contains main, the merge result's tree is the head's tree.
-const behindMainError = (head, base) => new Error(`PR head ${head} is behind ${SYNC_CONTRACT.destBaseBranch} at ${base}, so the merge would keep files this check did not compare. Close the PR and delete its head branch; the next sync cuts a new branch from ${SYNC_CONTRACT.destBaseBranch}.`);
-
-// The expected source comes from the fixed canonical repository's main ref,
-// and the base from the destination's main ref, not the event payload.
-// Candidate metadata can assert that SHA but cannot select a different source,
-// exclusion list, checker, repository, or workflow policy.
 export const verifyGithubMirror = async ({ event, repository, reader }) => {
-  if (repository !== SYNC_CONTRACT.destRepo || event.pull_request?.base?.repo?.full_name !== SYNC_CONTRACT.destRepo || event.pull_request.base.ref !== SYNC_CONTRACT.destBaseBranch) {
-    throw new Error("integrity check only accepts PRs into the fixed legacy repository main");
-  }
-  const head = event.pull_request.head.sha;
-  assertSha(head);
-  const canonical = await reader.main(); assertSha(canonical);
+  const pr = event.pull_request;
+  if (repository !== SYNC_CONTRACT.destRepo || pr?.base?.repo?.full_name !== SYNC_CONTRACT.destRepo || pr.base.ref !== SYNC_CONTRACT.destBaseBranch || pr.head?.repo?.full_name !== SYNC_CONTRACT.destRepo) throw new Error("integrity check only accepts release PRs inside the fixed legacy repository main");
+  const head = assertSha(pr.head.sha);
   const commit = await reader.commit(SYNC_CONTRACT.destRepo, head);
-  if (sourceProvenance(commit.message) !== canonical) throw new Error("Mirror source is not current trusted canonical main; refresh the mirror rather than changing its manifest.");
-  const base = await reader.destinationMain(); assertSha(base);
-  if (!await reader.isAncestor(SYNC_CONTRACT.destRepo, base, head)) throw behindMainError(head, base);
-  const [sourceFiles, candidateFiles, baseFiles] = await Promise.all([
-    reader.tree(SYNC_CONTRACT.sourceRepo, canonical), reader.tree(SYNC_CONTRACT.destRepo, head), reader.tree(SYNC_CONTRACT.destRepo, base),
+  const pin = snapshotProvenance(commit.message);
+  if (pr.head.ref !== releaseBranch(pin.tag) || commit.parents?.length !== 1) throw new Error("not a single owned release snapshot commit");
+  const release = await reader.release(pin.tag);
+  if (release.sha !== pin.sha) throw new Error("source SHA does not match the published release tag");
+  if (!await reader.isAncestor(SYNC_CONTRACT.sourceRepo, pin.sha, await reader.main())) throw new Error("release commit is not on canonical main");
+  const base = await reader.main(SYNC_CONTRACT.destRepo);
+  // Requiring current main as parent makes the reviewed tree the merge tree.
+  // A base advance requires a new reviewed snapshot, not an automatic rewrite.
+  if (commit.parents[0].sha !== base) throw new Error("destination main changed since this snapshot; review a fresh snapshot manually");
+  const [sourceFiles, candidateFiles, baseFiles, sourceVersion, destinationVersion] = await Promise.all([
+    reader.tree(SYNC_CONTRACT.sourceRepo, pin.sha), reader.tree(SYNC_CONTRACT.destRepo, head), reader.tree(SYNC_CONTRACT.destRepo, base),
+    reader.version(SYNC_CONTRACT.sourceRepo, pin.sha), reader.version(SYNC_CONTRACT.destRepo, base),
   ]);
   const result = verifyProjection({ sourceFiles, candidateFiles, baseFiles });
-  if (await reader.main() !== canonical) throw new Error("canonical main advanced during verification; rerun against the new source");
-  const baseAfter = await reader.destinationMain();
-  if (baseAfter !== base) throw behindMainError(head, baseAfter);
-  return { ...result, sourceSha: canonical, head, base };
-};
-
-const main = async () => {
-  if (process.argv.includes("--github")) {
-    if (process.env.GITHUB_EVENT_NAME !== "pull_request_target") throw new Error("run the checker from the trusted base workflow");
-    const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
-    console.log(JSON.stringify(await verifyGithubMirror({ event, repository: process.env.GITHUB_REPOSITORY, reader: createGithubReader({ token: process.env.GH_TOKEN }) }), null, 2));
-    return;
-  }
-  // Explicit local review only. These operator-provided pins are never used
-  // by the live workflow; unmerged bootstrap candidates require this review.
-  const args = process.argv.slice(2);
-  const value = (key) => { const i = args.indexOf(key); if (i < 0 || !args[i + 1]) throw new Error(`missing ${key}`); return args[i + 1]; };
-  const source = value("--source"); const dest = value("--dest");
-  const sourceSha = value("--source-sha"); const head = value("--head"); const base = value("--base");
-  for (const sha of [sourceSha, head, base]) assertSha(sha);
-  const commit = git(dest, ["show", "-s", "--format=%B", head]);
-  if (sourceProvenance(commit) !== sourceSha) throw new Error("head provenance differs from the operator's trusted source pin");
-  const ancestry = spawnSync("git", ["merge-base", "--is-ancestor", base, head], { cwd: dest });
-  if (ancestry.status === 1) throw behindMainError(head, base);
-  if (ancestry.status !== 0) throw new Error("cannot establish ancestry of the base and head pins");
-  console.log(JSON.stringify({ ...verifyProjection({ sourceFiles: localTree(source, sourceSha), candidateFiles: localTree(dest, head), baseFiles: localTree(dest, base) }), sourceSha, head, base, trust: "local operator pins; not a live source approval" }, null, 2));
+  assertReleaseVersion({ sourceVersion, destinationVersion, tag: pin.tag, sameTree: diffTrees(baseFiles, candidateFiles).noop });
+  if ((await reader.release(pin.tag)).sha !== pin.sha) throw new Error("release tag changed during verification");
+  if (await reader.main(SYNC_CONTRACT.destRepo) !== base) throw new Error("destination main advanced during verification; rerun");
+  return { ...result, sourceSha: pin.sha, tag: pin.tag, head, base };
 };
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+  (async () => {
+    if (!process.argv.includes("--github") || process.env.GITHUB_EVENT_NAME !== "pull_request_target") throw new Error("run --github from the trusted base workflow");
+    const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+    console.log(JSON.stringify(await verifyGithubMirror({ event, repository: process.env.GITHUB_REPOSITORY, reader: createGithubReader({ token: process.env.GH_TOKEN }) }), null, 2));
+  })().catch((error) => { console.error(error.message); process.exitCode = 1; });
 }

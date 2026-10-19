@@ -1,196 +1,115 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { SYNC_CONTRACT, desiredTree, entryFromBytes } from "../scripts/legacy-projection.mjs";
-import { sourceProvenance, verifyProjection, verifyGithubMirror, createGithubReader } from "../scripts/verify-mirror.mjs";
+import { SYNC_CONTRACT, desiredTree, entryFromBytes, snapshotProvenance, releaseBranch } from "../scripts/legacy-projection.mjs";
+import { syncCommitMessage } from "../scripts/sync-legacy.mjs";
+import { verifyProjection, verifyGithubMirror, createGithubReader } from "../scripts/verify-mirror.mjs";
 
-const sourceSha = "a".repeat(40), head = "b".repeat(40), base = "c".repeat(40);
-const files = (input) => new Map(Object.entries(input).map(([p, bytes]) => [p, entryFromBytes("100644", bytes)]));
-const source = () => files({
-  "plugin.json": '{"name":"arcade","version":"0.7.0"}\n',
-  ".github/workflows/check.yml": "full source validation and review\n",
-  ".github/workflows/release-please.yml": "release\n",
-  ".github/workflows/sync-legacy.yml": "active sync must not escape\n",
-  "sync/destination-check.yml": "trusted base integrity workflow\n",
-  "dev/scripts/legacy-projection.mjs": "trusted projection policy\n",
-  "dev/scripts/verify-mirror.mjs": "trusted verifier\n",
-  "dev/scripts/sync-legacy.mjs": "inert sync\n",
-  "dev/test/mirror-integrity.test.mjs": "canonical regression tests\n",
-  "docs/migration/legacy-sync.md": "canonical controls\n",
-});
-const event = () => ({ pull_request: { head: { sha: head }, base: { sha: base, ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } } });
+const sourceSha = "a".repeat(40), head = "b".repeat(40), base = "c".repeat(40), later = "d".repeat(40), tag = "v0.8.0";
+const files = (input) => new Map(Object.entries(input).map(([path, value]) => [path, entryFromBytes("100644", value)]));
 const fixture = () => {
-  const sourceFiles = source(), baseFiles = files({ "docs/migration/repository-controls.md": "trusted base notice\n" });
-  return { sourceFiles, baseFiles, candidateFiles: desiredTree({ sourceFiles, destFiles: baseFiles }) };
+  const sourceFiles = files({ "plugin.json": '{"version":"0.8.0"}', "binary": Buffer.from([0, 255, 128]), ".github/workflows/sync-legacy.yml": "must not escape", ...Object.fromEntries(Object.values(SYNC_CONTRACT.replacements).map((path) => [path, `trusted ${path}`])) });
+  const baseFiles = files({ "plugin.json": '{"version":"0.7.1"}', "docs/migration/repository-controls.md": "human notice" });
+  const candidateFiles = desiredTree({ sourceFiles, destFiles: baseFiles });
+  return { sourceFiles, baseFiles, candidateFiles };
 };
+const event = () => ({ pull_request: { head: { sha: head, ref: releaseBranch(tag), repo: { full_name: SYNC_CONTRACT.destRepo } }, base: { sha: base, ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } } });
 const readerFor = (f) => ({
-  async main() { return sourceSha; },
-  async destinationMain() { return base; },
-  async isAncestor(repo, ancestor, descendant) {
-    assert.equal(repo, SYNC_CONTRACT.destRepo); assert.equal(ancestor, base); assert.equal(descendant, head);
-    return true;
-  },
-  async commit(repo, sha) { assert.equal(repo, SYNC_CONTRACT.destRepo); assert.equal(sha, head); return { message: `mirror\n\nSource-SHA: ${sourceSha}\n` }; },
-  async tree(repo, sha) {
-    if (repo === SYNC_CONTRACT.sourceRepo && sha === sourceSha) return f.sourceFiles;
-    assert.equal(repo, SYNC_CONTRACT.destRepo);
-    if (sha === head) return f.candidateFiles;
-    assert.equal(sha, base); return f.baseFiles;
-  },
+  async main(repo = SYNC_CONTRACT.sourceRepo) { return repo === SYNC_CONTRACT.sourceRepo ? later : base; },
+  async release() { return { sha: sourceSha, tag }; },
+  async isAncestor(repo, ancestor, descendant) { assert.equal(repo, SYNC_CONTRACT.sourceRepo); assert.equal(ancestor, sourceSha); assert.equal(descendant, later); return true; },
+  async commit(repo, sha) { assert.equal(repo, SYNC_CONTRACT.destRepo); assert.equal(sha, head); return { message: syncCommitMessage(sourceSha, tag), parents: [{ sha: base }] }; },
+  async version(repo) { return repo === SYNC_CONTRACT.sourceRepo ? "0.8.0" : "0.7.1"; },
+  async tree(repo, sha) { return repo === SYNC_CONTRACT.sourceRepo ? f.sourceFiles : sha === head ? f.candidateFiles : f.baseFiles; },
 });
+const check = (f, reader = readerFor(f), e = event()) => verifyGithubMirror({ event: e, repository: SYNC_CONTRACT.destRepo, reader });
 
-test("projection replaces all canonical workflows and keeps package identity unchanged", () => {
+test("projection retains explicit exclusions/replacements and preserved controls", () => {
   const f = fixture();
   assert.equal(verifyProjection(f).differences, 0);
+  assert.equal(f.candidateFiles.has(".github/workflows/sync-legacy.yml"), false);
+  assert.equal(f.candidateFiles.has("dev/scripts/sync-version.mjs"), false);
+  assert.equal(f.candidateFiles.get(".github/sync-version.mjs"), f.sourceFiles.get("dev/scripts/sync-version.mjs"));
   assert.equal(f.candidateFiles.get("plugin.json"), f.sourceFiles.get("plugin.json"));
-  assert.equal(f.candidateFiles.get(".github/workflows/check.yml"), f.sourceFiles.get("sync/destination-check.yml"));
-  for (const path of [".github/workflows/release-please.yml", ".github/workflows/sync-legacy.yml", "dev/scripts/sync-legacy.mjs"]) assert.equal(f.candidateFiles.has(path), false);
 });
 
-test("unexpected, missing, changed, or executable-mode files fail exact comparison", () => {
+test("unexpected/missing/content/mode/policy/control changes fail exact data comparison", () => {
   for (const mutate of [
-    (m) => m.set("extra.mjs", entryFromBytes("100644", "unexpected")),
-    (m) => m.delete("plugin.json"),
-    (m) => m.set("plugin.json", entryFromBytes("100644", '{"name":"other"}')),
-    (m) => m.set("plugin.json", { ...m.get("plugin.json"), mode: "100755" }),
-    (m) => m.set(".github/verify-mirror.mjs", entryFromBytes("100644", "process.exit(0)")),
-    (m) => m.set(".github/legacy-projection.mjs", entryFromBytes("100644", "exclude everything")),
-    (m) => m.set(".github/workflows/check.yml", entryFromBytes("100644", "skip this check")),
-    (m) => m.set("docs/migration/repository-controls.md", entryFromBytes("100644", "candidate-controlled notice")),
-  ]) {
-    const f = fixture(); mutate(f.candidateFiles);
-    assert.throws(() => verifyProjection(f), /differs from trusted canonical projection/);
+    (m) => m.set("extra", entryFromBytes("100644", "human")), (m) => m.delete("plugin.json"),
+    (m) => m.set("plugin.json", entryFromBytes("100644", "changed")),
+    (m) => m.set("binary", { ...m.get("binary"), mode: "100755" }),
+    ...Object.keys(SYNC_CONTRACT.replacements).map((path) => (m) => m.set(path, entryFromBytes("100644", "return success"))),
+    (m) => m.set("docs/migration/repository-controls.md", entryFromBytes("100644", "changed notice")),
+  ]) { const f = fixture(); mutate(f.candidateFiles); assert.throws(() => verifyProjection(f), /differs from trusted canonical projection/); }
+  const f = fixture(); f.sourceFiles.delete("dev/scripts/sync-version.mjs"); assert.throws(() => verifyProjection(f), /missing/);
+});
+
+test("an older released commit remains valid after canonical main advances", async () => {
+  const f = fixture(); const result = await check(f);
+  assert.equal(result.sourceSha, sourceSha); assert.equal(result.tag, tag);
+});
+
+test("only fixed repository, base, branch and a single snapshot parent are accepted", async () => {
+  const f = fixture();
+  for (const mutate of [
+    (e) => { e.pull_request.base.ref = "other"; },
+    (e) => { e.pull_request.head.repo.full_name = "attacker/repo"; },
+    (e) => { e.pull_request.head.ref = "sync/canonical-main"; },
+  ]) { const e = event(); mutate(e); await assert.rejects(check(f, readerFor(f), e)); }
+  const reader = readerFor(f), commit = reader.commit;
+  reader.commit = async (...args) => ({ ...await commit(...args), parents: [{ sha: base }, { sha: later }] });
+  await assert.rejects(check(f, reader), /single owned release snapshot/);
+  await assert.rejects(verifyGithubMirror({ event: event(), repository: "attacker/repo", reader: readerFor(f) }), /fixed legacy/);
+});
+
+test("unpublished/moved release provenance, unrelated commits and ambiguous trailers fail closed", async () => {
+  const f = fixture();
+  const wrong = readerFor(f); wrong.release = async () => ({ sha: later, tag });
+  await assert.rejects(check(f, wrong), /does not match the published release tag/);
+  const unrelated = readerFor(f); unrelated.isAncestor = async () => false;
+  await assert.rejects(check(f, unrelated), /not on canonical main/);
+  for (const message of ["human", `${syncCommitMessage(sourceSha, tag)}Source-SHA: ${later}\n`, syncCommitMessage(sourceSha, tag).replace(SYNC_CONTRACT.sourceRepo, "attacker/repo")]) assert.throws(() => snapshotProvenance(message));
+  const moved = readerFor(f); let count = 0; moved.release = async () => ({ sha: ++count === 1 ? sourceSha : later, tag });
+  await assert.rejects(check(f, moved), /tag changed during verification/);
+});
+
+test("current actual destination base controls merge safety, not event base SHA", async () => {
+  const f = fixture(), e = event(); e.pull_request.base.sha = later;
+  assert.equal((await check(f, readerFor(f), e)).base, base);
+  const advanced = readerFor(f); advanced.main = async () => later;
+  await assert.rejects(check(f, advanced), /main changed since this snapshot/);
+  const racing = readerFor(f); let count = 0;
+  racing.main = async (repo) => repo === SYNC_CONTRACT.destRepo ? (++count === 1 ? base : later) : later;
+  await assert.rejects(check(f, racing), /main advanced during verification/);
+});
+
+test("trusted verifier also rejects a downgrade or equal-version altered tree", async () => {
+  for (const destinationVersion of ["0.8.1", "0.8.0"]) {
+    const f = fixture(), reader = readerFor(f);
+    reader.version = async (repo) => repo === SYNC_CONTRACT.sourceRepo ? "0.8.0" : destinationVersion;
+    await assert.rejects(check(f, reader));
   }
 });
 
-test("candidate-owned source manifests cannot choose another expected tree", async () => {
-  const f = fixture();
-  f.candidateFiles.set("mirror.json", entryFromBytes("100644", JSON.stringify({ sourceSha: head, sourceRepo: "attacker/repo", exclude: ["*"] })));
-  await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader: readerFor(f) }), /differs from trusted canonical projection/);
+test("GitHub reader resolves published annotated tags and ignores mutable target_commitish", async () => {
+  const urls = [];
+  const reader = createGithubReader({ fetch: async (url) => {
+    urls.push(url);
+    const value = url.includes("/releases/") ? { tag_name: tag, published_at: "now", draft: false, prerelease: false, target_commitish: "main" } : url.includes("/git/ref/tags/") ? { object: { type: "tag", sha: head } } : { object: { type: "commit", sha: sourceSha } };
+    return { ok: true, json: async () => value };
+  } });
+  assert.deepEqual(await reader.release(tag), { tag, sha: sourceSha });
+  assert.equal(urls.length, 3); assert.ok(urls[2].includes(`/git/tags/${head}`));
 });
 
-test("candidate source trailers cannot override external canonical main", async () => {
-  const reader = readerFor(fixture());
-  reader.commit = async () => ({ message: `Source-SHA: ${head}\n` });
-  reader.tree = async () => { throw new Error("must not read a candidate-selected tree"); };
-  await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader }), /not current trusted canonical main/);
-});
-
-test("nonmirror human PRs and ambiguous provenance require explicit review", () => {
-  assert.throws(() => sourceProvenance("human change"), /human changes need explicit review/);
-  assert.throws(() => sourceProvenance(`Source-SHA: ${sourceSha}\nSource-SHA: ${head}\n`), /ambiguous/);
-  assert.equal(sourceProvenance(`Source-SHA: ${sourceSha}\n`), sourceSha);
-});
-
-test("only fixed repository/main is accepted and a source advance fails closed", async () => {
-  const f = fixture();
-  assert.equal((await verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader: readerFor(f) })).sourceSha, sourceSha);
-  await assert.rejects(verifyGithubMirror({ event: event(), repository: "attacker/repo", reader: readerFor(f) }), /fixed legacy repository main/);
-  const otherBase = event(); otherBase.pull_request.base.ref = "release";
-  await assert.rejects(verifyGithubMirror({ event: otherBase, repository: SYNC_CONTRACT.destRepo, reader: readerFor(f) }), /fixed legacy repository main/);
-  const reader = readerFor(f); let reads = 0;
-  reader.main = async () => ++reads === 1 ? sourceSha : head;
-  await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader }), /advanced during verification/);
-});
-
-test("a PR head behind destination main fails before any tree is compared", async () => {
-  const reader = readerFor(fixture());
-  reader.isAncestor = async () => false;
-  reader.tree = async () => { throw new Error("compared trees for a head that lacks main"); };
-  await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader }), /is behind main/);
-});
-
-test("the base comes from destination main, not the event, and a base advance fails closed", async () => {
-  const f = fixture();
-  const stale = event(); stale.pull_request.base.sha = "d".repeat(40);
-  assert.equal((await verifyGithubMirror({ event: stale, repository: SYNC_CONTRACT.destRepo, reader: readerFor(f) })).base, base);
-  const reader = readerFor(f); let reads = 0;
-  reader.destinationMain = async () => ++reads === 1 ? base : "d".repeat(40);
-  await assert.rejects(verifyGithubMirror({ event: event(), repository: SYNC_CONTRACT.destRepo, reader }), /is behind main at d{40}/);
-});
-
-test("GitHub reader ancestry uses the compare API and refuses an unknown status", async () => {
-  const urls = []; let status;
-  const reader = createGithubReader({ fetch: async (url) => { urls.push(url); return { ok: true, async json() { return { status }; } }; } });
-  for (status of ["ahead", "identical"]) assert.equal(await reader.isAncestor(SYNC_CONTRACT.destRepo, base, head), true);
-  for (status of ["behind", "diverged"]) assert.equal(await reader.isAncestor(SYNC_CONTRACT.destRepo, base, head), false);
-  status = undefined;
-  await assert.rejects(reader.isAncestor(SYNC_CONTRACT.destRepo, base, head), /cannot establish ancestry/);
-  assert.equal(urls[0], `https://api.github.com/repos/${SYNC_CONTRACT.destRepo}/compare/${base}...${head}?per_page=1`);
-});
-
-test("missing canonical checker assets block bootstrap", () => {
-  const f = fixture(); f.sourceFiles.delete("dev/scripts/verify-mirror.mjs");
-  assert.throws(() => verifyProjection(f), /canonical source is not ready/);
-});
-
-test("GitHub reader refuses truncated trees and symlinks", async () => {
-  for (const tree of [{ truncated: true }, { tree: [{ path: "evil", mode: "120000", type: "blob", sha: head }] }]) {
-    const reader = createGithubReader({ fetch: async (url) => ({ ok: true, async json() { return url.includes("/git/commits/") ? { tree: { sha: sourceSha } } : tree; } }) });
-    await assert.rejects(reader.tree(SYNC_CONTRACT.sourceRepo, sourceSha), /truncated|unsupported mirror entry/);
+test("GitHub reader rejects drafts/prereleases, malformed or truncated trees and unknown ancestry", async () => {
+  for (const release of [{ tag_name: tag, draft: true, published_at: "now" }, { tag_name: tag, prerelease: true, published_at: "now" }, { tag_name: tag }]) {
+    const reader = createGithubReader({ fetch: async () => ({ ok: true, json: async () => release }) });
+    await assert.rejects(reader.release(tag), /published stable/);
   }
-});
-
-test("GitHub reader refuses submodules", async () => {
-  const tree = { tree: [{ path: "vendor/lib", mode: "160000", type: "commit", sha: head }] };
-  const reader = createGithubReader({ fetch: async (url) => ({ ok: true, async json() { return url.includes("/git/commits/") ? { tree: { sha: sourceSha } } : tree; } }) });
-  await assert.rejects(reader.tree(SYNC_CONTRACT.sourceRepo, sourceSha), /unsupported mirror entry vendor\/lib/);
-});
-
-test("destination runs only trusted base code and source checks remain full", () => {
-  const workflow = readFileSync(new URL("../../sync/destination-check.yml", import.meta.url), "utf8");
-  assert.match(workflow, /pull_request_target:/);
-  assert.match(workflow, /ref: \$\{\{ github.event.pull_request.base.sha \}\}/);
-  assert.match(workflow, /contents: read/);
-  assert.doesNotMatch(workflow, /head\.sha|head\.ref|github\.head_ref|refs\/pull\/|merge_commit_sha|npm |Bugbot|matrix:|secrets\./);
-  const canonical = readFileSync(new URL("../../.github/workflows/check.yml", import.meta.url), "utf8");
-  for (const check of ["verify:claude", "verify:cursor", "verify:codex", "verify:copilot", "Require Cursor Bugbot"]) assert.ok(canonical.includes(check));
-});
-
-test("local pinned verification reads Git data without executing candidate files", () => {
-  const work = mkdtempSync(join(tmpdir(), "mirror-integrity-"));
-  const git = (repo, args) => {
-    const result = spawnSync("git", args, { cwd: repo, encoding: "utf8" });
-    assert.equal(result.status, 0, result.stderr); return result.stdout.trim();
-  };
-  const init = (name, entries) => {
-    const repo = join(work, name); mkdirSync(repo);
-    git(repo, ["init", "-b", "main"]); git(repo, ["config", "user.name", "Test"]); git(repo, ["config", "user.email", "test@example.com"]);
-    for (const [path, entry] of entries) { mkdirSync(join(repo, path, ".."), { recursive: true }); writeFileSync(join(repo, path), entry.bytes); }
-    git(repo, ["add", "."]); git(repo, ["commit", "-m", "base"]); return repo;
-  };
-  // Each candidate script writes this marker if anything imports or runs it.
-  const marker = join(work, "candidate-executed");
-  const tripwire = entryFromBytes("100644", `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(marker)}, "executed\\n");\n`);
-  try {
-    const sourceFiles = source();
-    for (const path of ["candidate.mjs", "scripts/verify-mirror.mjs", "scripts/legacy-projection.mjs"]) sourceFiles.set(path, tripwire);
-    sourceFiles.set("package\twith\nseparators.txt", entryFromBytes("100644", "trusted file with literal separators"));
-    const sourceRepo = init("source", sourceFiles); const sha = git(sourceRepo, ["rev-parse", "HEAD"]);
-    const baseFiles = files({ "old.txt": "legacy" }); const dest = init("dest", baseFiles); const baseSha = git(dest, ["rev-parse", "HEAD"]);
-    rmSync(join(dest, "old.txt"));
-    for (const [path, entry] of desiredTree({ sourceFiles, destFiles: baseFiles })) { mkdirSync(join(dest, path, ".."), { recursive: true }); writeFileSync(join(dest, path), entry.bytes); }
-    git(dest, ["add", "."]); git(dest, ["commit", "-m", `mirror\n\nSource-SHA: ${sha}`]); const destSha = git(dest, ["rev-parse", "HEAD"]);
-    const result = spawnSync(process.execPath, [new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname, "--source", sourceRepo, "--dest", dest, "--source-sha", sha, "--head", destSha, "--base", baseSha], { encoding: "utf8" });
-    assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).differences, 0);
-    const checker = ".github/verify-mirror.mjs";
-    git(dest, ["mv", checker, `${checker}\tmissing`]);
-    git(dest, ["commit", "-m", `rename checker\n\nSource-SHA: ${sha}`]);
-    const renamed = git(dest, ["rev-parse", "HEAD"]);
-    const rejected = spawnSync(process.execPath, [new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname, "--source", sourceRepo, "--dest", dest, "--source-sha", sha, "--head", renamed, "--base", baseSha], { encoding: "utf8" });
-    assert.equal(rejected.status, 1, "a tab-suffixed checker rename must not pass bootstrap verification");
-    assert.match(rejected.stderr, /differs from trusted canonical projection/);
-    assert.ok(rejected.stderr.includes("verify-mirror.mjs\\tmissing"), rejected.stderr);
-    // A main commit made after the candidate was cut: the candidate head lacks it.
-    const laterBase = git(dest, ["commit-tree", `${baseSha}^{tree}`, "-p", baseSha, "-m", "later main"]);
-    const behind = spawnSync(process.execPath, [new URL("../scripts/verify-mirror.mjs", import.meta.url).pathname, "--source", sourceRepo, "--dest", dest, "--source-sha", sha, "--head", destSha, "--base", laterBase], { encoding: "utf8" });
-    assert.equal(behind.status, 1, "a head behind the base pin must not pass bootstrap verification");
-    assert.match(behind.stderr, /is behind main/);
-    assert.equal(existsSync(marker), false, "the checker executed a candidate file");
-    spawnSync(process.execPath, [join(dest, "candidate.mjs")]);
-    assert.equal(existsSync(marker), true, "the candidate file must write the marker when it runs");
-  } finally { rmSync(work, { recursive: true, force: true }); }
+  for (const tree of [{ truncated: true }, { tree: [{ path: "link", type: "blob", mode: "120000", sha: head }] }]) {
+    const reader = createGithubReader({ fetch: async (url) => ({ ok: true, json: async () => url.includes("/git/commits/") ? { tree: { sha: head } } : tree }) });
+    await assert.rejects(reader.tree(SYNC_CONTRACT.sourceRepo, sourceSha));
+  }
+  const reader = createGithubReader({ fetch: async () => ({ ok: true, json: async () => ({ status: "unknown" }) }) });
+  await assert.rejects(reader.isAncestor(SYNC_CONTRACT.sourceRepo, sourceSha, head), /cannot establish ancestry/);
 });

@@ -6,13 +6,14 @@ export const SYNC_CONTRACT = {
   destRepo: "arcadeai-labs/omnimcp",
   sourceBranch: "main",
   destBaseBranch: "main",
-  syncBranch: "sync/canonical-main",
   // Present in the canonical tree, omitted from the legacy tree.
   exclude: [
     ".github/workflows/",
     "dev/scripts/sync-legacy.mjs",
     "dev/scripts/legacy-projection.mjs",
     "dev/scripts/verify-mirror.mjs",
+    "dev/scripts/sync-version.mjs",
+    "dev/test/sync-version.test.mjs",
     "dev/test/sync-legacy.test.mjs",
     "dev/test/mirror-integrity.test.mjs",
     "sync/",
@@ -22,6 +23,7 @@ export const SYNC_CONTRACT = {
     ".github/workflows/check.yml": "sync/destination-check.yml",
     ".github/legacy-projection.mjs": "dev/scripts/legacy-projection.mjs",
     ".github/verify-mirror.mjs": "dev/scripts/verify-mirror.mjs",
+    ".github/sync-version.mjs": "dev/scripts/sync-version.mjs",
   },
   // Destination-only file. The mirror must not delete or replace it.
   preserve: ["docs/migration/repository-controls.md"],
@@ -122,4 +124,22 @@ export const diffTrees = (current, desired) => {
     deletions,
     noop: additions.length + changes.length + deletions.length === 0,
   };
+};
+
+/** Immutable release identity shared by the writer and trusted verifier. */
+export const releaseBranch = (tag) => {
+  if (!/^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(tag ?? "")) throw new Error("expected a stable vX.Y.Z release tag");
+  return `sync/release-${tag}`;
+};
+
+export const snapshotProvenance = (message, contract = SYNC_CONTRACT) => {
+  const one = (key) => {
+    const matches = message.split(/\r?\n/).filter((line) => line.startsWith(`${key}: `));
+    if (matches.length !== 1) throw new Error(`missing or ambiguous ${key} provenance`);
+    return matches[0].slice(key.length + 2);
+  };
+  const sha = one("Source-SHA"), tag = one("Source-Tag");
+  if (!/^[0-9a-f]{40}$/.test(sha) || one("Source-Repo") !== contract.sourceRepo || one("Legacy-Sync-Commit") !== "true") throw new Error("not an owned release snapshot");
+  releaseBranch(tag);
+  return { sha, tag };
 };

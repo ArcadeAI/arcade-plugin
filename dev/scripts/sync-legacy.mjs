@@ -1,620 +1,196 @@
 #!/usr/bin/env node
-// One-way mirror of the canonical tree onto arcadeai-labs/omnimcp.
-// The file under sync/ is not an active workflow. This script refuses live
-// writes unless a push to canonical main opts in with SYNC_LEGACY_APPLY=1.
-
+// Inert until the release workflow is separately activated. Git transports
+// snapshots; gh only reads release metadata and creates/reconciles draft PRs.
 import { spawnSync } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-
-import {
-  SYNC_CONTRACT, desiredTree, diffTrees, entryFromBytes, isPreserved,
-} from "./legacy-projection.mjs";
+import { SYNC_CONTRACT, desiredTree, diffTrees, entryFromBytes, releaseBranch, snapshotProvenance } from "./legacy-projection.mjs";
+import { assertReleaseVersion } from "./sync-version.mjs";
 export * from "./legacy-projection.mjs";
 
-const PROTECTED_BRANCHES = new Set(["main", "master"]);
-const SYNC_MARKER = "Legacy-Sync-Commit: true";
-
-// Pull request bodies submitted through the GitHub web form use CRLF.
-const lines = (text) => text.split(/\r?\n/);
-
-const hasSyncMarker = (message) => lines(message).includes(SYNC_MARKER);
-
-export const syncCommitMessage = (sourceSha, contract = SYNC_CONTRACT) =>
-  [
-    `sync: mirror ${contract.sourceRepo} ${sourceSha}`,
-    "",
-    `Source-SHA: ${sourceSha}`,
-    `Source-Repo: ${contract.sourceRepo}`,
-    SYNC_MARKER,
-    "",
-    "Mirrored files only. Canonical commits are not imported.",
-    "",
-  ].join("\n");
-
-export const syncPullBody = (sourceSha, contract = SYNC_CONTRACT) =>
-  [
-    `Source-SHA: ${sourceSha}`,
-    `Source-Repo: ${contract.sourceRepo}`,
-    `Source-Branch: ${contract.sourceBranch}`,
-    "Legacy-Sync-PR: true",
-    "",
-    "This pull request mirrors the canonical tree onto the legacy repository.",
-    "It does not import canonical commits.",
-    "",
-    "Repository-control paths omitted from the mirror:",
-    "",
-    ...contract.exclude.map((path) => `- \`${path}\``),
-    "",
-    "Destination-only paths kept in place:",
-    "",
-    ...contract.preserve.map((path) => `- \`${path}\``),
-    "",
-  ].join("\n");
-
-export const syncPullTitle = (sourceSha, contract = SYNC_CONTRACT) =>
-  `sync: mirror ${contract.sourceRepo} ${sourceSha.slice(0, 12)}`;
-
-/**
- * Live apply is allowed only for a push to canonical main that opts in.
- * Any other event, including pull_request and branch pushes, is a skip.
- */
-export const liveSyncGate = (env) => {
-  if (env.GITHUB_EVENT_NAME !== "push" || env.GITHUB_REF !== "refs/heads/main") {
-    return {
-      ok: false,
-      reason: `inert unless push to refs/heads/main (got ${env.GITHUB_EVENT_NAME ?? "unset"} ${env.GITHUB_REF ?? "unset"})`,
-    };
-  }
-  if (env.SYNC_LEGACY_APPLY !== "1") {
-    return { ok: false, reason: "SYNC_LEGACY_APPLY is not 1" };
-  }
-  return { ok: true };
-};
-
-const assertContract = (contract) => {
-  if (contract.sourceRepo === contract.destRepo) {
-    throw new Error("refusing to sync a repository onto itself");
-  }
-  if (PROTECTED_BRANCHES.has(contract.syncBranch) || contract.syncBranch === contract.destBaseBranch) {
-    throw new Error(`refusing to use protected branch ${contract.syncBranch} as the sync branch`);
-  }
-};
-
-const assertSourceSha = (sourceSha) => {
-  if (!/^[0-9a-f]{40}$/.test(sourceSha)) {
-    throw new Error("sourceSha must be a 40-character hex commit");
-  }
-};
-
-/**
- * Open or update one draft pull request on the legacy sync branch.
- * Never updates the destination base branch.
- * Every uncertain PR write retains the review branch and reconciles before
- * reporting recovery or an explicit action-required result.
- * A retained branch with no open pull request whose head is not an ancestor
- * of the destination base is `blocked`, and nothing is written. So is an
- * open pull request whose head does not contain the destination base.
- */
-export const runSync = async ({
-  sourceFiles,
-  sourceSha,
-  sourceMessage = "",
-  destination,
-  source,
-  contract = SYNC_CONTRACT,
-}) => {
-  assertContract(contract);
-  assertSourceSha(sourceSha);
-  if (!source) throw new Error("a trusted canonical source port is required");
-  const baseBefore = await destination.getBranchSha(contract.destBaseBranch);
-  if (!baseBefore) throw new Error(`destination ${contract.destBaseBranch} does not exist`);
-  let failure = null;
-  let result = null;
-  try {
-    if (hasSyncMarker(sourceMessage)) {
-      result = { action: "skip", reason: "source commit is a legacy sync commit" };
-    } else {
-      result = await syncBody({ sourceFiles, sourceSha, destination, source, contract });
-    }
-  } catch (error) {
-    failure = error;
-  }
-  const baseAfter = await destination.getBranchSha(contract.destBaseBranch);
-  if (baseAfter !== baseBefore) {
-    throw new Error(`destination ${contract.destBaseBranch} changed during sync`, { cause: failure ?? undefined });
-  }
-  if (failure) throw failure;
-  return result;
-};
-
-/**
- * The sync branch already matches the canonical tree, but that tree is not on
- * the destination base and no pull request is open. Refuse to reopen a closed
- * pull request or to report the retained branch as delivered.
- */
-const blockedUnmergedSync = ({ contract, sourceSha, syncSha, baseSha, plan, basePlan }) => ({
-  action: "blocked",
-  outcome: "action-required",
-  pr: null,
-  plan,
-  basePlan,
-  sourceSha,
-  syncBranch: contract.syncBranch,
-  syncSha,
-  baseBranch: contract.destBaseBranch,
-  baseSha,
-  reason: `Action required: ${contract.syncBranch} at ${syncSha} matches canonical ${sourceSha}, but ${contract.destBaseBranch} at ${baseSha} does not, and no open pull request exists.`,
-  recovery: [
-    `This run did not create a commit, move ${contract.syncBranch}, open a pull request, or update ${contract.destBaseBranch}.`,
-    `Inspect the retained branch and any closed pull request from ${contract.syncBranch} into ${contract.destBaseBranch}.`,
-    `If that pull request was merged by squash or rebase, delete ${contract.syncBranch} by hand instead.`,
-    "If that pull request was closed or rejected on purpose, leave it closed.",
-    `If pull creation failed and the branch should still be reviewed, open one draft pull request from ${contract.syncBranch} into ${contract.destBaseBranch} by hand.`,
-    "Use the title and body below exactly; later runs refuse a sync pull request without its Source-SHA, Source-Repo and Source-Branch lines.",
-    "Do not reopen a deliberately closed pull request from this automation.",
-  ].join(" ") + `\n\nTitle:\n${syncPullTitle(sourceSha, contract)}\n\nBody:\n${syncPullBody(sourceSha, contract)}`,
-});
-
-/**
- * The sync branch has no open pull request and its head is not on the
- * destination base. A new commit on it would open a pull request that
- * conflicts with the base, so nothing is written.
- */
-const blockedBranchNotOnBase = ({ contract, sourceSha, syncSha, baseSha, plan }) => ({
-  action: "blocked",
-  outcome: "action-required",
-  pr: null,
-  plan,
-  sourceSha,
-  syncBranch: contract.syncBranch,
-  syncSha,
-  baseBranch: contract.destBaseBranch,
-  baseSha,
-  reason: `Action required: ${contract.syncBranch} at ${syncSha} has no open pull request and is not an ancestor of ${contract.destBaseBranch} at ${baseSha}.`,
-  recovery: [
-    `This run did not create a commit, move ${contract.syncBranch}, open a pull request, or update ${contract.destBaseBranch}.`,
-    `This usually means the last sync pull request was merged by squash or rebase, so ${contract.destBaseBranch} does not contain the branch's commits.`,
-    `Delete ${contract.syncBranch} by hand; the next run starts a new branch from ${contract.destBaseBranch}.`,
-    "The branch head was verified as an unedited sync commit, so deleting the branch loses no human work.",
-    `To stop this recurring, turn on "Automatically delete head branches" in the ${contract.destRepo} repository settings.`,
-    "If the last sync pull request was instead closed without merging, leave it closed; deleting the branch lets the next run open a new one.",
-  ].join(" "),
-});
-
-/**
- * The open sync pull request's head does not contain the destination base.
- * The destination check fails that pull request, and a new commit on its
- * head would fail too, so nothing is written.
- */
-const blockedPullBehindBase = ({ contract, sourceSha, syncSha, baseSha, pr }) => ({
-  action: "blocked",
-  outcome: "action-required",
-  pr,
-  sourceSha,
-  syncBranch: contract.syncBranch,
-  syncSha,
-  baseBranch: contract.destBaseBranch,
-  baseSha,
-  reason: `Action required: open pull request #${pr} from ${contract.syncBranch} at ${syncSha} is behind ${contract.destBaseBranch} at ${baseSha}, so the destination check fails it.`,
-  recovery: [
-    `This run did not create a commit, move ${contract.syncBranch}, update the pull request, or update ${contract.destBaseBranch}.`,
-    `Close pull request #${pr} and delete ${contract.syncBranch} by hand; the next run starts a new branch from ${contract.destBaseBranch}.`,
-    `Do not use "Update branch" with a merge commit: that commit has no Source-SHA, so the destination check fails it and later runs refuse the branch.`,
-  ].join(" "),
-});
-
-const provenance = (message, contract) => {
-  const one = (key) => {
-    const values = lines(message).filter((line) => line.startsWith(`${key}: `));
-    return values.length === 1 ? values[0].slice(key.length + 2) : null;
-  };
-  const sha = one("Source-SHA");
-  return one("Source-Repo") === contract.sourceRepo && /^[0-9a-f]{40}$/.test(sha ?? "") ? sha : null;
-};
-
-const blocked = (reason, details = {}) => ({
-  action: "blocked", outcome: "action-required", reason,
-  recovery: "Inspect the source, retained branch and pull request by hand. No branch is deleted or rewound; do not reopen a deliberately closed pull request automatically.",
-  ...details,
-});
-
-const withoutPreserved = (files, contract) =>
-  new Map([...files].filter(([path]) => !isPreserved(path, contract.preserve)));
-
-// A name is not ownership. Check the marker, exact source provenance and tree.
-// Destination-only files are left out: their copy on main can change after the
-// branch was cut, and every sync commit takes them from main again.
-const verifyOwnedHead = async ({ syncSha, syncFiles, source, destination, contract }) => {
-  const commit = await destination.getCommit(syncSha);
-  const recorded = provenance(commit.message, contract);
-  if (!recorded || !hasSyncMarker(commit.message) || commit.parents.length !== 1) {
-    throw new Error(`refusing unowned sync branch ${contract.syncBranch} at ${syncSha}`);
-  }
-  const previousFiles = await source.readFiles(recorded);
-  const expected = desiredTree({ sourceFiles: previousFiles, destFiles: new Map(), contract });
-  if (!diffTrees(withoutPreserved(syncFiles, contract), withoutPreserved(expected, contract)).noop) {
-    throw new Error(`refusing human or unexpected changes on ${contract.syncBranch} at ${syncSha}`);
-  }
-  return recorded;
-};
-
-export const selectSyncPull = (pulls, branch, contract = SYNC_CONTRACT) => {
-  if (pulls.length === 0) return null;
-  const valid = (pull) => pull.branch === branch && pull.base === contract.destBaseBranch &&
-    pull.headRepo?.toLowerCase() === contract.destRepo.toLowerCase() &&
-    pull.baseRepo?.toLowerCase() === contract.destRepo.toLowerCase() &&
-    provenance(pull.body ?? "", contract) &&
-    lines(pull.body ?? "").includes(`Source-Branch: ${contract.sourceBranch}`);
-  if (pulls.length !== 1 || !valid(pulls[0])) {
-    throw new Error("refusing ambiguous, unowned or wrong-base sync pull request");
-  }
-  return pulls[0];
-};
-
-const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract }) => {
-  const currentSource = await source.getBranchSha(contract.sourceBranch);
-  if (sourceSha !== currentSource) {
-    if (await source.isAncestor(sourceSha, currentSource)) return { action: "skip", reason: "stale canonical source event", sourceSha, currentSource };
-    return blocked("Source event is not current canonical main", { sourceSha, currentSource });
-  }
-  if (!diffTrees(await source.readFiles(sourceSha), sourceFiles).noop) throw new Error("source files differ from the immutable canonical source SHA");
-  const baseSha = await destination.getBranchSha(contract.destBaseBranch);
-  const syncSha = await destination.getBranchSha(contract.syncBranch);
-  const baseFiles = await destination.readFiles(baseSha);
-  const syncFiles = syncSha ? await destination.readFiles(syncSha) : baseFiles;
-  const open = await destination.findOpenPull(contract.syncBranch, contract);
-  if (open && !syncSha) return blocked("Open sync PR has no branch; inspect by hand");
-  let deliveredSource = null;
-  if (syncSha) {
-    deliveredSource = await verifyOwnedHead({ syncSha, syncFiles, source, destination, contract });
-    if (deliveredSource !== sourceSha && !await source.isAncestor(deliveredSource, sourceSha)) {
-      return blocked("Refusing to replace a newer or unrelated delivered source snapshot", { sourceSha, deliveredSource });
-    }
-  }
-  const desired = desiredTree({ sourceFiles, destFiles: baseFiles, contract });
-  if (syncSha && !open && !await destination.isAncestor(syncSha, baseSha)) {
-    const plan = diffTrees(syncFiles, desired);
-    const basePlan = diffTrees(baseFiles, desired);
-    if (plan.noop && !basePlan.noop) return blockedUnmergedSync({ contract, sourceSha, syncSha, baseSha, plan, basePlan });
-    return blockedBranchNotOnBase({ contract, sourceSha, syncSha, baseSha, plan });
-  }
-  if (open && !await destination.isAncestor(baseSha, syncSha)) {
-    return blockedPullBehindBase({ contract, sourceSha, syncSha, baseSha, pr: open.number });
-  }
-  // With no open pull request, main contains any retained sync head, as after
-  // a merge commit. A commit on main still fast-forwards the sync branch, and
-  // its pull request contains main, which the destination check requires.
-  const parentSha = open ? syncSha : baseSha;
-  const parentFiles = open ? syncFiles : baseFiles;
-  const plan = diffTrees(parentFiles, desired);
-  const body = syncPullBody(sourceSha, contract);
-  const title = syncPullTitle(sourceSha, contract);
-  // Even an unchanged projection needs a new head when its attested source
-  // changes. The integrity verifier trusts the commit, not the editable PR body.
-  const provenanceCommit = plan.noop && Boolean(open) && deliveredSource !== sourceSha;
-  if (plan.noop && !provenanceCommit) {
-    if (open && provenance(open.body, contract) !== sourceSha) {
-      if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before PR update" };
-      await destination.updatePull({ number: open.number, title, body });
-      return { action: "update-provenance", pr: open.number, plan };
-    }
-    return { action: "noop", pr: open?.number ?? null, plan };
-  }
-  if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before commit creation" };
-  const knownBlobs = new Set([...baseFiles.values(), ...syncFiles.values()].map((entry) => entry.blobSha));
-  const newSha = await destination.createCommit({ parent: parentSha, files: desired, message: syncCommitMessage(sourceSha, contract), knownBlobs });
-  if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before branch update" };
-  await destination.compareAndSwap({ branch: contract.syncBranch, from: syncSha, to: newSha });
-  try {
-    if (open) {
-      await destination.updatePull({ number: open.number, title, body });
-      return { action: provenanceCommit ? "update-provenance" : "update", pr: open.number, commit: newSha, plan };
-    }
-    const pr = await destination.createPull({ branch: contract.syncBranch, base: contract.destBaseBranch, title, body, draft: true });
-    return { action: "create", pr: pr.number, commit: newSha, plan };
-  } catch (error) {
-    // A transport failure does not prove the POST was rejected. Reconcile,
-    // never delete a possibly accepted PR's head (nor an unrelated new head).
-    try {
-      const retained = await destination.getBranchSha(contract.syncBranch);
-      const reconciled = await destination.findOpenPull(contract.syncBranch, contract);
-      if (!open && retained === newSha && reconciled && provenance(reconciled.body, contract) === sourceSha) {
-        return { action: "recovered", pr: reconciled.number, commit: newSha, plan, reason: "PR creation accepted; response was lost" };
-      }
-    } catch { /* A failed reconciliation also leaves the branch untouched. */ }
-    return blocked(`Sync PR write outcome needs inspection: ${error.message}`, { syncSha: newSha, sourceSha, pr: open?.number ?? null, plan });
-  }
-};
-
-const gitCommand = (repo, args, { input, encoding } = {}) => {
-  const result = spawnSync("git", args, {
-    cwd: repo,
-    input,
-    encoding,
-    maxBuffer: 32 * 1024 * 1024,
-  });
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const command = (program, args, { cwd, input, env } = {}) => {
+  const result = spawnSync(program, args, { cwd, input, env: { ...process.env, ...env }, maxBuffer: 32 * 1024 * 1024 });
   if (result.error) throw result.error;
-  if (result.status !== 0) {
-    const stderr = result.stderr ? Buffer.from(result.stderr).toString("utf8") : "";
-    throw new Error(`git ${args.join(" ")} failed: ${stderr}`);
-  }
+  if (result.status !== 0) throw new Error(`${program} ${args[0]} failed: ${result.stderr.toString("utf8")}`);
   return result.stdout;
 };
+const git = (repo, args, options = {}) => command("git", args, { cwd: repo, ...options });
+const text = (bytes) => bytes.toString("utf8").trim();
+const sha = (value) => { if (!/^[0-9a-f]{40}$/.test(value ?? "")) throw new Error("expected an immutable commit SHA"); return value; };
+const version = (files) => JSON.parse(files.get("plugin.json").bytes.toString("utf8")).version;
 
-/** Read a committed git tree as path entries. Does not include `.git`. */
-export const readGitTree = (repo, rev = "HEAD") => {
-  const listed = gitCommand(repo, ["ls-tree", "-r", "-z", rev]);
-  const records = Buffer.from(listed).toString("utf8").split("\0").filter(Boolean);
-  const files = new Map();
-  for (const record of records) {
-    const tab = record.indexOf("\t");
-    const [mode, type, sha] = record.slice(0, tab).split(" ");
-    const path = record.slice(tab + 1);
-    if (type !== "blob") throw new Error(`${path} is a ${type}; refusing to mirror it`);
-    const bytes = Buffer.from(gitCommand(repo, ["cat-file", "blob", sha]));
-    files.set(path, entryFromBytes(mode, bytes));
-  }
-  return files;
+export const readGitTree = (repo, rev = "HEAD") => new Map(text(git(repo, ["ls-tree", "-r", "-z", rev])).split("\0").filter(Boolean).map((record) => {
+  const tab = record.indexOf("\t");
+  const [mode, type, blob] = record.slice(0, tab).split(" ");
+  if (type !== "blob" || !["100644", "100755"].includes(mode)) throw new Error(`unsupported mirror entry ${record.slice(tab + 1)}`);
+  return [record.slice(tab + 1), entryFromBytes(mode, git(repo, ["cat-file", "blob", blob]))];
+}));
+
+export const syncCommitMessage = (sourceSha, tag, contract = SYNC_CONTRACT) =>
+  `sync: mirror ${tag}\n\nSource-SHA: ${sha(sourceSha)}\nSource-Tag: ${tag}\nSource-Repo: ${contract.sourceRepo}\nLegacy-Sync-Commit: true\n`;
+export const syncPullBody = (sourceSha, tag, contract = SYNC_CONTRACT) =>
+  `${syncCommitMessage(sourceSha, tag, contract)}\nRelease snapshot only. Canonical history is not imported; destination main is never updated by this automation.\n`;
+
+export const liveSyncGate = (env, event) => {
+  const release = event?.release;
+  return env.SYNC_LEGACY_APPLY === "1" && env.GITHUB_REPOSITORY === SYNC_CONTRACT.sourceRepo &&
+    env.GITHUB_EVENT_NAME === "release" && event.action === "published" && release?.published_at &&
+    !release.draft && !release.prerelease && env.GITHUB_REF === `refs/tags/${release.tag_name}`;
 };
 
-/** GitHub git-ref path. Nested branch names must encode `/` as `%2F`. */
-export const githubRefPath = (branch) =>
-  `heads/${branch.split("/").map((part) => encodeURIComponent(part)).join("%2F")}`;
-
-// GitHub's secondary rate limit allows 80 content-creating requests per minute.
-// One second between writes keeps a long run of blob uploads under it.
-const WRITE_INTERVAL_MS = 1000;
-const RATE_LIMIT_RETRIES = 3;
-// The staged workflow stops the job after 20 minutes. A longer wait would end
-// the run with a timeout instead of an error that says why it stopped.
-const MAX_RATE_LIMIT_WAIT_MS = 5 * 60_000;
-
-/**
- * Milliseconds to wait before retrying a rate-limited response, or null when
- * the response is not a rate limit. A 403 for missing permissions is not
- * retried. Follows GitHub's REST guidance: `retry-after` first, then
- * `x-ratelimit-reset` when no requests remain, then at least one minute,
- * doubling on each retry.
- */
-const rateLimitWaitMs = ({ status, headers, text, retry, now }) => {
-  if (status !== 429 && !(status === 403 && /rate limit/i.test(text))) return null;
-  const retryAfter = Number(headers.get("retry-after"));
-  if (retryAfter > 0) return retryAfter * 1000;
-  if (headers.get("x-ratelimit-remaining") === "0") {
-    const untilReset = Number(headers.get("x-ratelimit-reset")) * 1000 - now();
-    if (untilReset > 0) return untilReset;
-  }
-  return 60_000 * 2 ** retry;
-};
-
-/**
- * Destination port that talks to the GitHub REST API. Tests pass `fetch`,
- * and `sleep` and `now` to run rate-limit waits on a fake clock.
- */
-export const createGithubDestination = ({
-  repo,
-  token,
-  fetch,
-  sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
-  now = Date.now,
-}) => {
-  const request = (method, path, body) => fetch(`https://api.github.com${path}`, {
-    method,
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-      "user-agent": "arcade-plugin-legacy-sync",
-      "x-github-api-version": "2022-11-28",
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
-  const api = async (method, path, body) => {
-    const response = await request(method, path, body);
-    const text = await response.text();
-    if (response.status === 404 && method === "GET" && path.includes("/git/ref/")) return null;
-    if (!response.ok) throw new Error(`GitHub ${method} ${path} failed: ${response.status} ${text}`);
-    return text ? JSON.parse(text) : null;
-  };
-
-  // A rate-limited request was rejected, and no ref points at a new blob, tree
-  // or commit until the sync branch moves, so retrying these POSTs is safe.
-  let hasWritten = false;
-  const createGitObject = async (path, body) => {
-    for (let retry = 0; ; retry++) {
-      if (hasWritten) await sleep(WRITE_INTERVAL_MS);
-      hasWritten = true;
-      const response = await request("POST", path, body);
-      const text = await response.text();
-      if (response.ok) return JSON.parse(text);
-      const wait = rateLimitWaitMs({ status: response.status, headers: response.headers, text, retry, now });
-      if (wait === null || retry === RATE_LIMIT_RETRIES) {
-        throw new Error(`GitHub POST ${path} failed: ${response.status} ${text}`);
-      }
-      if (wait > MAX_RATE_LIMIT_WAIT_MS) {
-        throw new Error(`GitHub's rate limit asks to wait ${Math.ceil(wait / 1000)} seconds before retrying POST ${path}, more than the ${MAX_RATE_LIMIT_WAIT_MS / 1000}-second limit. The run stopped before moving the sync branch.`);
-      }
-      await sleep(wait);
-    }
-  };
-
-  return {
-    async getBranchSha(branch) {
-      const data = await api("GET", `/repos/${repo}/git/ref/${githubRefPath(branch)}`);
-      return data?.object?.sha ?? null;
-    },
-    async getCommit(sha) {
-      const commit = await api("GET", `/repos/${repo}/git/commits/${sha}`);
-      return { message: commit.message, parents: commit.parents.map((parent) => parent.sha) };
-    },
-    // Compare status describes the second commit relative to the first:
-    // "ahead" or "identical" means the second contains every commit of the first.
-    async isAncestor(ancestor, descendant) {
-      const comparison = await api("GET", `/repos/${repo}/compare/${ancestor}...${descendant}?per_page=1`);
-      if (comparison.status === "ahead" || comparison.status === "identical") return true;
-      if (comparison.status === "behind" || comparison.status === "diverged") return false;
-      throw new Error(`cannot establish destination ancestry: compare status ${comparison.status}`);
-    },
-    async readFiles(sha) {
-      const commit = await api("GET", `/repos/${repo}/git/commits/${sha}`);
-      const tree = await api("GET", `/repos/${repo}/git/trees/${commit.tree.sha}?recursive=1`);
-      if (tree.truncated) throw new Error("destination tree is truncated");
-      const files = new Map();
-      for (const item of tree.tree) {
-        if (item.type === "tree") continue;
-        if (item.type !== "blob") throw new Error(`${item.path} is a ${item.type}`);
-        files.set(item.path, { mode: item.mode, blobSha: item.sha });
-      }
-      return files;
-    },
-    // `knownBlobs` holds blob SHAs read from destination trees. Those blobs
-    // already exist in the repository, so they are referenced instead of
-    // uploaded. A first sync onto legacy main can still upload more blobs
-    // than the per-minute write limit allows; `createGitObject` paces them.
-    async createCommit({ parent, files, message, knownBlobs = new Set() }) {
-      const tree = [];
-      for (const [path, entry] of files) {
-        let sha = entry.blobSha;
-        if (entry.bytes && !knownBlobs.has(sha)) {
-          const blob = await createGitObject(`/repos/${repo}/git/blobs`, {
-            content: entry.bytes.toString("base64"),
-            encoding: "base64",
-          });
-          sha = blob.sha;
-        }
-        if (!sha) throw new Error(`${path} has no blob to commit`);
-        tree.push({ path, mode: entry.mode, type: "blob", sha });
-      }
-      const created = await createGitObject(`/repos/${repo}/git/trees`, { tree });
-      const commit = await createGitObject(`/repos/${repo}/git/commits`, {
-        message,
-        tree: created.sha,
-        parents: [parent],
-      });
-      return commit.sha;
-    },
-    async compareAndSwap({ branch, from, to }) {
-      if (PROTECTED_BRANCHES.has(branch)) {
-        throw new Error(`refusing to update protected branch ${branch}`);
-      }
-      if (to === null) throw new Error("automation never deletes a review branch");
-      const current = await api("GET", `/repos/${repo}/git/ref/${githubRefPath(branch)}`);
-      if ((current?.object?.sha ?? null) !== from) throw new Error(`sync branch changed before update: ${branch}`);
-      if (from === null) {
-        await api("POST", `/repos/${repo}/git/refs`, { ref: `refs/heads/${branch}`, sha: to });
-        return;
-      }
-      await api("PATCH", `/repos/${repo}/git/refs/${githubRefPath(branch)}`, { sha: to, force: false });
-    },
-    async findOpenPull(branch, contract = SYNC_CONTRACT) {
-      const owner = repo.split("/")[0];
-      const head = `${encodeURIComponent(owner)}:${encodeURIComponent(branch)}`;
-      const pulls = [];
-      for (let page = 1; ; page++) {
-        const batch = await api("GET", `/repos/${repo}/pulls?state=open&head=${head}&per_page=100&page=${page}`);
-        pulls.push(...batch.map((pull) => ({ number: pull.number, title: pull.title, body: pull.body ?? "",
-          branch: pull.head?.ref, base: pull.base?.ref, headRepo: pull.head?.repo?.full_name, baseRepo: pull.base?.repo?.full_name })));
-        if (batch.length < 100) break;
-      }
-      return selectSyncPull(pulls, branch, contract);
-    },
-    async createPull({ branch, base, title, body, draft }) {
-      const pull = await api("POST", `/repos/${repo}/pulls`, { title, head: branch, base, body, draft });
-      return { number: pull.number };
-    },
-    async updatePull({ number, title, body }) {
-      await api("PATCH", `/repos/${repo}/pulls/${number}`, { title, body });
-    },
-  };
-};
-
-const printPlan = (sourceRepo, destRepo) => {
-  const sourceFiles = readGitTree(sourceRepo, "HEAD");
-  const destFiles = readGitTree(destRepo, "HEAD");
-  const desired = desiredTree({ sourceFiles, destFiles });
-  const plan = diffTrees(destFiles, desired);
-  process.stdout.write(`${JSON.stringify({ action: "plan", ...plan }, null, 2)}\n`);
-};
-
-/** Print a sync result. Blocked delivery exits non-zero so a workflow cannot treat it as success. */
-export const reportSyncResult = (result, { stdout = process.stdout, stderr = process.stderr } = {}) => {
-  stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  if (result.action === "blocked") {
-    stderr.write(`${result.reason}\n${result.recovery}\n`);
-    return 1;
-  }
-  return 0;
-};
-
-export const createGitSource = ({ repo, remote = null }) => ({
-  async getBranchSha(branch) {
-    if (remote) {
-      gitCommand(repo, ["fetch", "--no-tags", remote, `refs/heads/${branch}`]);
-      return gitCommand(repo, ["rev-parse", "FETCH_HEAD"], { encoding: "utf8" }).trim();
-    }
-    return gitCommand(repo, ["rev-parse", `refs/heads/${branch}`], { encoding: "utf8" }).trim();
+export const createGitSource = ({ repo, remote = "origin", releases }) => ({
+  async release(tag) {
+    releaseBranch(tag);
+    const release = await releases.release(tag);
+    if (release.tag_name !== tag || release.draft || release.prerelease || !release.published_at) throw new Error("source must be a published stable release");
+    // target_commitish can be a mutable branch: always peel the actual tag.
+    git(repo, ["fetch", "--no-tags", remote, `refs/tags/${tag}`]);
+    const sourceSha = sha(text(git(repo, ["rev-parse", "FETCH_HEAD^{commit}"])));
+    git(repo, ["fetch", "--no-tags", remote, `refs/heads/${SYNC_CONTRACT.sourceBranch}`]);
+    const main = sha(text(git(repo, ["rev-parse", "FETCH_HEAD"])));
+    const ancestry = spawnSync("git", ["merge-base", "--is-ancestor", sourceSha, main], { cwd: repo });
+    if (ancestry.status !== 0) throw new Error("release commit is not on canonical main");
+    return { sha: sourceSha, tag };
   },
-  async readFiles(sha) { return readGitTree(repo, sha); },
-  async isAncestor(ancestor, descendant) {
-    const result = spawnSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], { cwd: repo });
-    if (result.status === 0) return true;
-    if (result.status === 1) return false;
-    throw new Error("cannot establish canonical source ancestry");
-  },
+  async readFiles(sourceSha) { return readGitTree(repo, sourceSha); },
 });
 
-const applyLive = async () => {
-  const gate = liveSyncGate(process.env);
-  if (!gate.ok) {
-    process.stdout.write(`${gate.reason}\n`);
-    return;
+/** A temporary clone and native Git index preserve bytes/modes without importing source history. */
+export const createGitDestination = ({ repo, remote = "origin", env = {} }) => {
+  const runGit = (args, options = {}) => git(repo, args, { env, ...options });
+  return {
+    async branch(branch) {
+      const refs = text(runGit(["ls-remote", "--heads", remote, `refs/heads/${branch}`]));
+      if (!refs) return null;
+      const head = sha(refs.split(/\s/)[0]);
+      runGit(["fetch", "--no-tags", remote, `refs/heads/${branch}`]);
+      if (text(runGit(["rev-parse", "FETCH_HEAD"])) !== head) throw new Error("destination branch changed during read; rerun");
+      return head;
+    },
+    async files(rev) { return readGitTree(repo, rev); },
+    async commit(rev) {
+      return { message: runGit(["show", "-s", "--format=%B", rev]).toString("utf8"), parents: text(runGit(["show", "-s", "--format=%P", rev])).split(" ") };
+    },
+    async snapshot({ files, parent, message }) {
+      runGit(["read-tree", "--empty"]);
+      const index = [...files].map(([path, entry]) => {
+        const blob = text(runGit(["hash-object", "-w", "--stdin"], { input: entry.bytes }));
+        return `${entry.mode} ${blob}\t${path}\0`;
+      }).join("");
+      runGit(["update-index", "-z", "--index-info"], { input: index });
+      const tree = text(runGit(["write-tree"]));
+      return text(runGit(["commit-tree", tree, "-p", parent], { input: message, env: {
+        GIT_AUTHOR_NAME: "Arcade release sync", GIT_AUTHOR_EMAIL: "support@arcade.dev",
+        GIT_COMMITTER_NAME: "Arcade release sync", GIT_COMMITTER_EMAIL: "support@arcade.dev",
+      } }));
+    },
+    async push(branch, commit) {
+      if (releaseBranch(branch.replace(/^sync\/release-/, "")) !== branch) throw new Error("refusing non-release destination branch");
+      if (await this.branch(branch)) throw new Error("release branch already exists; refusing to overwrite it");
+      // No force, deletion, main update, or canonical history transfer.
+      runGit(["push", "--porcelain", remote, `${sha(commit)}:refs/heads/${branch}`]);
+    },
+  };
+};
+
+export const createGithub = ({ token, run = command }) => {
+  const api = (args, input) => JSON.parse(run("gh", ["api", ...args], { input, env: { GH_TOKEN: token } }).toString("utf8"));
+  return {
+    async release(tag) { return api([`repos/${SYNC_CONTRACT.sourceRepo}/releases/tags/${encodeURIComponent(tag)}`]); },
+    async pulls(branch) {
+      const pulls = api(["--method", "GET", `repos/${SYNC_CONTRACT.destRepo}/pulls`, "-f", "state=all", "-f", `head=${SYNC_CONTRACT.destRepo.split("/")[0]}:${branch}`, "-f", "per_page=100"]);
+      if (pulls.length === 100) throw new Error("ambiguous release PR history; inspect manually");
+      return pulls;
+    },
+    async createPull({ branch, sourceSha, tag }) {
+      return api([`repos/${SYNC_CONTRACT.destRepo}/pulls`, "--input", "-"], JSON.stringify({
+        title: `sync: mirror ${tag}`, head: branch, base: SYNC_CONTRACT.destBaseBranch,
+        body: syncPullBody(sourceSha, tag), draft: true,
+      }));
+    },
+  };
+};
+
+const ownedPull = (pulls, branch, sourceSha, tag) => {
+  if (pulls.length !== 1) throw new Error("ambiguous release PR; inspect manually");
+  const pull = pulls[0];
+  const pin = snapshotProvenance(pull.body ?? "");
+  if (pull.head?.ref !== branch || pull.head?.repo?.full_name !== SYNC_CONTRACT.destRepo ||
+      pull.base?.ref !== SYNC_CONTRACT.destBaseBranch || pull.base?.repo?.full_name !== SYNC_CONTRACT.destRepo ||
+      pin.sha !== sourceSha || pin.tag !== tag) throw new Error("refusing unowned or wrong-base release PR");
+  return pull;
+};
+
+/** One branch per release. Existing branches are only read, never updated. */
+export const runSync = async ({ tag, source, destination, github }) => {
+  const branch = releaseBranch(tag);
+  const pin = await source.release(tag);
+  sha(pin.sha);
+  if (pin.tag !== tag) throw new Error("source release tag differs from requested tag");
+  const sourceFiles = await source.readFiles(pin.sha);
+  for (const path of Object.values(SYNC_CONTRACT.replacements)) {
+    if (!sourceFiles.has(path)) throw new Error(`release lacks required mirror control ${path}`);
   }
-  const token = process.env.LEGACY_SYNC_TOKEN;
-  if (!token) {
-    throw new Error("LEGACY_SYNC_TOKEN is not set; refusing to call GitHub");
+  const base = await destination.branch(SYNC_CONTRACT.destBaseBranch);
+  if (!base) throw new Error("destination main does not exist");
+  const baseFiles = await destination.files(base);
+  const desired = desiredTree({ sourceFiles, destFiles: baseFiles });
+  const plan = diffTrees(baseFiles, desired);
+  assertReleaseVersion({ sourceVersion: version(sourceFiles), destinationVersion: version(baseFiles), tag, sameTree: plan.noop });
+  const existing = await destination.branch(branch);
+  const pulls = await github.pulls(branch);
+  if (existing) {
+    const commit = await destination.commit(existing);
+    const owned = snapshotProvenance(commit.message);
+    if (owned.sha !== pin.sha || owned.tag !== tag || commit.parents.length !== 1 || !diffTrees(await destination.files(existing), desired).noop) throw new Error("release branch differs or contains human work; inspect manually");
+    if (!pulls.length) throw new Error("release branch retained without a PR; inspect and open manually");
+    const pull = ownedPull(pulls, branch, pin.sha, tag);
+    return { action: pull.state === "open" ? "noop" : "closed", pr: pull.number, sourceSha: pin.sha, tag, branch };
   }
-  const head = gitCommand(ROOT, ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-  const sourceSha = process.env.SOURCE_SHA ?? head;
-  if (sourceSha !== head) throw new Error(`SOURCE_SHA ${sourceSha} does not match HEAD ${head}`);
-  const sourceMessage = gitCommand(ROOT, ["log", "-1", "--format=%B"], { encoding: "utf8" });
-  const destination = createGithubDestination({
-    repo: SYNC_CONTRACT.destRepo,
-    token,
-    fetch: globalThis.fetch,
-  });
-  const result = await runSync({
-    sourceFiles: readGitTree(ROOT, "HEAD"),
-    sourceSha,
-    sourceMessage,
-    destination,
-    source: createGitSource({ repo: ROOT, remote: "origin" }),
-  });
-  process.exitCode = reportSyncResult(result);
+  if (pulls.length) throw new Error("release PR already exists; never reopen an intentionally closed PR");
+  if (plan.noop) return { action: "noop", sourceSha: pin.sha, tag };
+  const commit = await destination.snapshot({ files: desired, parent: base, message: syncCommitMessage(pin.sha, tag) });
+  if ((await source.release(tag)).sha !== pin.sha) throw new Error("release tag changed before push");
+  if (await destination.branch(SYNC_CONTRACT.destBaseBranch) !== base) throw new Error("destination main changed before push; rerun");
+  await destination.push(branch, commit);
+  try {
+    const pull = await github.createPull({ branch, sourceSha: pin.sha, tag });
+    return { action: "create", pr: pull.number, commit, sourceSha: pin.sha, tag, branch };
+  } catch (error) {
+    // A failed response may have been accepted. Read once; never retry POST or delete.
+    const recovered = await github.pulls(branch);
+    if (await destination.branch(branch) === commit && recovered.length) {
+      const pull = ownedPull(recovered, branch, pin.sha, tag);
+      if (pull.state === "open" && pull.head.sha === commit) return { action: "recovered", pr: pull.number, commit, sourceSha: pin.sha, tag, branch };
+    }
+    throw new Error(`PR creation outcome needs manual inspection; branch retained: ${error.message}`);
+  }
 };
 
 const main = async () => {
   const args = process.argv.slice(2);
+  const value = (flag) => args[args.indexOf(flag) + 1];
   if (args.includes("--plan")) {
-    const sourceFlag = args.indexOf("--source");
-    const destFlag = args.indexOf("--dest");
-    if (sourceFlag === -1 || destFlag === -1) throw new Error("--plan requires --source and --dest");
-    printPlan(resolve(args[sourceFlag + 1]), resolve(args[destFlag + 1]));
+    if (!args.includes("--source") || !args.includes("--dest")) throw new Error("--plan requires --source and --dest");
+    const sourceFiles = readGitTree(resolve(value("--source"))), destFiles = readGitTree(resolve(value("--dest")));
+    console.log(JSON.stringify({ action: "plan", ...diffTrees(destFiles, desiredTree({ sourceFiles, destFiles })) }, null, 2));
     return;
   }
-  if (args.includes("--apply")) {
-    await applyLive();
-    return;
-  }
-  process.stdout.write("legacy sync is inert. Pass --plan to diff two local repositories, or activate separately.\n");
+  if (!args.includes("--apply")) { console.log("legacy sync is inert; --plan compares local repositories"); return; }
+  const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+  if (!liveSyncGate(process.env, event)) throw new Error("live sync requires an opted-in canonical published stable release event");
+  const token = process.env.LEGACY_SYNC_TOKEN;
+  if (!token) throw new Error("LEGACY_SYNC_TOKEN is required");
+  const github = createGithub({ token });
+  const temp = mkdtempSync(join(tmpdir(), "arcade-release-sync-"));
+  try {
+    // Use gh's credential helper, keeping the token out of command arguments/URLs.
+    const authEnv = { GH_TOKEN: token, GIT_CONFIG_COUNT: "2", GIT_CONFIG_KEY_0: "credential.helper", GIT_CONFIG_VALUE_0: "", GIT_CONFIG_KEY_1: "credential.helper", GIT_CONFIG_VALUE_1: "!gh auth git-credential" };
+    git(temp, ["clone", "--no-checkout", `https://github.com/${SYNC_CONTRACT.destRepo}.git`, "destination"], { env: authEnv });
+    console.log(JSON.stringify(await runSync({ tag: event.release.tag_name, source: createGitSource({ repo: ROOT, releases: github }), destination: createGitDestination({ repo: join(temp, "destination"), env: authEnv }), github }), null, 2));
+  } finally { rmSync(temp, { recursive: true, force: true }); }
 };
-
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((error) => {
-    console.error(error.message);
-    process.exit(1);
-  });
-}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => { console.error(error.message); process.exitCode = 1; });
