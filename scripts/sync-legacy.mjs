@@ -96,7 +96,8 @@ const assertSourceSha = (sourceSha) => {
  * reporting recovery or an explicit action-required result.
  * When that retained branch matches the canonical tree, the destination
  * base does not, and no pull request is open, the result is `blocked`
- * and nothing is written.
+ * and nothing is written. A retained branch with no open pull request whose
+ * head is not an ancestor of the destination base is also `blocked`.
  */
 export const runSync = async ({
   sourceFiles,
@@ -150,11 +151,38 @@ const blockedUnmergedSync = ({ contract, sourceSha, syncSha, baseSha, plan, base
   recovery: [
     `This run did not create a commit, move ${contract.syncBranch}, open a pull request, or update ${contract.destBaseBranch}.`,
     `Inspect the retained branch and any closed pull request from ${contract.syncBranch} into ${contract.destBaseBranch}.`,
+    `If that pull request was merged by squash or rebase, delete ${contract.syncBranch} by hand instead.`,
     "If that pull request was closed or rejected on purpose, leave it closed.",
     `If pull creation failed and the branch should still be reviewed, open one draft pull request from ${contract.syncBranch} into ${contract.destBaseBranch} by hand.`,
     "Use the title and body below exactly; later runs refuse a sync pull request without its Source-SHA, Source-Repo and Source-Branch lines.",
     "Do not reopen a deliberately closed pull request from this automation.",
   ].join(" ") + `\n\nTitle:\n${syncPullTitle(sourceSha, contract)}\n\nBody:\n${syncPullBody(sourceSha, contract)}`,
+});
+
+/**
+ * The sync branch has no open pull request and its head is not on the
+ * destination base. A new commit on it would open a pull request that
+ * conflicts with the base, so nothing is written.
+ */
+const blockedMergedSync = ({ contract, sourceSha, syncSha, baseSha, plan }) => ({
+  action: "blocked",
+  outcome: "action-required",
+  pr: null,
+  plan,
+  sourceSha,
+  syncBranch: contract.syncBranch,
+  syncSha,
+  baseBranch: contract.destBaseBranch,
+  baseSha,
+  reason: `Action required: ${contract.syncBranch} at ${syncSha} has no open pull request and is not an ancestor of ${contract.destBaseBranch} at ${baseSha}.`,
+  recovery: [
+    `This run did not create a commit, move ${contract.syncBranch}, open a pull request, or update ${contract.destBaseBranch}.`,
+    `This usually means the last sync pull request was merged by squash or rebase, so ${contract.destBaseBranch} does not contain the branch's commits.`,
+    `Delete ${contract.syncBranch} by hand; the next run starts a new branch from ${contract.destBaseBranch}.`,
+    "The branch head was verified as an unedited sync commit, so deleting the branch loses no human work.",
+    `To stop this recurring, turn on "Automatically delete head branches" in the ${contract.destRepo} repository settings.`,
+    "If the last sync pull request was instead closed without merging, leave it closed; deleting the branch lets the next run open a new one.",
+  ].join(" "),
 });
 
 const provenance = (message, contract) => {
@@ -228,6 +256,11 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
   }
   const desired = desiredTree({ sourceFiles, destFiles: baseFiles, contract });
   const plan = diffTrees(parentFiles, desired);
+  if (syncSha && !open && !await destination.isAncestor(syncSha, baseSha)) {
+    const basePlan = diffTrees(baseFiles, desired);
+    if (plan.noop && !basePlan.noop) return blockedUnmergedSync({ contract, sourceSha, syncSha, baseSha, plan, basePlan });
+    return blockedMergedSync({ contract, sourceSha, syncSha, baseSha, plan });
+  }
   const body = syncPullBody(sourceSha, contract);
   const title = syncPullTitle(sourceSha, contract);
   // Even an unchanged projection needs a new head when its attested source
@@ -333,6 +366,14 @@ export const createGithubDestination = ({ repo, token, fetch }) => {
     async getCommit(sha) {
       const commit = await api("GET", `/repos/${repo}/git/commits/${sha}`);
       return { message: commit.message, parents: commit.parents.map((parent) => parent.sha) };
+    },
+    // Compare status describes the second commit relative to the first:
+    // "ahead" or "identical" means the second contains every commit of the first.
+    async isAncestor(ancestor, descendant) {
+      const comparison = await api("GET", `/repos/${repo}/compare/${ancestor}...${descendant}?per_page=1`);
+      if (comparison.status === "ahead" || comparison.status === "identical") return true;
+      if (comparison.status === "behind" || comparison.status === "diverged") return false;
+      throw new Error(`cannot establish destination ancestry: compare status ${comparison.status}`);
     },
     async readFiles(sha) {
       const commit = await api("GET", `/repos/${repo}/git/commits/${sha}`);

@@ -75,6 +75,12 @@ const createGitDestination = ({ repo, pulls, failCreate = false, failSwap = fals
     return { message: git(repo, ["show", "-s", "--format=%B", sha]),
       parents: git(repo, ["show", "-s", "--format=%P", sha]).trim().split(" ").filter(Boolean) };
   },
+  async isAncestor(ancestor, descendant) {
+    const result = spawnSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], { cwd: repo });
+    if (result.status === 0) return true;
+    if (result.status === 1) return false;
+    throw new Error("cannot establish destination ancestry");
+  },
   async createCommit({ parent, files, message }) {
     const index = join(tmpdir(), `sync-index-${randomUUID()}`);
     const env = { ...process.env, GIT_INDEX_FILE: index };
@@ -123,7 +129,6 @@ const createGitDestination = ({ repo, pulls, failCreate = false, failSwap = fals
     pull.body = body;
   },
 });
-
 
 const sourceFrom = (files) => new Map(Object.entries(files).map(([path, contents]) => [path, entryFromBytes("100644", contents)]));
 
@@ -342,11 +347,12 @@ test("a failed pull create on an existing branch is blocked on retry without a n
     "docs/migration/repository-controls.md": controls(),
     "pkg/file.txt": "base\n",
   });
-  const main = git(repo, ["rev-parse", "main"]).trim();
   try {
     const pulls = [];
     await run(repo, sourceFrom({ "pkg/file.txt": "v1\n" }), { pulls });
+    git(repo, ["merge", "--no-ff", SYNC_CONTRACT.syncBranch, "-m", "merge sync"]);
     pulls[0].state = "closed";
+    const main = git(repo, ["rev-parse", "main"]).trim();
     const failed = await run(repo, sourceFrom({ "pkg/file.txt": "synced\n" }), { pulls, sourceSha: NEXT_SHA, failCreate: true });
     assert.equal(failed.result.action, "blocked");
     assert.equal(pulls.length, 1);
@@ -389,6 +395,50 @@ test("a failed pull create on an existing branch is blocked on retry without a n
     assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
   } finally {
     rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("a sync branch merged by squash or rebase is blocked instead of building a conflicting pull", async () => {
+  for (const mergeBy of ["squash", "rebase"]) {
+    const repo = initRepo({
+      "docs/migration/repository-controls.md": controls(),
+      "a.txt": "legacy\n",
+      "b.txt": "legacy\n",
+    });
+    try {
+      const pulls = [];
+      await run(repo, sourceFrom({ "a.txt": "A1\n", "b.txt": "B1\n" }), { pulls });
+      const retained = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+      if (mergeBy === "squash") {
+        git(repo, ["merge", "--squash", SYNC_CONTRACT.syncBranch]);
+        git(repo, ["commit", "-m", "squash sync"]);
+      } else {
+        // GitHub's rebase merge sets itself as committer, so the new commit on
+        // main never has the branch head's SHA.
+        git(repo, ["cherry-pick", retained], { env: { ...process.env, GIT_COMMITTER_NAME: "GitHub", GIT_COMMITTER_EMAIL: "noreply@github.com" } });
+      }
+      pulls[0].state = "closed";
+      const main = git(repo, ["rev-parse", "main"]).trim();
+      const destination = createGitDestination({ repo, pulls });
+      destination.createCommit = async () => { throw new Error("must not create a commit"); };
+      destination.compareAndSwap = async () => { throw new Error("must not move a branch"); };
+      destination.createPull = async () => { throw new Error("must not open a pull request"); };
+      for (const [sourceSha, files] of [[SOURCE_SHA, { "a.txt": "A1\n", "b.txt": "B1\n" }], [NEXT_SHA, { "a.txt": "A2\n", "b.txt": "B1\n" }]]) {
+        const result = await runSync({ sourceFiles: sourceFrom(files), sourceSha, destination });
+        assert.equal(result.action, "blocked", `${mergeBy} ${sourceSha}`);
+        assert.equal(result.outcome, "action-required");
+        assert.equal(result.syncSha, retained);
+        assert.equal(result.baseSha, main);
+        assert.match(result.recovery, /merged by squash or rebase/);
+        assert.match(result.recovery, new RegExp(`Delete ${SYNC_CONTRACT.syncBranch} by hand`));
+        assert.match(result.recovery, /Automatically delete head branches/);
+      }
+      assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+      assert.equal(git(repo, ["rev-parse", "main"]).trim(), main);
+      assert.equal(pulls.length, 1);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   }
 });
 
@@ -813,6 +863,7 @@ test("the GitHub client blocks a retained matching branch without writes", async
       });
     }
     if (url.includes("/pulls?") && options.method === "GET") return jsonResponse(200, []);
+    if (url.includes(`/compare/${syncSha}...${mainSha}`)) return jsonResponse(200, { status: "behind" });
     return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
   };
   const destination = createGithubDestination({ repo: "arcadeai-labs/omnimcp", token: "test-token", fetch });
@@ -832,6 +883,22 @@ test("the GitHub client blocks a retained matching branch without writes", async
   assert.equal(result.basePlan.deletions.includes("old.txt"), true);
   assert.equal(calls.some((call) => call.method !== "GET"), false);
   assert.equal(calls.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 0);
+});
+
+test("GitHub ancestry uses the compare API and refuses an unknown status", async () => {
+  const urls = [];
+  let status = "ahead";
+  const destination = createGithubDestination({ repo: SYNC_CONTRACT.destRepo, token: "test", fetch: async (url, options) => {
+    urls.push(`${options.method} ${url}`);
+    return jsonResponse(200, { status });
+  } });
+  assert.equal(await destination.isAncestor(SOURCE_SHA, NEXT_SHA), true);
+  assert.deepEqual(urls, [`GET https://api.github.com/repos/${SYNC_CONTRACT.destRepo}/compare/${SOURCE_SHA}...${NEXT_SHA}?per_page=1`]);
+  status = "identical";
+  assert.equal(await destination.isAncestor(SOURCE_SHA, SOURCE_SHA), true);
+  for (status of ["behind", "diverged"]) assert.equal(await destination.isAncestor(SOURCE_SHA, NEXT_SHA), false);
+  status = undefined;
+  await assert.rejects(destination.isAncestor(SOURCE_SHA, NEXT_SHA), /cannot establish destination ancestry/);
 });
 
 test("GitHub updates refuse a changed ref and only fast-forward the expected head", async () => {
