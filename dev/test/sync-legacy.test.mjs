@@ -538,6 +538,46 @@ test("an existing sync pull is updated in place", async () => {
   }
 });
 
+test("an open sync pull behind destination main is blocked without writes", async () => {
+  const repo = initRepo({ "docs/migration/repository-controls.md": controls(), "pkg/file.txt": "base\n" });
+  try {
+    const pulls = [];
+    assert.equal((await run(repo, sourceFrom({ "pkg/file.txt": "v1\n" }), { pulls })).result.action, "create");
+    const retained = git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim();
+    const body = pulls[0].body;
+    writeFileSync(join(repo, "stray.txt"), "landed on main while the pull request was open\n");
+    git(repo, ["add", "stray.txt"]); git(repo, ["commit", "-m", "stray file on main"]);
+    const main = git(repo, ["rev-parse", "main"]).trim();
+    const destination = createGitDestination({ repo, pulls });
+    destination.createCommit = async () => { throw new Error("must not create a commit"); };
+    destination.compareAndSwap = async () => { throw new Error("must not move a branch"); };
+    destination.updatePull = async () => { throw new Error("must not update the pull request"); };
+    for (const [sourceSha, files] of [[SOURCE_SHA, { "pkg/file.txt": "v1\n" }], [NEXT_SHA, { "pkg/file.txt": "v2\n" }]]) {
+      const result = await runSync({ sourceFiles: sourceFrom(files), sourceSha, destination });
+      assert.equal(result.action, "blocked", sourceSha);
+      assert.equal(result.outcome, "action-required");
+      assert.equal(result.pr, 1);
+      assert.equal(result.syncSha, retained);
+      assert.equal(result.baseSha, main);
+      assert.match(result.reason, /is behind main/);
+      assert.match(result.recovery, new RegExp(`Close pull request #1 and delete ${SYNC_CONTRACT.syncBranch} by hand`));
+      assert.match(result.recovery, /Do not use "Update branch" with a merge commit/);
+    }
+    assert.equal(git(repo, ["rev-parse", SYNC_CONTRACT.syncBranch]).trim(), retained);
+    assert.equal(pulls[0].body, body);
+    assert.equal(pulls.length, 1);
+
+    // Follow the recovery text: close the pull request and delete the branch.
+    pulls[0].state = "closed";
+    git(repo, ["branch", "-D", SYNC_CONTRACT.syncBranch]);
+    const recovered = await run(repo, sourceFrom({ "pkg/file.txt": "v2\n" }), { pulls, sourceSha: NEXT_SHA });
+    assert.equal(recovered.result.action, "create");
+    assert.equal(git(repo, ["show", "-s", "--format=%P", SYNC_CONTRACT.syncBranch]).trim(), main);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test("a failed pull create retains the review branch and does not write main", async () => {
   const repo = initRepo({ "docs/migration/repository-controls.md": controls(), "pkg/file.txt": "base\n" });
   const main = git(repo, ["rev-parse", "main"]).trim();
@@ -919,6 +959,7 @@ test("the GitHub client uploads only blobs that the parent and base trees do not
           head: { ref: SYNC_CONTRACT.syncBranch, repo: { full_name: SYNC_CONTRACT.destRepo } },
           base: { ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } }]);
       }
+      if (url.includes(`/compare/${mainSha}...${syncSha}`)) return jsonResponse(200, { status: "ahead" });
     }
     if (options.method === "POST" && url.endsWith("/git/blobs")) {
       return jsonResponse(201, { sha: gitBlobSha(Buffer.from(body.content, "base64")) });

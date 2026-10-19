@@ -95,7 +95,8 @@ const assertSourceSha = (sourceSha) => {
  * Every uncertain PR write retains the review branch and reconciles before
  * reporting recovery or an explicit action-required result.
  * A retained branch with no open pull request whose head is not an ancestor
- * of the destination base is `blocked`, and nothing is written.
+ * of the destination base is `blocked`, and nothing is written. So is an
+ * open pull request whose head does not contain the destination base.
  */
 export const runSync = async ({
   sourceFiles,
@@ -183,6 +184,28 @@ const blockedBranchNotOnBase = ({ contract, sourceSha, syncSha, baseSha, plan })
   ].join(" "),
 });
 
+/**
+ * The open sync pull request's head does not contain the destination base.
+ * The destination check fails that pull request, and a new commit on its
+ * head would fail too, so nothing is written.
+ */
+const blockedPullBehindBase = ({ contract, sourceSha, syncSha, baseSha, pr }) => ({
+  action: "blocked",
+  outcome: "action-required",
+  pr,
+  sourceSha,
+  syncBranch: contract.syncBranch,
+  syncSha,
+  baseBranch: contract.destBaseBranch,
+  baseSha,
+  reason: `Action required: open pull request #${pr} from ${contract.syncBranch} at ${syncSha} is behind ${contract.destBaseBranch} at ${baseSha}, so the destination check fails it.`,
+  recovery: [
+    `This run did not create a commit, move ${contract.syncBranch}, update the pull request, or update ${contract.destBaseBranch}.`,
+    `Close pull request #${pr} and delete ${contract.syncBranch} by hand; the next run starts a new branch from ${contract.destBaseBranch}.`,
+    `Do not use "Update branch" with a merge commit: that commit has no Source-SHA, so the destination check fails it and later runs refuse the branch.`,
+  ].join(" "),
+});
+
 const provenance = (message, contract) => {
   const one = (key) => {
     const values = lines(message).filter((line) => line.startsWith(`${key}: `));
@@ -257,6 +280,9 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
     const basePlan = diffTrees(baseFiles, desired);
     if (plan.noop && !basePlan.noop) return blockedUnmergedSync({ contract, sourceSha, syncSha, baseSha, plan, basePlan });
     return blockedBranchNotOnBase({ contract, sourceSha, syncSha, baseSha, plan });
+  }
+  if (open && !await destination.isAncestor(baseSha, syncSha)) {
+    return blockedPullBehindBase({ contract, sourceSha, syncSha, baseSha, pr: open.number });
   }
   // With no open pull request, main contains any retained sync head, as after
   // a merge commit. A commit on main still fast-forwards the sync branch, and
