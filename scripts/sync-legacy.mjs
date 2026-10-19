@@ -279,7 +279,8 @@ const syncBody = async ({ sourceFiles, sourceSha, destination, source, contract 
     return { action: "noop", pr: open?.number ?? null, plan };
   }
   if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before commit creation" };
-  const newSha = await destination.createCommit({ parent: parentSha, files: desired, message: syncCommitMessage(sourceSha, contract) });
+  const knownBlobs = new Set([...baseFiles.values(), ...parentFiles.values()].map((entry) => entry.blobSha));
+  const newSha = await destination.createCommit({ parent: parentSha, files: desired, message: syncCommitMessage(sourceSha, contract), knownBlobs });
   if (await source.getBranchSha(contract.sourceBranch) !== sourceSha) return { action: "skip", reason: "source advanced before branch update" };
   await destination.compareAndSwap({ branch: contract.syncBranch, from: syncSha, to: newSha });
   try {
@@ -387,11 +388,14 @@ export const createGithubDestination = ({ repo, token, fetch }) => {
       }
       return files;
     },
-    async createCommit({ parent, files, message }) {
+    // `knownBlobs` holds blob SHAs read from destination trees. Those blobs
+    // already exist in the repository, so they are referenced instead of
+    // uploaded; GitHub limits how many content-creating requests run per minute.
+    async createCommit({ parent, files, message, knownBlobs = new Set() }) {
       const tree = [];
       for (const [path, entry] of files) {
-        let sha = entry.bytes ? null : entry.blobSha;
-        if (entry.bytes) {
+        let sha = entry.blobSha;
+        if (entry.bytes && !knownBlobs.has(sha)) {
           const blob = await api("POST", `/repos/${repo}/git/blobs`, {
             content: entry.bytes.toString("base64"),
             encoding: "base64",

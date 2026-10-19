@@ -885,6 +885,66 @@ test("the GitHub client blocks a retained matching branch without writes", async
   assert.equal(calls.filter((call) => call.method === "POST" && call.url.endsWith("/pulls")).length, 0);
 });
 
+test("the GitHub client uploads only blobs that the parent and base trees do not already have", async () => {
+  const mainSha = "1".repeat(40);
+  const syncSha = "8".repeat(40);
+  const mainTree = "3".repeat(40);
+  const syncTree = "6".repeat(40);
+  const notice = entryFromBytes("100644", repositoryControlsDocument());
+  const legacy = entryFromBytes("100644", "legacy\n");
+  const previous = sourceFrom({ "plugin.json": "{}\n", "pkg/a.txt": "v1\n" });
+  const next = sourceFrom({ "plugin.json": "{}\n", "pkg/a.txt": "v2\n", "pkg/legacy-copy.txt": "legacy\n" });
+  const treeOf = (files) => [...files].map(([path, entry]) => ({ path, mode: entry.mode, type: "blob", sha: entry.blobSha }));
+  const calls = [];
+  const fetch = async (url, options) => {
+    const body = options.body ? JSON.parse(options.body) : null;
+    calls.push({ url, method: options.method, body });
+    if (options.method === "GET") {
+      if (url.endsWith("/git/ref/heads/main")) return jsonResponse(200, { object: { sha: mainSha } });
+      if (url.endsWith("/git/ref/heads/sync%2Fcanonical-main")) return jsonResponse(200, { object: { sha: syncSha } });
+      if (url.endsWith(`/git/commits/${mainSha}`)) return jsonResponse(200, { tree: { sha: mainTree } });
+      if (url.endsWith(`/git/commits/${syncSha}`)) {
+        return jsonResponse(200, { tree: { sha: syncTree }, message: syncCommitMessage(SOURCE_SHA), parents: [{ sha: mainSha }] });
+      }
+      if (url.includes(`/git/trees/${mainTree}`)) {
+        return jsonResponse(200, { truncated: false, tree: treeOf(new Map([["legacy.txt", legacy], [SYNC_CONTRACT.preserve[0], notice]])) });
+      }
+      if (url.includes(`/git/trees/${syncTree}`)) {
+        return jsonResponse(200, { truncated: false, tree: treeOf(new Map([...previous, [SYNC_CONTRACT.preserve[0], notice]])) });
+      }
+      if (url.includes("/pulls?")) {
+        return jsonResponse(200, [{ number: 5, body: syncPullBody(SOURCE_SHA),
+          head: { ref: SYNC_CONTRACT.syncBranch, repo: { full_name: SYNC_CONTRACT.destRepo } },
+          base: { ref: "main", repo: { full_name: SYNC_CONTRACT.destRepo } } }]);
+      }
+    }
+    if (options.method === "POST" && url.endsWith("/git/blobs")) {
+      return jsonResponse(201, { sha: gitBlobSha(Buffer.from(body.content, "base64")) });
+    }
+    if (options.method === "POST" && url.endsWith("/git/trees")) return jsonResponse(201, { sha: "9".repeat(40) });
+    if (options.method === "POST" && url.endsWith("/git/commits")) return jsonResponse(201, { sha: "4".repeat(40) });
+    if (options.method === "PATCH" && url.endsWith("/git/refs/heads/sync%2Fcanonical-main")) return jsonResponse(200, {});
+    if (options.method === "PATCH" && url.endsWith("/pulls/5")) return jsonResponse(200, {});
+    return jsonResponse(500, { message: `unexpected ${options.method} ${url}` });
+  };
+  const destination = createGithubDestination({ repo: SYNC_CONTRACT.destRepo, token: "test-token", fetch });
+  const result = await syncRun({ sourceFiles: next, sourceSha: NEXT_SHA, destination, source: {
+    async getBranchSha() { return NEXT_SHA; },
+    async isAncestor(a, b) { return a === SOURCE_SHA && b === NEXT_SHA; },
+    async readFiles(sha) { return sha === SOURCE_SHA ? previous : next; },
+  } });
+  assert.equal(result.action, "update");
+  const uploads = calls.filter((call) => call.method === "POST" && call.url.endsWith("/git/blobs"));
+  assert.deepEqual(uploads.map((call) => Buffer.from(call.body.content, "base64").toString()), ["v2\n"]);
+  const tree = calls.find((call) => call.method === "POST" && call.url.endsWith("/git/trees")).body.tree;
+  assert.deepEqual(Object.fromEntries(tree.map((entry) => [entry.path, entry.sha])), {
+    "plugin.json": next.get("plugin.json").blobSha,
+    "pkg/a.txt": next.get("pkg/a.txt").blobSha,
+    "pkg/legacy-copy.txt": legacy.blobSha,
+    [SYNC_CONTRACT.preserve[0]]: notice.blobSha,
+  });
+});
+
 test("GitHub ancestry uses the compare API and refuses an unknown status", async () => {
   const urls = [];
   let status = "ahead";
