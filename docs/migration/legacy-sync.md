@@ -78,9 +78,12 @@ uploads every file whose content legacy main lacks, about 140 blobs. The run
 sends blob, tree and commit requests one second apart, at most 60 per minute.
 A 429, or a 403 that names a rate limit, is retried up to three times. The
 wait is `retry-after` seconds; otherwise the time to `x-ratelimit-reset` when
-no requests remain; otherwise one minute, doubled on each retry. A 403 for
-missing permissions fails at once. A run that gives up or times out while
-creating the commit has not moved the sync branch.
+no requests remain; otherwise one minute, doubled on each retry. A single wait
+is at most five minutes, because the staged workflow stops the job after 20
+minutes. When GitHub asks for a longer wait, the run fails with an error that
+gives the requested wait. A 403 for missing permissions fails at once. A run
+that gives up or times out while creating the commit has not moved the sync
+branch.
 
 PR-create errors can mean GitHub accepted the request but lost the response.
 The run reads back the PR and ref, reports recovery when acceptance is clear,

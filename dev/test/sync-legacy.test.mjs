@@ -1085,6 +1085,24 @@ test("a permission 403 is not retried and a repeated rate limit gives up after t
   assert.deepEqual(limited.waits, [60_000, 1_000, 120_000, 1_000, 240_000, 1_000]);
 });
 
+test("a rate-limit wait longer than five minutes stops the run before the sync branch moves", async () => {
+  const cases = [
+    { limit: githubResponse(429, { message: SECONDARY_LIMIT }, { "retry-after": "3600" }), seconds: 3600 },
+    // The fake clock starts at 0, so a reset at epoch second 1800 is 30 minutes away.
+    { limit: githubResponse(403, { message: SECONDARY_LIMIT }, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1800" }), seconds: 1800 },
+  ];
+  for (const { limit, seconds } of cases) {
+    const { destination, requests, waits } = fakeGitWrites(() => limit);
+    await assert.rejects(destination.createCommit({ parent: "1".repeat(40), files: oneFile(), message: "sync" }),
+      new RegExp(`rate limit asks to wait ${seconds} seconds .*stopped before moving the sync branch`));
+    assert.equal(requests.length, 1);
+    assert.deepEqual(waits, []);
+  }
+  const atLimit = fakeGitWrites((_request, all) => all.length === 1 ? githubResponse(429, { message: SECONDARY_LIMIT }, { "retry-after": "300" }) : null);
+  assert.equal(await atLimit.destination.createCommit({ parent: "1".repeat(40), files: oneFile(), message: "sync" }), "4".repeat(40));
+  assert.deepEqual(atLimit.waits, [300_000, 1_000, 1_000, 1_000]);
+});
+
 test("GitHub ancestry uses the compare API and refuses an unknown status", async () => {
   const urls = [];
   let status = "ahead";

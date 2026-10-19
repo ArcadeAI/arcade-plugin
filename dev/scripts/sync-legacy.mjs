@@ -368,6 +368,9 @@ export const githubRefPath = (branch) =>
 // One second between writes keeps a long run of blob uploads under it.
 const WRITE_INTERVAL_MS = 1000;
 const RATE_LIMIT_RETRIES = 3;
+// The staged workflow stops the job after 20 minutes. A longer wait would end
+// the run with a timeout instead of an error that says why it stopped.
+const MAX_RATE_LIMIT_WAIT_MS = 5 * 60_000;
 
 /**
  * Milliseconds to wait before retrying a rate-limited response, or null when
@@ -431,6 +434,9 @@ export const createGithubDestination = ({
       const wait = rateLimitWaitMs({ status: response.status, headers: response.headers, text, retry, now });
       if (wait === null || retry === RATE_LIMIT_RETRIES) {
         throw new Error(`GitHub POST ${path} failed: ${response.status} ${text}`);
+      }
+      if (wait > MAX_RATE_LIMIT_WAIT_MS) {
+        throw new Error(`GitHub's rate limit asks to wait ${Math.ceil(wait / 1000)} seconds before retrying POST ${path}, more than the ${MAX_RATE_LIMIT_WAIT_MS / 1000}-second limit. The run stopped before moving the sync branch.`);
       }
       await sleep(wait);
     }
