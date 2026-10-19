@@ -42,17 +42,29 @@ jobs:
           token: ${{ secrets.OMNIMCP_SYNC_TOKEN }}
           path: dest
 
-      # omnimcp has published versions of its own, so a release from this
-      # repository must be newer than the version omnimcp already lists.
-      - name: Refuse to lower omnimcp's version
+      - name: Check the release can be synced
         env:
           SOURCE_TAG: ${{ inputs.source_tag }}
         run: |
-          release="${SOURCE_TAG#v}"
+          release="$(jq -r .version source/plugin.json)"
+          if ! [[ "$release" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$SOURCE_TAG" != "v${release}" ]; then
+            echo "::error::${SOURCE_TAG} is not a stable release tag for plugin.json version ${release}"
+            exit 1
+          fi
+
+          # omnimcp has published versions of its own, so a release from this
+          # repository must be newer than the version omnimcp already lists.
           current="$(jq -r .version dest/plugin.json)"
           highest="$(printf '%s\n%s\n' "$current" "$release" | sort -V | tail -n 1)"
           if [ "$release" = "$current" ] || [ "$highest" != "$release" ]; then
             echo "::error::omnimcp is at ${current}; refusing to sync ${release}"
+            exit 1
+          fi
+
+          # create-pull-request would force-push over commits a reviewer added
+          # to this branch, and would open a new PR for a sync someone closed.
+          if git -C dest ls-remote --exit-code --heads origin "sync/release-${SOURCE_TAG}" > /dev/null; then
+            echo "::error::omnimcp already has sync/release-${SOURCE_TAG}; delete that branch to sync this release again"
             exit 1
           fi
 
