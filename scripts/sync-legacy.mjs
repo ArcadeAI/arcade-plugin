@@ -4,10 +4,7 @@
 // writes unless a push to canonical main opts in with SYNC_LEGACY_APPLY=1.
 
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { chmodSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -292,120 +289,6 @@ export const readGitTree = (repo, rev = "HEAD") => {
   }
   return files;
 };
-
-const removeEmptyDirectories = (root) => {
-  const walk = (directory) => {
-    for (const name of readdirSync(directory, { withFileTypes: true })) {
-      if (!name.isDirectory() || name.name === ".git") continue;
-      const child = join(directory, name.name);
-      walk(child);
-      if (readdirSync(child).length === 0) rmSync(child, { recursive: true });
-    }
-  };
-  walk(root);
-};
-
-/**
- * Replace the destination worktree contents with the mirrored tree.
- * Does not create a commit or update a ref.
- */
-export const materializeMirror = ({
-  sourceRepo,
-  destRepo,
-  contract = SYNC_CONTRACT,
-  sourceRev = "HEAD",
-  destRev = "HEAD",
-}) => {
-  const sourceFiles = readGitTree(sourceRepo, sourceRev);
-  const destFiles = readGitTree(destRepo, destRev);
-  const desired = desiredTree({ sourceFiles, destFiles, contract });
-  const plan = diffTrees(destFiles, desired);
-  for (const path of [...destFiles.keys()].sort((left, right) => right.length - left.length)) {
-    if (!desired.has(path)) rmSync(join(destRepo, path), { force: true });
-  }
-  for (const [path, entry] of desired) {
-    if (!entry.bytes) throw new Error(`${path} has no bytes to write`);
-    const absolute = join(destRepo, path);
-    mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, entry.bytes);
-    chmodSync(absolute, entry.mode === "100755" ? 0o755 : 0o644);
-  }
-  removeEmptyDirectories(destRepo);
-  return { plan, desired };
-};
-
-/**
- * Destination port backed by local git refs. Pull requests stay in `pulls`.
- * `compareAndSwap` refuses `main` and `master`.
- */
-export const createGitDestination = ({ repo, pulls, failCreate = false, failSwap = false }) => ({
-  async getBranchSha(branch) {
-    const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], {
-      cwd: repo,
-      encoding: "utf8",
-    });
-    if (result.status !== 0) return null;
-    return result.stdout.trim() || null;
-  },
-  async readFiles(sha) {
-    return readGitTree(repo, sha);
-  },
-  async getCommit(sha) {
-    return { message: gitCommand(repo, ["show", "-s", "--format=%B", sha], { encoding: "utf8" }),
-      parents: gitCommand(repo, ["show", "-s", "--format=%P", sha], { encoding: "utf8" }).trim().split(" ").filter(Boolean) };
-  },
-  async createCommit({ parent, files, message }) {
-    const index = join(tmpdir(), `sync-index-${randomUUID()}`);
-    const env = { ...process.env, GIT_INDEX_FILE: index };
-    const run = (args, input) => {
-      const result = spawnSync("git", args, { cwd: repo, env, input, maxBuffer: 32 * 1024 * 1024 });
-      if (result.status !== 0) {
-        throw new Error(result.stderr?.toString() || `git ${args.join(" ")} failed`);
-      }
-      return result.stdout;
-    };
-    try {
-      run(["read-tree", "--empty"]);
-      for (const [path, entry] of files) {
-        if (!entry.bytes) throw new Error(`${path} has no bytes to commit`);
-        const blob = run(["hash-object", "-w", "--stdin"], entry.bytes).toString().trim();
-        run(["update-index", "--add", `--cacheinfo`, `${entry.mode},${blob},${path}`]);
-      }
-      const tree = run(["write-tree"]).toString().trim();
-      return gitCommand(repo, ["commit-tree", tree, "-p", parent, "-m", message], { encoding: "utf8" }).trim();
-    } finally {
-      rmSync(index, { force: true });
-    }
-  },
-  async compareAndSwap({ branch, from, to }) {
-    if (PROTECTED_BRANCHES.has(branch)) {
-      throw new Error(`refusing to update protected branch ${branch}`);
-    }
-    if (failSwap) throw new Error("mock ref update failed");
-    if (to === null) throw new Error("automation never deletes a review branch");
-    if (from === null) {
-      gitCommand(repo, ["update-ref", `refs/heads/${branch}`, to, "0".repeat(40)]);
-      return;
-    }
-    gitCommand(repo, ["update-ref", `refs/heads/${branch}`, to, from]);
-  },
-  async findOpenPull(branch, contract = SYNC_CONTRACT) {
-    return selectSyncPull(pulls.filter((pull) => pull.branch === branch && pull.state === "open"), branch, contract);
-  },
-  async createPull({ branch, base, title, body, draft }) {
-    if (failCreate) throw new Error("mock pull create failed");
-    const pull = { number: pulls.length + 1, branch, base, title, body, draft, state: "open", headRepo: SYNC_CONTRACT.destRepo, baseRepo: SYNC_CONTRACT.destRepo };
-    pulls.push(pull);
-    return pull;
-  },
-  async updatePull({ number, title, body }) {
-    const pull = pulls.find((item) => item.number === number);
-    if (!pull) throw new Error(`pull ${number} not found`);
-    if (pull.state !== "open") throw new Error(`pull ${number} is not open`);
-    pull.title = title;
-    pull.body = body;
-  },
-});
 
 /** GitHub git-ref path. Nested branch names must encode `/` as `%2F`. */
 export const githubRefPath = (branch) =>

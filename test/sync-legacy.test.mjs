@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,7 +8,6 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import {
   SYNC_CONTRACT,
-  createGitDestination,
   createGithubDestination,
   desiredTree,
   diffTrees,
@@ -16,7 +16,6 @@ import {
   githubRefPath,
   isExcluded,
   liveSyncGate,
-  materializeMirror,
   readGitTree,
   reportSyncResult,
   repositoryControlsDocument,
@@ -54,6 +53,76 @@ const initRepo = (files) => {
 };
 
 const controls = () => repositoryControlsDocument();
+
+/**
+ * Destination port backed by local git refs. Pull requests stay in `pulls`.
+ * `compareAndSwap` refuses `main` and `master`.
+ */
+const createGitDestination = ({ repo, pulls, failCreate = false, failSwap = false }) => ({
+  async getBranchSha(branch) {
+    const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], {
+      cwd: repo,
+      encoding: "utf8",
+    });
+    if (result.status !== 0) return null;
+    return result.stdout.trim() || null;
+  },
+  async readFiles(sha) {
+    return readGitTree(repo, sha);
+  },
+  async getCommit(sha) {
+    return { message: git(repo, ["show", "-s", "--format=%B", sha]),
+      parents: git(repo, ["show", "-s", "--format=%P", sha]).trim().split(" ").filter(Boolean) };
+  },
+  async createCommit({ parent, files, message }) {
+    const index = join(tmpdir(), `sync-index-${randomUUID()}`);
+    const env = { ...process.env, GIT_INDEX_FILE: index };
+    const run = (args, input) => {
+      const result = spawnSync("git", args, { cwd: repo, env, input, maxBuffer: 32 * 1024 * 1024 });
+      if (result.status !== 0) {
+        throw new Error(result.stderr?.toString() || `git ${args.join(" ")} failed`);
+      }
+      return result.stdout;
+    };
+    try {
+      run(["read-tree", "--empty"]);
+      for (const [path, entry] of files) {
+        if (!entry.bytes) throw new Error(`${path} has no bytes to commit`);
+        const blob = run(["hash-object", "-w", "--stdin"], entry.bytes).toString().trim();
+        run(["update-index", "--add", `--cacheinfo`, `${entry.mode},${blob},${path}`]);
+      }
+      const tree = run(["write-tree"]).toString().trim();
+      return git(repo, ["commit-tree", tree, "-p", parent, "-m", message]).trim();
+    } finally {
+      rmSync(index, { force: true });
+    }
+  },
+  async compareAndSwap({ branch, from, to }) {
+    if (branch === "main" || branch === "master") {
+      throw new Error(`refusing to update protected branch ${branch}`);
+    }
+    if (failSwap) throw new Error("mock ref update failed");
+    if (to === null) throw new Error("automation never deletes a review branch");
+    git(repo, ["update-ref", `refs/heads/${branch}`, to, from ?? "0".repeat(40)]);
+  },
+  async findOpenPull(branch, contract = SYNC_CONTRACT) {
+    return selectSyncPull(pulls.filter((pull) => pull.branch === branch && pull.state === "open"), branch, contract);
+  },
+  async createPull({ branch, base, title, body, draft }) {
+    if (failCreate) throw new Error("mock pull create failed");
+    const pull = { number: pulls.length + 1, branch, base, title, body, draft, state: "open", headRepo: SYNC_CONTRACT.destRepo, baseRepo: SYNC_CONTRACT.destRepo };
+    pulls.push(pull);
+    return pull;
+  },
+  async updatePull({ number, title, body }) {
+    const pull = pulls.find((item) => item.number === number);
+    if (!pull) throw new Error(`pull ${number} not found`);
+    if (pull.state !== "open") throw new Error(`pull ${number} is not open`);
+    pull.title = title;
+    pull.body = body;
+  },
+});
+
 
 const sourceFrom = (files) => new Map(Object.entries(files).map(([path, contents]) => [path, entryFromBytes("100644", contents)]));
 
@@ -452,34 +521,6 @@ test("release-please is absent from the synced tree", async () => {
     assert.notEqual(release.status, 0);
   } finally {
     rmSync(repo, { recursive: true, force: true });
-  }
-});
-
-test("materializeMirror edits the worktree and does not move HEAD", () => {
-  const source = initRepo({
-    "plugin.json": "{\"version\":\"0.7.0\"}\n",
-    ".github/workflows/release-please.yml": "name: Release Please\n",
-    "sync/legacy-sync.workflow.yml": "name: sync-legacy\n",
-    "docs/migration/legacy-sync.md": "inert\n",
-  });
-  const dest = initRepo({
-    "obsolete.txt": "old\n",
-    "docs/migration/repository-controls.md": "keep me\n",
-  });
-  const head = git(dest, ["rev-parse", "HEAD"]).trim();
-  try {
-    const { plan } = materializeMirror({ sourceRepo: source, destRepo: dest });
-    assert.equal(plan.additions.includes("plugin.json"), true);
-    assert.equal(plan.deletions.includes("obsolete.txt"), true);
-    assert.equal(readFileSync(join(dest, "plugin.json"), "utf8"), "{\"version\":\"0.7.0\"}\n");
-    assert.equal(readFileSync(join(dest, "docs/migration/repository-controls.md"), "utf8"), "keep me\n");
-    assert.equal(spawnSync("test", ["-e", join(dest, "obsolete.txt")]).status, 1);
-    assert.equal(spawnSync("test", ["-e", join(dest, ".github/workflows/release-please.yml")]).status, 1);
-    assert.equal(git(dest, ["rev-parse", "HEAD"]).trim(), head);
-    assert.equal(git(dest, ["show", "HEAD:obsolete.txt"]), "old\n");
-  } finally {
-    rmSync(source, { recursive: true, force: true });
-    rmSync(dest, { recursive: true, force: true });
   }
 });
 
