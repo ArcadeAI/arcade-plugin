@@ -148,5 +148,5 @@ writes `.github/workflows/check.yml`.
 The complete workflow-directory exclusion prevents that activated source job
 from being copied to the destination. Source token permissions remain read-only;
 checkout does not persist credentials. Missing opt-in or token refuses live use.
-Merging the version bump does not authorize a tag, release, listing change,
-or automatic cutover. Both PRs require fresh independent review before readiness.
+Merging this staging does not authorize a tag, release, listing change, or
+automatic cutover.
