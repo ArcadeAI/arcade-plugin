@@ -30,7 +30,7 @@ function fixture(t) {
   write(dest, "CHANGELOG.md", "omnimcp changelog\n");
   write(dest, ".github/verify-mirror.mjs", "obsolete verifier\n");
   write(dest, ".github/workflows/custom.yml", "custom destination CI\n");
-  write(dest, "docs/migration/README.md", "destination migration notice\n");
+  write(dest, "docs/migration/repository-controls.md", "notes about the old mirror check\n");
   return {
     source, dest, write,
     run: () => spawnSync("bash", [join(ROOT, "dev/scripts/sync-omnimcp-tree.sh"), source, dest], { encoding: "utf8" }),
@@ -45,7 +45,7 @@ test("sync replaces the deployed legacy validator and preserves destination-owne
   assert.equal(readFileSync(join(f.dest, workflow), "utf8"), readRepoFile(template));
   assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "new release\n");
   assert.equal(readFileSync(join(f.dest, ".github/workflows/custom.yml"), "utf8"), "custom destination CI\n");
-  assert.equal(readFileSync(join(f.dest, "docs/migration/README.md"), "utf8"), "destination migration notice\n");
+  assert.ok(!existsSync(join(f.dest, "docs/migration/repository-controls.md")));
   assert.equal(readFileSync(join(f.dest, "README.md"), "utf8"), "omnimcp listing README\n");
   assert.equal(readFileSync(join(f.dest, "CHANGELOG.md"), "utf8"), "omnimcp changelog\n");
   assert.ok(!existsSync(join(f.dest, ".github/verify-mirror.mjs")));
