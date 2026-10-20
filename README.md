@@ -73,18 +73,15 @@ replaces the first. Use one install source per client to avoid duplicates.
 This path requires a ChatGPT account with plugin upload access. For a managed workspace, an eligible owner or admin uploads the plugin; members install it from their workspace's plugin directory.
 
 1. Open [Arcade's official plugin releases](https://github.com/ArcadeAI/arcade-plugin/releases) in your browser.
-2. Expand **Assets** on a release that includes the ChatGPT plugin and download `arcade-chatgpt-{VERSION}.zip`. Do not use GitHub's **Source code (zip)** download. If the ChatGPT ZIP is absent, that release does not include it.
-3. Keep the file compressed. On iPhone, Safari downloads appear in **Files → Browse → iCloud Drive → Downloads**, unless you chose another download location. On Android, find the file in Chrome's **Downloads** or your Files app.
-4. Open [ChatGPT on the web](https://chatgpt.com) in the account and workspace where you want to install Arcade. Use the plugin upload option available to your account and select the downloaded ZIP. For eligible workspace owners and admins, the path is **Admin console → your workspace → Plugins → Add → Upload plugin**.
-5. Select **Install plugin** if prompted, then connect Arcade and sign in when prompted.
+2. Expand **Assets** on a release that includes the ChatGPT plugin and download `arcade-chatgpt-{VERSION}.zip`. Do not use GitHub's **Source code (zip)** download. If the ChatGPT ZIP is absent, that release does not include it. Keep the file compressed.
+3. Open [ChatGPT on the web](https://chatgpt.com) in the account and workspace where you want to install Arcade. Use the plugin upload option available to your account and select the downloaded ZIP. For eligible workspace owners and admins, the path is **Admin console → your workspace → Plugins → Add → Upload plugin**.
+4. Select **Install plugin** if prompted, then connect Arcade and sign in when prompted.
 
 If you don't see an upload option, check your account's access or ask your workspace admin. Uploading a ZIP to an ordinary chat does not install it. This installation flow is separate from submitting a plugin for public publication.
 
-**Using a phone:** OpenAI documents plugin-directory installation in the mobile apps, but does not document ZIP upload in those apps or guarantee it in a mobile browser. Use ChatGPT web on a computer if the upload control is unavailable on your phone. After a workspace admin makes Arcade available, install it from that workspace's plugin directory in the mobile app.
-
 Upload availability and where a plugin can run are separate. Plugins marked **Desktop only** require the ChatGPT desktop app.
 
-See [OpenAI's plugin installation guide](https://help.openai.com/en/articles/20001256-plugins-in-chatgpt), [Apple's download instructions](https://support.apple.com/en-us/102440), and [Chrome's Android download instructions](https://support.google.com/chrome/answer/95759?co=GENIE.Platform%3DAndroid&hl=en-GB).
+See [OpenAI's plugin installation guide](https://help.openai.com/en/articles/20001256-plugins-in-chatgpt).
 
 ## What each client gets
 
