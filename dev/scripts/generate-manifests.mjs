@@ -199,7 +199,10 @@ const buildFiles = (root) => {
   }
   const { url } = readJson(root, "mcp.json").mcpServers.arcade;
   const { interface: openaiListing } = plugin.extensions["com.openai"];
-  const { displayName } = openaiListing;
+  // The ChatGPT directory already lists a plugin named "Arcade" from another
+  // company, so the OpenAI listing uses "Arcade.dev". The other clients keep
+  // "Arcade".
+  const displayName = "Arcade";
   if (!openaiListing.logo) {
     throw new Error("plugin.json extensions.com.openai.interface.logo is missing");
   }
