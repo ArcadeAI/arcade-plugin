@@ -1,7 +1,9 @@
 # Plugin telemetry
 
 **Telemetry is off in this build.** The plugin sends no usage events, and
-`npm run generate` writes no telemetry hooks into any client manifest.
+`npm run generate` writes no telemetry hooks into any client manifest. This
+build also ships no PostHog key, and `hooks/telemetry-send.mjs` exits without
+reading the environment or contacting a server.
 `TELEMETRY_ENABLED` in `hooks/telemetry-config.mjs` stays `false` until
 collection is separately approved after ingestion, opt-outs, privacy, and
 distribution requirements are verified.
@@ -72,9 +74,6 @@ variable, leaves that switch inactive. `COPILOT_OFFLINE` turns telemetry off
 when it is set to any non-empty value other than `0`, `false`, `off`, or `no`.
 An unset or empty `COPILOT_OFFLINE`, and those four values, leave telemetry on
 through this switch.
-
-For testing an enabled build, `ARCADE_PLUGIN_TELEMETRY_HOST` sends events to a
-different host.
 
 ## Where it runs
 
@@ -252,6 +251,11 @@ shipping telemetry hooks. Confirm, outside this repository:
 - verified ingestion per client and `telemetry_version` for the build under review
 - opt-out switches verified on each supported client surface
 - applicable store or distribution decisions for builds that transmit data
+
+The change that turns telemetry on also has to restore the event sender in
+`hooks/telemetry-send.mjs`, the PostHog project key in
+`hooks/telemetry-config.mjs`, and the session-start call to `clearSessionScope`
+in `hooks/session-start.mjs`.
 
 These are release acceptance requirements; the current code and CI do not
 enforce them. A repository install can consume a branch before a GitHub release

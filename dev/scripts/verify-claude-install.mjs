@@ -50,7 +50,12 @@ function verifyInstall(repo, copy, config) {
 
   const marketplace = JSON.parse(readFileSync(join(copy, ".claude-plugin/marketplace.json"), "utf8"));
   const plugin = marketplace.plugins[0].name;
-  const env = { ...process.env, CLAUDE_CONFIG_DIR: config };
+  // Pass PATH and locale only. Do not copy the parent environment.
+  const env = { PATH: process.env.PATH ?? "", CLAUDE_CONFIG_DIR: config };
+  for (const name of ["PATHEXT", "SystemRoot", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL"]) {
+    const value = process.env[name];
+    if (value) env[name] = value;
+  }
   claude(["plugin", "marketplace", "add", copy], env);
   claude(["plugin", "install", `${plugin}@${marketplace.name}`], env);
 
