@@ -38,11 +38,14 @@ fi
 # omnimcp keeps its own README: the Claude plugin directory shows it as the
 # listing page, and it tells people to install arcadeai-labs/omnimcp. Copy
 # changes it needs, such as a telemetry disclosure, by hand.
+# omnimcp also keeps its own CHANGELOG, which records its own releases
+# (0.7.0 and 0.7.1 shipped only there).
 rsync -a --checksum --delete \
   --exclude=/.git \
   --exclude=/.github/workflows/ \
   --exclude=/docs/migration/ \
   --exclude=/README.md \
+  --exclude=/CHANGELOG.md \
   "$source_tree/" "$destination/"
 mkdir -p "$destination/.github/workflows"
 install -m 644 "$replacement" "$workflow"

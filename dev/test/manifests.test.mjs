@@ -32,6 +32,7 @@ test("Claude marketplace keeps its listing identity and support contact", () => 
   const [listed] = marketplace.plugins;
   assert.equal(listed.name, "arcade");
   assert.equal(listed.source, "./");
+  assert.equal(listed.repository, "https://github.com/ArcadeAI/arcade-plugin");
   assert.deepEqual(listed.author, author);
   assert.equal(listed.displayName, "Arcade");
 });
