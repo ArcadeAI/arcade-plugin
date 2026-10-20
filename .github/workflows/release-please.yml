@@ -68,4 +68,5 @@ jobs:
     with:
       source_tag: ${{ needs.release-please.outputs.tag_name }}
     secrets:
-      OMNIMCP_SYNC_TOKEN: ${{ secrets.OMNIMCP_SYNC_TOKEN }}
+      OMNIMCP_SYNC_APP_CLIENT_ID: ${{ secrets.OMNIMCP_SYNC_APP_CLIENT_ID }}
+      OMNIMCP_SYNC_APP_PRIVATE_KEY: ${{ secrets.OMNIMCP_SYNC_APP_PRIVATE_KEY }}

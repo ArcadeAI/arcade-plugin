@@ -9,9 +9,12 @@ on:
         required: true
         type: string
     secrets:
-      # Classic PATs also need the workflow scope alongside repository access.
-      OMNIMCP_SYNC_TOKEN:
-        description: Token with contents, pull-request, and workflow write access to arcadeai-labs/omnimcp
+      # The App needs Workflows write because the sync PR replaces omnimcp's check.yml.
+      OMNIMCP_SYNC_APP_CLIENT_ID:
+        description: Client ID of the GitHub App installed on arcadeai-labs/omnimcp with Contents, Pull requests, and Workflows write access
+        required: true
+      OMNIMCP_SYNC_APP_PRIVATE_KEY:
+        description: Private key of that GitHub App
         required: true
   workflow_dispatch:
     inputs:
@@ -38,10 +41,18 @@ jobs:
           path: source
           persist-credentials: false
 
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: omnimcp-token
+        with:
+          client-id: ${{ secrets.OMNIMCP_SYNC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.OMNIMCP_SYNC_APP_PRIVATE_KEY }}
+          owner: arcadeai-labs
+          repositories: omnimcp
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: arcadeai-labs/omnimcp
-          token: ${{ secrets.OMNIMCP_SYNC_TOKEN }}
+          token: ${{ steps.omnimcp-token.outputs.token }}
           path: dest
 
       - name: Check the release can be synced
@@ -80,7 +91,7 @@ jobs:
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           path: dest
-          token: ${{ secrets.OMNIMCP_SYNC_TOKEN }}
+          token: ${{ steps.omnimcp-token.outputs.token }}
           branch: sync/release-${{ inputs.source_tag }}
           draft: true
           title: "sync: mirror ${{ inputs.source_tag }}"
