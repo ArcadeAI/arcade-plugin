@@ -19,7 +19,7 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Arcade",
+        "displayName": "Arcade.dev",
         "shortDescription": "Your agent, all your apps.",
         "longDescription": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key.",
         "developerName": "Arcade.dev",
