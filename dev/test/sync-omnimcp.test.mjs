@@ -24,8 +24,10 @@ function fixture(t) {
   write(source, ".github/workflows/sync-omnimcp.yml", "canonical sync automation\n");
   write(source, "plugin.json", "new release\n");
   write(source, "README.md", "canonical README\n");
+  write(source, "CHANGELOG.md", "canonical changelog\n");
   write(dest, "plugin.json", "old release\n");
   write(dest, "README.md", "omnimcp listing README\n");
+  write(dest, "CHANGELOG.md", "omnimcp changelog\n");
   write(dest, ".github/verify-mirror.mjs", "obsolete verifier\n");
   write(dest, ".github/workflows/custom.yml", "custom destination CI\n");
   write(dest, "docs/migration/README.md", "destination migration notice\n");
@@ -45,6 +47,7 @@ test("sync replaces the deployed legacy validator and preserves destination-owne
   assert.equal(readFileSync(join(f.dest, ".github/workflows/custom.yml"), "utf8"), "custom destination CI\n");
   assert.equal(readFileSync(join(f.dest, "docs/migration/README.md"), "utf8"), "destination migration notice\n");
   assert.equal(readFileSync(join(f.dest, "README.md"), "utf8"), "omnimcp listing README\n");
+  assert.equal(readFileSync(join(f.dest, "CHANGELOG.md"), "utf8"), "omnimcp changelog\n");
   assert.ok(!existsSync(join(f.dest, ".github/verify-mirror.mjs")));
   for (const file of ["release-please.yml", "sync-omnimcp.yml"]) {
     assert.ok(!existsSync(join(f.dest, ".github/workflows", file)), file);
