@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
@@ -104,7 +104,9 @@ test("requireSources throws when a generated path has no FILE_SOURCES entry", ()
 });
 
 // Mirrors what release-please does with release-please-config.json.
-test("a release-please version bump leaves generated files in sync", () => {
+// omnimcp doesn't run Release Please, so its mirror has no config.
+const releasePleaseSkip = !existsSync(join(ROOT, "release-please-config.json")) && "no release-please-config.json";
+test("a release-please version bump leaves generated files in sync", { skip: releasePleaseSkip }, () => {
   const root = makeFixture();
   const config = JSON.parse(readRepoFile("release-please-config.json")).packages["."];
   try {

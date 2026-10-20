@@ -9,6 +9,13 @@ import { ROOT, readRepoFile } from "./helpers.mjs";
 const template = "dev/templates/omnimcp-check.yml";
 const legacy = "dev/test/fixtures/omnimcp/legacy-check.yml";
 const workflow = ".github/workflows/check.yml";
+// Files that only matter to this repository and stay out of omnimcp.
+const INTERNAL = [
+  "release-please-config.json",
+  ".release-please-manifest.json",
+  "dev/scripts/sync-omnimcp-tree.sh",
+  "dev/test/sync-omnimcp.test.mjs",
+];
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), "omnimcp-sync-"));
@@ -25,9 +32,11 @@ function fixture(t) {
   write(source, "plugin.json", "new release\n");
   write(source, "README.md", "canonical README\n");
   write(source, "CHANGELOG.md", "canonical changelog\n");
+  for (const file of INTERNAL) write(source, file, "canonical only\n");
   write(dest, "plugin.json", "old release\n");
   write(dest, "README.md", "omnimcp listing README\n");
   write(dest, "CHANGELOG.md", "omnimcp changelog\n");
+  write(dest, ".release-please-manifest.json", "old manifest\n");
   write(dest, ".github/verify-mirror.mjs", "obsolete verifier\n");
   write(dest, ".github/workflows/custom.yml", "custom destination CI\n");
   write(dest, "docs/migration/repository-controls.md", "notes about the old mirror check\n");
@@ -49,6 +58,7 @@ test("sync replaces the deployed legacy validator and preserves destination-owne
   assert.equal(readFileSync(join(f.dest, "README.md"), "utf8"), "omnimcp listing README\n");
   assert.equal(readFileSync(join(f.dest, "CHANGELOG.md"), "utf8"), "omnimcp changelog\n");
   assert.ok(!existsSync(join(f.dest, ".github/verify-mirror.mjs")));
+  for (const file of INTERNAL) assert.ok(!existsSync(join(f.dest, file)), file);
   for (const file of ["release-please.yml", "sync-omnimcp.yml"]) {
     assert.ok(!existsSync(join(f.dest, ".github/workflows", file)), file);
   }

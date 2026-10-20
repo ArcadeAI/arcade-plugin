@@ -40,11 +40,18 @@ fi
 # changes it needs, such as a telemetry disclosure, by hand.
 # omnimcp also keeps its own CHANGELOG, which records its own releases
 # (0.7.0 and 0.7.1 shipped only there).
+# Release Please and this sync run only here, so their files stay out of
+# omnimcp. Hide (H) them rather than exclude them so --delete removes any
+# copy already there.
 rsync -a --checksum --delete \
   --exclude=/.git \
   --exclude=/.github/workflows/ \
   --exclude=/README.md \
   --exclude=/CHANGELOG.md \
+  --filter='H /release-please-config.json' \
+  --filter='H /.release-please-manifest.json' \
+  --filter='H /dev/scripts/sync-omnimcp-tree.sh' \
+  --filter='H /dev/test/sync-omnimcp.test.mjs' \
   "$source_tree/" "$destination/"
 mkdir -p "$destination/.github/workflows"
 install -m 644 "$replacement" "$workflow"
