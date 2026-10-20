@@ -68,15 +68,11 @@ jobs:
             exit 1
           fi
 
-      # omnimcp keeps its own workflows and its docs/migration/ notice.
+      # Keep destination workflows except the known obsolete mirror validator.
       - name: Copy the release tree into omnimcp
         id: copy
         run: |
-          rsync -a --delete \
-            --exclude=/.git \
-            --exclude=/.github/workflows/ \
-            --exclude=/docs/migration/ \
-            source/ dest/
+          bash source/dev/scripts/sync-omnimcp-tree.sh source dest
           echo "sha=$(git -C source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1

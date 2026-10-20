@@ -1,0 +1,74 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test } from "node:test";
+import { ROOT, readRepoFile } from "./helpers.mjs";
+
+const template = "dev/templates/omnimcp-check.yml";
+const legacy = "dev/test/fixtures/omnimcp/legacy-check.yml";
+const workflow = ".github/workflows/check.yml";
+
+function fixture(t) {
+  const root = mkdtempSync(join(tmpdir(), "omnimcp-sync-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const source = join(root, "source");
+  const dest = join(root, "dest");
+  const write = (tree, file, content) => {
+    mkdirSync(join(tree, file, ".."), { recursive: true });
+    writeFileSync(join(tree, file), content);
+  };
+  write(source, template, readRepoFile(template));
+  write(source, ".github/workflows/release-please.yml", "canonical release automation\n");
+  write(source, ".github/workflows/sync-omnimcp.yml", "canonical sync automation\n");
+  write(source, "plugin.json", "new release\n");
+  write(dest, "plugin.json", "old release\n");
+  write(dest, ".github/verify-mirror.mjs", "obsolete verifier\n");
+  write(dest, ".github/workflows/custom.yml", "custom destination CI\n");
+  write(dest, "docs/migration/README.md", "destination migration notice\n");
+  return {
+    source, dest, write,
+    run: () => spawnSync("bash", [join(ROOT, "dev/scripts/sync-omnimcp-tree.sh"), source, dest], { encoding: "utf8" }),
+  };
+}
+
+test("sync replaces the deployed legacy validator and preserves destination-owned files", (t) => {
+  const f = fixture(t);
+  cpSync(join(ROOT, legacy), join(f.dest, workflow));
+  const result = f.run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readFileSync(join(f.dest, workflow), "utf8"), readRepoFile(template));
+  assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "new release\n");
+  assert.equal(readFileSync(join(f.dest, ".github/workflows/custom.yml"), "utf8"), "custom destination CI\n");
+  assert.equal(readFileSync(join(f.dest, "docs/migration/README.md"), "utf8"), "destination migration notice\n");
+  assert.ok(!existsSync(join(f.dest, ".github/verify-mirror.mjs")));
+  for (const file of ["release-please.yml", "sync-omnimcp.yml"]) {
+    assert.ok(!existsSync(join(f.dest, ".github/workflows", file)), file);
+  }
+  assert.equal(f.run().status, 0, "repeating the same projection must succeed");
+  assert.equal(readFileSync(join(f.dest, workflow), "utf8"), readRepoFile(template));
+});
+
+test("sync installs a validator when absent and repeats safely", (t) => {
+  const f = fixture(t);
+  assert.equal(f.run().status, 0);
+  assert.equal(f.run().status, 0);
+  assert.equal(readFileSync(join(f.dest, workflow), "utf8"), readRepoFile(template));
+});
+
+test("sync refuses unfamiliar or non-regular validators before copying the tree", (t) => {
+  const f = fixture(t);
+  f.write(f.dest, workflow, "a destination owner's edited check\n");
+  const result = f.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Refusing to replace unfamiliar/);
+  assert.equal(readFileSync(join(f.dest, workflow), "utf8"), "a destination owner's edited check\n");
+  assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "old release\n");
+  assert.ok(existsSync(join(f.dest, ".github/verify-mirror.mjs")));
+
+  rmSync(join(f.dest, workflow));
+  symlinkSync(join(ROOT, legacy), join(f.dest, workflow));
+  assert.match(f.run().stderr, /Refusing to replace non-regular/);
+  assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "old release\n");
+});
