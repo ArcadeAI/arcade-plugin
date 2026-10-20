@@ -127,6 +127,10 @@ anything is sent, created, or deleted.
 
 ## Learn more
 
+- [Plugin docs](https://docs.arcade.dev/en/get-started/agent-plugin) —
+  prerequisites, install for each client, and connecting apps.
+  [What's included](https://docs.arcade.dev/en/get-started/agent-plugin/whats-included)
+  lists what each client gets.
 - [Install guides](docs/install/) — quick install + one page per client
 - [Client support matrix](docs/support-matrix.md) — what each install gets
 - [Arcade docs](https://docs.arcade.dev/en/home) — product, APIs, SDKs, and
@@ -135,7 +139,9 @@ anything is sent, created, or deleted.
   identity, and tool policy (see `scale-arcade`).
 - [Architecture](ARCHITECTURE.md) — package layout and execution model.
 - Privacy: tasks run through Arcade's hosted gateway and the apps you
-  connect — [privacy policy](https://www.arcade.dev/privacy-policy).
+  connect — [privacy policy](https://www.arcade.dev/privacy-policy),
+  [terms of service](https://www.arcade.dev/terms-of-service/).
+- Support: [support@arcade.dev](mailto:support@arcade.dev).
 
 ## Plugin usage events (off in this build)
 

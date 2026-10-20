@@ -214,6 +214,8 @@ const buildFiles = (root) => {
       ".cursor-plugin/plugin.json",
       serialize({
         ...identity,
+        // Cursor's manifest schema allows only `name` and `email` in `author`.
+        author: { name: author.name },
         displayName,
         logo,
         repository,
