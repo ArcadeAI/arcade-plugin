@@ -4,6 +4,21 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0](https://github.com/ArcadeAI/arcade-plugin/compare/v0.4.0...v0.8.0) (2026-10-20)
+
+
+### Features
+
+* sync stable releases to omnimcp ([#36](https://github.com/ArcadeAI/arcade-plugin/issues/36)) ([4082f9b](https://github.com/ArcadeAI/arcade-plugin/commit/4082f9be484ebc612ca72998611792c5d85322e9))
+
+
+### Bug Fixes
+
+* port omnimcp 0.7.1 directory policy fixes ([#39](https://github.com/ArcadeAI/arcade-plugin/issues/39)) ([7236389](https://github.com/ArcadeAI/arcade-plugin/commit/7236389207a420e41717e8d1b5b3588d5d5b9934))
+* stop installing dev tooling with the plugin ([#31](https://github.com/ArcadeAI/arcade-plugin/issues/31)) ([ae239e8](https://github.com/ArcadeAI/arcade-plugin/commit/ae239e848a6e359968e8bdd50c7166e1a92a9106))
+* store listing fixes for Cursor and ChatGPT ([#38](https://github.com/ArcadeAI/arcade-plugin/issues/38)) ([e26e8db](https://github.com/ArcadeAI/arcade-plugin/commit/e26e8db037fe8e126f68d07c11198f42d6646b2f))
+* **sync:** keep omnimcp's changelog and leave internals out of it ([#43](https://github.com/ArcadeAI/arcade-plugin/issues/43)) ([182783d](https://github.com/ArcadeAI/arcade-plugin/commit/182783d42f94905c8eaf936337bd6d3c57ab568e))
+
 ## [0.4.0](https://github.com/ArcadeAI/arcade-plugin/compare/v0.3.0...v0.4.0) (2026-10-18)
 
 
