@@ -13,8 +13,6 @@ import { isOptedOut } from "../../hooks/telemetry-run.mjs";
 import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../../hooks/telemetry-adapters/copilot-cli.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import {
-  powerShellArgs,
-  powerShellExe,
   readRepoFile,
   ROOT,
   runPowerShell,
@@ -82,8 +80,8 @@ const runFixture = async (fixture, dataDir) => {
 // Classified as app work, so these hooks would send an event if the hard-OFF gate were open.
 const SENDABLE_PROMPT = copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?" });
 
-const assertNothingSent = (server, env, send) =>
-  assertSilentThenServerReachable({ server, adapter: copilotAdapter, input: SENDABLE_PROMPT, env, send });
+const assertNothingSent = (server, env) =>
+  assertSilentThenServerReachable({ server, adapter: copilotAdapter, input: SENDABLE_PROMPT, env });
 
 const enabledManifest = JSON.parse(readFileSync(path.join(FIXTURE_DIR, "hooks.enabled.json"), "utf8"));
 const enabledTelemetryEntries = () =>

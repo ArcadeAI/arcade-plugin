@@ -36,8 +36,7 @@ When enabled, wiring comes from `hooks/hook-hosts.mjs`:
 | Claude Code | `UserPromptSubmit`, `PreToolUse` on `^(?:mcp__plugin_arcade_arcade__\|mcp__claude_ai_arcade__)`, MCP `PostToolUse` / `PostToolUseFailure`, built-in `WebFetch` / `WebSearch` / listed `Bash` CLIs, Arcade operator `SubagentStop` |
 | Copilot CLI | `UserPromptSubmit`, MCP `PostToolUse` / `PostToolUseFailure` (`<server>-<tool>`), Arcade operator `SubagentStop` with `subagent_session` (no `PreToolUse`, no `turn`, no built-in tools) |
 
-Session start clears local prompt scope through the routing hook; it sends no
-telemetry event. No other adapter in this package sends telemetry. See
+Session start sends no telemetry event. No other adapter in this package sends telemetry. See
 [what's sent and its limits](telemetry.md).
 
 ¹ The Cursor IDE (3.21.18) lists the commands on the plugin page but not in

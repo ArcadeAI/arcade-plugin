@@ -252,10 +252,13 @@ shipping telemetry hooks. Confirm, outside this repository:
 - opt-out switches verified on each supported client surface
 - applicable store or distribution decisions for builds that transmit data
 
-The change that turns telemetry on also has to restore the event sender in
-`hooks/telemetry-send.mjs`, the PostHog project key in
-`hooks/telemetry-config.mjs`, and the session-start call to `clearSessionScope`
-in `hooks/session-start.mjs`.
+The change that turns telemetry on also has to add an event sender to
+`hooks/telemetry-send.mjs`, a PostHog project key to
+`hooks/telemetry-config.mjs`, and a call to `clearSessionScope` in
+`hooks/session-start.mjs`, and update the test in
+`dev/test/telemetry-off.test.mjs` that checks this build ships none of them.
+Tests can't point the sender at a local server until it reads a host override
+again.
 
 These are release acceptance requirements; the current code and CI do not
 enforce them. A repository install can consume a branch before a GitHub release

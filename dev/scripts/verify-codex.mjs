@@ -18,7 +18,8 @@ const servers = JSON.parse(readFileSync(join(root, "mcp.json"), "utf8")).mcpServ
 const skills = readdirSync(join(root, "skills")).filter((name) => existsSync(join(root, "skills", name, "SKILL.md")));
 
 // HOME is replaced too, because Codex also reads ~/.agents/plugins/.
-// Pass PATH and locale only. Do not copy the parent environment.
+// Pass only PATH and the temp-folder, Windows system, and locale variables
+// below. Do not copy the parent environment.
 const work = mkdtempSync(join(tmpdir(), "arcade-codex-verify-"));
 const env = {
   PATH: process.env.PATH ?? "",

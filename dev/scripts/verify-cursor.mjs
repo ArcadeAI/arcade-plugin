@@ -4,9 +4,10 @@
 // copy. No script in the plugin downloads it either, because the Claude plugin
 // directory scans the plugin for code that downloads and runs other code. CI
 // downloads it in the "Download Cursor's validator" step of
-// .github/workflows/check.yml; to run this locally, run that step's command in
-// dev/ first. To update it, change the commit in that step and VALIDATOR_SHA256
-// here together (`shasum -a 256` on the downloaded file).
+// .github/workflows/check.yml in ArcadeAI/arcade-plugin; to run this locally,
+// run that step's command in dev/ first. To update it, change the commit in
+// that step and VALIDATOR_SHA256 here together (`shasum -a 256` on the
+// downloaded file).
 //
 // The validator only checks the default rules/, skills/, agents/, commands/,
 // and hooks/hooks.json paths, so it always warns that hooks/hooks.json is
@@ -28,7 +29,7 @@ const validatorFile = join(root, "dev/.cache/validate-template.mjs");
 if (!existsSync(validatorFile)) {
   console.error(
     `Cursor's validator is missing at ${validatorFile}. Download it with the command in the ` +
-      `"Download Cursor's validator" step of .github/workflows/check.yml, run from dev/.`,
+      `"Download Cursor's validator" step of ArcadeAI/arcade-plugin's .github/workflows/check.yml, run from dev/.`,
   );
   process.exit(1);
 }
