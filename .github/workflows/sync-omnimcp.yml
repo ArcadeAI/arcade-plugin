@@ -48,6 +48,9 @@ jobs:
           private-key: ${{ secrets.OMNIMCP_SYNC_APP_PRIVATE_KEY }}
           owner: arcadeai-labs
           repositories: omnimcp
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -76,8 +79,16 @@ jobs:
 
           # create-pull-request would force-push over commits a reviewer added
           # to this branch, and would open a new PR for a sync someone closed.
-          if git -C dest ls-remote --exit-code --heads origin "sync/release-${SOURCE_TAG}" > /dev/null; then
+          # ls-remote exits 2 when the branch is missing and 128 when it can't
+          # reach omnimcp, so only 2 means it is safe to continue.
+          status=0
+          git -C dest ls-remote --exit-code --heads origin "sync/release-${SOURCE_TAG}" > /dev/null || status=$?
+          if [ "$status" -eq 0 ]; then
             echo "::error::omnimcp already has sync/release-${SOURCE_TAG}; delete that branch to sync this release again"
+            exit 1
+          fi
+          if [ "$status" -ne 2 ]; then
+            echo "::error::could not check omnimcp for sync/release-${SOURCE_TAG} (git ls-remote exited ${status})"
             exit 1
           fi
 
