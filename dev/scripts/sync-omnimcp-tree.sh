@@ -43,7 +43,6 @@ fi
 rsync -a --checksum --delete \
   --exclude=/.git \
   --exclude=/.github/workflows/ \
-  --exclude=/docs/migration/ \
   --exclude=/README.md \
   --exclude=/CHANGELOG.md \
   "$source_tree/" "$destination/"
