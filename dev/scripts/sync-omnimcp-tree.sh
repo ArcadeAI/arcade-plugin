@@ -35,10 +35,14 @@ if [ -e "$workflow" ] || [ -L "$workflow" ]; then
   fi
 fi
 
+# omnimcp keeps its own README: the Claude plugin directory shows it as the
+# listing page, and it tells people to install arcadeai-labs/omnimcp. Copy
+# changes it needs, such as a telemetry disclosure, by hand.
 rsync -a --checksum --delete \
   --exclude=/.git \
   --exclude=/.github/workflows/ \
   --exclude=/docs/migration/ \
+  --exclude=/README.md \
   "$source_tree/" "$destination/"
 mkdir -p "$destination/.github/workflows"
 install -m 644 "$replacement" "$workflow"
