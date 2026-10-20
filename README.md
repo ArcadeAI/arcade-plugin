@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://api.arcade.dev/mcp/arcade"><img alt="Endpoint" src="https://img.shields.io/badge/endpoint-api.arcade.dev%2Fmcp%2Farcade-ff5c37"></a>
   <a href="https://agent-plugins.org"><img alt="Agent Plugins 1.0.0" src="https://img.shields.io/badge/Agent_Plugins-1.0.0-4f46e5"></a>
-  <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.3.0-555"></a>
+  <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/github/v/release/ArcadeAI/arcade-plugin?label=version&color=555"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-555"></a>
 </p>
 
@@ -152,22 +152,27 @@ see [docs/telemetry.md](docs/telemetry.md) for what CI does and does not exercis
 
 Agents editing this repo should read [AGENTS.md](AGENTS.md).
 [ARCHITECTURE.md](ARCHITECTURE.md) lists the source files and what is
-generated from them.
+generated from them. The dev tooling (`package.json`, scripts, and tests)
+lives in `dev/`, so installing the plugin doesn't install its packages.
 
 ```bash
+cd dev
 npm ci
 npm run verify
 ```
 
 `verify` runs:
 
-- the tests: hand-written file checks, a stale-generated-file check, and
-  every hook command in every client's manifest
-- `claude plugin validate`
-- Cursor's plugin validator (`scripts/verify-cursor.mjs` downloads it at a
+- the tests: hand-written file checks, a stale-generated-file check,
+  every hook command in every client's manifest, and the Claude plugin
+  directory's documented rules (`dev/test/directory-policy.test.mjs`)
+- `claude plugin validate`, then a real Claude Code install into a temporary
+  config that fails if Claude Code ran a package install
+  (`dev/scripts/verify-claude-install.mjs`)
+- Cursor's plugin validator (`dev/scripts/verify-cursor.mjs` downloads it at a
   pinned commit)
-- Codex and Copilot CLI checks (`scripts/verify-codex.mjs`,
-  `scripts/verify-copilot.mjs`): neither client has a validate command, so
+- Codex and Copilot CLI checks (`dev/scripts/verify-codex.mjs`,
+  `dev/scripts/verify-copilot.mjs`): neither client has a validate command, so
   these install the plugin into a temporary home and check that the client
   loaded every MCP server and skill
 
@@ -188,10 +193,10 @@ Each release also gets `arcade-chatgpt-{VERSION}.zip`, the package to upload
 in OpenAI's plugin portal for the ChatGPT and Codex directory. It holds the
 portable plugin only (`plugin.json` at the ZIP root, `mcp.json`, `skills/`,
 the logo, and `LICENSE`), with no hooks or other clients' folders. Build it
-locally with `npm run package:chatgpt` (writes `dist/`); the build fails if
-the `extensions.com.openai.interface` listing breaks the portal's limits, such
-as the 30-character display name and subtitle (`shortDescription`). See
-OpenAI's [submission guide](https://developers.openai.com/plugins/deploy/submission).
+locally with `npm run package:chatgpt` in `dev/` (writes `dist/` at the repo
+root); the build fails if the `extensions.com.openai.interface` listing breaks
+the portal's limits, such as the 30-character display name and subtitle
+(`shortDescription`). See OpenAI's [submission guide](https://developers.openai.com/plugins/deploy/submission).
 
 ## License
 

@@ -41,14 +41,17 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version-file: package.json
+          node-version-file: dev/package.json
           cache: npm
+          cache-dependency-path: dev/package-lock.json
 
       - name: Install dev dependencies
         run: npm ci
+        working-directory: dev
 
       - name: Build the ChatGPT plugin ZIP
         run: npm run package:chatgpt
+        working-directory: dev
 
       - name: Attach it to the release
         env:

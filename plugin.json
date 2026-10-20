@@ -25,7 +25,7 @@
         "developerName": "Arcade.dev",
         "category": "Productivity",
         "websiteURL": "https://arcade.dev",
-        "privacyPolicyURL": "https://www.arcade.dev/privacy-policy",
+        "privacyPolicyURL": "https://www.arcade.dev/privacy-policy/",
         "logo": "./assets/logo.png",
         "composerIcon": "./assets/logo.png"
       }

@@ -3,7 +3,9 @@
 A portable Agent Plugin (`plugin.json`, `mcp.json`, `skills/`) plus the files
 each client needs at its own path. Every client-specific file is generated
 from a few sources by `npm run generate`; `npm run verify` fails if one was
-edited by hand. The package ships no credentials.
+edited by hand. Both run from `dev/`, which holds the dev tooling so that
+installing the plugin doesn't install its packages. The package ships no
+credentials.
 
 | Source (edit these) | Holds |
 | --- | --- |
@@ -14,7 +16,7 @@ edited by hand. The package ships no credentials.
 | `agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
 | `skills/` | the skills, outside the generated rules block in try-arcade |
 
-`scripts/generate-manifests.mjs` writes every generated file; the generated
+`dev/scripts/generate-manifests.mjs` writes every generated file; the generated
 `.gitattributes` lists them (GitHub collapses them in diffs).
 
 - The operator lives at `agents/arcade-operator.agent.md`, the only place both
