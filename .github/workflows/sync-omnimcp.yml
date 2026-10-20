@@ -49,6 +49,7 @@ jobs:
           owner: arcadeai-labs
           repositories: omnimcp
           permission-contents: write
+          permission-metadata: read
           permission-pull-requests: write
           permission-workflows: write
 
@@ -82,7 +83,7 @@ jobs:
           # ls-remote exits 2 when the branch is missing and 128 when it can't
           # reach omnimcp, so only 2 means it is safe to continue.
           status=0
-          git -C dest ls-remote --exit-code --heads origin "sync/release-${SOURCE_TAG}" > /dev/null || status=$?
+          git -C dest ls-remote --exit-code origin "refs/heads/sync/release-${SOURCE_TAG}" > /dev/null || status=$?
           if [ "$status" -eq 0 ]; then
             echo "::error::omnimcp already has sync/release-${SOURCE_TAG}; delete that branch to sync this release again"
             exit 1
