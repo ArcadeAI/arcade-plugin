@@ -9,7 +9,9 @@ on:
         required: true
         type: string
     secrets:
+      # Classic PATs also need the workflow scope alongside repository access.
       OMNIMCP_SYNC_TOKEN:
+        description: Token with contents, pull-request, and workflow write access to arcadeai-labs/omnimcp
         required: true
   workflow_dispatch:
     inputs:

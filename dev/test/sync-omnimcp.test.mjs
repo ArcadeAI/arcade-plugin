@@ -57,6 +57,27 @@ test("sync installs a validator when absent and repeats safely", (t) => {
   assert.equal(readFileSync(join(f.dest, workflow), "utf8"), readRepoFile(template));
 });
 
+test("sync upgrades its previously installed template but refuses local workflow edits", (t) => {
+  const f = fixture(t);
+  assert.equal(f.run().status, 0);
+  const nextTemplate = readRepoFile(template).replace("timeout-minutes: 10", "timeout-minutes: 11");
+  assert.notEqual(nextTemplate, readRepoFile(template));
+  f.write(f.source, template, nextTemplate);
+  const upgrade = f.run();
+  assert.equal(upgrade.status, 0, upgrade.stderr);
+  assert.equal(readFileSync(join(f.dest, workflow), "utf8"), nextTemplate);
+  assert.equal(readFileSync(join(f.dest, template), "utf8"), nextTemplate);
+  assert.equal(f.run().status, 0, "repeating an upgraded template must succeed");
+
+  f.write(f.dest, workflow, nextTemplate.replace("npm test", "npm run custom-check"));
+  f.write(f.source, "plugin.json", "later release\n");
+  const edited = f.run();
+  assert.notEqual(edited.status, 0);
+  assert.match(edited.stderr, /Refusing to replace unfamiliar/);
+  assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "new release\n");
+  assert.equal(readFileSync(join(f.dest, workflow), "utf8"), nextTemplate.replace("npm test", "npm run custom-check"));
+});
+
 test("sync refuses unfamiliar or non-regular validators before copying the tree", (t) => {
   const f = fixture(t);
   f.write(f.dest, workflow, "a destination owner's edited check\n");
@@ -70,5 +91,24 @@ test("sync refuses unfamiliar or non-regular validators before copying the tree"
   rmSync(join(f.dest, workflow));
   symlinkSync(join(ROOT, legacy), join(f.dest, workflow));
   assert.match(f.run().stderr, /Refusing to replace non-regular/);
+  assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "old release\n");
+});
+
+test("a saved custom template or a managed marker alone does not authorize replacement", (t) => {
+  const f = fixture(t);
+  const custom = "name: destination-custom\n";
+  f.write(f.dest, workflow, custom);
+  f.write(f.dest, template, custom);
+  assert.match(f.run().stderr, /Refusing to replace unfamiliar/);
+
+  const marked = readRepoFile(template).replace("npm test", "npm run custom-check");
+  f.write(f.dest, workflow, marked);
+  f.write(f.dest, template, readRepoFile(template));
+  assert.match(f.run().stderr, /Refusing to replace unfamiliar/);
+
+  rmSync(join(f.dest, template));
+  f.write(f.source, "previous.yml", marked);
+  symlinkSync(join(f.source, "previous.yml"), join(f.dest, template));
+  assert.match(f.run().stderr, /Refusing to replace unfamiliar/);
   assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "old release\n");
 });
