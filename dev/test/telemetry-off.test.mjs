@@ -12,6 +12,18 @@ test("telemetry is off in this build", () => {
   assert.equal(TELEMETRY_ENABLED, false);
 });
 
+// The Claude plugin directory's scan reads these files even while telemetry is
+// off, so this build ships no PostHog key, no event sender, and no copy of the
+// parent environment. docs/telemetry.md lists what turning telemetry on has to
+// add. Change this test only with that approval.
+test("this build ships no telemetry key, sender, or copy of the environment", () => {
+  const hook = (file) => readRepoFile(`hooks/${file}`);
+  assert.doesNotMatch(hook("telemetry-config.mjs"), /process\.env|phc_/);
+  assert.doesNotMatch(hook("telemetry-send.mjs"), /process\.env|\bfetch\b|\bimport\b/);
+  assert.doesNotMatch(hook("telemetry-run.mjs"), /\.\.\.(?:process\.)?env\b/);
+  assert.doesNotMatch(hook("session-start.mjs"), /telemetry/i);
+});
+
 test("no generated hooks.json runs the telemetry hook while telemetry is off", () => {
   assert.equal(HOOKS.some((hook) => hook.script === "telemetry.mjs"), false);
   for (const { manifest } of Object.values(HOSTS)) {

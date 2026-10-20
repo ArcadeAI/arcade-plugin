@@ -35,6 +35,13 @@ jobs:
         run: npm ci
         working-directory: dev
 
+      # Cursor publishes its validator without a license, so the repo keeps no
+      # copy. dev/scripts/verify-cursor.mjs checks this file's hash.
+      - name: Download Cursor's validator
+        if: matrix.script == 'verify:cursor'
+        run: curl -fsSL --create-dirs -o .cache/validate-template.mjs https://raw.githubusercontent.com/cursor/plugin-template/bf795ee9a28e6d8b2e013beb9ac47fdd6d573fb7/scripts/validate-template.mjs
+        working-directory: dev
+
       - run: npm run ${{ matrix.script }}
         working-directory: dev
 

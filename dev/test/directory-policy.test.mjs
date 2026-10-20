@@ -442,6 +442,28 @@ test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher 
   );
 });
 
+// Not a checklist row: the directory's security scan reads every file in the
+// plugin, dev/ included, and looks for code that downloads and runs other code
+// or sends data the plugin doesn't disclose. Tests are skipped because they
+// post to their own local servers.
+test("no script downloads code or gives a child process the whole environment", () => {
+  const offenders = [];
+  for (const file of REGULAR_FILES) {
+    if (file.startsWith("dev/test/") || !/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
+    read(file)
+      .toString("utf8")
+      .split("\n")
+      .forEach((line, index) => {
+        if (/\bfetch\(/.test(line)) offenders.push(`${file}:${index + 1}: fetch(`);
+        if (/\.\.\.process\.env\b/.test(line)) offenders.push(`${file}:${index + 1}: ...process.env`);
+      });
+  }
+  assertNone(
+    offenders,
+    "Keep network downloads out of plugin scripts, and pass child processes only the variables they need instead of ...process.env.",
+  );
+});
+
 test("no text file names a bundled image or font path", () => {
   const offenders = [];
   for (const file of REGULAR_FILES) {

@@ -1,9 +1,13 @@
 // Runs Cursor's plugin validator (cursor/plugin-template) against this repo.
 //
-// Cursor publishes the validator without a license, so this script downloads
-// it at a pinned commit and checks its hash instead of copying it into the
-// repo. To update it, change VALIDATOR_COMMIT and VALIDATOR_SHA256 together
-// (`shasum -a 256` on the downloaded file).
+// Cursor publishes the validator without a license, so the repo doesn't keep a
+// copy. No script in the plugin downloads it either, because the Claude plugin
+// directory scans the plugin for code that downloads and runs other code. CI
+// downloads it in the "Download Cursor's validator" step of
+// .github/workflows/check.yml in ArcadeAI/arcade-plugin; to run this locally,
+// run that step's command in dev/ first. To update it, change the commit in
+// that step and VALIDATOR_SHA256 here together (`shasum -a 256` on the
+// downloaded file).
 //
 // The validator only checks the default rules/, skills/, agents/, commands/,
 // and hooks/hooks.json paths, so it always warns that hooks/hooks.json is
@@ -12,32 +16,27 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const VALIDATOR_COMMIT = "bf795ee9a28e6d8b2e013beb9ac47fdd6d573fb7";
 const VALIDATOR_SHA256 = "826f55f546ce59500a6e3d7d32a15d90f3373cecc3b41486e75ae28b60647a4a";
-const VALIDATOR_URL = `https://raw.githubusercontent.com/cursor/plugin-template/${VALIDATOR_COMMIT}/scripts/validate-template.mjs`;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const validatorFile = join(root, "dev/.cache/validate-template.mjs");
 
-let response;
-try {
-  response = await fetch(VALIDATOR_URL);
-} catch (error) {
-  console.error(`Could not download Cursor's validator (${error.cause?.code ?? error.message}): ${VALIDATOR_URL}`);
+if (!existsSync(validatorFile)) {
+  console.error(
+    `Cursor's validator is missing at ${validatorFile}. Download it with the command in the ` +
+      `"Download Cursor's validator" step of ArcadeAI/arcade-plugin's .github/workflows/check.yml, run from dev/.`,
+  );
   process.exit(1);
 }
-if (!response.ok) {
-  console.error(`Could not download Cursor's validator (${response.status}): ${VALIDATOR_URL}`);
-  process.exit(1);
-}
-const validator = Buffer.from(await response.arrayBuffer());
+const validator = readFileSync(validatorFile);
 const hash = createHash("sha256").update(validator).digest("hex");
 if (hash !== VALIDATOR_SHA256) {
-  console.error(`Cursor's validator at ${VALIDATOR_COMMIT} has sha256 ${hash}, expected ${VALIDATOR_SHA256}.`);
+  console.error(`Cursor's validator at ${validatorFile} has sha256 ${hash}, expected ${VALIDATOR_SHA256}.`);
   process.exit(1);
 }
 

@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import http from "node:http";
@@ -194,26 +194,29 @@ export const runTelemetryScript = (stdin, env, hostName = "claude-code", extraAr
     env: hookEnv(env),
   });
 
-export const SEND_SCRIPT = path.join(ROOT, "hooks", "telemetry-send.mjs");
-
 /**
- * Async spawn keeps this process's event loop free so an in-process server can answer.
- * @param {string} command
- * @param {string[]} args
- * @param {import("node:child_process").SpawnOptions} options
- * @returns {Promise<number | null>}
+ * Posts from the test process. The shipped sender does not contact a server.
+ * @param {NodeJS.ProcessEnv} env
  */
-export const spawnExitCode = (command, args, options) =>
-  new Promise((resolve) => spawn(command, args, { ...options, stdio: "ignore" }).on("exit", resolve));
-
-/** @param {NodeJS.ProcessEnv} env */
-export const sendWithNode = (env) => spawnExitCode(process.execPath, [SEND_SCRIPT], { env });
+export const sendWithNode = async (env) => {
+  const payload = JSON.parse(env[EVENT_ENV] ?? "");
+  const host = env.ARCADE_PLUGIN_TELEMETRY_HOST;
+  if (!host || !payload?.event) return 1;
+  await fetch(`${host}/i/v0/e/`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ event: payload.event }),
+  });
+  return 0;
+};
 
 /**
  * Asserts nothing reached `server`, then sends the event `input` would build
- * through `send` with `env` and asserts it arrives. That proves the hooks'
- * environment resolves to the server, so the empty request list could not
- * come from sending somewhere else.
+ * through `send` with `env` and asserts it arrives, so the empty request list
+ * can't come from a server that was down. This build's hooks don't read
+ * `ARCADE_PLUGIN_TELEMETRY_HOST`, so this proves only that the test server
+ * works; the data-directory checks and the `TELEMETRY_ENABLED` test catch an
+ * open gate.
  * @param {object} options
  * @param {{ requests: { body: string }[] }} options.server
  * @param {import("../../hooks/telemetry-adapter.mjs").TelemetryAdapter} options.adapter

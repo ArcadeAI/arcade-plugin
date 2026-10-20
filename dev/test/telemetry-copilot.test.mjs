@@ -13,8 +13,6 @@ import { isOptedOut } from "../../hooks/telemetry-run.mjs";
 import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../../hooks/telemetry-adapters/copilot-cli.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import {
-  powerShellArgs,
-  powerShellExe,
   readRepoFile,
   ROOT,
   runPowerShell,
@@ -30,8 +28,6 @@ import {
   hash16,
   hookEnv,
   runTelemetryScript,
-  SEND_SCRIPT,
-  spawnExitCode,
   startServer,
   tempDataDir,
 } from "./telemetry-helpers.mjs";
@@ -84,8 +80,8 @@ const runFixture = async (fixture, dataDir) => {
 // Classified as app work, so these hooks would send an event if the hard-OFF gate were open.
 const SENDABLE_PROMPT = copilotInput({ hook_event_name: "UserPromptSubmit", prompt: "What is on my calendar tomorrow?" });
 
-const assertNothingSent = (server, env, send) =>
-  assertSilentThenServerReachable({ server, adapter: copilotAdapter, input: SENDABLE_PROMPT, env, send });
+const assertNothingSent = (server, env) =>
+  assertSilentThenServerReachable({ server, adapter: copilotAdapter, input: SENDABLE_PROMPT, env });
 
 const enabledManifest = JSON.parse(readFileSync(path.join(FIXTURE_DIR, "hooks.enabled.json"), "utf8"));
 const enabledTelemetryEntries = () =>
@@ -398,13 +394,7 @@ test(
         assert.equal(ran.status, 0);
         assert.equal(ran.stdout, "");
       }
-      await assertNothingSent(server, hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url }), (env) =>
-        spawnExitCode(
-          powerShellExe(),
-          powerShellArgs(`& '${process.execPath}' '${SEND_SCRIPT}'; exit $LASTEXITCODE`),
-          { cwd, env },
-        ),
-      );
+      await assertNothingSent(server, hookEnv({ ARCADE_PLUGIN_TELEMETRY_HOST: server.url }));
       assert.deepEqual(readdirSync(dataDir), []);
     } finally {
       await server.close();

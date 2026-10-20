@@ -161,6 +161,11 @@ npm ci
 npm run verify
 ```
 
+Before the first `verify`, run the command in the "Download Cursor's
+validator" step of `.github/workflows/check.yml` from `dev/`. Cursor publishes
+its validator without a license, so the repository keeps no copy and no script
+downloads it.
+
 `verify` runs:
 
 - the tests: hand-written file checks, a stale-generated-file check,
@@ -169,8 +174,8 @@ npm run verify
 - `claude plugin validate`, then a real Claude Code install into a temporary
   config that fails if Claude Code ran a package install
   (`dev/scripts/verify-claude-install.mjs`)
-- Cursor's plugin validator (`dev/scripts/verify-cursor.mjs` downloads it at a
-  pinned commit)
+- Cursor's plugin validator (`dev/scripts/verify-cursor.mjs` checks the
+  downloaded copy's hash, then runs it)
 - Codex and Copilot CLI checks (`dev/scripts/verify-codex.mjs`,
   `dev/scripts/verify-copilot.mjs`): neither client has a validate command, so
   these install the plugin into a temporary home and check that the client
