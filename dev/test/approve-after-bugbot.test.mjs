@@ -376,3 +376,15 @@ test("the workflow runs from main after check and reads with GITHUB_TOKEN but ap
   assert.doesNotMatch(workflow, /pull_request_target/);
   assert.doesNotMatch(workflow, /ref: \$\{\{ github\.event\.workflow_run/);
 });
+
+test("release-please opens release pull requests with the GitHub App, not GITHUB_TOKEN", () => {
+  const workflow = readRepoFile(".github/workflows/release-please.yml");
+  assert.deepEqual(permissionsBlock(workflow), ["{}"]);
+  const job = workflow.slice(workflow.indexOf("  release-please:\n"), workflow.indexOf("\n  chatgpt-zip:"));
+  assert.match(job, /^ {4}environment: pr-approver$/m);
+  assert.match(job, /app-id: \$\{\{ vars\.APPROVER_APP_ID \}\}/);
+  assert.match(job, /private-key: \$\{\{ secrets\.APPROVER_APP_PRIVATE_KEY \}\}/);
+  assert.deepEqual(job.match(/permission-[a-z-]+: \w+/g), ["permission-contents: write", "permission-issues: write", "permission-pull-requests: write"]);
+  assert.match(job, /token: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
+  assert.doesNotMatch(job, /GITHUB_TOKEN/);
+});
