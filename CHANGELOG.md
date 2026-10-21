@@ -4,6 +4,13 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1](https://github.com/ArcadeAI/arcade-plugin/compare/v0.8.0...v0.8.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **docs:** telemetry value lists and Copilot CLI install ([#45](https://github.com/ArcadeAI/arcade-plugin/issues/45)) ([3db9ecc](https://github.com/ArcadeAI/arcade-plugin/commit/3db9ecc1cf30a5f196aa4ccc1c58ea2c1ae2c014))
+
 ## [0.8.0](https://github.com/ArcadeAI/arcade-plugin/compare/v0.4.0...v0.8.0) (2026-10-20)
 
 
