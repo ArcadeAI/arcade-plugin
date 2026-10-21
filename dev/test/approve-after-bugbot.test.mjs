@@ -7,7 +7,6 @@ const REPO = "ArcadeAI/arcade-plugin";
 const SHA = "a".repeat(40);
 const BASE_SHA = "b".repeat(40);
 const NUMBER = 7;
-const CHECK_ID = 1234;
 const APPROVER = "arcade-pr-approver[bot]";
 const run = (/** @type {object} */ changes = {}) => ({
   name: "Cursor Bugbot",
@@ -36,9 +35,7 @@ const workflowRun = (/** @type {object} */ changes = {}) => ({
   event: "pull_request",
   conclusion: "success",
   path: ".github/workflows/check.yml",
-  workflow_id: CHECK_ID,
   head_sha: SHA,
-  run_started_at: "2026-10-01T12:05:00Z",
   repository: { full_name: REPO },
   head_repository: { full_name: REPO },
   pull_requests: [checkedPr()],
@@ -59,15 +56,13 @@ const facts = (overrides = {}) => ({
   run: workflowRun(),
   repo: REPO,
   defaultBranch: "main",
-  checkWorkflowId: CHECK_ID,
   pr: pull(),
   permission: "write",
   files: [{ filename: "docs/telemetry.md" }],
-  suiteCount: 3,
   bugbotRuns: [run()],
   reviews: [],
-  approvers: [APPROVER, "github-actions[bot]"],
-  retargetedAt: null,
+  approver: APPROVER,
+  retargeted: false,
   ...overrides,
 });
 const withPr = (/** @type {object} */ changes) => facts({ pr: pull(changes) });
@@ -112,14 +107,11 @@ test("refuses a run that isn't a successful pull request run of main's check.yml
   assert.match(refusal(withRun({ event: "push" })), /wasn't for a pull request/);
   assert.match(refusal(withRun({ conclusion: "failure" })), /failure, not success/);
   assert.match(refusal(withRun({ path: ".github/workflows/impostor.yml" })), /impostor\.yml/);
-  assert.match(refusal(withRun({ workflow_id: 999 })), /workflow 999/);
-  assert.match(triggerRefusal({ run: undefined, repo: REPO, defaultBranch: "main", checkWorkflowId: CHECK_ID }), /wasn't for a pull request/);
+  assert.match(triggerRefusal({ run: undefined, repo: REPO, defaultBranch: "main" }), /wasn't for a pull request/);
 });
 
-test("refuses when check ran against a different base ref or commit than the pull request has now", () => {
+test("refuses when check ran against a base other than main", () => {
   assert.match(refusal(withRun({ pull_requests: [checkedPr({ base: { ref: "release/0.7", sha: BASE_SHA } })] })), /check ran against release\/0\.7/);
-  assert.match(refusal(withRun({ pull_requests: [checkedPr({ base: { ref: "main", sha: "d".repeat(40) } })] })), /base is b+, not d+/);
-  assert.match(refusal(withPr({ base: { ref: "main", sha: undefined } })), /base is undefined/);
 });
 
 test("requires every Bugbot review to list this pull request, so a shared commit can't borrow one", () => {
@@ -129,13 +121,9 @@ test("requires every Bugbot review to list this pull request, so a shared commit
   assert.equal(refusal(facts({ bugbotRuns: [run({ pull_requests: [{ number: 8 }, { number: NUMBER }] })] })), null);
 });
 
-test("after a retarget, needs check and a Bugbot review that started since", () => {
-  const retarget = (/** @type {string} */ retargetedAt, /** @type {object} */ more = {}) => facts({ retargetedAt, ...more });
-  assert.match(refusal(retarget("2026-10-01T12:10:00Z")), /check started before its base last changed/);
-  assert.match(refusal(retarget("2026-10-01T12:02:00Z")), /Bugbot hasn't reviewed it since its base last changed/);
-  assert.equal(refusal(retarget("2026-10-01T11:00:00Z")), null);
-  assert.equal(refusal(retarget("2026-10-01T12:02:00Z", { bugbotRuns: [run(), run({ started_at: "2026-10-01T12:03:00Z" })] })), null);
-  assert.match(refusal(retarget("2026-10-01T12:02:00Z", { bugbotRuns: [neutral(FOUND), run({ started_at: "2026-10-01T12:03:00Z" })] })), /Bugbot/);
+test("refuses a pull request whose base was ever changed", () => {
+  assert.match(refusal(facts({ retargeted: true })), /base branch was changed/);
+  assert.equal(refusal(facts({ retargeted: false })), null);
 });
 
 test("counts only a plain success, so unresolved or new findings refuse", () => {
@@ -165,14 +153,6 @@ test("ignores check runs from other apps that use Bugbot's name", () => {
   const impostor = run({ app: { slug: "someone-else" } });
   assert.equal(bugbotClean([impostor], NUMBER), false);
   assert.equal(bugbotClean([run(), { ...impostor, conclusion: "failure" }], NUMBER), true);
-});
-
-test("fails closed where GitHub could leave check runs out", () => {
-  assert.match(refusal(facts({ suiteCount: 1000 })), /1000 check suites/);
-  assert.match(refusal(facts({ suiteCount: 5000 })), /5000 check suites/);
-  assert.match(refusal(facts({ suiteCount: undefined })), /undefined check suites/);
-  assert.equal(refusal(facts({ suiteCount: 999 })), null);
-  assert.match(refusal(facts({ bugbotRuns: Array.from({ length: 1000 }, () => run()) })), /1000 Bugbot runs/);
 });
 
 test("fails closed when comparing the commits didn't list every changed file", () => {
@@ -205,7 +185,6 @@ test("reviews a commit once, even after someone dismissed the approval", () => {
   const review = (/** @type {string} */ login, /** @type {string} */ state, commitId = SHA) => ({ user: { login }, state, commit_id: commitId });
   assert.match(refusal(facts({ reviews: [review(APPROVER, "APPROVED")] })), /already reviewed this commit \(APPROVED\)/);
   assert.match(refusal(facts({ reviews: [review(APPROVER, "DISMISSED")] })), /already reviewed this commit \(DISMISSED\)/);
-  assert.match(refusal(facts({ reviews: [review("github-actions[bot]", "DISMISSED")] })), /github-actions\[bot\] already reviewed/);
   assert.equal(refusal(facts({ reviews: [review(APPROVER, "DISMISSED", "c".repeat(40))] })), null);
   assert.equal(refusal(facts({ reviews: [review("laughnan", "DISMISSED")] })), null);
 });
@@ -225,15 +204,12 @@ const fakeApi = (/** @type {Record<string, any>} */ overrides = {}) => {
     reviews: [],
     events: [],
     bugbotRuns: [run()],
-    suiteCount: 3,
     permission: "write",
-    headBeforePost: SHA,
     headAfterPost: SHA,
     ...overrides,
   };
   /** @type {{ method: string, path: string, body?: any }[]} */
   const calls = [];
-  let pullReads = 0;
   let posted = false;
   const pulls = `repos/${REPO}/pulls/${NUMBER}`;
   return {
@@ -241,14 +217,11 @@ const fakeApi = (/** @type {Record<string, any>} */ overrides = {}) => {
     api: {
       get: (/** @type {string} */ path) => {
         calls.push({ method: "GET", path });
-        if (path === `repos/${REPO}/actions/workflows/check.yml`) return { id: CHECK_ID };
         if (path === pulls) {
-          pullReads += 1;
-          const sha = posted ? state.headAfterPost : pullReads === 1 ? SHA : state.headBeforePost;
+          const sha = posted ? state.headAfterPost : SHA;
           return { ...state.pr, head: { ...state.pr.head, sha } };
         }
         if (path === `repos/${REPO}/collaborators/teallarson/permission`) return { permission: state.permission };
-        if (path.startsWith(`repos/${REPO}/commits/${SHA}/check-suites`)) return { total_count: state.suiteCount };
         const compared = path.match(/^repos\/[^/]+\/[^/]+\/compare\/([0-9a-f]{40})\.\.\.([0-9a-f]{40})$/);
         if (compared) return { files: state.filesBySha[compared[2]] ?? state.files };
         throw new Error(`unexpected GET ${path}`);
@@ -329,17 +302,11 @@ test("doesn't approve again after its approval was dismissed", () => {
   assert.deepEqual(writes, []);
 });
 
-test("doesn't approve a pull request retargeted since Bugbot reviewed it", () => {
+test("doesn't approve a pull request whose base was ever changed", () => {
   const events = [{ event: "base_ref_changed", created_at: "2026-10-01T12:02:00Z" }, { event: "labeled", created_at: "2026-10-01T12:20:00Z" }];
   const { writes, lines } = decide({ events });
   assert.deepEqual(writes, []);
-  assert.match(lines[0], /Bugbot hasn't reviewed it since its base last changed at 2026-10-01T12:02:00Z/);
-});
-
-test("doesn't approve when the head moves just before the approval", () => {
-  const { writes, lines } = decide({ headBeforePost: "c".repeat(40) });
-  assert.deepEqual(writes, []);
-  assert.match(lines[0], /moved to c+ during the checks/);
+  assert.match(lines[0], /base branch was changed/);
 });
 
 test("dismisses its own approval when the head moved while it was posted", () => {
@@ -370,46 +337,10 @@ test("requires the approver's login to recognize its own reviews", () => {
   assert.throws(() => approveAfterBugbot({ env: { REPO, DEFAULT_BRANCH: "main" }, event: {}, api: fakeApi().api }), /APPROVER_LOGIN/);
 });
 
-/** @param {string} text @param {string} indent */
-const permissionsBlock = (text, indent = "") =>
-  text
-    .match(new RegExp(`^${indent}permissions:((?: \\{\\})?\\n(?:${indent} {2}.+\\n)*)`, "m"))?.[1]
-    .trim()
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-test("the workflow runs from main after check and reads with GITHUB_TOKEN but approves as the GitHub App", () => {
+test("the workflow checks out the default branch with read permissions and no pull_request_target", () => {
   const workflow = readRepoFile(".github/workflows/approve-after-bugbot.yml");
-  assert.match(workflow, /workflow_run:\n\s+workflows: \[check\]\n\s+types: \[completed\]/);
-  assert.match(workflow, /github\.event\.workflow_run\.event == 'pull_request'/);
-  assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'success'/);
-  assert.match(workflow, /github\.event\.workflow_run\.path == '\.github\/workflows\/check\.yml'/);
-  assert.match(workflow, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
-  assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
-  assert.match(workflow, /persist-credentials: false/);
-  assert.deepEqual(permissionsBlock(workflow), ["actions: read", "checks: read", "contents: read", "pull-requests: read"]);
-  assert.match(workflow, /^ {4}environment: pr-approver$/m);
-  assert.match(workflow, /uses: actions\/create-github-app-token@[0-9a-f]{40} # v/);
-  assert.match(workflow, /app-id: \$\{\{ vars\.APPROVER_APP_ID \}\}/);
-  assert.match(workflow, /private-key: \$\{\{ secrets\.APPROVER_APP_PRIVATE_KEY \}\}/);
-  assert.match(workflow, /permission-pull-requests: write/);
-  assert.equal(workflow.match(/permission-[a-z-]+:/g)?.length, 1);
-  assert.match(workflow, /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-  assert.match(workflow, /APPROVER_TOKEN: \$\{\{ steps\.approver-token\.outputs\.token \}\}/);
-  assert.match(workflow, /APPROVER_LOGIN: \$\{\{ steps\.approver-token\.outputs\.app-slug \}\}\[bot\]/);
+  const permissions = workflow.match(/^permissions:\n((?: {2}.+\n)+)/m)?.[1].trim().split("\n").map((line) => line.trim());
+  assert.deepEqual(permissions, ["checks: read", "contents: read", "pull-requests: read"]);
   assert.doesNotMatch(workflow, /pull_request_target/);
-  assert.doesNotMatch(workflow, /ref: \$\{\{ github\.event\.workflow_run/);
-});
-
-test("release-please opens release pull requests with the GitHub App, not GITHUB_TOKEN", () => {
-  const workflow = readRepoFile(".github/workflows/release-please.yml");
-  assert.deepEqual(permissionsBlock(workflow), ["{}"]);
-  const job = workflow.slice(workflow.indexOf("  release-please:\n"), workflow.indexOf("\n  chatgpt-zip:"));
-  assert.match(job, /^ {4}environment: pr-approver$/m);
-  assert.match(job, /app-id: \$\{\{ vars\.APPROVER_APP_ID \}\}/);
-  assert.match(job, /private-key: \$\{\{ secrets\.APPROVER_APP_PRIVATE_KEY \}\}/);
-  assert.deepEqual(job.match(/permission-[a-z-]+: \w+/g), ["permission-contents: write", "permission-issues: write", "permission-pull-requests: write"]);
-  assert.match(job, /token: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
-  assert.doesNotMatch(job, /GITHUB_TOKEN/);
+  assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
 });

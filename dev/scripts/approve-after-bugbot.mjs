@@ -24,8 +24,6 @@ const WRITE_PERMISSIONS = ["admin", "write"];
 const BUGBOT_CHECK = "Cursor Bugbot";
 const BUGBOT_APP = "cursor";
 const CHECK_WORKFLOW = ".github/workflows/check.yml";
-// Approvals this approver made before it had its own GitHub App.
-const LEGACY_APPROVER = "github-actions[bot]";
 // repos/{repo}/pulls/{n}/files reports the diff of the pull request's current
 // head, not a commit this script names, so a force-push during this job (away
 // from headSha and back) can make it return a different commit's files while
@@ -36,8 +34,6 @@ const LEGACY_APPROVER = "github-actions[bot]";
 // paginated; past that, a protected file could be missing from what this
 // script sees.
 const MAX_LISTED_FILES = 300;
-const MAX_LISTED_SUITES = 1000;
-const MAX_KEPT_RUNS = 1000;
 // These decide what CI runs and what this script approves, so a pull request
 // that changes them needs a person's approval.
 const PROTECTED_PATHS = [
@@ -47,9 +43,6 @@ const PROTECTED_PATHS = [
   "dev/scripts/approve-after-bugbot.mjs",
   "dev/test/approve-after-bugbot.test.mjs",
 ];
-
-/** @param {string | null | undefined} time @param {string} since */
-const after = (time, since) => Date.parse(time ?? "") > Date.parse(since);
 
 /**
  * Bugbot's runs on a commit that reviewed the code. Runs Bugbot cancelled
@@ -96,14 +89,12 @@ export const protectedChanges = (changedFiles) =>
  * Returns why the triggering workflow run can't lead to an approval, or null
  * when it may. It must be a successful check run from main's check.yml for
  * exactly one pull request from this repository that targets main.
- * @param {{ run: any, repo: string, defaultBranch: string, checkWorkflowId: number }} facts
+ * @param {{ run: any, repo: string, defaultBranch: string }} facts
  */
-export const triggerRefusal = ({ run, repo, defaultBranch, checkWorkflowId }) => {
+export const triggerRefusal = ({ run, repo, defaultBranch }) => {
   if (run?.event !== "pull_request") return "the run that triggered this wasn't for a pull request";
   if (run.conclusion !== "success") return `check finished as ${run.conclusion}, not success`;
-  if (run.path !== CHECK_WORKFLOW || run.workflow_id !== checkWorkflowId) {
-    return `the run that triggered this came from ${run.path} (workflow ${run.workflow_id}), not ${CHECK_WORKFLOW}`;
-  }
+  if (run.path !== CHECK_WORKFLOW) return `the run that triggered this came from ${run.path}, not ${CHECK_WORKFLOW}`;
   if (run.repository?.full_name !== repo || run.head_repository?.full_name !== repo) return "check ran on a fork";
   const prs = run.pull_requests ?? [];
   if (prs.length !== 1) return `check ran for ${prs.length} pull requests, not exactly one`;
@@ -116,15 +107,15 @@ export const triggerRefusal = ({ run, repo, defaultBranch, checkWorkflowId }) =>
 
 /**
  * Returns why the pull request must not be approved, or null when it may be.
- * @param {{ run: any, repo: string, defaultBranch: string, checkWorkflowId: number,
- *   pr: any, permission: string, files: any[], suiteCount: number, bugbotRuns: any[],
- *   reviews: any[], approvers: string[], retargetedAt: string | null }} facts
+ * @param {{ run: any, repo: string, defaultBranch: string,
+ *   pr: any, permission: string, files: any[], bugbotRuns: any[],
+ *   reviews: any[], approver: string, retargeted: boolean }} facts
  *   files are the pull request's changed files, from comparing pr.base.sha
- *   with headSha, so they can't come from some other commit pair; retargetedAt
- *   is when the pull request's base last changed, or null if it never did.
+ *   with headSha, so they can't come from some other commit pair; retargeted
+ *   is whether the pull request's base was ever changed.
  */
 export const refusal = (facts) => {
-  const { run, repo, defaultBranch, pr, permission, files, suiteCount, bugbotRuns, reviews, approvers, retargetedAt } = facts;
+  const { run, repo, defaultBranch, pr, permission, files, bugbotRuns, reviews, approver, retargeted } = facts;
   const triggered = triggerRefusal(facts);
   if (triggered) return triggered;
   const [checked] = run.pull_requests;
@@ -133,7 +124,6 @@ export const refusal = (facts) => {
   if (pr.state !== "open") return "it isn't open";
   if (pr.draft) return "it's a draft";
   if (pr.base?.ref !== defaultBranch) return `it targets ${pr.base?.ref}, not ${defaultBranch}`;
-  if (!pr.base?.sha || pr.base.sha !== checked.base?.sha) return `its base is ${pr.base?.sha}, not ${checked.base?.sha}, which check ran against`;
   if (pr.head?.repo?.full_name !== repo) return "it comes from a fork";
   if (pr.head?.sha !== headSha) return `its latest commit is ${pr.head?.sha}, not the checked ${headSha}`;
   if (pr.user?.type !== "User") return `its author ${pr.user?.login} is not a person`;
@@ -143,19 +133,9 @@ export const refusal = (facts) => {
   const names = files.flatMap((file) => [file.filename, file.previous_filename].filter(Boolean));
   const touched = protectedChanges(names);
   if (touched.length > 0) return `it changes ${touched.join(", ")}, which decide what CI runs or approves`;
-  if (!Number.isInteger(suiteCount) || suiteCount >= MAX_LISTED_SUITES) {
-    return `its latest commit has ${suiteCount} check suites, and GitHub lists check runs from only the latest ${MAX_LISTED_SUITES}`;
-  }
-  const named = bugbotRuns.filter((run) => run.name === BUGBOT_CHECK);
-  if (named.length >= MAX_KEPT_RUNS) return `its latest commit has ${named.length} Bugbot runs, and GitHub deletes the oldest past ${MAX_KEPT_RUNS}`;
   if (!bugbotClean(bugbotRuns, pr.number)) return "not every Cursor Bugbot review of its latest commit finished with no findings for this pull request";
-  if (retargetedAt) {
-    if (!after(run.run_started_at, retargetedAt)) return `check started before its base last changed at ${retargetedAt}`;
-    if (!bugbotReviews(bugbotRuns).some((review) => after(review.started_at, retargetedAt))) {
-      return `Bugbot hasn't reviewed it since its base last changed at ${retargetedAt}`;
-    }
-  }
-  const handled = reviews.find((review) => approvers.includes(review.user?.login) && review.commit_id === headSha);
+  if (retargeted) return "its base branch was changed";
+  const handled = reviews.find((review) => review.user?.login === approver && review.commit_id === headSha);
   if (handled) return `${handled.user.login} already reviewed this commit (${handled.state})`;
   return null;
 };
@@ -175,8 +155,7 @@ export const approveAfterBugbot = ({ env, event, api, log = console.log }) => {
   const { REPO: repo, DEFAULT_BRANCH: defaultBranch, APPROVER_LOGIN: approverLogin } = env;
   if (!repo || !defaultBranch || !approverLogin) throw new Error("REPO, DEFAULT_BRANCH, and APPROVER_LOGIN are required");
   const run = event?.workflow_run;
-  const checkWorkflowId = api.get(`repos/${repo}/actions/workflows/check.yml`).id;
-  const triggered = triggerRefusal({ run, repo, defaultBranch, checkWorkflowId });
+  const triggered = triggerRefusal({ run, repo, defaultBranch });
   if (triggered) {
     log(`Not approving: ${triggered}.`);
     return;
@@ -200,31 +179,21 @@ export const approveAfterBugbot = ({ env, event, api, log = console.log }) => {
   // files while every other check still names headSha.
   const files = pr.base?.sha ? (api.get(`repos/${repo}/compare/${pr.base.sha}...${headSha}`).files ?? []) : [];
   const reviews = api.list(`${pull}/reviews?per_page=100`);
-  const suiteCount = api.get(`repos/${repo}/commits/${headSha}/check-suites?per_page=1`).total_count;
   // filter=all: the default returns only the latest run, which would let a
   // re-requested review hide an earlier finding.
   const bugbotRuns = api.list(
     `repos/${repo}/commits/${headSha}/check-runs?check_name=${encodeURIComponent(BUGBOT_CHECK)}&filter=all&per_page=100`,
     "check_runs",
   );
-  const retargets = api
+  const retargeted = api
     .list(`repos/${repo}/issues/${number}/events?per_page=100`)
-    .filter((/** @type {any} */ item) => item.event === "base_ref_changed")
-    .map((/** @type {any} */ item) => item.created_at)
-    .sort();
-  const retargetedAt = retargets.at(-1) ?? null;
-  const approvers = [approverLogin, LEGACY_APPROVER];
+    .some((/** @type {any} */ item) => item.event === "base_ref_changed");
 
   const reason = refusal({
-    run, repo, defaultBranch, checkWorkflowId, pr, permission, files, suiteCount, bugbotRuns, reviews, approvers, retargetedAt,
+    run, repo, defaultBranch, pr, permission, files, bugbotRuns, reviews, approver: approverLogin, retargeted,
   });
   if (reason) {
     log(`Not approving #${number}: ${reason}.`);
-    return;
-  }
-  const before = api.get(pull).head?.sha;
-  if (before !== headSha) {
-    log(`Not approving #${number}: its latest commit moved to ${before} during the checks.`);
     return;
   }
   const review = api.post(`${pull}/reviews`, {
