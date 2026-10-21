@@ -1,0 +1,6 @@
+/.github/                               @ArcadeAI/engineering
+/dev/package.json                       @ArcadeAI/engineering
+/dev/package-lock.json                  @ArcadeAI/engineering
+/dev/scripts/sync-omnimcp-tree.sh       @ArcadeAI/engineering
+/dev/scripts/approve-after-bugbot.mjs   @ArcadeAI/engineering
+/dev/test/approve-after-bugbot.test.mjs @ArcadeAI/engineering
