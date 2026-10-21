@@ -25,8 +25,8 @@ const BUGBOT_CHECK = "Cursor Bugbot";
 const BUGBOT_APP = "cursor";
 const CHECK_WORKFLOW = ".github/workflows/check.yml";
 // .github/CODEOWNERS gives @ArcadeAI/engineering the CI and approver files,
-// and main requires a code owner review, so this approval doesn't count for
-// changes there.
+// and main requires a code owner review, so changes there also need an
+// approval from @ArcadeAI/engineering.
 
 /**
  * Bugbot's runs on a commit that reviewed the code. Runs Bugbot cancelled
