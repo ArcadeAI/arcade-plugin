@@ -104,7 +104,7 @@ test("requireSources throws when a generated path has no FILE_SOURCES entry", ()
 });
 
 // Mirrors what release-please does with release-please-config.json.
-// omnimcp doesn't run Release Please, so its mirror has no config.
+// Skip when this checkout has no Release Please config.
 const releasePleaseSkip = !existsSync(join(ROOT, "release-please-config.json")) && "no release-please-config.json";
 test("a release-please version bump leaves generated files in sync", { skip: releasePleaseSkip }, () => {
   const root = makeFixture();
