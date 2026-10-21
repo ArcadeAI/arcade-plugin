@@ -13,6 +13,7 @@ const workflow = ".github/workflows/check.yml";
 const INTERNAL = [
   "release-please-config.json",
   ".release-please-manifest.json",
+  ".cursor/config/bugbot.yaml",
   "dev/scripts/sync-omnimcp-tree.sh",
   "dev/test/sync-omnimcp.test.mjs",
 ];

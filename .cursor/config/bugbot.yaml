@@ -1,0 +1,7 @@
+# Bugbot reads this file from the PR's base branch.
+# PRs here start as drafts, and the `check` job waits for a Bugbot result on
+# the PR's latest commit. Without draft reviews, a draft marked ready without a
+# new push has no Bugbot result, and `check` fails after its 15-minute wait.
+version: 1
+triggers:
+  drafts: true
