@@ -188,12 +188,6 @@ CI runs each of these as its own job (`.github/workflows/check.yml`). The
 **`check`** job waits for all of them and, on pull requests, for Cursor
 Bugbot. Branch protection on `main` requires `check`.
 
-When `check` passes on a pull request from a branch in this repository,
-`.github/workflows/approve-after-bugbot.yml` approves it if its author is a
-person with write access and Cursor Bugbot reviewed its latest commit with no
-findings. Pull requests from bots, forks, or anyone else still need a person's
-approval.
-
 ## Release
 
 Release Please opens a release PR on `main` with version bumps across `VERSION`,
