@@ -44,9 +44,7 @@ fi
 # repository's CODEOWNERS run only here, so their files stay out of omnimcp.
 # Hide (H) them rather than exclude them so --delete removes any copy already
 # there.
-# The directory copy ships only the session-start hook. The prompt and
-# subagent scripts stay in arcade-plugin. The legacy check fixture forwards
-# github.token and is not part of the omnimcp tree.
+# These are omnimcp-owned until the arcade-plugin directory submission (GRO-664).
 rsync -a --checksum --delete \
   --exclude=/.git \
   --exclude=/.github/workflows/ \
@@ -55,17 +53,28 @@ rsync -a --checksum --delete \
   --filter='H /release-please-config.json' \
   --filter='H /.release-please-manifest.json' \
   --filter='H /dev/scripts/sync-omnimcp-tree.sh' \
-  --filter='H /dev/scripts/sync-omnimcp-project.mjs' \
   --filter='H /dev/test/sync-omnimcp.test.mjs' \
   --filter='H /dev/scripts/approve-after-bugbot.mjs' \
   --filter='H /dev/test/approve-after-bugbot.test.mjs' \
   --filter='H /.github/CODEOWNERS' \
   --filter='H /hooks/user-prompt-submit.mjs' \
   --filter='H /hooks/subagent-start.mjs' \
-  --filter='H /dev/test/fixtures/omnimcp/' \
+  --filter='H /dev/test/fixtures/omnimcp/legacy-check.yml' \
+  --exclude=/.claude-plugin/hooks.json \
+  --exclude=/com.github.copilot/hooks/hooks.json \
+  --exclude=/hooks/hook-hosts.mjs \
+  --exclude=/hooks/telemetry-adapter.mjs \
+  --exclude=/hooks/telemetry-adapters/claude-code.mjs \
+  --exclude=/hooks/telemetry-contract.mjs \
+  --exclude=/dev/test/fixtures/telemetry/claude-code/event-cases.mjs \
+  --exclude=/dev/test/fixtures/telemetry/claude-code/hooks.enabled.json \
+  --exclude=/dev/test/fixtures/telemetry/copilot-cli/hooks.enabled.json \
+  --exclude=/dev/test/hooks.test.mjs \
+  --exclude=/dev/test/telemetry-foundation.test.mjs \
+  --exclude=/docs/install/copilot.md \
+  --exclude=/docs/install/vscode.md \
+  --exclude=/docs/support-matrix.md \
+  --exclude=/docs/telemetry.md \
   "$source_tree/" "$destination/"
 mkdir -p "$destination/.github/workflows"
 install -m 644 "$replacement" "$workflow"
-# Manifests are generated with every routing hook. Strip the prompt and
-# subagent commands in the copy, and record that this copy sends no reminder.
-node "$(cd "$(dirname "$0")" && pwd)/sync-omnimcp-project.mjs" "$destination"

@@ -14,7 +14,6 @@ const INTERNAL = [
   "release-please-config.json",
   ".release-please-manifest.json",
   "dev/scripts/sync-omnimcp-tree.sh",
-  "dev/scripts/sync-omnimcp-project.mjs",
   "dev/test/sync-omnimcp.test.mjs",
   "dev/scripts/approve-after-bugbot.mjs",
   "dev/test/approve-after-bugbot.test.mjs",
@@ -113,64 +112,6 @@ test("sync refuses unfamiliar or non-regular validators before copying the tree"
   symlinkSync(join(ROOT, legacy), join(f.dest, workflow));
   assert.match(f.run().stderr, /Refusing to replace non-regular/);
   assert.equal(readFileSync(join(f.dest, "plugin.json"), "utf8"), "old release\n");
-});
-
-test("sync keeps only the session-start hook in the omnimcp copy", (t) => {
-  const f = fixture(t);
-  const copied = [
-    "hooks/hook-hosts.mjs",
-    "hooks/session-start.mjs",
-    "hooks/user-prompt-submit.mjs",
-    "hooks/subagent-start.mjs",
-    "hooks/telemetry-adapter.mjs",
-    "hooks/telemetry-adapters/claude-code.mjs",
-    "hooks/telemetry-contract.mjs",
-    ".claude-plugin/hooks.json",
-    "clients/cursor/hooks/hooks.json",
-    "com.github.copilot/hooks/hooks.json",
-    "dev/test/fixtures/telemetry/claude-code/hooks.enabled.json",
-    "dev/test/fixtures/telemetry/copilot-cli/hooks.enabled.json",
-    "dev/test/fixtures/telemetry/claude-code/event-cases.mjs",
-    "dev/test/fixtures/omnimcp/legacy-check.yml",
-    "dev/test/hooks.test.mjs",
-    "dev/test/telemetry-foundation.test.mjs",
-    "docs/install/copilot.md",
-    "docs/install/vscode.md",
-    "docs/support-matrix.md",
-    "docs/telemetry.md",
-  ];
-  for (const file of copied) f.write(f.source, file, readRepoFile(file));
-  // A previous omnimcp tree still has the hooks and the token-forwarding fixture.
-  for (const file of ["hooks/user-prompt-submit.mjs", "hooks/subagent-start.mjs", legacy]) {
-    f.write(f.dest, file, readRepoFile(file));
-  }
-
-  const result = f.run();
-  assert.equal(result.status, 0, result.stderr);
-  for (const file of ["hooks/user-prompt-submit.mjs", "hooks/subagent-start.mjs", legacy]) {
-    assert.ok(!existsSync(join(f.dest, file)), file);
-  }
-  assert.ok(existsSync(join(f.dest, "hooks/session-start.mjs")));
-  const events = (file) => Object.keys(JSON.parse(readFileSync(join(f.dest, file), "utf8")).hooks);
-  assert.deepEqual(events(".claude-plugin/hooks.json"), ["SessionStart"]);
-  assert.deepEqual(events("com.github.copilot/hooks/hooks.json"), ["SessionStart"]);
-  assert.deepEqual(events("clients/cursor/hooks/hooks.json"), ["sessionStart"]);
-  const claudeEnabled = readFileSync(join(f.dest, "dev/test/fixtures/telemetry/claude-code/hooks.enabled.json"), "utf8");
-  assert.doesNotMatch(claudeEnabled, /user-prompt-submit|subagent-start/);
-  assert.match(claudeEnabled, /UserPromptSubmit/);
-  assert.match(claudeEnabled, /telemetry\.mjs/);
-  assert.doesNotMatch(
-    readFileSync(join(f.dest, "dev/test/fixtures/telemetry/copilot-cli/hooks.enabled.json"), "utf8"),
-    /subagent-start/,
-  );
-  assert.match(readFileSync(join(f.dest, "hooks/telemetry-adapters/claude-code.mjs"), "utf8"), /promptReminder: false/);
-  assert.doesNotMatch(readFileSync(join(f.dest, "hooks/hook-hosts.mjs"), "utf8"), /user-prompt-submit|subagent-start/);
-  assert.match(readFileSync(join(f.dest, "hooks/telemetry-contract.mjs"), "utf8"), /this copy does not add one/);
-  assert.doesNotMatch(readFileSync(join(f.dest, "dev/test/hooks.test.mjs"), "utf8"), /user-prompt-submit|subagent-start/);
-  assert.equal(f.run().status, 0, "repeating the projection must succeed");
-  assert.deepEqual(events(".claude-plugin/hooks.json"), ["SessionStart"]);
-  assert.match(readFileSync(join(f.source, "hooks/telemetry-adapters/claude-code.mjs"), "utf8"), /promptReminder: true/);
-  assert.ok(existsSync(join(f.source, "hooks/user-prompt-submit.mjs")));
 });
 
 test("a saved custom template or a managed marker alone does not authorize replacement", (t) => {
