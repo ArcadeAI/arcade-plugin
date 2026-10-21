@@ -40,9 +40,10 @@ fi
 # changes it needs, such as a telemetry disclosure, by hand.
 # omnimcp also keeps its own CHANGELOG, which records its own releases
 # (0.7.0 and 0.7.1 shipped only there).
-# Release Please, the pull request auto-approver, and this sync run only here,
-# so their files stay out of omnimcp. Hide (H) them rather than exclude them so
-# --delete removes any copy already there.
+# Release Please, the pull request auto-approver, this sync, and this
+# repository's CODEOWNERS run only here, so their files stay out of omnimcp.
+# Hide (H) them rather than exclude them so --delete removes any copy already
+# there.
 rsync -a --checksum --delete \
   --exclude=/.git \
   --exclude=/.github/workflows/ \
@@ -54,6 +55,7 @@ rsync -a --checksum --delete \
   --filter='H /dev/test/sync-omnimcp.test.mjs' \
   --filter='H /dev/scripts/approve-after-bugbot.mjs' \
   --filter='H /dev/test/approve-after-bugbot.test.mjs' \
+  --filter='H /.github/CODEOWNERS' \
   "$source_tree/" "$destination/"
 mkdir -p "$destination/.github/workflows"
 install -m 644 "$replacement" "$workflow"

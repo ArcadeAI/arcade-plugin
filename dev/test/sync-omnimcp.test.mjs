@@ -17,6 +17,7 @@ const INTERNAL = [
   "dev/test/sync-omnimcp.test.mjs",
   "dev/scripts/approve-after-bugbot.mjs",
   "dev/test/approve-after-bugbot.test.mjs",
+  ".github/CODEOWNERS",
 ];
 
 function fixture(t) {
@@ -39,6 +40,7 @@ function fixture(t) {
   write(dest, "README.md", "omnimcp listing README\n");
   write(dest, "CHANGELOG.md", "omnimcp changelog\n");
   write(dest, ".release-please-manifest.json", "old manifest\n");
+  write(dest, ".github/CODEOWNERS", "@ArcadeAI/engineering\n");
   write(dest, ".github/verify-mirror.mjs", "obsolete verifier\n");
   write(dest, ".github/workflows/custom.yml", "custom destination CI\n");
   write(dest, "docs/migration/repository-controls.md", "notes about the old mirror check\n");
