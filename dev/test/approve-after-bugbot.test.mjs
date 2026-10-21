@@ -1,11 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bugbotPassed, latestBugbotRun, refusal } from "../scripts/approve-after-bugbot.mjs";
+import { bugbotClean, protectedChanges, refusal } from "../scripts/approve-after-bugbot.mjs";
 import { readRepoFile } from "./helpers.mjs";
 
 const REPO = "ArcadeAI/arcade-plugin";
 const SHA = "a".repeat(40);
-const passed = { name: "Cursor Bugbot", app: { slug: "cursor" }, status: "completed", conclusion: "success", started_at: "2026-10-21T10:00:00Z" };
+const run = (/** @type {object} */ changes = {}) => ({
+  name: "Cursor Bugbot",
+  app: { slug: "cursor" },
+  status: "completed",
+  conclusion: "success",
+  output: { summary: "**Final Result:** Bugbot completed review - no issues found! ✅" },
+  ...changes,
+});
+// Summaries copied from real Bugbot runs in this repository.
+const neutral = (/** @type {string} */ summary) => run({ conclusion: "neutral", output: { summary } });
+const UNRESOLVED = "**Final Result:** Bugbot completed review - no issues found. 1 previously reported issue remain unresolved.";
+const FOUND = "**Final Result:** Bugbot completed review and found 1 potential issue.";
+const CANCELLED_PUSH = "**Result:** Bugbot run cancelled because a new commit was pushed to the PR";
+const CANCELLED_REQUEST = "**Result:** Bugbot run cancelled because the review request was cancelled";
 
 const facts = (overrides = {}) => ({
   pr: {
@@ -19,7 +32,8 @@ const facts = (overrides = {}) => ({
   headSha: SHA,
   defaultBranch: "main",
   permission: "write",
-  bugbotRun: passed,
+  changedFiles: ["docs/telemetry.md"],
+  bugbotRuns: [run()],
   reviews: [],
   ...overrides,
 });
@@ -50,32 +64,55 @@ test("refuses bots and people without write access", () => {
   }
 });
 
-test("refuses unless Bugbot finished on this commit with no findings", () => {
-  assert.match(refusal(facts({ bugbotRun: undefined })), /Bugbot/);
-  assert.match(refusal(facts({ bugbotRun: { ...passed, status: "in_progress", conclusion: null } })), /Bugbot/);
+test("counts only a plain success, so unresolved or new findings refuse", () => {
+  assert.match(refusal(facts({ bugbotRuns: [neutral(UNRESOLVED)] })), /Bugbot/);
+  assert.match(refusal(facts({ bugbotRuns: [neutral(FOUND)] })), /Bugbot/);
+  assert.match(refusal(facts({ bugbotRuns: [run({ status: "in_progress", conclusion: null })] })), /Bugbot/);
   for (const conclusion of ["failure", "cancelled", "timed_out", "action_required", "skipped"]) {
-    assert.match(refusal(facts({ bugbotRun: { ...passed, conclusion } })), /Bugbot/, conclusion);
+    assert.match(refusal(facts({ bugbotRuns: [run({ conclusion, output: {} })] })), /Bugbot/, conclusion);
   }
-  const neutral = (summary) => ({ ...passed, conclusion: "neutral", output: { summary } });
-  assert.match(refusal(facts({ bugbotRun: neutral("Bugbot found 2 potential issues") })), /Bugbot/);
-  assert.match(refusal(facts({ bugbotRun: neutral("Run cancelled because a new commit was pushed") })), /Bugbot/);
-  assert.equal(refusal(facts({ bugbotRun: neutral("No issues found") })), null);
+});
+
+test("requires every Bugbot review of the commit to pass, so asking again can't hide a finding", () => {
+  assert.match(refusal(facts({ bugbotRuns: [neutral(FOUND), run()] })), /Bugbot/);
+  assert.match(refusal(facts({ bugbotRuns: [run(), neutral(FOUND)] })), /Bugbot/);
+  assert.match(refusal(facts({ bugbotRuns: [run(), run({ status: "in_progress", conclusion: null })] })), /Bugbot/);
+  assert.equal(refusal(facts({ bugbotRuns: [run(), run()] })), null);
+});
+
+test("skips runs Bugbot cancelled before reviewing, but needs at least one review", () => {
+  assert.equal(refusal(facts({ bugbotRuns: [neutral(CANCELLED_PUSH), run()] })), null);
+  assert.equal(refusal(facts({ bugbotRuns: [neutral(CANCELLED_REQUEST), run()] })), null);
+  assert.match(refusal(facts({ bugbotRuns: [neutral(CANCELLED_PUSH)] })), /Bugbot/);
+  assert.match(refusal(facts({ bugbotRuns: [] })), /Bugbot/);
+});
+
+test("ignores check runs from other apps that use Bugbot's name", () => {
+  const impostor = run({ app: { slug: "someone-else" } });
+  assert.equal(bugbotClean([impostor]), false);
+  assert.equal(bugbotClean([run(), { ...impostor, conclusion: "failure" }]), true);
+});
+
+test("refuses pull requests that change CI or this approver", () => {
+  for (const file of [
+    ".github/workflows/check.yml",
+    ".github/workflows/approve-after-bugbot.yml",
+    ".github/workflows/new.yml",
+    "dev/package.json",
+    "dev/package-lock.json",
+    "dev/scripts/approve-after-bugbot.mjs",
+    "dev/test/approve-after-bugbot.test.mjs",
+  ]) {
+    assert.match(refusal(facts({ changedFiles: ["README.md", file] })), new RegExp(`changes ${file.replaceAll(".", "\\.")}`), file);
+  }
+  assert.deepEqual(protectedChanges(["docs/.github-notes.md", "dev/scripts/package-chatgpt.mjs", "hooks/telemetry.mjs"]), []);
 });
 
 test("approves again after a new commit, but not twice at the same commit", () => {
-  const approval = (commitId) => ({ user: { login: "github-actions[bot]" }, state: "APPROVED", commit_id: commitId });
+  const approval = (/** @type {string} */ commitId) => ({ user: { login: "github-actions[bot]" }, state: "APPROVED", commit_id: commitId });
   assert.match(refusal(facts({ reviews: [approval(SHA)] })), /already approved/);
   assert.equal(refusal(facts({ reviews: [approval("c".repeat(40))] })), null);
-  assert.equal(refusal(facts({ reviews: [{ ...approval(SHA), state: "DISMISSED" }] })), null);
   assert.equal(refusal(facts({ reviews: [{ ...approval(SHA), user: { login: "laughnan" } }] })), null);
-});
-
-test("uses Bugbot's newest run and ignores other apps with the same check name", () => {
-  const older = { ...passed, conclusion: "failure", started_at: "2026-10-21T09:00:00Z" };
-  const impostor = { ...passed, app: { slug: "someone-else" }, started_at: "2026-10-21T11:00:00Z" };
-  assert.equal(latestBugbotRun([passed, older, impostor]), passed);
-  assert.equal(latestBugbotRun([impostor]), undefined);
-  assert.equal(bugbotPassed(latestBugbotRun([older])), false);
 });
 
 test("the workflow runs from main after check and can only approve pull requests", () => {

@@ -20,34 +20,46 @@ const WRITE_PERMISSIONS = ["admin", "write"];
 const BUGBOT_CHECK = "Cursor Bugbot";
 const BUGBOT_APP = "cursor";
 const APPROVER = "github-actions[bot]";
+// These decide what CI runs and what this script approves, so a pull request
+// that changes them needs a person's approval.
+const PROTECTED_PATHS = [
+  ".github/",
+  "dev/package.json",
+  "dev/package-lock.json",
+  "dev/scripts/approve-after-bugbot.mjs",
+  "dev/test/approve-after-bugbot.test.mjs",
+];
 
 /**
- * Whether Bugbot's run finished with no findings. Uses the same rule as the
- * Bugbot step of check.yml.
- * @param {any} run
+ * Whether Bugbot passed on a commit: at least one of its runs there reviewed
+ * the code, and every one that did finished as a plain success. Asking Bugbot
+ * again on the same commit can't replace an earlier finding. A neutral result
+ * doesn't count: it can mean findings, including "no issues found. 1
+ * previously reported issue remain unresolved". Runs Bugbot cancelled before
+ * reviewing are skipped.
+ * @param {any[]} checkRuns every check run on the commit, not only the latest
  */
-export const bugbotPassed = (run) => {
-  if (!run || run.status !== "completed") return false;
-  if (run.conclusion === "success") return true;
-  return run.conclusion === "neutral" && /no issues found/i.test(run.output?.summary ?? "");
+export const bugbotClean = (checkRuns) => {
+  const reviews = checkRuns
+    .filter((run) => run.name === BUGBOT_CHECK && run.app?.slug === BUGBOT_APP)
+    .filter((run) => !/Bugbot run cancelled because/i.test(`${run.output?.title ?? ""} ${run.output?.summary ?? ""}`));
+  return reviews.length > 0 && reviews.every((run) => run.status === "completed" && run.conclusion === "success");
 };
 
 /**
- * Bugbot's newest run among a commit's check runs, or undefined.
- * @param {any[]} checkRuns
+ * The protected paths a pull request's changed files touch. Renamed files
+ * count by both their old and new names.
+ * @param {string[]} changedFiles
  */
-export const latestBugbotRun = (checkRuns) =>
-  checkRuns
-    .filter((run) => run.name === BUGBOT_CHECK && run.app?.slug === BUGBOT_APP)
-    .sort((a, b) => String(a.started_at).localeCompare(String(b.started_at)))
-    .at(-1);
+export const protectedChanges = (changedFiles) =>
+  changedFiles.filter((file) => PROTECTED_PATHS.some((path) => (path.endsWith("/") ? file.startsWith(path) : file === path)));
 
 /**
  * Returns why the pull request must not be approved, or null when it may be.
  * @param {{ pr: any, repo: string, headSha: string, defaultBranch: string,
- *   permission: string, bugbotRun: any, reviews: any[] }} facts
+ *   permission: string, changedFiles: string[], bugbotRuns: any[], reviews: any[] }} facts
  */
-export const refusal = ({ pr, repo, headSha, defaultBranch, permission, bugbotRun, reviews }) => {
+export const refusal = ({ pr, repo, headSha, defaultBranch, permission, changedFiles, bugbotRuns, reviews }) => {
   if (pr.state !== "open") return "it isn't open";
   if (pr.draft) return "it's a draft";
   if (pr.base?.ref !== defaultBranch) return `it targets ${pr.base?.ref}, not ${defaultBranch}`;
@@ -55,7 +67,9 @@ export const refusal = ({ pr, repo, headSha, defaultBranch, permission, bugbotRu
   if (pr.head?.sha !== headSha) return `its latest commit is ${pr.head?.sha}, not the checked ${headSha}`;
   if (pr.user?.type !== "User") return `its author ${pr.user?.login} is not a person`;
   if (!WRITE_PERMISSIONS.includes(permission)) return `its author ${pr.user.login} has ${permission} access, not write`;
-  if (!bugbotPassed(bugbotRun)) return "Cursor Bugbot hasn't reviewed its latest commit with no findings";
+  const touched = protectedChanges(changedFiles);
+  if (touched.length > 0) return `it changes ${touched.join(", ")}, which decide what CI runs or approves`;
+  if (!bugbotClean(bugbotRuns)) return "not every Cursor Bugbot review of its latest commit finished with no findings";
   if (reviews.some((review) => review.user?.login === APPROVER && review.state === "APPROVED" && review.commit_id === headSha)) {
     return "it's already approved at this commit";
   }
@@ -64,6 +78,13 @@ export const refusal = ({ pr, repo, headSha, defaultBranch, permission, bugbotRu
 
 /** @param {string[]} args */
 const gh = (args) => JSON.parse(execFileSync("gh", ["api", ...args], { encoding: "utf8" }));
+
+/**
+ * Every page of a list endpoint, one item per line through --jq.
+ * @param {string} path @param {string} jq
+ */
+const ghLines = (path, jq) =>
+  execFileSync("gh", ["api", "--paginate", path, "--jq", jq], { encoding: "utf8" }).split("\n").filter(Boolean);
 
 /** @param {string} repo @param {string} login */
 const permissionOf = (repo, login) => {
@@ -83,14 +104,19 @@ const main = () => {
     console.log(`No open pull request has ${headSha} as its latest commit.`);
     return;
   }
-  const checkRuns = gh([`repos/${repo}/commits/${headSha}/check-runs?check_name=${encodeURIComponent(BUGBOT_CHECK)}&per_page=100`]).check_runs;
-  const bugbotRun = latestBugbotRun(checkRuns);
+  // filter=all: the default returns only the latest run, which would let a
+  // re-requested review hide an earlier finding.
+  const bugbotRuns = ghLines(
+    `repos/${repo}/commits/${headSha}/check-runs?check_name=${encodeURIComponent(BUGBOT_CHECK)}&filter=all&per_page=100`,
+    ".check_runs[] | tojson",
+  ).map((line) => JSON.parse(line));
 
   for (const { number } of candidates) {
     const pr = gh([`repos/${repo}/pulls/${number}`]);
     const permission = pr.user?.type === "User" ? permissionOf(repo, pr.user.login) : "none";
     const reviews = gh([`repos/${repo}/pulls/${number}/reviews?per_page=100`]);
-    const reason = refusal({ pr, repo, headSha, defaultBranch, permission, bugbotRun, reviews });
+    const changedFiles = ghLines(`repos/${repo}/pulls/${number}/files?per_page=100`, ".[] | .filename, (.previous_filename // empty)");
+    const reason = refusal({ pr, repo, headSha, defaultBranch, permission, changedFiles, bugbotRuns, reviews });
     if (reason) {
       console.log(`Not approving #${number}: ${reason}.`);
       continue;
