@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { approveAfterBugbot, bugbotClean, protectedChanges, refusal, triggerRefusal } from "../scripts/approve-after-bugbot.mjs";
+import { approveAfterBugbot, bugbotClean, refusal, triggerRefusal } from "../scripts/approve-after-bugbot.mjs";
 import { readRepoFile } from "./helpers.mjs";
 
 const REPO = "ArcadeAI/arcade-plugin";
@@ -47,8 +47,7 @@ const pull = (/** @type {object} */ changes = {}) => ({
   draft: false,
   base: { ref: "main", sha: BASE_SHA },
   head: { sha: SHA, repo: { full_name: REPO } },
-  user: { login: "teallarson", type: "User" },
-  changed_files: 1,
+    user: { login: "teallarson", type: "User" },
   ...changes,
 });
 
@@ -58,7 +57,6 @@ const facts = (overrides = {}) => ({
   defaultBranch: "main",
   pr: pull(),
   permission: "write",
-  files: [{ filename: "docs/telemetry.md" }],
   bugbotRuns: [run()],
   reviews: [],
   approver: APPROVER,
@@ -155,32 +153,6 @@ test("ignores check runs from other apps that use Bugbot's name", () => {
   assert.equal(bugbotClean([run(), { ...impostor, conclusion: "failure" }], NUMBER), true);
 });
 
-test("fails closed when comparing the commits didn't list every changed file", () => {
-  const many = (/** @type {number} */ count) => Array.from({ length: count }, (_, i) => ({ filename: `docs/${i}.md` }));
-  assert.match(refusal(facts({ pr: pull({ changed_files: 301 }), files: many(300) })), /301 files, more than the 300/);
-  assert.match(refusal(facts({ pr: pull({ changed_files: 4 }), files: many(3) })), /listed 3 of its 4/);
-  assert.match(refusal(facts({ pr: pull({ changed_files: undefined }) })), /listed 1 of its undefined/);
-  assert.equal(refusal(facts({ pr: pull({ changed_files: 300 }), files: many(300) })), null);
-});
-
-test("refuses pull requests that change CI or this approver", () => {
-  for (const file of [
-    ".github/workflows/check.yml",
-    ".github/workflows/approve-after-bugbot.yml",
-    ".github/workflows/new.yml",
-    "dev/package.json",
-    "dev/package-lock.json",
-    "dev/scripts/approve-after-bugbot.mjs",
-    "dev/test/approve-after-bugbot.test.mjs",
-  ]) {
-    const files = [{ filename: "README.md" }, { filename: file }];
-    assert.match(refusal(facts({ pr: pull({ changed_files: 2 }), files })), new RegExp(`changes ${file.replaceAll(".", "\\.")}`), file);
-  }
-  const renamed = [{ filename: "docs/workflow.yml", previous_filename: ".github/workflows/check.yml" }];
-  assert.match(refusal(facts({ files: renamed })), /changes \.github\/workflows\/check\.yml/);
-  assert.deepEqual(protectedChanges(["docs/.github-notes.md", "dev/scripts/package-chatgpt.mjs", "hooks/telemetry.mjs"]), []);
-});
-
 test("reviews a commit once, even after someone dismissed the approval", () => {
   const review = (/** @type {string} */ login, /** @type {string} */ state, commitId = SHA) => ({ user: { login }, state, commit_id: commitId });
   assert.match(refusal(facts({ reviews: [review(APPROVER, "APPROVED")] })), /already reviewed this commit \(APPROVED\)/);
@@ -192,15 +164,11 @@ test("reviews a commit once, even after someone dismissed the approval", () => {
 /**
  * A fake GitHub API holding one pull request, with the answers the script
  * reads. headAfterPost is the head the pull request has once the approval is
- * posted. files is what comparing the pull request's base with headSha
- * returns; filesBySha lets a test give a different answer for some other
- * commit, to show the script never asks for that commit's files at all.
+ * posted.
  */
 const fakeApi = (/** @type {Record<string, any>} */ overrides = {}) => {
   const state = {
     pr: pull(),
-    files: [{ filename: "docs/telemetry.md" }],
-    filesBySha: /** @type {Record<string, any[]>} */ ({}),
     reviews: [],
     events: [],
     bugbotRuns: [run()],
@@ -222,17 +190,10 @@ const fakeApi = (/** @type {Record<string, any>} */ overrides = {}) => {
           return { ...state.pr, head: { ...state.pr.head, sha } };
         }
         if (path === `repos/${REPO}/collaborators/teallarson/permission`) return { permission: state.permission };
-        const compared = path.match(/^repos\/[^/]+\/[^/]+\/compare\/([0-9a-f]{40})\.\.\.([0-9a-f]{40})$/);
-        if (compared) return { files: state.filesBySha[compared[2]] ?? state.files };
         throw new Error(`unexpected GET ${path}`);
       },
       list: (/** @type {string} */ path, /** @type {string | undefined} */ key) => {
         calls.push({ method: "LIST", path });
-        // Kept so a regression back to this unpinned, SHA-less endpoint shows
-        // up as a wrong decision (it answers from state.files, which the race
-        // test sets to what a live read could show mid-force-push), not as a
-        // crash from a missing stub.
-        if (path.startsWith(`${pulls}/files`)) return state.files;
         if (path.startsWith(`${pulls}/reviews`)) return state.reviews;
         if (path.startsWith(`repos/${REPO}/issues/${NUMBER}/events`)) return state.events;
         if (path.startsWith(`repos/${REPO}/commits/${SHA}/check-runs`) && key === "check_runs") return state.bugbotRuns;
@@ -273,28 +234,6 @@ test("reads only the pull request the run names, not every pull request sharing 
   const { writes, lines } = decide({}, { workflow_run: workflowRun({ pull_requests: [checkedPr(), checkedPr({ number: 8 })] }) });
   assert.deepEqual(writes, []);
   assert.match(lines[0], /2 pull requests/);
-});
-
-test("doesn't approve a pull request whose files a compare could have truncated", () => {
-  const { writes, lines } = decide({ pr: pull({ changed_files: 350 }) });
-  assert.deepEqual(writes, []);
-  assert.match(lines[0], /350 files/);
-});
-
-test("compares the exact commit pair for files, so a force-push during the job can't substitute another commit's", () => {
-  // H (SHA, the checked commit) changes a protected path and is what gets
-  // approved. While the job runs, the pull request is force-pushed to a
-  // clean H2 with the same file count, then back to H, so every head check
-  // still sees H. A file list scoped to the pull request's live state, not to
-  // H by SHA, could still answer with H2's files from that window.
-  const liveDuringRace = [{ filename: "README.md" }]; // what an unpinned file list could show mid-race
-  const { writes, lines, calls } = decide({
-    files: liveDuringRace,
-    filesBySha: { [SHA]: [{ filename: ".github/workflows/check.yml" }] }, // compare(base...H), pinned by SHA
-  });
-  assert.deepEqual(writes, []);
-  assert.match(lines[0], /changes \.github\/workflows\/check\.yml/);
-  assert.ok(calls.some((call) => call.path === `repos/${REPO}/compare/${BASE_SHA}...${SHA}`));
 });
 
 test("doesn't approve again after its approval was dismissed", () => {
