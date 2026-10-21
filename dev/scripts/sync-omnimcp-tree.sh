@@ -44,6 +44,9 @@ fi
 # repository's CODEOWNERS run only here, so their files stay out of omnimcp.
 # Hide (H) them rather than exclude them so --delete removes any copy already
 # there.
+# The directory copy ships only the session-start hook. The prompt and
+# subagent scripts stay in arcade-plugin. The legacy check fixture forwards
+# github.token and is not part of the omnimcp tree.
 rsync -a --checksum --delete \
   --exclude=/.git \
   --exclude=/.github/workflows/ \
@@ -52,10 +55,17 @@ rsync -a --checksum --delete \
   --filter='H /release-please-config.json' \
   --filter='H /.release-please-manifest.json' \
   --filter='H /dev/scripts/sync-omnimcp-tree.sh' \
+  --filter='H /dev/scripts/sync-omnimcp-project.mjs' \
   --filter='H /dev/test/sync-omnimcp.test.mjs' \
   --filter='H /dev/scripts/approve-after-bugbot.mjs' \
   --filter='H /dev/test/approve-after-bugbot.test.mjs' \
   --filter='H /.github/CODEOWNERS' \
+  --filter='H /hooks/user-prompt-submit.mjs' \
+  --filter='H /hooks/subagent-start.mjs' \
+  --filter='H /dev/test/fixtures/omnimcp/' \
   "$source_tree/" "$destination/"
 mkdir -p "$destination/.github/workflows"
 install -m 644 "$replacement" "$workflow"
+# Manifests are generated with every routing hook. Strip the prompt and
+# subagent commands in the copy, and record that this copy sends no reminder.
+node "$(cd "$(dirname "$0")" && pwd)/sync-omnimcp-project.mjs" "$destination"
