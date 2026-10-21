@@ -26,11 +26,16 @@ const BUGBOT_APP = "cursor";
 const CHECK_WORKFLOW = ".github/workflows/check.yml";
 // Approvals this approver made before it had its own GitHub App.
 const LEGACY_APPROVER = "github-actions[bot]";
-// GitHub lists at most 3,000 of a pull request's files, check runs from only
-// the latest 1,000 check suites on a commit, and keeps at most 1,000 check
-// runs with one name in a suite. Past these, a finding or a protected file
-// could be missing from what this script sees.
-const MAX_LISTED_FILES = 3000;
+// repos/{repo}/pulls/{n}/files reports the diff of the pull request's current
+// head, not a commit this script names, so a force-push during this job (away
+// from headSha and back) can make it return a different commit's files while
+// every SHA check still passes. repos/{repo}/compare/{base}...{head} takes
+// both ends as literal, immutable commit SHAs, so its diff can't be raced:
+// whatever it returns is forever the diff between those two exact commits.
+// Its files list is capped at 300, and shown only when the request isn't
+// paginated; past that, a protected file could be missing from what this
+// script sees.
+const MAX_LISTED_FILES = 300;
 const MAX_LISTED_SUITES = 1000;
 const MAX_KEPT_RUNS = 1000;
 // These decide what CI runs and what this script approves, so a pull request
@@ -114,8 +119,9 @@ export const triggerRefusal = ({ run, repo, defaultBranch, checkWorkflowId }) =>
  * @param {{ run: any, repo: string, defaultBranch: string, checkWorkflowId: number,
  *   pr: any, permission: string, files: any[], suiteCount: number, bugbotRuns: any[],
  *   reviews: any[], approvers: string[], retargetedAt: string | null }} facts
- *   files are the listed changed files; retargetedAt is when the pull
- *   request's base last changed, or null if it never did.
+ *   files are the pull request's changed files, from comparing pr.base.sha
+ *   with headSha, so they can't come from some other commit pair; retargetedAt
+ *   is when the pull request's base last changed, or null if it never did.
  */
 export const refusal = (facts) => {
   const { run, repo, defaultBranch, pr, permission, files, suiteCount, bugbotRuns, reviews, approvers, retargetedAt } = facts;
@@ -132,8 +138,8 @@ export const refusal = (facts) => {
   if (pr.head?.sha !== headSha) return `its latest commit is ${pr.head?.sha}, not the checked ${headSha}`;
   if (pr.user?.type !== "User") return `its author ${pr.user?.login} is not a person`;
   if (!WRITE_PERMISSIONS.includes(permission)) return `its author ${pr.user.login} has ${permission} access, not write`;
-  if (pr.changed_files > MAX_LISTED_FILES) return `it changes ${pr.changed_files} files, more than the ${MAX_LISTED_FILES} GitHub lists`;
-  if (files.length !== pr.changed_files) return `GitHub listed ${files.length} of its ${pr.changed_files} changed files`;
+  if (pr.changed_files > MAX_LISTED_FILES) return `it changes ${pr.changed_files} files, more than the ${MAX_LISTED_FILES} a compare lists`;
+  if (files.length !== pr.changed_files) return `comparing its commits listed ${files.length} of its ${pr.changed_files} changed files`;
   const names = files.flatMap((file) => [file.filename, file.previous_filename].filter(Boolean));
   const touched = protectedChanges(names);
   if (touched.length > 0) return `it changes ${touched.join(", ")}, which decide what CI runs or approves`;
@@ -189,7 +195,10 @@ export const approveAfterBugbot = ({ env, event, api, log = console.log }) => {
       permission = "none";
     }
   }
-  const files = api.list(`${pull}/files?per_page=100`);
+  // Pinned to these two exact commit SHAs, not to the pull request's current
+  // head, so a force-push during this job can't swap in another commit's
+  // files while every other check still names headSha.
+  const files = pr.base?.sha ? (api.get(`repos/${repo}/compare/${pr.base.sha}...${headSha}`).files ?? []) : [];
   const reviews = api.list(`${pull}/reviews?per_page=100`);
   const suiteCount = api.get(`repos/${repo}/commits/${headSha}/check-suites?per_page=1`).total_count;
   // filter=all: the default returns only the latest run, which would let a
