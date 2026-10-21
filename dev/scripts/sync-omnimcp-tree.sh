@@ -52,10 +52,12 @@ rsync -a --checksum --delete \
   --filter='H /release-please-config.json' \
   --filter='H /.release-please-manifest.json' \
   --filter='H /dev/scripts/sync-omnimcp-tree.sh' \
+  --filter='H /dev/scripts/configure-omnimcp-tree.mjs' \
   --filter='H /dev/test/sync-omnimcp.test.mjs' \
   --filter='H /dev/scripts/approve-after-bugbot.mjs' \
   --filter='H /dev/test/approve-after-bugbot.test.mjs' \
   --filter='H /.github/CODEOWNERS' \
   "$source_tree/" "$destination/"
+node "$source_tree/dev/scripts/configure-omnimcp-tree.mjs" "$destination"
 mkdir -p "$destination/.github/workflows"
 install -m 644 "$replacement" "$workflow"
