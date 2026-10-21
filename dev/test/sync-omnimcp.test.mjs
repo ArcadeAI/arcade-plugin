@@ -52,10 +52,20 @@ const INTERNAL = [
 const OMNIMCP_PROFILE_INPUTS = [
   "hooks/hook-hosts.mjs",
   "hooks/user-prompt-submit.mjs",
+  "hooks/subagent-start.mjs",
+  "hooks/telemetry-adapter.mjs",
   "hooks/telemetry-adapters/claude-code.mjs",
   "hooks/telemetry-contract.mjs",
   ".claude-plugin/hooks.json",
+  "com.github.copilot/hooks/hooks.json",
+  "dev/test/fixtures/telemetry/claude-code/event-cases.mjs",
   "dev/test/fixtures/telemetry/claude-code/hooks.enabled.json",
+  "dev/test/fixtures/telemetry/copilot-cli/hooks.enabled.json",
+  "dev/test/hooks.test.mjs",
+  "dev/test/telemetry-foundation.test.mjs",
+  "docs/install/copilot.md",
+  "docs/install/vscode.md",
+  "docs/support-matrix.md",
   "docs/telemetry.md",
   "dev/scripts/telemetry-docs.mjs",
 ];
@@ -180,13 +190,18 @@ test("sync projects the SessionStart-only, secret-free Claude directory profile"
   const f = fixture(t);
   const result = f.run();
   assert.equal(result.status, 0, result.stderr);
-  const manifest = JSON.parse(readFileSync(join(f.dest, ".claude-plugin/hooks.json"), "utf8"));
-  assert.deepEqual(Object.keys(manifest.hooks), ["SessionStart"]);
+  for (const manifestPath of [".claude-plugin/hooks.json", "com.github.copilot/hooks/hooks.json"]) {
+    const manifest = JSON.parse(readFileSync(join(f.dest, manifestPath), "utf8"));
+    assert.deepEqual(Object.keys(manifest.hooks), ["SessionStart"], manifestPath);
+  }
   assert.ok(!existsSync(join(f.dest, "hooks/user-prompt-submit.mjs")));
+  assert.ok(!existsSync(join(f.dest, "hooks/subagent-start.mjs")));
   assert.ok(!existsSync(join(f.dest, "dev/test/fixtures/omnimcp/legacy-check.yml")));
-  assert.match(readFileSync(join(f.dest, "hooks/hook-hosts.mjs"), "utf8"), /subagent-start\.mjs", event: "SubagentStart", hosts: \["copilot"\]/);
+  const hookHosts = readFileSync(join(f.dest, "hooks/hook-hosts.mjs"), "utf8");
+  assert.doesNotMatch(hookHosts, /user-prompt-submit\.mjs|subagent-start\.mjs/);
   assert.match(readFileSync(join(f.dest, "hooks/telemetry-adapters/claude-code.mjs"), "utf8"), /promptReminder: false/);
   assert.match(readFileSync(join(f.dest, "hooks/telemetry-contract.mjs"), "utf8"), /always `false`; this copy does not add one/);
+  assert.match(readFileSync(join(f.dest, "docs/support-matrix.md"), "utf8"), /This copy's Copilot manifest runs the session-start hook only/);
 
   const files = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const file = join(directory, entry.name);
