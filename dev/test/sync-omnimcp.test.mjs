@@ -15,6 +15,8 @@ const INTERNAL = [
   ".release-please-manifest.json",
   "dev/scripts/sync-omnimcp-tree.sh",
   "dev/test/sync-omnimcp.test.mjs",
+  "dev/scripts/approve-after-bugbot.mjs",
+  "dev/test/approve-after-bugbot.test.mjs",
 ];
 
 function fixture(t) {
