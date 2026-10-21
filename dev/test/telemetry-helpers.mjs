@@ -18,28 +18,31 @@ import { buildEvent } from "../../hooks/telemetry-events.mjs";
 import { runTelemetry } from "../../hooks/telemetry-run.mjs";
 import { ROOT } from "./helpers.mjs";
 
-// An inherited opt-out, destination, plugin root or data dir would make a
-// silence test pass for the wrong reason or send somewhere other than its server.
-const TELEMETRY_ENV_BLOCKLIST = [
-  "ARCADE_PLUGIN_TELEMETRY",
-  "ARCADE_PLUGIN_TELEMETRY_HOST",
-  "DO_NOT_TRACK",
-  "DISABLE_TELEMETRY",
-  "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
-  "COPILOT_OFFLINE",
-  "CLAUDE_PLUGIN_DATA",
-  "COPILOT_PLUGIN_DATA",
-  "PLUGIN_ROOT",
+// The same variables the install checks pass to a child process. Credentials,
+// telemetry switches, plugin roots, and data directories stay out unless a
+// test names them in `overrides`.
+export const CHILD_ENV_ALLOWLIST = [
+  "PATH",
+  "PATHEXT",
+  "SystemRoot",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "LANG",
+  "LC_ALL",
 ];
 
 /**
- * process.env without inherited opt-outs, telemetry destination, plugin root
- * or data dirs, plus `overrides`.
+ * PATH plus the Windows, temp, and locale variables a child needs, plus `overrides`.
  * @param {NodeJS.ProcessEnv} [overrides]
  */
 export const hookEnv = (overrides = {}) => {
-  const env = { ...process.env };
-  for (const key of TELEMETRY_ENV_BLOCKLIST) delete env[key];
+  /** @type {NodeJS.ProcessEnv} */
+  const env = {};
+  for (const name of CHILD_ENV_ALLOWLIST) {
+    const value = process.env[name];
+    if (value) env[name] = value;
+  }
   return { ...env, ...overrides };
 };
 
@@ -202,10 +205,21 @@ export const sendWithNode = async (env) => {
   const payload = JSON.parse(env[EVENT_ENV] ?? "");
   const host = env.ARCADE_PLUGIN_TELEMETRY_HOST;
   if (!host || !payload?.event) return 1;
-  await fetch(`${host}/i/v0/e/`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ event: payload.event }),
+  // The body is only the event name. The host is this test's local server.
+  const body = JSON.stringify({ event: payload.event });
+  await new Promise((resolve, reject) => {
+    const request = http.request(new URL("/i/v0/e/", host), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(body),
+      },
+    }, (response) => {
+      response.resume();
+      response.on("end", resolve);
+    });
+    request.on("error", reject);
+    request.end(body);
   });
   return 0;
 };

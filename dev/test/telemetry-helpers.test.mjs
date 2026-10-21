@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { ROOT } from "./helpers.mjs";
-import { tempDataDir } from "./telemetry-helpers.mjs";
+import { CHILD_ENV_ALLOWLIST, hookEnv, tempDataDir } from "./telemetry-helpers.mjs";
 
 test("tempDataDir keeps directories from every test until the file ends, then removes them all", () => {
   const helpers = pathToFileURL(path.join(ROOT, "dev", "test", "telemetry-helpers.mjs")).href;
@@ -28,12 +28,22 @@ test("directories from earlier tests still exist", () => {
   for (const dir of made) if (!existsSync(dir)) throw new Error("removed early: " + dir);
 });
 `);
-  // Without NODE_TEST_CONTEXT the child prints readable TAP instead of the runner's binary protocol.
-  const env = { ...process.env };
-  delete env.NODE_TEST_CONTEXT;
-  const result = spawnSync(process.execPath, [file], { encoding: "utf8", env });
+  // hookEnv leaves out NODE_TEST_CONTEXT, so the child prints readable TAP
+  // instead of the runner's binary protocol.
+  const result = spawnSync(process.execPath, [file], { encoding: "utf8", env: hookEnv() });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const dirs = [...result.stdout.matchAll(/^TEMP_DIR (.+)$/gm)].map((match) => match[1]);
   assert.equal(dirs.length, 3, result.stdout);
   for (const dir of dirs) assert.equal(existsSync(dir), false, `left behind: ${dir}`);
+});
+
+test("hookEnv forwards only the child-process allowlist", () => {
+  const env = hookEnv({ PLUGIN_ROOT: "/plugin" });
+  assert.equal(env.PLUGIN_ROOT, "/plugin");
+  assert.equal(Object.hasOwn(env, "GITHUB_TOKEN"), false);
+  assert.equal(Object.hasOwn(env, "GH_TOKEN"), false);
+  assert.deepEqual(
+    Object.keys(env).filter((key) => key !== "PLUGIN_ROOT").sort(),
+    CHILD_ENV_ALLOWLIST.filter((key) => process.env[key]).sort(),
+  );
 });

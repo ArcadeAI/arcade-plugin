@@ -445,11 +445,17 @@ test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher 
 // Not a checklist row: the directory's security scan reads every file in the
 // plugin, dev/ included, and looks for code that downloads and runs other code
 // or sends data the plugin doesn't disclose. Tests are skipped because they
-// post to their own local servers.
+// post to their own local servers, except the helpers whose environment and
+// request shape are part of this guard.
+const SCANNED_TEST_FILES = new Set([
+  "dev/test/telemetry-helpers.mjs",
+  "dev/test/telemetry-helpers.test.mjs",
+]);
+
 test("no script downloads code or gives a child process the whole environment", () => {
   const offenders = [];
   for (const file of REGULAR_FILES) {
-    if (file.startsWith("dev/test/") || !/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
+    if ((file.startsWith("dev/test/") && !SCANNED_TEST_FILES.has(file)) || !/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
     read(file)
       .toString("utf8")
       .split("\n")
