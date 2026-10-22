@@ -16,7 +16,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,30 +40,16 @@ if (hash !== VALIDATOR_SHA256) {
   process.exit(1);
 }
 
-// The validator only reads plugins listed in .cursor-plugin/marketplace.json.
-// This repo is a single plugin and has no marketplace file, so the validator
-// runs in a temp folder holding a one-entry marketplace file and a link back
-// to this repo.
-const work = mkdtempSync(join(tmpdir(), "arcade-cursor-validate-"));
+// The validator reads .cursor-plugin/marketplace.json and the plugin directory
+// it names. This repo's marketplace source is "plugin". It does not read the
+// repo-root .cursor-plugin/plugin.json, which is only for Cursor's local loader.
 let status = 1;
+const work = mkdtempSync(join(tmpdir(), "arcade-cursor-validate-"));
 try {
-  const plugin = JSON.parse(readFileSync(join(root, ".cursor-plugin/plugin.json"), "utf8"));
-  const marketplace = {
-    name: plugin.name,
-    owner: { name: plugin.author.name },
-    plugins: [{ name: plugin.name, source: "plugin" }],
-  };
-  mkdirSync(join(work, ".cursor-plugin"));
-  writeFileSync(join(work, ".cursor-plugin/marketplace.json"), `${JSON.stringify(marketplace, null, 2)}\n`);
-  symlinkSync(root, join(work, "plugin"), "junction");
-
   const validatorPath = join(work, "validate-template.mjs");
   writeFileSync(validatorPath, validator);
-  status = spawnSync(process.execPath, [validatorPath], { cwd: work, stdio: "inherit" }).status ?? 1;
+  status = spawnSync(process.execPath, [validatorPath], { cwd: root, stdio: "inherit" }).status ?? 1;
 } finally {
-  // Remove the link to the repo on its own before the recursive delete, so the
-  // cleanup can never reach the repo's files.
-  rmSync(join(work, "plugin"), { force: true });
   rmSync(work, { recursive: true, force: true });
 }
 process.exit(status);

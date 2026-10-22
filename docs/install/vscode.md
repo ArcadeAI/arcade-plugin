@@ -2,10 +2,35 @@
 
 ## Full plugin (recommended)
 
-Command Palette → **Chat: Install Plugin From Source** → paste:
+The plugin directory in this repository is `plugin/`. VS Code loads
+`plugin.json` there as an Agent Plugin.
 
-```text
-https://github.com/ArcadeAI/arcade-plugin
+**Chat: Install Plugin From Source.** Open the Command Palette, run **Chat:
+Install Plugin From Source**, and paste `https://github.com/ArcadeAI/arcade-plugin`.
+VS Code clones the repository and reads `.claude-plugin/marketplace.json`
+before it looks for a manifest at the repository root. The marketplace entry
+source is `./plugin`, which VS Code resolves to the `plugin` directory and
+installs.
+
+**GitHub Copilot CLI**, which VS Code can discover afterwards:
+
+```bash
+copilot plugin marketplace add ArcadeAI/arcade-plugin
+copilot plugin install arcade@arcade
+```
+
+Copilot CLI reads that same `.claude-plugin/marketplace.json`. A source of
+`./plugin` and a source of `plugin` are the same directory: the plugin root
+relative to the repository root
+([marketplace source](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace)).
+
+**Local checkout.** Add the absolute path of the `plugin` directory to
+`chat.pluginLocations`:
+
+```json
+"chat.pluginLocations": {
+  "/path/to/arcade-plugin/plugin": true
+}
 ```
 
 Enable agent plugins in VS Code if needed (`chat.plugins.enabled`). Reload the
@@ -13,7 +38,7 @@ VS Code window after install and confirm the plugin under **Agent Plugins →
 Installed**. The first time, run **MCP: List Servers**, pick **arcade**, choose
 **Start Server**, and sign in when prompted; its tools show up after that.
 
-VS Code loads root `plugin.json` as an Agent Plugin: 2 skills, the gateway,
+VS Code loads `plugin/plugin.json` as an Agent Plugin: 2 skills, the gateway,
 and `arcade-operator` from `com.github.copilot/agents/`. It does not read the
 `.cursor-plugin/` adapter.
 
@@ -36,10 +61,10 @@ and this package has no validated VS Code telemetry flow.
 If you already installed the plugin via Copilot CLI, VS Code may auto-discover
 it from `~/.copilot/installed-plugins/`. Install in one place.
 
-### Local checkout
-
-Add the absolute path of your checkout to `chat.pluginLocations` in settings
-(see [VS Code Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)).
+See [VS Code Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
+for `chat.pluginLocations`. Set the path to the `plugin` directory. That
+setting loads a standalone plugin manifest in the directory you name;
+`plugin.json` for this package is `plugin/plugin.json`.
 
 ## Tools only (one click)
 

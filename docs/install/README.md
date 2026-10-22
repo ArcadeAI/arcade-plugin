@@ -24,11 +24,17 @@ below have alternatives and verification steps.
 Cursor and VS Code one-click badges add the gateway only, without skills or
 the operator. For the full plugin:
 
-- **Cursor:** individual plans clone `https://github.com/ArcadeAI/arcade-plugin`
-  into `~/.cursor/plugins/local/arcade-plugin`; Teams/Enterprise use an
-  admin-imported team marketplace. See [cursor.md](cursor.md).
-- **VS Code:** Command Palette → **Chat: Install Plugin From Source** →
-  `https://github.com/ArcadeAI/arcade-plugin`. See [vscode.md](vscode.md).
+- **Cursor:** individual plans clone the repository into
+  `~/.cursor/plugins/local/arcade-plugin`. The root `.cursor-plugin/plugin.json`
+  points into `plugin/`. Copying only `plugin/` into
+  `~/.cursor/plugins/local/arcade` also works. Teams/Enterprise import the
+  repository; `.cursor-plugin/marketplace.json` source is `plugin`.
+  See [cursor.md](cursor.md).
+- **VS Code:** **Chat: Install Plugin From Source** with
+  `https://github.com/ArcadeAI/arcade-plugin` reads
+  `.claude-plugin/marketplace.json` and installs source `./plugin`. The Copilot
+  marketplace commands do the same. A local `chat.pluginLocations` entry uses
+  the checkout's `plugin/` directory. See [vscode.md](vscode.md).
 
 After install, reload your agent or start a new session. No API keys: the
 first task that touches an app returns a browser sign-in link.

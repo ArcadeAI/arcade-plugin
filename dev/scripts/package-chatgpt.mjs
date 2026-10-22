@@ -2,8 +2,9 @@
 // Builds the ZIP to upload in OpenAI's plugin portal (ChatGPT and Codex
 // directory): dist/arcade-chatgpt-<version>.zip.
 //
-// The archive holds only the portable Agent Plugin, with plugin.json at the
-// ZIP root: plugin.json, mcp.json, skills/, the listing images, and LICENSE.
+// The archive holds only the portable Agent Plugin from plugin/, with
+// plugin.json at the ZIP root: plugin.json, mcp.json, skills/, the listing
+// images, and LICENSE.
 // OpenAI reads the listing from extensions.com.openai in plugin.json. The other
 // clients' folders (.claude-plugin/, .cursor-plugin/, com.github.copilot/) and
 // the hook scripts stay out: plugin ZIPs with lifecycle hooks can't be
@@ -17,6 +18,8 @@ import { fileURLToPath } from "node:url";
 import { zipSync } from "fflate";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const PLUGIN_DIR = "plugin";
+const pluginRootOf = (root) => join(root, PLUGIN_DIR);
 
 // Final directory submission rules from OpenAI's "Plugin submission errors"
 // page (https://developers.openai.com/plugins/deploy/submission-errors) and
@@ -107,12 +110,13 @@ const listFiles = (root, dir) =>
       return entry.isDirectory() ? listFiles(root, path) : [path];
     });
 
-/** The paths, relative to the repo root, that go into the ZIP. */
+/** The paths inside the ZIP. They are relative to plugin/ and to the ZIP root. */
 export const packageFiles = (root = ROOT) => {
-  const plugin = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8"));
+  const pluginRoot = pluginRootOf(root);
+  const plugin = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8"));
   const { logo, composerIcon } = plugin.extensions["com.openai"].interface;
   const images = [logo, composerIcon].filter(Boolean).map((path) => path.replace(/^\.\//, ""));
-  return [...new Set(["plugin.json", "mcp.json", "LICENSE", ...listFiles(root, "skills"), ...images])];
+  return [...new Set(["plugin.json", "mcp.json", "LICENSE", ...listFiles(pluginRoot, "skills"), ...images])];
 };
 
 // A fixed timestamp (1980-01-01 local time, the earliest a ZIP can store),
@@ -122,8 +126,9 @@ const ENTRY_OPTIONS = { level: 9, mtime: new Date(1980, 0, 1), os: 3, attrs: (0o
 
 /** Writes the ZIP and returns its path and the paths inside it. */
 export const packageChatGPT = ({ root = ROOT, outDir = join(root, "dist") } = {}) => {
-  const plugin = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8"));
-  const version = readFileSync(join(root, "VERSION"), "utf8").trim();
+  const pluginRoot = pluginRootOf(root);
+  const plugin = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8"));
+  const version = readFileSync(join(pluginRoot, "VERSION"), "utf8").trim();
   if (plugin.version !== version) {
     throw new Error(`plugin.json version ${plugin.version} does not match VERSION ${version}`);
   }
@@ -138,9 +143,9 @@ export const packageChatGPT = ({ root = ROOT, outDir = join(root, "dist") } = {}
 
   const files = packageFiles(root);
   for (const file of files) {
-    if (!statSync(join(root, file), { throwIfNoEntry: false })?.isFile()) throw new Error(`${file} is missing`);
+    if (!statSync(join(pluginRoot, file), { throwIfNoEntry: false })?.isFile()) throw new Error(`${file} is missing`);
   }
-  const archive = zipSync(Object.fromEntries(files.map((name) => [name, [readFileSync(join(root, name)), ENTRY_OPTIONS]])));
+  const archive = zipSync(Object.fromEntries(files.map((name) => [name, [readFileSync(join(pluginRoot, name)), ENTRY_OPTIONS]])));
   mkdirSync(outDir, { recursive: true });
   const path = join(outDir, `${plugin.name}-chatgpt-${version}.zip`);
   writeFileSync(path, archive);

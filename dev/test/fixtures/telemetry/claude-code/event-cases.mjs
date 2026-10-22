@@ -1,7 +1,7 @@
 import {
   ARCADE_TOOL_PREFIX,
   CLAUDE_AI_ARCADE_TOOL_PREFIX,
-} from "../../../../../hooks/telemetry-adapters/claude-code.mjs";
+} from "../../../../../plugin/hooks/telemetry-adapters/claude-code.mjs";
 import { authStatusResponse } from "./auth-status-response.mjs";
 
 const SIGN_IN = `${ARCADE_TOOL_PREFIX}System_ManageAuthorization`;

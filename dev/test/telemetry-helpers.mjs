@@ -12,10 +12,10 @@ import os from "node:os";
 import path from "node:path";
 import { after } from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
-import { eventSchema } from "../../hooks/telemetry-contract.mjs";
-import { EVENT_ENV, PLUGIN_VERSION } from "../../hooks/telemetry-config.mjs";
-import { buildEvent } from "../../hooks/telemetry-events.mjs";
-import { runTelemetry } from "../../hooks/telemetry-run.mjs";
+import { eventSchema } from "../../plugin/hooks/telemetry-contract.mjs";
+import { EVENT_ENV, PLUGIN_VERSION } from "../../plugin/hooks/telemetry-config.mjs";
+import { buildEvent } from "../../plugin/hooks/telemetry-events.mjs";
+import { runTelemetry } from "../../plugin/hooks/telemetry-run.mjs";
 import { ROOT } from "./helpers.mjs";
 
 // An inherited opt-out, destination, plugin root or data dir would make a
@@ -59,7 +59,7 @@ export const tempDataDir = () => {
 };
 
 /**
- * @param {import("../../hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter
+ * @param {import("../../plugin/hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter
  * @param {string | null} dataDir
  * @param {NodeJS.ProcessEnv} overrides
  */
@@ -68,7 +68,7 @@ const captureEnv = (adapter, dataDir, overrides) =>
 
 /**
  * @param {object} options
- * @param {import("../../hooks/telemetry-adapter.mjs").TelemetryAdapter} options.adapter
+ * @param {import("../../plugin/hooks/telemetry-adapter.mjs").TelemetryAdapter} options.adapter
  * @param {Record<string, any>} options.input
  * @param {NodeJS.ProcessEnv} [options.env]
  * @param {string[]} [options.argv]
@@ -145,7 +145,7 @@ export const startServer = async () => {
 };
 
 /**
- * @param {import("../../hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter
+ * @param {import("../../plugin/hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter
  */
 export const telemetryEnv = (adapter, dataDir, serverUrl, extra = {}) => ({
   [adapter.dataVariable]: dataDir,
@@ -165,7 +165,7 @@ export const hookInput = (fields) => ({
 });
 
 /**
- * @param {import("../../hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter
+ * @param {import("../../plugin/hooks/telemetry-adapter.mjs").TelemetryAdapter} adapter
  */
 export const expectedEvent = (event, extra, adapter, sessionId = "raw-session-id-123", promptId = "raw-prompt-id-456") => {
   const session = hash16(sessionId);
@@ -188,7 +188,7 @@ export const expectedEvent = (event, extra, adapter, sessionId = "raw-session-id
 };
 
 export const runTelemetryScript = (stdin, env, hostName = "claude-code", extraArgs = []) =>
-  spawnSync(process.execPath, [path.join(ROOT, "hooks", "telemetry.mjs"), "--host", hostName, ...extraArgs], {
+  spawnSync(process.execPath, [path.join(ROOT, "plugin", "hooks", "telemetry.mjs"), "--host", hostName, ...extraArgs], {
     input: stdin,
     encoding: "utf8",
     env: hookEnv(env),
@@ -219,7 +219,7 @@ export const sendWithNode = async (env) => {
  * open gate.
  * @param {object} options
  * @param {{ requests: { body: string }[] }} options.server
- * @param {import("../../hooks/telemetry-adapter.mjs").TelemetryAdapter} options.adapter
+ * @param {import("../../plugin/hooks/telemetry-adapter.mjs").TelemetryAdapter} options.adapter
  * @param {Record<string, any>} options.input A hook input classified as app work.
  * @param {NodeJS.ProcessEnv} options.env
  * @param {(env: NodeJS.ProcessEnv) => Promise<number | null>} [options.send]

@@ -69,6 +69,14 @@ function verifyInstall(repo, copy, config) {
   if (!existsSync(join(installed, ".claude-plugin", "plugin.json"))) {
     throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed without .claude-plugin/plugin.json`);
   }
+  // Marketplace source is ./plugin. The installed root is that directory:
+  // skills live there, and repository-root files such as AGENTS.md do not.
+  if (!existsSync(join(installed, "skills", "try-arcade", "SKILL.md"))) {
+    throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed without skills/try-arcade, so source ./plugin was not the install root`);
+  }
+  if (existsSync(join(installed, "AGENTS.md")) || existsSync(join(installed, "dev"))) {
+    throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed the repository root; source ./plugin should install the plugin directory`);
+  }
   if (existsSync(join(installed, "node_modules"))) {
     throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed with node_modules, so Claude Code ran a package install`);
   }
