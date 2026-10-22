@@ -8,7 +8,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { listingProblems, packageChatGPT } from "../scripts/package-chatgpt.mjs";
+import { archiveProblems, listingProblems, packageChatGPT } from "../scripts/package-chatgpt.mjs";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 
 const plugin = JSON.parse(readRepoFile("plugin.json"));
@@ -28,6 +28,45 @@ test("listingProblems reports what final directory submission rejects", () => {
     "defaultPrompt entry must not @mention an MCP server: Ask @arcade for my calendar",
   ]);
   assert.deepEqual(listingProblems({ ...listing, defaultPrompt: ["Hi  there", "Hi there"] }), ["defaultPrompt entries must be unique"]);
+  assert.deepEqual(listingProblems({ ...listing, supportURL: undefined }), ["supportURL is required for a remote MCP submission"]);
+  assert.deepEqual(listingProblems({ ...listing, termsOfServiceURL: undefined }), ["termsOfServiceURL is required for a remote MCP submission"]);
+});
+
+test("archiveProblems rejects hooks and apps on the manifest OpenAI reads", () => {
+  assert.deepEqual(archiveProblems(plugin), []);
+  const message = (key) => `plugin.json declares ${key}; OpenAI ZIP uploads can't include it`;
+  assert.deepEqual(archiveProblems({ ...plugin, hooks: "./hooks/hooks.json" }), [message("hooks")]);
+  assert.deepEqual(archiveProblems({ ...plugin, apps: "./.app.json" }), [message("apps")]);
+  const openai = plugin.extensions["com.openai"];
+  assert.deepEqual(archiveProblems({
+    ...plugin,
+    extensions: { "com.openai": { ...openai, hooks: "./hooks/hooks.json" } },
+  }), [message("hooks")]);
+  assert.deepEqual(archiveProblems({
+    ...plugin,
+    extensions: { "com.openai": { ...openai, apps: "./.app.json" } },
+  }), [message("apps")]);
+});
+
+test("the directory listing has the four MCP URLs and five positive review cases", () => {
+  const openai = plugin.extensions["com.openai"];
+  assert.equal(openai.interface.supportURL, "https://support.arcade.dev");
+  assert.equal(openai.interface.termsOfServiceURL, "https://www.arcade.dev/terms-of-service/");
+  assert.equal(openai.interface.privacyPolicyURL, "https://www.arcade.dev/privacy-policy/");
+  assert.ok(openai.interface.websiteURL?.startsWith("https://"));
+  assert.equal(openai.review.test_cases.positive.length, 5);
+  assert.equal(openai.review.test_cases.negative.length, 3);
+  assert.equal(openai.review.commerce, false);
+  assert.equal("demo_recording_url" in openai.review, false);
+  assert.deepEqual(openai.publication.countries, ["US"]);
+  assert.doesNotMatch(openai.publication.release_notes, /\d+\.\d+\.\d+/);
+  assert.deepEqual(openai.review.test_cases.positive.map((item) => item.tools_triggered), [
+    "Gmail_ListEmails",
+    "GoogleCalendar_ListEvents",
+    "Github_ListIssues",
+    "Slack_GetMessages",
+    "Gmail_ListEmails, Gmail_WriteDraftReplyEmail",
+  ]);
 });
 
 const hasUnzip = !spawnSync("unzip", ["-v"]).error;

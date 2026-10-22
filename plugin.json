@@ -24,10 +24,82 @@
         "longDescription": "Your agent, every app you've connected. Ask in plain English — email, calendar, issues, chat — and Arcade finds and runs the right tool. Sign in once in the browser — without ever handing your agent a key.",
         "developerName": "Arcade.dev",
         "category": "Productivity",
+        "capabilities": [
+          "Read and search email",
+          "Check calendar events",
+          "Find issues and pull requests",
+          "Read team chat",
+          "Draft messages for your confirmation"
+        ],
         "websiteURL": "https://arcade.dev",
+        "supportURL": "https://support.arcade.dev",
         "privacyPolicyURL": "https://www.arcade.dev/privacy-policy/",
+        "termsOfServiceURL": "https://www.arcade.dev/terms-of-service/",
+        "defaultPrompt": [
+          "What's on my calendar tomorrow?",
+          "Summarize my unread email from this week.",
+          "Which GitHub issues are assigned to me?"
+        ],
         "logo": "./assets/logo.png",
         "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Summarize unread email in the connected Gmail account",
+              "prompt": "Summarize my unread email from the last 7 days.",
+              "tools_triggered": "Gmail_ListEmails",
+              "expected_behavior": "Lists the seeded unread test emails (sender, subject, one-line summary each) from the reviewer Gmail account. No email is changed or marked read."
+            },
+            {
+              "description": "Read tomorrow's calendar",
+              "prompt": "What's on my calendar tomorrow?",
+              "tools_triggered": "GoogleCalendar_ListEvents",
+              "expected_behavior": "Returns the seeded recurring test events for tomorrow with times and titles from the reviewer Google Calendar. Nothing is created or changed."
+            },
+            {
+              "description": "Find GitHub issues assigned to the user",
+              "prompt": "Which open GitHub issues are assigned to me in arcade-review/sample-tracker?",
+              "tools_triggered": "Github_ListIssues",
+              "expected_behavior": "Lists the seeded open issues assigned to the reviewer GitHub account in the sample repo, with titles and links."
+            },
+            {
+              "description": "Read recent messages in a Slack channel",
+              "prompt": "What did people say in #launch-plan on Slack this week?",
+              "tools_triggered": "Slack_GetMessages",
+              "expected_behavior": "Summarizes the seeded messages in #launch-plan in the review Slack workspace and names who said what. Nothing is posted."
+            },
+            {
+              "description": "Draft an email and stop for confirmation",
+              "prompt": "Draft a reply to the 'Q4 venue options' email saying Thursday works, but don't send it.",
+              "tools_triggered": "Gmail_ListEmails, Gmail_WriteDraftReplyEmail",
+              "expected_behavior": "Shows the draft text and recipient, asks before saving, then saves it as a Gmail draft. The email is not sent."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General knowledge question that needs no connected app",
+              "prompt": "What's the difference between TCP and UDP?"
+            },
+            {
+              "description": "Request outside any connected app (payments)",
+              "prompt": "Send $50 to my landlord on Venmo."
+            },
+            {
+              "description": "Irreversible bulk action without a confirmed target",
+              "prompt": "Delete every email in my inbox."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Arcade does not sell products or process payments."
+      },
+      "publication": {
+        "countries": [
+          "US"
+        ],
+        "release_notes": "Initial OpenAI directory release. Two skills (try-arcade, scale-arcade) and the Arcade MCP gateway at https://api.arcade.dev/mcp/arcade. No hooks, commands, or agents."
       }
     }
   }
