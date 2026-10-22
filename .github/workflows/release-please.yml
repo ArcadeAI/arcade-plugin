@@ -70,15 +70,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: gh release upload "${TAG}" dist/arcade-chatgpt-*.zip --clobber --repo "${GITHUB_REPOSITORY}"
-
-  omnimcp-release-sync:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/sync-omnimcp.yml
-    with:
-      source_tag: ${{ needs.release-please.outputs.tag_name }}
-    secrets:
-      OMNIMCP_SYNC_APP_CLIENT_ID: ${{ secrets.OMNIMCP_SYNC_APP_CLIENT_ID }}
-      OMNIMCP_SYNC_APP_PRIVATE_KEY: ${{ secrets.OMNIMCP_SYNC_APP_PRIVATE_KEY }}
