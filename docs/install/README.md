@@ -18,6 +18,7 @@ below have alternatives and verification steps.
 | **GitHub Copilot CLI** | `copilot plugin marketplace add ArcadeAI/arcade-plugin`, then `copilot plugin install arcade@arcade` | [copilot.md](copilot.md) |
 | **Codex / ChatGPT** | `codex plugin marketplace add ArcadeAI/arcade-plugin`, then `codex plugin add arcade@arcade` | [codex.md](codex.md) |
 | **OpenCode** | Gateway URL only — [opencode.md](opencode.md) | [opencode.md](opencode.md) |
+| **Grok Bot** | Skills and the MCP connector | [grok-bot.md](grok-bot.md) |
 | **Any MCP client** | `https://api.arcade.dev/mcp/arcade` | [agent-plugins.md](agent-plugins.md) |
 
 Cursor and VS Code one-click badges add the gateway only, without skills or
@@ -83,6 +84,7 @@ Cursor and VS Code also have one-click MCP install links in
 | GitHub Copilot CLI | [copilot.md](copilot.md) |
 | Codex / ChatGPT | [codex.md](codex.md) |
 | OpenCode | [opencode.md](opencode.md) |
+| Grok Bot | [grok-bot.md](grok-bot.md) |
 | Any MCP / Agent Plugins client | [agent-plugins.md](agent-plugins.md) |
 
 What each client actually loads is in the [support matrix](../support-matrix.md).
