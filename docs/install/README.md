@@ -24,11 +24,11 @@ below have alternatives and verification steps.
 Cursor and VS Code one-click badges add the gateway only, without skills or
 the operator. For the full plugin:
 
-- **Cursor:** individual plans clone the repository and copy its `plugin/`
-  directory into `~/.cursor/plugins/local/arcade`. A clone whose destination is
-  `~/.cursor/plugins/local/arcade-plugin` leaves the Cursor manifest inside
-  `plugin/`, and the local loader does not read it there. Teams/Enterprise
-  import the repository; `.cursor-plugin/marketplace.json` source is `plugin`.
+- **Cursor:** individual plans clone the repository into
+  `~/.cursor/plugins/local/arcade-plugin`. The root `.cursor-plugin/plugin.json`
+  points into `plugin/`. Copying only `plugin/` into
+  `~/.cursor/plugins/local/arcade` also works. Teams/Enterprise import the
+  repository; `.cursor-plugin/marketplace.json` source is `plugin`.
   See [cursor.md](cursor.md).
 - **VS Code:** **Chat: Install Plugin From Source** with
   `https://github.com/ArcadeAI/arcade-plugin` reads

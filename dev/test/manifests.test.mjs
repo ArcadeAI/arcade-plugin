@@ -1,15 +1,59 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 
+const assertRelativePath = (value) => {
+  assert.equal(path.isAbsolute(value), false, value);
+  assert.ok(!value.split(/[/\\]/).includes(".."), value);
+};
+
 test(".cursor-plugin paths exist", () => {
   const manifest = JSON.parse(readRepoFile("plugin/.cursor-plugin/plugin.json"));
+  const portable = JSON.parse(readRepoFile("plugin/plugin.json"));
   assert.equal(manifest.displayName, "Arcade");
+  assert.equal(manifest.description, portable.description);
+  assert.deepEqual(manifest.keywords, portable.keywords);
   for (const key of ["skills", "agents", "commands", "rules", "logo"]) {
+    assertRelativePath(manifest[key]);
     assert.ok(existsSync(path.join(ROOT, "plugin", manifest[key])), `missing ${manifest[key]}`);
   }
+
+  // A clone of the repo is the plugin root for Cursor's local loader.
+  const rootManifest = JSON.parse(readRepoFile(".cursor-plugin/plugin.json"));
+  assert.equal(rootManifest.displayName, manifest.displayName);
+  assert.equal(rootManifest.description, manifest.description);
+  assert.equal(rootManifest.version, manifest.version);
+  assert.deepEqual(rootManifest.keywords, manifest.keywords);
+  assert.deepEqual(rootManifest.author, manifest.author);
+  assert.deepEqual(rootManifest.mcpServers, manifest.mcpServers);
+  assert.equal(rootManifest.hooks, ".cursor-plugin/hooks.json");
+  for (const key of ["skills", "agents", "commands", "rules"]) {
+    assertRelativePath(rootManifest[key]);
+    assert.ok(statSync(path.join(ROOT, rootManifest[key])).isDirectory(), rootManifest[key]);
+  }
+  for (const key of ["logo", "hooks"]) {
+    assertRelativePath(rootManifest[key]);
+    assert.ok(statSync(path.join(ROOT, rootManifest[key])).isFile(), rootManifest[key]);
+  }
+
+  const nestedHooks = JSON.parse(readRepoFile("plugin/clients/cursor/hooks/hooks.json"));
+  const rootHooks = JSON.parse(readRepoFile(rootManifest.hooks));
+  assert.equal(rootHooks.version, nestedHooks.version);
+  assert.deepEqual(Object.keys(rootHooks.hooks), Object.keys(nestedHooks.hooks));
+  const [rootHook] = rootHooks.hooks.sessionStart;
+  const [nestedHook] = nestedHooks.hooks.sessionStart;
+  assert.equal(rootHook.type, nestedHook.type);
+  assert.equal(rootHook.timeout, nestedHook.timeout);
+  assert.equal(
+    rootHook.command,
+    nestedHook.command.replace("${CURSOR_PLUGIN_ROOT}/hooks/", "${CURSOR_PLUGIN_ROOT}/plugin/hooks/"),
+  );
+  const script = rootHook.command.match(/\$\{CURSOR_PLUGIN_ROOT\}\/([^"]+)/)?.[1];
+  assert.ok(script, rootHook.command);
+  assertRelativePath(script);
+  assert.ok(existsSync(path.join(ROOT, script)), `missing ${script}`);
 });
 
 test("commands are named arcade-* and listed in the support matrix and README", () => {

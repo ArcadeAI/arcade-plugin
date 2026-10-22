@@ -79,7 +79,7 @@ Files a client needs at its own path are generated from shared sources (see
 [ARCHITECTURE.md](../ARCHITECTURE.md)). In this repository those files live
 under `plugin/`. The marketplace files stay at the repository root and point
 at that directory. Paths in the table are relative to the plugin directory,
-except the marketplace rows.
+except the marketplace and local-clone rows.
 
 | Piece | File | Read by |
 |---|---|---|
@@ -92,6 +92,7 @@ except the marketplace rows.
 | Rule | `clients/cursor/rules/arcade.mdc` | Cursor IDE / Cloud Agents |
 | Marketplace | `.claude-plugin/marketplace.json` (source `./plugin`) | Claude Desktop, Cowork, Claude Code, Codex, Copilot CLI, VS Code Install Plugin From Source |
 | Marketplace | `.cursor-plugin/marketplace.json` (source `plugin`) | Cursor team marketplace import |
+| Local clone | `.cursor-plugin/plugin.json` and `.cursor-plugin/hooks.json` at the repo root, pointing into `plugin/` | Cursor local loader |
 | Codex listing | `plugin.json` → `extensions.com.openai.interface` | Codex |
 
 Claude Desktop installs this repo as a plugin marketplace (see

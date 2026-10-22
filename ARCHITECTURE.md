@@ -3,6 +3,9 @@
 A portable Agent Plugin (`plugin/plugin.json`, `plugin/mcp.json`, `plugin/skills/`) plus the files
 each client needs at its own path. The shipped plugin is the `plugin/` directory.
 Marketplace files stay at the repository root and point at that directory.
+Cursor's local loader also reads `.cursor-plugin/plugin.json` and
+`.cursor-plugin/hooks.json` at the repository root; those paths point into
+`plugin/` and do not change `.cursor-plugin/marketplace.json` (source `plugin`).
 Every client-specific file is generated
 from a few sources by `npm run generate`; `npm run verify` fails if one was
 edited by hand. Both run from `dev/`, which holds the dev tooling so that

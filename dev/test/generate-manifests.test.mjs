@@ -16,6 +16,8 @@ import { makeFixture, readRepoFile, ROOT } from "./helpers.mjs";
 const EXPECTED_SOURCES = {
   "plugin/plugin.json": ["dev/scripts/generate-manifests.mjs"],
   "plugin/.cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  ".cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "dev/scripts/generate-manifests.mjs"],
+  ".cursor-plugin/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   "plugin/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   ".claude-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],

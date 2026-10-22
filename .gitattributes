@@ -1,5 +1,7 @@
 # Written by `npm run generate`. Lists every fully generated file.
 plugin/.cursor-plugin/plugin.json linguist-generated=true
+.cursor-plugin/plugin.json linguist-generated=true
+.cursor-plugin/hooks.json linguist-generated=true
 plugin/.claude-plugin/plugin.json linguist-generated=true
 .claude-plugin/marketplace.json linguist-generated=true
 .cursor-plugin/marketplace.json linguist-generated=true

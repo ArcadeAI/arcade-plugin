@@ -15,8 +15,9 @@ import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-// Shipped plugin files live here. Marketplace catalogs and .gitattributes stay
-// at the repo root and point at this directory.
+// Shipped plugin files live here. Marketplace catalogs, the repo-root Cursor
+// manifest (for a local clone), and .gitattributes stay at the repo root and
+// point at this directory.
 export const PLUGIN_DIR = "plugin";
 
 const inPlugin = (file) => `${PLUGIN_DIR}/${file}`;
@@ -187,6 +188,13 @@ export const FILE_SOURCES = {
   // supplies the version; hook-hosts.mjs supplies the hooks manifest path; the
   // script writes the fixed skills/agents/commands/rules paths.
   [inPlugin(".cursor-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
+  // Same identity as the plugin-directory Cursor manifest. Paths are prefixed
+  // with plugin/ because Cursor's local loader treats a clone of this repo as
+  // the plugin root. The hooks field names the repo-root hooks file below.
+  ".cursor-plugin/plugin.json": [PLUGIN_JSON, MCP_JSON, VERSION_FILE, "dev/scripts/generate-manifests.mjs"],
+  // Same Cursor hook table as clients/cursor/hooks/hooks.json, with script
+  // paths under plugin/hooks so ${CURSOR_PLUGIN_ROOT} is the repository root.
+  ".cursor-plugin/hooks.json": [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the mcpServers transport type.
   [inPlugin(".claude-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the marketplace description and support email. There is no version field.
@@ -268,19 +276,21 @@ const fillRulesBlock = (text, rules, path) => {
 };
 
 /**
- * The command fields of one hook entry. With `runOnlyIfScriptExists`, the
- * command runs the script only if the file is there, so a client that leaves
- * the root variable unset or pointing at a missing script gets exit 0 and no
- * output. `powershell`
- * is intended for Windows (not verified); it has no double quotes because VS
- * Code is expected to pass it as one argument to `powershell.exe -Command`.
+ * The command fields of one hook entry. `hooksDir` is the directory of hook
+ * scripts relative to the client's plugin root (`hooks` inside `plugin/`,
+ * `plugin/hooks` when that root is the repository). With
+ * `runOnlyIfScriptExists`, the command runs the script only if the file is
+ * there, so a client that leaves the root variable unset or pointing at a
+ * missing script gets exit 0 and no output. `powershell` is intended for
+ * Windows (not verified); it has no double quotes because VS Code is expected
+ * to pass it as one argument to `powershell.exe -Command`.
  */
-const hookCommandFields = (hostName, script) => {
+const hookCommandFields = (hostName, script, hooksDir = "hooks") => {
   const { rootVariable, runOnlyIfScriptExists } = HOSTS[hostName];
-  const scriptPath = `\${${rootVariable}}/hooks/${script}`;
+  const scriptPath = `\${${rootVariable}}/${hooksDir}/${script}`;
   const command = `node "${scriptPath}" --host ${hostName}`;
   if (!runOnlyIfScriptExists) return { command };
-  const psPath = `($env:${rootVariable} + '/hooks/${script}')`;
+  const psPath = `($env:${rootVariable} + '/${hooksDir}/${script}')`;
   return {
     command: `if [ -f "${scriptPath}" ]; then ${command}; fi`,
     powershell: `if ($env:${rootVariable} -and (Test-Path -LiteralPath ${psPath})) { node ${psPath} --host ${hostName} }`,
@@ -289,8 +299,9 @@ const hookCommandFields = (hostName, script) => {
 
 // Claude Code nests each command in a group: { hooks: { Event: [{ matcher, hooks: [entry] }] } },
 // with one group per event and matcher. Cursor, Copilot CLI, and VS Code take
-// the entries directly and need version 1.
-export const buildHookManifest = (hostName, hookRows = HOOKS) => {
+// the entries directly and need version 1. `hooksDir` is relative to the
+// client's plugin root and must not contain ".." or an absolute path.
+export const buildHookManifest = (hostName, hookRows = HOOKS, { hooksDir = "hooks" } = {}) => {
   const host = HOSTS[hostName];
   const nested = host.format === "nested";
   const hooks = {};
@@ -303,11 +314,11 @@ export const buildHookManifest = (hostName, hookRows = HOOKS) => {
       if (hook.if || hook.extraArgs) {
         throw new Error(`${hook.script} entry for ${hostName} has if or extra args, which the flat format does not support`);
       }
-      const entry = { type: "command", ...hookCommandFields(hostName, hook.script), timeout: HOOK_TIMEOUT_SEC };
+      const entry = { type: "command", ...hookCommandFields(hostName, hook.script, hooksDir), timeout: HOOK_TIMEOUT_SEC };
       hooks[name].push({ ...entry, ...(hook.matcher ? { matcher: hook.matcher } : {}) });
       continue;
     }
-    const { command } = hookCommandFields(hostName, hook.script);
+    const { command } = hookCommandFields(hostName, hook.script, hooksDir);
     const entry = {
       type: "command",
       ...(hook.if ? { if: hook.if } : {}),
@@ -341,31 +352,61 @@ const buildFiles = (root) => {
     throw new Error("plugin.json extensions.com.openai.interface.logo is missing");
   }
   // Codex wants the logo path with a leading "./"; Cursor takes it without one.
-  // The Claude marketplace has no logo field. Both paths are relative to the
-  // plugin directory.
+  // The Claude marketplace has no logo field. `logo` is relative to the plugin
+  // directory; the repo-root Cursor manifest prefixes it with plugin/.
   const logo = openaiListing.logo.replace(/^\.\//, "");
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
   const owner = { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL };
 
+  // Cursor's manifest schema allows only `name` and `email` in `author`.
+  // Keywords, description, and version come from the same identity as the
+  // other manifests. Component paths stay relative: Cursor rejects ".." and
+  // absolute paths.
+  const cursorPluginManifest = (paths) => ({
+    ...identity,
+    author: { name: author.name },
+    displayName,
+    logo: paths.logo,
+    repository,
+    skills: paths.skills,
+    agents: paths.agents,
+    commands: paths.commands,
+    rules: paths.rules,
+    hooks: paths.hooks,
+    // Cursor infers the transport from the URL.
+    mcpServers: { arcade: { url } },
+  });
+
   const files = new Map([
     [
       inPlugin(".cursor-plugin/plugin.json"),
-      serialize({
-        ...identity,
-        // Cursor's manifest schema allows only `name` and `email` in `author`.
-        author: { name: author.name },
-        displayName,
+      serialize(cursorPluginManifest({
         logo,
-        repository,
         skills: "skills",
         agents: "agents",
         commands: "commands",
         rules: CURSOR_RULE_DIR,
         hooks: HOSTS.cursor.manifest,
-        // Cursor infers the transport from the URL.
-        mcpServers: { arcade: { url } },
-      }),
+      })),
+    ],
+    // Local loader: .cursor-plugin/plugin.json at the folder Cursor was given.
+    // A git clone of this repo is that folder, so paths point into plugin/.
+    // Marketplace installs still use .cursor-plugin/marketplace.json.
+    [
+      ".cursor-plugin/plugin.json",
+      serialize(cursorPluginManifest({
+        logo: `${PLUGIN_DIR}/${logo}`,
+        skills: `${PLUGIN_DIR}/skills`,
+        agents: `${PLUGIN_DIR}/agents`,
+        commands: `${PLUGIN_DIR}/commands`,
+        rules: `${PLUGIN_DIR}/${CURSOR_RULE_DIR}`,
+        hooks: ".cursor-plugin/hooks.json",
+      })),
+    ],
+    [
+      ".cursor-plugin/hooks.json",
+      serialize(buildHookManifest("cursor", HOOKS, { hooksDir: `${PLUGIN_DIR}/hooks` })),
     ],
     [
       inPlugin(".claude-plugin/plugin.json"),

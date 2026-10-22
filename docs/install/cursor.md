@@ -12,28 +12,26 @@ that directory. The logo file is `plugin/assets/logo.png`.
 ### Individual plans
 
 Cursor loads each folder under `~/.cursor/plugins/local` as a plugin root. It
-looks for `plugin.json` or `.cursor-plugin/plugin.json` in that folder
-([Test plugins locally](https://cursor.com/docs/plugins)). In this repository
-those files are `plugin/plugin.json` and `plugin/.cursor-plugin/plugin.json`.
+looks for `.cursor-plugin/plugin.json`, then `.claude-plugin/plugin.json`, then
+`plugin.json` in that folder
+([Test plugins locally](https://cursor.com/docs/plugins)).
 
-Clone this repository somewhere else, then copy the `plugin` directory into
-Cursor's local plugin folder. A clone whose destination is
-`~/.cursor/plugins/local/arcade-plugin` leaves the manifest at
-`plugin/.cursor-plugin/plugin.json`. The local loader reads a manifest in the
-folder it was given, and team **Import from Repo** is what reads
-`.cursor-plugin/marketplace.json`.
+Clone this repository into that folder. The root `.cursor-plugin/plugin.json`
+points skills, agents, commands, rules, and the logo into `plugin/`.
+`.cursor-plugin/hooks.json` runs the session hook from `plugin/hooks/`.
 
 ```bash
-git clone https://github.com/ArcadeAI/arcade-plugin.git ~/src/arcade-plugin
 mkdir -p ~/.cursor/plugins/local
-rm -rf ~/.cursor/plugins/local/arcade
-cp -R ~/src/arcade-plugin/plugin ~/.cursor/plugins/local/arcade
+git clone https://github.com/ArcadeAI/arcade-plugin.git ~/.cursor/plugins/local/arcade-plugin
 ```
 
 Reload Cursor (**Developer: Reload Window**), then open **Customize** and
 confirm 2 skills, the `arcade-operator` agent, the `arcade` rule, and the
-`arcade` MCP server. To update later, run `git pull` in the clone, copy
-`plugin/` over again, and reload.
+`arcade` MCP server. To update later, run `git pull` in that clone and reload.
+
+Copying only `plugin/` into `~/.cursor/plugins/local/arcade` also works. That
+copy loads `plugin/.cursor-plugin/plugin.json`. Team **Import from Repo** reads
+`.cursor-plugin/marketplace.json`, whose source is `plugin`.
 
 Do not symlink to a folder outside `~/.cursor/plugins/local/` — Cursor ignores
 external symlink targets.
