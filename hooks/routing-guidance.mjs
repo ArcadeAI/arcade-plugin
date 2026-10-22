@@ -85,8 +85,16 @@ const DELEGATE_RULES = [
 // One labeled line per rule, so a host that injects the whole set can scan it.
 const join = (...parts) => parts.join("\n");
 
-// Generated into the try-arcade skill and arcade-operator.
-export const SKILL_RULES = join(...PARENT_RULES);
+// A host such as Grok Bot may expose the gateway under a team connector name
+// rather than "arcade". The skill is the only routing text that host loads.
+const CONNECTOR_NAMESPACE =
+  "An Arcade MCP connector may be exposed under any namespace name, " +
+  "including a Grok Bot team connector. Recognize it by Arcade_ListApps, " +
+  "Arcade_SelectTools, and Arcade_UseTool, and call Arcade_SelectTools and " +
+  "Arcade_UseTool on that namespace.";
+
+// SKILL_RULES is copied into try-arcade. OPERATOR_RULES is copied into arcade-operator.
+export const SKILL_RULES = join(...PARENT_RULES, line("Connector", CONNECTOR_NAMESPACE));
 export const OPERATOR_RULES = join(...DELEGATE_RULES);
 
 // Printed by the session-start hook.

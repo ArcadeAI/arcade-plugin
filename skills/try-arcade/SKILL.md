@@ -18,6 +18,7 @@ Gateway: Arcade is connected as the "arcade" MCP server at api.arcade.dev. It ma
 Authentication: A gateway showing needsAuth or a plugin namespace with zero tools needs authentication in this host's MCP settings. A missing, unavailable, or failing gateway needs setup or connection repair.
 If blocked: For authentication, stop and ask the user to authenticate; do not poll. For permission denial, stop and ask the user to resolve it. Do not bypass either by switching gateways or tools. For other failures, report the error, advise checking plugin and MCP settings for setup or connection failures, then apply fallback.
 Fallback: If the arcade server cannot finish, the parent may use another already-authorized Arcade gateway or other available tools within the authorized task. Discover tools on each gateway; never reuse another gateway's query IDs. Do not broaden authorization or copy secrets, credentials, or user sessions. On another gateway, confirm the intended app account with the app's who-am-I tool. Write only through a confirmed account, and name the source account for reads. If you can't, ask the user.
+Connector: An Arcade MCP connector may be exposed under any namespace name, including a Grok Bot team connector. Recognize it by Arcade_ListApps, Arcade_SelectTools, and Arcade_UseTool, and call Arcade_SelectTools and Arcade_UseTool on that namespace.
 <!-- END generated -->
 
 ## When there is no job

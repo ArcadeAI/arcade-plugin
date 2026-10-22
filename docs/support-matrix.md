@@ -17,6 +17,7 @@ browser. The rows differ in how much of this plugin the client can load.
 | **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | —⁷ | [guide](install/codex.md) |
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | ✅ | — | — | — | — | [guide](install/claude-desktop.md) |
+| **Grok Bot**⁸ | ✅ | ✅ | — | — | — | — | [guide](install/grok-bot.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
 
 Hooks add the routing rules at session start, to each prompt, and to
@@ -58,6 +59,8 @@ plugin supplies `SessionStart` and `SubagentStart` routing guidance through
 and VS Code version; see the [VS Code guide](install/vscode.md) for sources and
 validation limits.
 ⁷ Blocked upstream; see [codex.md](install/codex.md).
+⁸ Skills and the MCP connector only. The connector namespace is not always
+named `arcade`. See [grok-bot.md](install/grok-bot.md).
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is
 `arcade-operator`. In Cursor the commands are `/arcade-apps`,

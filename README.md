@@ -43,6 +43,7 @@ client — the full breakdown is in the [support matrix](docs/support-matrix.md)
 | **GitHub Copilot CLI** | [![Install in Copilot CLI](https://img.shields.io/badge/Copilot_CLI-install-24292e?logo=githubcopilot&logoColor=white)](docs/install/copilot.md) | [copilot.md](docs/install/copilot.md) |
 | **Codex / ChatGPT** | [![Install in Codex](https://img.shields.io/badge/Codex_·_ChatGPT-install-000000?logo=openai&logoColor=white)](docs/install/codex.md) | [codex.md](docs/install/codex.md) |
 | **OpenCode** | [![Install in OpenCode](https://img.shields.io/badge/OpenCode-install-333333?logo=iterm2&logoColor=white)](docs/install/opencode.md) | [opencode.md](docs/install/opencode.md) |
+| **Grok Bot** | [![Install in Grok Bot](https://img.shields.io/badge/Grok_Bot-install-111111)](docs/install/grok-bot.md) | [grok-bot.md](docs/install/grok-bot.md) |
 | **Any MCP client** | `https://api.arcade.dev/mcp/arcade` | [agent-plugins.md](docs/install/agent-plugins.md) |
 
 Cursor and VS Code one-click badges add the gateway only. The linked guide
@@ -96,6 +97,7 @@ See [OpenAI's plugin installation guide](https://help.openai.com/en/articles/200
 | **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | — |
 | **OpenCode** | ✅ | — | — | — | — | — |
 | **Claude Desktop** | ✅ | ✅ | — | — | — | — |
+| **Grok Bot** | ✅ | ✅ | — | — | — | — |
 | **Any MCP client** | ✅ | — | — | — | — | — |
 
 Skills are `try-arcade` and `scale-arcade`. The subagent is `arcade-operator`.
