@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/arcade-wordmark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="assets/arcade-wordmark-light.svg">
-    <img alt="Arcade" src="assets/arcade-wordmark-light.svg" width="340">
+    <source media="(prefers-color-scheme: dark)" srcset="plugin/assets/arcade-wordmark-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="plugin/assets/arcade-wordmark-light.svg">
+    <img alt="Arcade" src="plugin/assets/arcade-wordmark-light.svg" width="340">
   </picture>
 </p>
 
@@ -155,7 +155,8 @@ see [docs/telemetry.md](docs/telemetry.md) for what CI does and does not exercis
 
 Agents editing this repo should read [AGENTS.md](AGENTS.md).
 [ARCHITECTURE.md](ARCHITECTURE.md) lists the source files and what is
-generated from them. The dev tooling (`package.json`, scripts, and tests)
+generated from them. The plugin users install is the `plugin/` directory.
+The dev tooling (`package.json`, scripts, and tests)
 lives in `dev/`, so installing the plugin doesn't install its packages.
 
 ```bash
@@ -190,8 +191,8 @@ Bugbot. Branch protection on `main` requires `check`.
 
 ## Release
 
-Release Please opens a release PR on `main` with version bumps across `VERSION`,
-adapter manifests, and `CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and
+Release Please opens a release PR on `main` with version bumps across `plugin/VERSION`,
+adapter manifests under `plugin/`, and `CHANGELOG.md`. Merge that PR to tag `v{VERSION}` and
 create the GitHub release.
 
 Configure paths in `release-please-config.json`. The workflow lives at

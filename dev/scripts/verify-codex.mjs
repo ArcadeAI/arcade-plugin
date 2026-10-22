@@ -12,10 +12,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const pluginName = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8")).name;
+const pluginRoot = join(root, "plugin");
+const pluginName = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8")).name;
 const marketplaceName = JSON.parse(readFileSync(join(root, ".claude-plugin/marketplace.json"), "utf8")).name;
-const servers = JSON.parse(readFileSync(join(root, "mcp.json"), "utf8")).mcpServers;
-const skills = readdirSync(join(root, "skills")).filter((name) => existsSync(join(root, "skills", name, "SKILL.md")));
+const servers = JSON.parse(readFileSync(join(pluginRoot, "mcp.json"), "utf8")).mcpServers;
+const skills = readdirSync(join(pluginRoot, "skills")).filter((name) => existsSync(join(pluginRoot, "skills", name, "SKILL.md")));
 
 // HOME is replaced too, because Codex also reads ~/.agents/plugins/.
 // Pass only PATH and the temp-folder, Windows system, and locale variables
@@ -47,6 +48,27 @@ const problems = [];
 try {
   codex("plugin", "marketplace", "add", root);
   codex("plugin", "add", `${pluginName}@${marketplaceName}`);
+
+  function installedPluginDirs(dir, found = []) {
+    let entries = [];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return found;
+    }
+    if (existsSync(join(dir, "skills", "try-arcade", "SKILL.md")) && existsSync(join(dir, "mcp.json"))) found.push(dir);
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name !== "node_modules") installedPluginDirs(join(dir, entry.name), found);
+    }
+    return found;
+  }
+  const installedDirs = [...installedPluginDirs(env.CODEX_HOME), ...installedPluginDirs(env.HOME)];
+  if (installedDirs.length === 0) problems.push("installed plugin directory with skills/try-arcade was not found");
+  for (const dir of installedDirs) {
+    if (existsSync(join(dir, "AGENTS.md")) || existsSync(join(dir, "dev"))) {
+      problems.push(`${dir} is the repository root; source ./plugin should install the plugin directory`);
+    }
+  }
 
   const loaded = JSON.parse(codex("mcp", "list", "--json"));
   for (const [name, server] of Object.entries(servers)) {

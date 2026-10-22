@@ -2,9 +2,9 @@
 
 **Telemetry is off in this build.** The plugin sends no usage events, and
 `npm run generate` writes no telemetry hooks into any client manifest. This
-build also ships no PostHog key, and `hooks/telemetry-send.mjs` exits without
+build also ships no PostHog key, and `plugin/hooks/telemetry-send.mjs` exits without
 reading the environment or contacting a server.
-`TELEMETRY_ENABLED` in `hooks/telemetry-config.mjs` stays `false` until
+`TELEMETRY_ENABLED` in `plugin/hooks/telemetry-config.mjs` stays `false` until
 collection is separately approved after ingestion, opt-outs, privacy, and
 distribution requirements are verified.
 
@@ -47,8 +47,8 @@ stays false there.
 ## Opt-outs when telemetry is on
 
 While `TELEMETRY_ENABLED` is `false`, these switches are inert but documented
-for a future enabled build. They are implemented in `hooks/telemetry-run.mjs`
-and each client's adapter in `hooks/telemetry-adapters/`.
+for a future enabled build. They are implemented in `plugin/hooks/telemetry-run.mjs`
+and each client's adapter in `plugin/hooks/telemetry-adapters/`.
 
 Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 `settings.json`:
@@ -78,8 +78,8 @@ through this switch.
 ## Where it runs
 
 The Claude Code and Copilot CLI adapters are the only ones wired for telemetry
-in `hooks/hook-hosts.mjs` (`hooks/telemetry-adapters/claude-code.mjs` and
-`hooks/telemetry-adapters/copilot-cli.mjs`). Claude maps MCP tools under
+in `plugin/hooks/hook-hosts.mjs` (`plugin/hooks/telemetry-adapters/claude-code.mjs` and
+`plugin/hooks/telemetry-adapters/copilot-cli.mjs`). Claude maps MCP tools under
 `mcp__plugin_<plugin>_<mcpServer>__` (this plugin's gateway) and
 `mcp__claude_ai_arcade__` (the claude.ai Arcade connection). Attempt events
 (`PreToolUse`) are emitted only for those two prefixes. Copilot maps MCP tools
@@ -169,7 +169,7 @@ Service categories: `email`, `calendar`, `chat`, `issues`, `docs`, `meetings`, `
 <!-- END generated telemetry tables -->
 
 `could_use_arcade` is a local keyword guess (in
-`hooks/telemetry-classify.mjs`) at whether the prompt is a task Arcade could
+`plugin/hooks/telemetry-classify.mjs`) at whether the prompt is a task Arcade could
 do: email, calendar, chat, and the other categories above.
 
 `failure_kind`, `auth_needed`, and `cli` are values from fixed lists, picked
@@ -253,9 +253,9 @@ shipping telemetry hooks. Confirm, outside this repository:
 - applicable store or distribution decisions for builds that transmit data
 
 The change that turns telemetry on also has to add an event sender to
-`hooks/telemetry-send.mjs`, a PostHog project key to
-`hooks/telemetry-config.mjs`, and a call to `clearSessionScope` in
-`hooks/session-start.mjs`, and update the test in
+`plugin/hooks/telemetry-send.mjs`, a PostHog project key to
+`plugin/hooks/telemetry-config.mjs`, and a call to `clearSessionScope` in
+`plugin/hooks/session-start.mjs`, and update the test in
 `dev/test/telemetry-off.test.mjs` that checks this build ships none of them.
 Tests can't point the sender at a local server until it reads a host override
 again.

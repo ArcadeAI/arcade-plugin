@@ -3,15 +3,18 @@ import { cpSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { COPIED_FILES, FILES_WITH_GENERATED_RULES, FILES_WITH_GENERATED_TABLES } from "../scripts/generate-manifests.mjs";
+import { COPIED_FILES, FILES_WITH_GENERATED_RULES, FILES_WITH_GENERATED_TABLES, PLUGIN_DIR } from "../scripts/generate-manifests.mjs";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export { PLUGIN_DIR };
+export const PLUGIN_ROOT = path.join(ROOT, PLUGIN_DIR);
+export const pluginPath = (relativePath) => `${PLUGIN_DIR}/${relativePath}`;
 
 export const readRepoFile = (relativePath) =>
   readFileSync(path.join(ROOT, relativePath), "utf8");
 
 export const runHook = (script, input = {}, args = []) =>
-  spawnSync("node", [path.join(ROOT, "hooks", script), ...args], {
+  spawnSync("node", [path.join(PLUGIN_ROOT, "hooks", script), ...args], {
     input: JSON.stringify(input),
     encoding: "utf8",
   });
@@ -52,7 +55,14 @@ export const skipOnWindows = { skip: process.platform === "win32" && "the comman
 /** A temp copy of the generator's source files, for tests that write. */
 export const makeFixture = () => {
   const root = mkdtempSync(path.join(tmpdir(), "arcade-plugin-"));
-  const sources = ["VERSION", "plugin.json", "mcp.json", ...Object.keys(FILES_WITH_GENERATED_RULES), ...FILES_WITH_GENERATED_TABLES, ...Object.values(COPIED_FILES).flat()];
+  const sources = [...new Set([
+    pluginPath("VERSION"),
+    pluginPath("plugin.json"),
+    pluginPath("mcp.json"),
+    ...Object.keys(FILES_WITH_GENERATED_RULES),
+    ...FILES_WITH_GENERATED_TABLES,
+    ...Object.values(COPIED_FILES),
+  ])];
   for (const file of sources) {
     cpSync(path.join(ROOT, file), path.join(root, file));
   }

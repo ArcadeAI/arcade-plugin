@@ -9,11 +9,17 @@ import {
   CURSOR_RULE,
   OPERATOR_RULES,
   SKILL_RULES,
-} from "../../hooks/routing-guidance.mjs";
-import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../../hooks/hook-hosts.mjs";
+} from "../../plugin/hooks/routing-guidance.mjs";
+import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
 import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+// Shipped plugin files live here. Marketplace catalogs and .gitattributes stay
+// at the repo root and point at this directory.
+export const PLUGIN_DIR = "plugin";
+
+const inPlugin = (file) => `${PLUGIN_DIR}/${file}`;
 
 // One policy URL for both clients; plugin.json retains its other hand-written fields.
 const privacyPolicyUrl = "https://www.arcade.dev/privacy-policy/";
@@ -24,13 +30,19 @@ export const ACCEPTED_LISTING_OWNER_EMAIL = "support@arcade.dev";
 // Claude Code and Cowork only accept the operator at the default agents/ path
 // (the CLI wants .md paths in "agents", Cowork wants folders). Copilot CLI and
 // VS Code only read com.github.copilot/agents/, so that folder gets a copy.
-const OPERATOR = "agents/arcade-operator.agent.md";
+const OPERATOR = inPlugin("agents/arcade-operator.agent.md");
 const CURSOR_RULE_DIR = "clients/cursor/rules";
+const ROUTING_SOURCE = inPlugin("hooks/routing-guidance.mjs");
+const HOOK_HOSTS_SOURCE = inPlugin("hooks/hook-hosts.mjs");
+const TELEMETRY_SOURCE = inPlugin("hooks/telemetry-contract.mjs");
+const PLUGIN_JSON = inPlugin("plugin.json");
+const MCP_JSON = inPlugin("mcp.json");
+const VERSION_FILE = inPlugin("VERSION");
 
 /** Hand-written files that contain one generated block of routing rules. */
 export const FILES_WITH_GENERATED_RULES = {
   [OPERATOR]: OPERATOR_RULES,
-  "skills/try-arcade/SKILL.md": SKILL_RULES,
+  [inPlugin("skills/try-arcade/SKILL.md")]: SKILL_RULES,
 };
 
 /** Hand-written files whose event tables are generated from hooks/telemetry-contract.mjs. */
@@ -39,8 +51,10 @@ export const FILES_WITH_GENERATED_TABLES = [TELEMETRY_DOC];
 /** Generated copy → the file it is copied from. */
 export const COPIED_FILES = {
   // Each skill folder has to work on its own.
-  "skills/scale-arcade/references/arcade-docs.md": "skills/try-arcade/references/arcade-docs.md",
-  "com.github.copilot/agents/arcade-operator.agent.md": OPERATOR,
+  [inPlugin("skills/scale-arcade/references/arcade-docs.md")]: inPlugin("skills/try-arcade/references/arcade-docs.md"),
+  [inPlugin("com.github.copilot/agents/arcade-operator.agent.md")]: OPERATOR,
+  // The repository LICENSE stays at the root; the plugin directory has its own copy.
+  [inPlugin("LICENSE")]: "LICENSE",
 };
 
 /**
@@ -51,31 +65,34 @@ export const COPIED_FILES = {
  */
 export const FILE_SOURCES = {
   // Only extensions.com.openai.interface.privacyPolicyURL is generated.
-  "plugin.json": ["dev/scripts/generate-manifests.mjs"],
+  [PLUGIN_JSON]: ["dev/scripts/generate-manifests.mjs"],
   // plugin.json and mcp.json supply identity and the gateway URL; VERSION
   // supplies the version; hook-hosts.mjs supplies the hooks manifest path; the
   // script writes the fixed skills/agents/commands/rules paths.
-  ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  [inPlugin(".cursor-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the mcpServers transport type.
-  ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  [inPlugin(".claude-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the marketplace description and support email. There is no version field.
-  ".claude-plugin/marketplace.json": ["plugin.json", "dev/scripts/generate-manifests.mjs"],
+  ".claude-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
+  // Cursor's multi-plugin manifest. The plugin directory is "plugin".
+  ".cursor-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
   // The script writes the frontmatter and the header comment.
-  [`${CURSOR_RULE_DIR}/arcade.mdc`]: ["hooks/routing-guidance.mjs", "dev/scripts/generate-manifests.mjs"],
+  [inPlugin(`${CURSOR_RULE_DIR}/arcade.mdc`)]: [ROUTING_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The hook manifest paths in the list come from hook-hosts.mjs.
-  ".gitattributes": ["hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  ".gitattributes": [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // hook-hosts.mjs supplies the events, scripts, and timeout; the script writes
   // the version, entry type, nesting, and command template. With telemetry
   // enabled, the adapter that hook-hosts.mjs names supplies telemetry entries.
   ...Object.fromEntries(
-    Object.values(HOSTS).map((h) => [h.manifest, ["hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"]]),
+    Object.values(HOSTS).map((h) => [inPlugin(h.manifest), [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"]]),
   ),
-  "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
+  [inPlugin("skills/scale-arcade/references/arcade-docs.md")]: [inPlugin("skills/try-arcade/references/arcade-docs.md")],
   // A copy of the operator with its rules block filled in.
-  "com.github.copilot/agents/arcade-operator.agent.md": [OPERATOR, "hooks/routing-guidance.mjs"],
-  [OPERATOR]: ["hooks/routing-guidance.mjs"],
-  "skills/try-arcade/SKILL.md": ["hooks/routing-guidance.mjs"],
-  [TELEMETRY_DOC]: ["hooks/telemetry-contract.mjs"],
+  [inPlugin("com.github.copilot/agents/arcade-operator.agent.md")]: [OPERATOR, ROUTING_SOURCE],
+  [inPlugin("LICENSE")]: ["LICENSE"],
+  [OPERATOR]: [ROUTING_SOURCE],
+  [inPlugin("skills/try-arcade/SKILL.md")]: [ROUTING_SOURCE],
+  [TELEMETRY_DOC]: [TELEMETRY_SOURCE],
 };
 
 /** Formats an array of source paths as a human-readable list. */
@@ -99,14 +116,14 @@ export const requireSources = (path, fileSources) => {
 
 /** Returns the error message to throw when `path` is out of date on disk. */
 const outOfDateError = (path) => {
-  if (path === "plugin.json") {
-    return "plugin.json: extensions.com.openai.interface.privacyPolicyURL is out of date. Run npm run generate. Edit privacyPolicyUrl in dev/scripts/generate-manifests.mjs instead.";
+  if (path === PLUGIN_JSON) {
+    return `${path}: extensions.com.openai.interface.privacyPolicyURL is out of date. Run npm run generate. Edit privacyPolicyUrl in dev/scripts/generate-manifests.mjs instead.`;
   }
   if (path in FILES_WITH_GENERATED_RULES) {
-    return `${path}: the rules block is out of date. Run npm run generate. If you edited the block by hand, make the change in hooks/routing-guidance.mjs instead.`;
+    return `${path}: the rules block is out of date. Run npm run generate. If you edited the block by hand, make the change in ${ROUTING_SOURCE} instead.`;
   }
   if (FILES_WITH_GENERATED_TABLES.includes(path)) {
-    return `${path}: the telemetry tables are out of date. Run npm run generate. If you edited the tables by hand, make the change in hooks/telemetry-contract.mjs instead.`;
+    return `${path}: the telemetry tables are out of date. Run npm run generate. If you edited the tables by hand, make the change in ${TELEMETRY_SOURCE} instead.`;
   }
   const sources = FILE_SOURCES[path];
   const joined = joinSources(sources);
@@ -192,12 +209,12 @@ export const buildHookManifest = (hostName, hookRows = HOOKS) => {
 
 /** Every generated file and its contents, from the sources in `root`. */
 const buildFiles = (root) => {
-  const plugin = readJson(root, "plugin.json");
-  const version = readText(root, "VERSION").trim();
+  const plugin = readJson(root, PLUGIN_JSON);
+  const version = readText(root, VERSION_FILE).trim();
   if (plugin.version !== version) {
     throw new Error(`plugin.json version ${plugin.version} does not match VERSION ${version}`);
   }
-  const { url } = readJson(root, "mcp.json").mcpServers.arcade;
+  const { url } = readJson(root, MCP_JSON).mcpServers.arcade;
   const { interface: openaiListing } = plugin.extensions["com.openai"];
   // The ChatGPT directory already lists a plugin named "Arcade" from another
   // company, so the OpenAI listing uses "Arcade.dev". The other clients keep
@@ -207,14 +224,16 @@ const buildFiles = (root) => {
     throw new Error("plugin.json extensions.com.openai.interface.logo is missing");
   }
   // Codex wants the logo path with a leading "./"; Cursor takes it without one.
-  // The Claude marketplace has no logo field.
+  // The Claude marketplace has no logo field. Both paths are relative to the
+  // plugin directory.
   const logo = openaiListing.logo.replace(/^\.\//, "");
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
+  const owner = { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL };
 
   const files = new Map([
     [
-      ".cursor-plugin/plugin.json",
+      inPlugin(".cursor-plugin/plugin.json"),
       serialize({
         ...identity,
         // Cursor's manifest schema allows only `name` and `email` in `author`.
@@ -232,7 +251,7 @@ const buildFiles = (root) => {
       }),
     ],
     [
-      ".claude-plugin/plugin.json",
+      inPlugin(".claude-plugin/plugin.json"),
       serialize({
         ...identity,
         displayName,
@@ -249,15 +268,23 @@ const buildFiles = (root) => {
         name,
         // Marketplace listing text. Codex also installs from this marketplace.
         description: "Install Arcade in Claude Desktop, Cowork, Claude Code, and Codex.",
-        owner: { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL },
+        owner,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
-          { name, displayName, source: "./", description, author, homepage, repository, license, keywords },
+          { name, displayName, source: `./${PLUGIN_DIR}`, description, author, homepage, repository, license, keywords },
         ],
       }),
     ],
     [
-      `${CURSOR_RULE_DIR}/arcade.mdc`,
+      ".cursor-plugin/marketplace.json",
+      serialize({
+        name,
+        owner,
+        plugins: [{ name, source: PLUGIN_DIR }],
+      }),
+    ],
+    [
+      inPlugin(`${CURSOR_RULE_DIR}/arcade.mdc`),
       [
         "---",
         "description: Prefer Arcade for external service tasks",
@@ -273,7 +300,7 @@ const buildFiles = (root) => {
   ]);
 
   for (const [hostName, host] of Object.entries(HOSTS)) {
-    files.set(host.manifest, serialize(buildHookManifest(hostName)));
+    files.set(inPlugin(host.manifest), serialize(buildHookManifest(hostName)));
   }
 
   for (const [copy, source] of Object.entries(COPIED_FILES)) {
@@ -294,7 +321,7 @@ const buildFiles = (root) => {
   // This field is generated; the rest of the portable manifest remains source.
   // Add it after .gitattributes so the whole file is not marked generated.
   openaiListing.privacyPolicyURL = privacyPolicyUrl;
-  files.set("plugin.json", serialize(plugin));
+  files.set(PLUGIN_JSON, serialize(plugin));
 
   for (const [path, rules] of Object.entries(FILES_WITH_GENERATED_RULES)) {
     files.set(path, fillRulesBlock(readText(root, path), rules, path));

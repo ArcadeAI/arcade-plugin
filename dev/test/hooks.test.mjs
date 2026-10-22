@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
-import { HOSTS } from "../../hooks/hook-hosts.mjs";
-import { shouldRemind } from "../../hooks/prompt-filters.mjs";
+import { HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
+import { shouldRemind } from "../../plugin/hooks/prompt-filters.mjs";
 import {
   CURSOR_RULE,
   OPERATOR_RULES,
@@ -10,10 +10,11 @@ import {
   SESSION_CONTEXT,
   SKILL_RULES,
   SUBAGENT_CONTEXT,
-} from "../../hooks/routing-guidance.mjs";
+} from "../../plugin/hooks/routing-guidance.mjs";
 import {
+  PLUGIN_ROOT,
+  pluginPath,
   readRepoFile,
-  ROOT,
   runHook,
   runPowerShell,
   skipOnWindows,
@@ -52,11 +53,11 @@ const assertPrintsContext = (hostName, event, result, label) => {
 
 test("every command in every generated hooks.json runs and prints what its client reads", () => {
   for (const [hostName, { manifest, rootVariable }] of Object.entries(HOSTS)) {
-    for (const [event, entries] of Object.entries(JSON.parse(readRepoFile(manifest)).hooks)) {
+    for (const [event, entries] of Object.entries(JSON.parse(readRepoFile(pluginPath(manifest))).hooks)) {
       for (const { command } of entries.flatMap((entry) => entry.hooks ?? [entry])) {
         // Telemetry prints nothing; the telemetry tests run its commands.
         if (command.includes("/hooks/telemetry.mjs")) continue;
-        const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, ROOT), {
+        const result = spawnSync(command.replaceAll(`\${${rootVariable}}`, PLUGIN_ROOT), {
           shell: true,
           input: HOOK_INPUT,
           encoding: "utf8",
@@ -71,7 +72,7 @@ test("every command in every generated hooks.json runs and prints what its clien
 // Missing/invalid roots are failure cases, not a simulation of VS Code.
 // These subprocess checks do not launch a live Copilot CLI or VS Code session.
 const copilotEntries = () =>
-  Object.entries(JSON.parse(readRepoFile(HOSTS.copilot.manifest)).hooks).flatMap(([event, entries]) =>
+  Object.entries(JSON.parse(readRepoFile(pluginPath(HOSTS.copilot.manifest))).hooks).flatMap(([event, entries]) =>
     entries.map((entry) => ({ event, ...entry })),
   );
 
@@ -96,7 +97,7 @@ test("every Copilot hook command exits quietly with a missing or invalid plugin 
   }
 });
 
-/** Checks the output of a Copilot hook run with PLUGIN_ROOT set to the repo. */
+/** Checks the output of a Copilot hook run with PLUGIN_ROOT set to the plugin directory. */
 const assertCopilotHookRan = (event, command, result, label) => {
   if (command.includes("/hooks/telemetry.mjs")) {
     assert.equal(result.status, 0, `${label}: ${result.stderr}`);
@@ -109,7 +110,7 @@ const assertCopilotHookRan = (event, command, result, label) => {
 test("every Copilot hook command runs with PLUGIN_ROOT set only in the environment", skipOnWindows, () => {
   const cwd = tempDataDir();
   for (const { event, command } of copilotEntries()) {
-    const result = spawnSync(command, { shell: true, cwd, env: hookEnv({ PLUGIN_ROOT: ROOT }), input: HOOK_INPUT, encoding: "utf8" });
+    const result = spawnSync(command, { shell: true, cwd, env: hookEnv({ PLUGIN_ROOT }), input: HOOK_INPUT, encoding: "utf8" });
     assertCopilotHookRan(event, command, result, `${event} ${command}`);
   }
 });
@@ -123,7 +124,7 @@ test("every Copilot hook's powershell command skips without PLUGIN_ROOT and runs
     assert.equal(skipped.status, 0, `${powershell}: ${skipped.stderr}`);
     assert.equal(skipped.stdout, "", powershell);
     assert.equal(skipped.stderr, "", powershell);
-    assertCopilotHookRan(event, powershell, run(powershell, hookEnv({ PLUGIN_ROOT: ROOT })), powershell);
+    assertCopilotHookRan(event, powershell, run(powershell, hookEnv({ PLUGIN_ROOT })), powershell);
   }
 });
 
@@ -179,7 +180,7 @@ const EXPECTED_EVENTS = {
 test("each client runs exactly the hooks it can use", () => {
   assert.deepEqual(Object.keys(EXPECTED_EVENTS).sort(), Object.keys(HOSTS).sort());
   for (const [hostName, { manifest }] of Object.entries(HOSTS)) {
-    const events = Object.keys(JSON.parse(readRepoFile(manifest)).hooks);
+    const events = Object.keys(JSON.parse(readRepoFile(pluginPath(manifest))).hooks);
     assert.deepEqual(events.sort(), [...EXPECTED_EVENTS[hostName]].sort(), hostName);
   }
 });
@@ -228,10 +229,10 @@ const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP 
 
 test("every routing text keeps the core routing rules", () => {
   const shippedRules = {
-    "clients/cursor/rules/arcade.mdc": CORE_RULES.CURSOR_RULE[1],
-    "skills/try-arcade/SKILL.md": CORE_RULES.SKILL_RULES[1],
-    "agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
-    "com.github.copilot/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+    "plugin/clients/cursor/rules/arcade.mdc": CORE_RULES.CURSOR_RULE[1],
+    "plugin/skills/try-arcade/SKILL.md": CORE_RULES.SKILL_RULES[1],
+    "plugin/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+    "plugin/com.github.copilot/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
   };
   const texts = {
     ...CORE_RULES,

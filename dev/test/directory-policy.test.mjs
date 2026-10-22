@@ -11,6 +11,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const PLUGIN_DIR = "plugin";
 
 const KIB = 1024;
 const MIB = 1024 * KIB;
@@ -63,15 +64,18 @@ function git(args) {
 }
 
 function statOf(file) {
-  return lstatSync(join(ROOT, file), { throwIfNoEntry: false });
+  return lstatSync(join(ROOT, PLUGIN_DIR, file), { throwIfNoEntry: false });
 }
 
 function listFiles() {
+  const prefix = `${PLUGIN_DIR}/`;
   const listed = git(["ls-files", "--cached", "--others", "--exclude-standard", "-z"])
     .split("\0")
     .filter(Boolean)
     // git lists an untracked nested repository as "name/".
-    .map((file) => file.replace(/\/$/, ""));
+    .map((file) => file.replace(/\/$/, ""))
+    .filter((file) => file.startsWith(prefix))
+    .map((file) => file.slice(prefix.length));
   return [...new Set(listed)].filter((file) => statOf(file));
 }
 
@@ -79,7 +83,7 @@ const FILES = listFiles();
 const REGULAR_FILES = FILES.filter((file) => statOf(file).isFile());
 
 function read(file) {
-  return readFileSync(join(ROOT, file));
+  return readFileSync(join(ROOT, PLUGIN_DIR, file));
 }
 
 function readJson(file) {
@@ -294,11 +298,14 @@ test("no macOS or Windows system files", () => {
 
 test("no symbolic links or submodules", () => {
   const offenders = new Map();
+  const prefix = `${PLUGIN_DIR}/`;
   for (const entry of git(["ls-files", "-s", "-z"]).split("\0").filter(Boolean)) {
     const [info, file] = entry.split("\t");
+    if (!file.startsWith(prefix)) continue;
+    const relative = file.slice(prefix.length);
     const mode = info.split(" ")[0];
-    if (mode === "120000") offenders.set(file, `${file} (symbolic link)`);
-    if (mode === "160000") offenders.set(file, `${file} (submodule)`);
+    if (mode === "120000") offenders.set(relative, `${relative} (symbolic link)`);
+    if (mode === "160000") offenders.set(relative, `${relative} (submodule)`);
   }
   for (const file of FILES) {
     const stat = statOf(file);
@@ -442,14 +449,11 @@ test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher 
   );
 });
 
-// Not a checklist row: the directory's security scan reads every file in the
-// plugin, dev/ included, and looks for code that downloads and runs other code
-// or sends data the plugin doesn't disclose. Tests are skipped because they
-// post to their own local servers.
+// Scripts in the plugin directory. dev/ sits outside it.
 test("no script downloads code or gives a child process the whole environment", () => {
   const offenders = [];
   for (const file of REGULAR_FILES) {
-    if (file.startsWith("dev/test/") || !/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
+    if (!/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
     read(file)
       .toString("utf8")
       .split("\n")

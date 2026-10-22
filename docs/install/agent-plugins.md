@@ -9,7 +9,7 @@ https://api.arcade.dev/mcp/arcade
 That path is tools only.
 
 Clients that implement [Agent Plugins](https://agent-plugins.org) 1.0 can
-load the full plugin — `plugin.json`, `skills/`, and `mcp.json`, which give you
+load the full plugin from this repository's `plugin/` directory — `plugin.json`, `skills/`, and `mcp.json`, which give you
 `try-arcade`, `scale-arcade`, and the gateway. Install it the way your client
 installs plugins; the [install guides](README.md) cover each supported client.
 The cross-client `npx plugins add ArcadeAI/arcade-plugin` doesn't finish the

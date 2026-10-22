@@ -5,20 +5,20 @@ import { test } from "node:test";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 
 test(".cursor-plugin paths exist", () => {
-  const manifest = JSON.parse(readRepoFile(".cursor-plugin/plugin.json"));
+  const manifest = JSON.parse(readRepoFile("plugin/.cursor-plugin/plugin.json"));
   assert.equal(manifest.displayName, "Arcade");
   for (const key of ["skills", "agents", "commands", "rules", "logo"]) {
-    assert.ok(existsSync(path.join(ROOT, manifest[key])), `missing ${manifest[key]}`);
+    assert.ok(existsSync(path.join(ROOT, "plugin", manifest[key])), `missing ${manifest[key]}`);
   }
 });
 
 test("commands are named arcade-* and listed in the support matrix and README", () => {
   const matrix = readRepoFile("docs/support-matrix.md");
   const readme = readRepoFile("README.md");
-  for (const file of readdirSync(path.join(ROOT, "commands"))) {
+  for (const file of readdirSync(path.join(ROOT, "plugin", "commands"))) {
     const name = file.replace(/\.md$/, "");
     assert.match(name, /^arcade-/);
-    assert.match(readRepoFile(`commands/${file}`), new RegExp(`^name: ${name}$`, "m"));
+    assert.match(readRepoFile(`plugin/commands/${file}`), new RegExp(`^name: ${name}$`, "m"));
     assert.match(matrix, new RegExp(`/arcade:${name}`));
     assert.match(readme, new RegExp(`/${name}\\b`));
   }
@@ -26,27 +26,35 @@ test("commands are named arcade-* and listed in the support matrix and README", 
 
 test("Claude marketplace keeps its listing identity and support contact", () => {
   const marketplace = JSON.parse(readRepoFile(".claude-plugin/marketplace.json"));
-  const { author } = JSON.parse(readRepoFile("plugin.json"));
+  const { author } = JSON.parse(readRepoFile("plugin/plugin.json"));
   assert.equal(marketplace.name, "arcade");
   assert.deepEqual(marketplace.owner, { ...author, email: "support@arcade.dev" });
   const [listed] = marketplace.plugins;
   assert.equal(listed.name, "arcade");
-  assert.equal(listed.source, "./");
+  assert.equal(listed.source, "./plugin");
   assert.equal(listed.repository, "https://github.com/ArcadeAI/arcade-plugin");
   assert.deepEqual(listed.author, author);
   assert.equal(listed.displayName, "Arcade");
 });
 
+test("Cursor marketplace points at the plugin directory", () => {
+  const claude = JSON.parse(readRepoFile(".claude-plugin/marketplace.json"));
+  const cursor = JSON.parse(readRepoFile(".cursor-plugin/marketplace.json"));
+  assert.equal(cursor.name, "arcade");
+  assert.deepEqual(cursor.owner, claude.owner);
+  assert.deepEqual(cursor.plugins, [{ name: "arcade", source: "plugin" }]);
+});
+
 test("Claude manifest displays Arcade without changing the install identifier", () => {
-  const manifest = JSON.parse(readRepoFile(".claude-plugin/plugin.json"));
+  const manifest = JSON.parse(readRepoFile("plugin/.claude-plugin/plugin.json"));
   assert.equal(manifest.displayName, "Arcade");
   assert.equal(manifest.name, "arcade");
 });
 
 test("listing contact and privacy metadata agree across clients", () => {
-  const portable = JSON.parse(readRepoFile("plugin.json"));
-  const claude = JSON.parse(readRepoFile(".claude-plugin/plugin.json"));
-  const cursor = JSON.parse(readRepoFile(".cursor-plugin/plugin.json"));
+  const portable = JSON.parse(readRepoFile("plugin/plugin.json"));
+  const claude = JSON.parse(readRepoFile("plugin/.claude-plugin/plugin.json"));
+  const cursor = JSON.parse(readRepoFile("plugin/.cursor-plugin/plugin.json"));
   const marketplace = JSON.parse(readRepoFile(".claude-plugin/marketplace.json"));
   assert.equal(marketplace.owner.email, "support@arcade.dev");
   assert.equal(claude.privacyPolicyUrl, "https://www.arcade.dev/privacy-policy/");

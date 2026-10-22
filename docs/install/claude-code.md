@@ -20,7 +20,11 @@ npx plugins add ArcadeAI/arcade-plugin --target claude-code
 Verify with `claude plugin list` or **`/plugin`**, then **`/reload-plugins`**
 if the session was already open.
 
-Claude Code reads `.claude-plugin/plugin.json` for the gateway and
+`claude plugin marketplace add ArcadeAI/arcade-plugin` reads
+`.claude-plugin/marketplace.json` at the repository root. The Arcade entry's
+source is `./plugin`, which Claude Code resolves from that root and installs.
+In this repository the plugin directory is `plugin/`. Claude Code reads
+`.claude-plugin/plugin.json` there for the gateway and
 `.claude-plugin/hooks.json`. Skills, `arcade-operator`, and commands load from
 the default `skills/`, `agents/`, and `commands/` folders. The manifest has no
 `agents` field on purpose: Cowork rejects the `.md` paths the CLI needs.
@@ -41,7 +45,7 @@ plugin.
 
 Telemetry is **off** in this build (`TELEMETRY_ENABLED` is `false`): no usage
 events are sent and generated manifests include no telemetry hooks. When
-telemetry is enabled, the adapter in `hooks/telemetry-adapters/claude-code.mjs`
+telemetry is enabled, the adapter in `plugin/hooks/telemetry-adapters/claude-code.mjs`
 classifies prompts, records `PreToolUse` on the plugin and claude.ai Arcade
 prefixes, and stores scope under `CLAUDE_PLUGIN_DATA`. Opt out with
 `ARCADE_PLUGIN_TELEMETRY=0`, `DISABLE_TELEMETRY`, or

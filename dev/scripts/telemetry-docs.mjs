@@ -1,7 +1,7 @@
 // @ts-check
 /** Writes the event tables in docs/telemetry.md from hooks/telemetry-contract.mjs. */
 
-import { COMMON_PROPERTIES, EVENTS, SERVICE_CATEGORIES } from "../../hooks/telemetry-contract.mjs";
+import { COMMON_PROPERTIES, EVENTS, SERVICE_CATEGORIES } from "../../plugin/hooks/telemetry-contract.mjs";
 
 export const TELEMETRY_DOC = "docs/telemetry.md";
 export const TELEMETRY_BLOCK_BEGIN =

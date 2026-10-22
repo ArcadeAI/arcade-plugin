@@ -14,20 +14,22 @@ import { makeFixture, readRepoFile, ROOT } from "./helpers.mjs";
 
 // A second copy of FILE_SOURCES on purpose, so a change to a file's sources must change this test too.
 const EXPECTED_SOURCES = {
-  "plugin.json": ["dev/scripts/generate-manifests.mjs"],
-  ".cursor-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  ".claude-plugin/plugin.json": ["plugin.json", "mcp.json", "VERSION", "hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  ".claude-plugin/marketplace.json": ["plugin.json", "dev/scripts/generate-manifests.mjs"],
-  "clients/cursor/rules/arcade.mdc": ["hooks/routing-guidance.mjs", "dev/scripts/generate-manifests.mjs"],
-  ".gitattributes": ["hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  ".claude-plugin/hooks.json": ["hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "clients/cursor/hooks/hooks.json": ["hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "com.github.copilot/hooks/hooks.json": ["hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "skills/scale-arcade/references/arcade-docs.md": ["skills/try-arcade/references/arcade-docs.md"],
-  "com.github.copilot/agents/arcade-operator.agent.md": ["agents/arcade-operator.agent.md", "hooks/routing-guidance.mjs"],
-  "agents/arcade-operator.agent.md": ["hooks/routing-guidance.mjs"],
-  "skills/try-arcade/SKILL.md": ["hooks/routing-guidance.mjs"],
-  "docs/telemetry.md": ["hooks/telemetry-contract.mjs"],
+  "plugin/plugin.json": ["dev/scripts/generate-manifests.mjs"],
+  "plugin/.cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "plugin/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  ".claude-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
+  ".cursor-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
+  "plugin/clients/cursor/rules/arcade.mdc": ["plugin/hooks/routing-guidance.mjs", "dev/scripts/generate-manifests.mjs"],
+  ".gitattributes": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "plugin/.claude-plugin/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "plugin/clients/cursor/hooks/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "plugin/com.github.copilot/hooks/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "plugin/skills/scale-arcade/references/arcade-docs.md": ["plugin/skills/try-arcade/references/arcade-docs.md"],
+  "plugin/com.github.copilot/agents/arcade-operator.agent.md": ["plugin/agents/arcade-operator.agent.md", "plugin/hooks/routing-guidance.mjs"],
+  "plugin/LICENSE": ["LICENSE"],
+  "plugin/agents/arcade-operator.agent.md": ["plugin/hooks/routing-guidance.mjs"],
+  "plugin/skills/try-arcade/SKILL.md": ["plugin/hooks/routing-guidance.mjs"],
+  "docs/telemetry.md": ["plugin/hooks/telemetry-contract.mjs"],
 };
 
 test("FILE_SOURCES lists the expected sources for every generated path", () => {
@@ -55,7 +57,7 @@ test("check mode fails with a source-naming error when a generated file is hand-
       } else if (FILES_WITH_GENERATED_TABLES.includes(path)) {
         // Only the tables are generated, so the edit has to be inside them.
         writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("Service categories:", "Service kinds:"));
-      } else if (path === "plugin.json") {
+      } else if (path === "plugin/plugin.json") {
         const plugin = JSON.parse(readFileSync(fullPath, "utf8"));
         plugin.extensions["com.openai"].interface.privacyPolicyURL = "https://example.com/stale";
         writeFileSync(fullPath, `${JSON.stringify(plugin, null, 2)}\n`);
@@ -130,7 +132,7 @@ test("a release-please version bump leaves generated files in sync", { skip: rel
 test("changing the canonical privacy URL updates both client fields", async () => {
   const root = makeFixture();
   try {
-    cpSync(join(ROOT, "hooks"), join(root, "hooks"), { recursive: true });
+    cpSync(join(ROOT, "plugin/hooks"), join(root, "plugin/hooks"), { recursive: true });
     mkdirSync(join(root, "dev/scripts"), { recursive: true });
     cpSync(join(ROOT, "dev/scripts/telemetry-docs.mjs"), join(root, "dev/scripts/telemetry-docs.mjs"));
     const generator = readRepoFile("dev/scripts/generate-manifests.mjs").replace(
@@ -141,9 +143,9 @@ test("changing the canonical privacy URL updates both client fields", async () =
     const changedGenerator = await import(pathToFileURL(join(root, "dev/scripts/generate-manifests.mjs")));
     changedGenerator.generateManifests({ root });
     const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
-    assert.equal(read(".claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
-    assert.equal(read("plugin.json").extensions["com.openai"].interface.privacyPolicyURL, "https://example.com/new-policy/");
-    assert.ok(!readFileSync(join(root, ".gitattributes"), "utf8").includes("\nplugin.json "));
+    assert.equal(read("plugin/.claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
+    assert.equal(read("plugin/plugin.json").extensions["com.openai"].interface.privacyPolicyURL, "https://example.com/new-policy/");
+    assert.doesNotMatch(readFileSync(join(root, ".gitattributes"), "utf8"), /^plugin\/plugin\.json linguist-generated/m);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

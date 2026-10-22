@@ -1,7 +1,9 @@
 # Architecture
 
-A portable Agent Plugin (`plugin.json`, `mcp.json`, `skills/`) plus the files
-each client needs at its own path. Every client-specific file is generated
+A portable Agent Plugin (`plugin/plugin.json`, `plugin/mcp.json`, `plugin/skills/`) plus the files
+each client needs at its own path. The shipped plugin is the `plugin/` directory.
+Marketplace files stay at the repository root and point at that directory.
+Every client-specific file is generated
 from a few sources by `npm run generate`; `npm run verify` fails if one was
 edited by hand. Both run from `dev/`, which holds the dev tooling so that
 installing the plugin doesn't install its packages. The package ships no
@@ -9,17 +11,17 @@ credentials.
 
 | Source (edit these) | Holds |
 | --- | --- |
-| `plugin.json`, `mcp.json`, `VERSION` | identity, gateway URL, version, Codex listing metadata |
-| `hooks/routing-guidance.mjs` | the routing rules, as sentences |
-| `hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
-| `hooks/telemetry-contract.mjs` | the telemetry event contract; also generates the event tables in docs/telemetry.md |
-| `agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
-| `skills/` | the skills, outside the generated rules block in try-arcade |
+| `plugin/plugin.json`, `plugin/mcp.json`, `plugin/VERSION` | identity, gateway URL, version, Codex listing metadata |
+| `plugin/hooks/routing-guidance.mjs` | the routing rules, as sentences |
+| `plugin/hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
+| `plugin/hooks/telemetry-contract.mjs` | the telemetry event contract; also generates the event tables in docs/telemetry.md |
+| `plugin/agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
+| `plugin/skills/` | the skills, outside the generated rules block in try-arcade |
 
 `dev/scripts/generate-manifests.mjs` writes every generated file; the generated
 `.gitattributes` lists them (GitHub collapses them in diffs).
 
-- The operator lives at `agents/arcade-operator.agent.md`, the only place both
+- The operator lives at `plugin/agents/arcade-operator.agent.md`, the only place both
   Claude Code and Cowork accept. Copilot CLI and VS Code only read
   `com.github.copilot/agents/`, so the generator copies it there.
 - Each hook command passes `--host <name>`; the script prints the output
@@ -27,7 +29,7 @@ credentials.
 - Codex doesn't run plugin hooks for Agent Plugins packages yet; see
   [docs/install/codex.md](docs/install/codex.md).
 
-Release Please bumps `VERSION`, `plugin.json`, and the version fields in the
+Release Please bumps `plugin/VERSION`, `plugin/plugin.json`, and the version fields in the
 generated manifests; a test replays that bump and checks nothing goes stale.
 
 ## Execution model
@@ -90,7 +92,7 @@ The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
 model to self-report tokens, turns, or success.
 
-Optional client hooks in `hooks/telemetry-adapters/` can send supplemental,
+Optional client hooks in `plugin/hooks/telemetry-adapters/` can send supplemental,
 scoped usage events when `TELEMETRY_ENABLED` is `true` and the user has not
 opted out. **This build keeps `TELEMETRY_ENABLED` false**, so no telemetry
 hooks are generated and nothing is sent. See [docs/telemetry.md](docs/telemetry.md)

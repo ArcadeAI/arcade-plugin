@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { HOOKS, HOSTS } from "../../hooks/hook-hosts.mjs";
-import { TELEMETRY_ENABLED } from "../../hooks/telemetry-config.mjs";
+import { HOOKS, HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
+import { TELEMETRY_ENABLED } from "../../plugin/hooks/telemetry-config.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
-import { readRepoFile } from "./helpers.mjs";
+import { pluginPath, readRepoFile } from "./helpers.mjs";
 
 // Turning collection on needs its own approval after ingestion, opt-outs, and
 // the privacy and distribution requirements are verified. Change this test
@@ -17,7 +17,7 @@ test("telemetry is off in this build", () => {
 // parent environment. docs/telemetry.md lists what turning telemetry on has to
 // add. Change this test only with that approval.
 test("this build ships no telemetry key, sender, or copy of the environment", () => {
-  const hook = (file) => readRepoFile(`hooks/${file}`);
+  const hook = (file) => readRepoFile(`plugin/hooks/${file}`);
   assert.doesNotMatch(hook("telemetry-config.mjs"), /process\.env|phc_/);
   assert.doesNotMatch(hook("telemetry-send.mjs"), /process\.env|\bfetch\b|\bimport\b/);
   assert.doesNotMatch(hook("telemetry-run.mjs"), /\.\.\.(?:process\.)?env\b/);
@@ -27,7 +27,7 @@ test("this build ships no telemetry key, sender, or copy of the environment", ()
 test("no generated hooks.json runs the telemetry hook while telemetry is off", () => {
   assert.equal(HOOKS.some((hook) => hook.script === "telemetry.mjs"), false);
   for (const { manifest } of Object.values(HOSTS)) {
-    assert.equal(readRepoFile(manifest).includes("telemetry.mjs"), false, manifest);
+    assert.equal(readRepoFile(pluginPath(manifest)).includes("telemetry.mjs"), false, manifest);
   }
 });
 

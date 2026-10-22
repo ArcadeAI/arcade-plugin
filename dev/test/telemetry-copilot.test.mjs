@@ -5,14 +5,16 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { HOOKS, HOSTS, telemetryHookRows } from "../../hooks/hook-hosts.mjs";
-import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../../hooks/hook-scope.mjs";
-import { ARCADE_USED_FILE } from "../../hooks/telemetry-config.mjs";
-import { buildEvent, isArcadeCall } from "../../hooks/telemetry-events.mjs";
-import { isOptedOut } from "../../hooks/telemetry-run.mjs";
-import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../../hooks/telemetry-adapters/copilot-cli.mjs";
+import { HOOKS, HOSTS, telemetryHookRows } from "../../plugin/hooks/hook-hosts.mjs";
+import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../../plugin/hooks/hook-scope.mjs";
+import { ARCADE_USED_FILE } from "../../plugin/hooks/telemetry-config.mjs";
+import { buildEvent, isArcadeCall } from "../../plugin/hooks/telemetry-events.mjs";
+import { isOptedOut } from "../../plugin/hooks/telemetry-run.mjs";
+import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../../plugin/hooks/telemetry-adapters/copilot-cli.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import {
+  PLUGIN_ROOT,
+  pluginPath,
   readRepoFile,
   ROOT,
   runPowerShell,
@@ -344,7 +346,7 @@ test("enabled Copilot manifest wiring matches hooks.enabled.json", async () => {
 });
 
 test("checked-in Copilot manifest has no telemetry rows", () => {
-  assert.equal(readRepoFile(HOSTS.copilot.manifest).includes("telemetry.mjs"), false);
+  assert.equal(readRepoFile(pluginPath(HOSTS.copilot.manifest)).includes("telemetry.mjs"), false);
 });
 
 test("enabled telemetry commands exit quietly while telemetry is off", skipOnWindows, async () => {
@@ -354,7 +356,7 @@ test("enabled telemetry commands exit quietly while telemetry is off", skipOnWin
   const captureEnv = { COPILOT_PLUGIN_DATA: dataDir, ARCADE_PLUGIN_TELEMETRY: "1", ARCADE_PLUGIN_TELEMETRY_HOST: server.url };
   try {
     for (const { command } of enabledTelemetryEntries()) {
-      for (const extra of [{}, { PLUGIN_ROOT: ROOT }]) {
+      for (const extra of [{}, { PLUGIN_ROOT }]) {
         const result = spawnSync(command, {
           shell: true,
           cwd,
@@ -390,7 +392,7 @@ test(
         const skipped = runPs(powershell, {}, input);
         assert.equal(skipped.status, 0);
         assert.equal(skipped.stdout, "");
-        const ran = runPs(powershell, { PLUGIN_ROOT: ROOT, COPILOT_PLUGIN_DATA: dataDir }, input);
+        const ran = runPs(powershell, { PLUGIN_ROOT, COPILOT_PLUGIN_DATA: dataDir }, input);
         assert.equal(ran.status, 0);
         assert.equal(ran.stdout, "");
       }
@@ -469,6 +471,6 @@ test("telemetry.mjs with --host copilot exits quietly while disabled", () => {
 });
 
 test("arcade server prefix matches mcp.json", () => {
-  const [server] = Object.keys(JSON.parse(readRepoFile("mcp.json")).mcpServers);
+  const [server] = Object.keys(JSON.parse(readRepoFile("plugin/mcp.json")).mcpServers);
   assert.equal(COPILOT_ARCADE_SERVER, server);
 });

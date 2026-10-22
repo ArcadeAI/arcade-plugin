@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { listingProblems, packageChatGPT } from "../scripts/package-chatgpt.mjs";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 
-const plugin = JSON.parse(readRepoFile("plugin.json"));
+const plugin = JSON.parse(readRepoFile("plugin/plugin.json"));
 const logo = plugin.extensions["com.openai"].interface.logo.replace(/^\.\//, "");
 
 test("the OpenAI listing fits the portal's limits", () => {
@@ -60,7 +60,7 @@ test("the ZIP has plugin.json at its root and only the portable plugin", { skip:
       const validate = ajv.compile(JSON.parse(readRepoFile(`schemas/agent-plugins/1.0.0/${file.replace(".json", ".schema.json")}`)));
       assert.ok(validate(JSON.parse(readFileSync(path.join(out, file), "utf8"))), `${file}: ${ajv.errorsText(validate.errors)}`);
     }
-    assert.deepEqual(readFileSync(path.join(out, logo)), readFileSync(path.join(ROOT, logo)));
+    assert.deepEqual(readFileSync(path.join(out, logo)), readFileSync(path.join(ROOT, "plugin", logo)));
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
