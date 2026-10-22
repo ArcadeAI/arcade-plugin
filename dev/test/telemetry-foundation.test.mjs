@@ -4,11 +4,11 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { EVENTS, eventSchema } from "../../hooks/telemetry-contract.mjs";
-import { EVENT_ENV, PLUGIN_VERSION, TELEMETRY_ENABLED } from "../../hooks/telemetry-config.mjs";
-import { buildEvent, isArcadeCall } from "../../hooks/telemetry-events.mjs";
-import { SCOPE_DIRECTORY, scopeForInput } from "../../hooks/hook-scope.mjs";
-import { clearSessionScope, isOptedOut, runTelemetry } from "../../hooks/telemetry-run.mjs";
+import { EVENTS, eventSchema } from "../../plugin/hooks/telemetry-contract.mjs";
+import { EVENT_ENV, PLUGIN_VERSION, TELEMETRY_ENABLED } from "../../plugin/hooks/telemetry-config.mjs";
+import { buildEvent, isArcadeCall } from "../../plugin/hooks/telemetry-events.mjs";
+import { SCOPE_DIRECTORY, scopeForInput } from "../../plugin/hooks/hook-scope.mjs";
+import { clearSessionScope, isOptedOut, runTelemetry } from "../../plugin/hooks/telemetry-run.mjs";
 import { ROOT, runHook } from "./helpers.mjs";
 import fakeAdapter, { FAKE_ARCADE_PREFIX, FAKE_OTHER_PREFIX } from "./fixtures/telemetry-fake-adapter.mjs";
 import {
@@ -80,7 +80,7 @@ test("session-start with telemetry off creates no scope dir and still prints rou
 
 test("routing hooks still exit 0 with malformed stdin", () => {
   for (const script of ["session-start.mjs", "subagent-start.mjs", "user-prompt-submit.mjs"]) {
-    const result = spawnSync(process.execPath, [path.join(ROOT, "hooks", script), "--host", "claude-code"], {
+    const result = spawnSync(process.execPath, [path.join(ROOT, "plugin", "hooks", script), "--host", "claude-code"], {
       input: "not-json",
       encoding: "utf8",
     });
@@ -255,7 +255,7 @@ test("telemetry-send exits without reading the environment or contacting a host"
   try {
     const event = buildEvent(hookInput({ hook_event_name: "UserPromptSubmit", prompt: "calendar" }), OPTIONS);
     const started = Date.now();
-    const child = spawn(process.execPath, [path.join(ROOT, "hooks", "telemetry-send.mjs")], {
+    const child = spawn(process.execPath, [path.join(ROOT, "plugin", "hooks", "telemetry-send.mjs")], {
       env: { PATH: process.env.PATH, ARCADE_PLUGIN_TELEMETRY_HOST: server.url, [EVENT_ENV]: JSON.stringify(event) },
     });
     assert.equal(await new Promise((resolve) => child.on("exit", resolve)), 0);
@@ -270,13 +270,13 @@ test("telemetry-send exits without reading the environment or contacting a host"
 test("only the detached sender does network I/O", () => {
   const networkImport =
     /\bfetch\b|\b(?:from|import|require)\s*\(?\s*["'](?:node:)?(?:http|https|http2|net|tls|dgram|dns)["']/;
-  const hookFiles = readdirSync(path.join(ROOT, "hooks")).filter((file) => file.endsWith(".mjs"));
+  const hookFiles = readdirSync(path.join(ROOT, "plugin", "hooks")).filter((file) => file.endsWith(".mjs"));
   for (const file of hookFiles) {
     if (file === "telemetry-send.mjs") continue;
-    const source = readFileSync(path.join(ROOT, "hooks", file), "utf8");
+    const source = readFileSync(path.join(ROOT, "plugin", "hooks", file), "utf8");
     assert.doesNotMatch(source, networkImport, file);
   }
-  const adapterDir = path.join(ROOT, "hooks", "telemetry-adapters");
+  const adapterDir = path.join(ROOT, "plugin", "hooks", "telemetry-adapters");
   if (existsSync(adapterDir)) {
     for (const file of readdirSync(adapterDir).filter((f) => f.endsWith(".mjs"))) {
       const label = `telemetry-adapters/${file}`;
@@ -287,12 +287,12 @@ test("only the detached sender does network I/O", () => {
 });
 
 test("telemetry.mjs prints nothing", () => {
-  const source = readFileSync(path.join(ROOT, "hooks", "telemetry.mjs"), "utf8");
+  const source = readFileSync(path.join(ROOT, "plugin", "hooks", "telemetry.mjs"), "utf8");
   assert.doesNotMatch(source, /\bconsole\.(log|info|warn|error)\b/);
 });
 
 test("telemetry.mjs statically imports only telemetry-config", () => {
-  const source = readFileSync(path.join(ROOT, "hooks", "telemetry.mjs"), "utf8");
+  const source = readFileSync(path.join(ROOT, "plugin", "hooks", "telemetry.mjs"), "utf8");
   const staticImports = [...source.matchAll(/^import\s.+from\s+["'](.+?)["']/gm)].map((match) => match[1]);
   assert.deepEqual(staticImports, ["./telemetry-config.mjs"]);
 });
@@ -352,13 +352,13 @@ test("clearSessionScope off-state (enabled false) respects opt-out and SessionSt
 });
 
 test("every telemetry source file starts with @ts-check", () => {
-  const files = readdirSync(path.join(ROOT, "hooks"))
+  const files = readdirSync(path.join(ROOT, "plugin", "hooks"))
     .filter((file) => file.startsWith("telemetry") && file.endsWith(".mjs"))
-    .map((file) => `hooks/${file}`);
-  const adapterDir = path.join(ROOT, "hooks", "telemetry-adapters");
+    .map((file) => `plugin/hooks/${file}`);
+  const adapterDir = path.join(ROOT, "plugin", "hooks", "telemetry-adapters");
   try {
     for (const file of readdirSync(adapterDir).filter((f) => f.endsWith(".mjs"))) {
-      files.push(`hooks/telemetry-adapters/${file}`);
+      files.push(`plugin/hooks/telemetry-adapters/${file}`);
     }
   } catch {
     // no adapters yet on this slice

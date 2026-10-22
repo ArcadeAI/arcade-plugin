@@ -6,23 +6,23 @@ Client-specific files are generated. Edit the source, then in `dev/` run
 `npm run generate` and `npm run verify` (it fails if a generated file was
 edited by hand).
 [ARCHITECTURE.md](ARCHITECTURE.md) lists the sources; `.gitattributes` lists
-every fully generated file. `skills/try-arcade/SKILL.md`,
-`agents/arcade-operator.agent.md`, and `docs/telemetry.md` are hand-written
+every fully generated file. `plugin/skills/try-arcade/SKILL.md`,
+`plugin/agents/arcade-operator.agent.md`, and `docs/telemetry.md` are hand-written
 except for a marked generated block (the event tables in docs/telemetry.md
-come from `hooks/telemetry-contract.mjs`; never edit inside those markers).
+come from `plugin/hooks/telemetry-contract.mjs`; never edit inside those markers).
 
-- Routing rules: edit `hooks/routing-guidance.mjs`, never the rules text in
+- Routing rules: edit `plugin/hooks/routing-guidance.mjs`, never the rules text in
   the Cursor rule, arcade-operator, or try-arcade.
-- Hooks: add a hook or a client in `hooks/hook-hosts.mjs`, never in a
+- Hooks: add a hook or a client in `plugin/hooks/hook-hosts.mjs`, never in a
   `hooks.json`. A new client also needs its expected output in
   `dev/test/hooks.test.mjs`.
-- Telemetry: `hooks/telemetry-contract.mjs` defines every event, property,
+- Telemetry: `plugin/hooks/telemetry-contract.mjs` defines every event, property,
   and allowed value; change them there only. Client-specific hook input mapping
-  lives only in `hooks/telemetry-adapters/<host>.mjs`. Wire a client through
-  `HOSTS.telemetry` in `hooks/hook-hosts.mjs` (generated manifests follow
+  lives only in `plugin/hooks/telemetry-adapters/<host>.mjs`. Wire a client through
+  `HOSTS.telemetry` in `plugin/hooks/hook-hosts.mjs` (generated manifests follow
   that source). `telemetry.mjs` prints nothing; only `telemetry-send.mjs` may
   touch the network (a test enforces both). `TELEMETRY_ENABLED` in
-  `hooks/telemetry-config.mjs` stays `false` without separate approval; while
+  `plugin/hooks/telemetry-config.mjs` stays `false` without separate approval; while
   false, `npm run generate` writes no telemetry hooks. `docs/telemetry.md`
   documents the event contract, privacy, opt-outs, and approval before enabling.
   `dev/scripts/telemetry-docs.mjs` generates its event tables from the contract;

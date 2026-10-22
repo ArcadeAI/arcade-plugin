@@ -3,16 +3,16 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { BASH_CLIS } from "../../hooks/telemetry-contract.mjs";
-import { HOOKS, HOSTS, telemetryHookRows } from "../../hooks/hook-hosts.mjs";
-import { SCOPE_TTL_MS } from "../../hooks/hook-scope.mjs";
-import { buildEvent, isArcadeCall } from "../../hooks/telemetry-events.mjs";
+import { BASH_CLIS } from "../../plugin/hooks/telemetry-contract.mjs";
+import { HOOKS, HOSTS, telemetryHookRows } from "../../plugin/hooks/hook-hosts.mjs";
+import { SCOPE_TTL_MS } from "../../plugin/hooks/hook-scope.mjs";
+import { buildEvent, isArcadeCall } from "../../plugin/hooks/telemetry-events.mjs";
 import adapter, {
   ARCADE_TOOL_PREFIX,
   CLAUDE_AI_ARCADE_TOOL_PREFIX,
-} from "../../hooks/telemetry-adapters/claude-code.mjs";
+} from "../../plugin/hooks/telemetry-adapters/claude-code.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
-import { readRepoFile, ROOT } from "./helpers.mjs";
+import { pluginPath, readRepoFile, ROOT } from "./helpers.mjs";
 import { eventCases } from "./fixtures/telemetry/claude-code/event-cases.mjs";
 import {
   assertMatchesContract,
@@ -47,8 +47,8 @@ const seedAppWork = async (dataDir, promptId = PROMPT_ID, now) => {
 };
 
 test("Arcade tool prefixes match plugin.json and mcp.json", () => {
-  const plugin = JSON.parse(readRepoFile("plugin.json"));
-  const [server] = Object.keys(JSON.parse(readRepoFile("mcp.json")).mcpServers);
+  const plugin = JSON.parse(readRepoFile("plugin/plugin.json"));
+  const [server] = Object.keys(JSON.parse(readRepoFile("plugin/mcp.json")).mcpServers);
   assert.equal(ARCADE_TOOL_PREFIX, `mcp__plugin_${plugin.name}_${server}__`);
   assert.equal(CLAUDE_AI_ARCADE_TOOL_PREFIX, "mcp__claude_ai_arcade__");
 });
@@ -293,7 +293,7 @@ test("enabled Claude manifest wiring matches hooks.enabled.json", async () => {
 });
 
 test("checked-in Claude manifest has no telemetry rows", () => {
-  assert.equal(readRepoFile(HOSTS["claude-code"].manifest).includes("telemetry.mjs"), false);
+  assert.equal(readRepoFile(pluginPath(HOSTS["claude-code"].manifest)).includes("telemetry.mjs"), false);
 });
 
 test("PreToolUse and PostToolUse nest MCP, web, and per-CLI Bash telemetry groups", () => {
@@ -361,7 +361,7 @@ test("invalid telemetry inputs are ignored without affecting hooks", async () =>
     assert.equal(result.status, 0, stdin);
     assert.equal(result.stdout, "");
   }
-  const routing = spawnSync(process.execPath, [path.join(ROOT, "hooks", "session-start.mjs"), "--host", "claude-code"], {
+  const routing = spawnSync(process.execPath, [path.join(ROOT, "plugin", "hooks", "session-start.mjs"), "--host", "claude-code"], {
     input: "not-json",
     encoding: "utf8",
   });

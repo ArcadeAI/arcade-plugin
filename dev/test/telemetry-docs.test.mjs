@@ -8,7 +8,7 @@ import {
   TELEMETRY_BLOCK_BEGIN,
   TELEMETRY_BLOCK_END,
 } from "../scripts/telemetry-docs.mjs";
-import { COMMON_PROPERTIES, EVENTS } from "../../hooks/telemetry-contract.mjs";
+import { COMMON_PROPERTIES, EVENTS } from "../../plugin/hooks/telemetry-contract.mjs";
 
 test("buildTelemetryTables lists every contract event and common property", () => {
   const tables = buildTelemetryTables();

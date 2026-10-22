@@ -4,6 +4,13 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0](https://github.com/ArcadeAI/arcade-plugin/compare/v0.8.1...v0.9.0) (2026-10-22)
+
+
+### Features
+
+* generate the OpenAI directory listing fields ([#51](https://github.com/ArcadeAI/arcade-plugin/issues/51)) ([a569e7c](https://github.com/ArcadeAI/arcade-plugin/commit/a569e7c87e4520c75e85edf6634879d4551a3b6b))
+
 ## [0.8.1](https://github.com/ArcadeAI/arcade-plugin/compare/v0.8.0...v0.8.1) (2026-10-21)
 
 

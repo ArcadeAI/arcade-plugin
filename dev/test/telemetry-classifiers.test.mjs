@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { authNeeded, failureKind } from "../../hooks/telemetry-failures.mjs";
-import { commandUsesCli } from "../../hooks/telemetry-commands.mjs";
+import { authNeeded, failureKind } from "../../plugin/hooks/telemetry-failures.mjs";
+import { commandUsesCli } from "../../plugin/hooks/telemetry-commands.mjs";
 import { ROOT } from "./helpers.mjs";
 
 const fixture = (name) => {

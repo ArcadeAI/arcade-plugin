@@ -1,0 +1,14 @@
+{
+  "name": "arcade",
+  "owner": {
+    "name": "Arcade.dev",
+    "url": "https://arcade.dev",
+    "email": "support@arcade.dev"
+  },
+  "plugins": [
+    {
+      "name": "arcade",
+      "source": "plugin"
+    }
+  ]
+}
