@@ -144,7 +144,11 @@ test("changing the canonical privacy URL updates both client fields", async () =
     changedGenerator.generateManifests({ root });
     const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
     assert.equal(read("plugin/.claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
-    assert.equal(read("plugin/plugin.json").extensions["com.openai"].interface.privacyPolicyURL, "https://example.com/new-policy/");
+    const openai = read("plugin/plugin.json").extensions["com.openai"];
+    assert.equal(openai.interface.privacyPolicyURL, "https://example.com/new-policy/");
+    assert.equal(openai.interface.supportURL, "https://support.arcade.dev");
+    assert.equal(openai.interface.termsOfServiceURL, "https://www.arcade.dev/terms-of-service/");
+    assert.equal(openai.review.test_cases.positive.length, 5);
     assert.doesNotMatch(readFileSync(join(root, ".gitattributes"), "utf8"), /^plugin\/plugin\.json linguist-generated/m);
   } finally {
     rmSync(root, { recursive: true, force: true });

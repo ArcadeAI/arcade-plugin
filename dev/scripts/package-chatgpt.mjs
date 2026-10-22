@@ -61,6 +61,11 @@ export const listingProblems = (listing) => {
     problems.push(`category must be one of: ${LISTING_CATEGORIES.join(", ")}`);
   }
   if (!listing.logo) problems.push("logo is required");
+  // A remote MCP submission ("With MCP") needs all four listing URLs; only a
+  // skills-only upload can omit them. This ZIP always ships mcp.json.
+  for (const key of LISTING_URLS) {
+    if (listing[key] === undefined) problems.push(`${key} is required for a remote MCP submission`);
+  }
   for (const key of LISTING_URLS) {
     const value = listing[key];
     if (value === undefined) continue;
@@ -79,6 +84,18 @@ export const listingProblems = (listing) => {
       problems.push(`defaultPrompt entry must be one non-empty line of at most ${MAX_DEFAULT_PROMPT_LENGTH} characters: ${prompt}`);
     }
     if (/(^|\s)@\w/.test(prompt)) problems.push(`defaultPrompt entry must not @mention an MCP server: ${prompt}`);
+  }
+  return problems;
+};
+
+/** OpenAI rejects a ZIP whose manifest declares lifecycle hooks or app references. */
+export const archiveProblems = (plugin) => {
+  const problems = [];
+  const openai = plugin.extensions?.["com.openai"];
+  for (const key of ["hooks", "apps"]) {
+    if (key in plugin || (openai != null && key in openai)) {
+      problems.push(`plugin.json declares ${key}; OpenAI ZIP uploads can't include it`);
+    }
   }
   return problems;
 };
@@ -115,6 +132,8 @@ export const packageChatGPT = ({ root = ROOT, outDir = join(root, "dist") } = {}
   if (plugin.version !== version) {
     throw new Error(`plugin.json version ${plugin.version} does not match VERSION ${version}`);
   }
+  const rejected = archiveProblems(plugin);
+  if (rejected.length > 0) throw new Error(rejected.join("\n"));
   const listing = plugin.extensions?.["com.openai"]?.interface;
   if (!listing) throw new Error("plugin.json has no extensions.com.openai.interface listing");
   const problems = listingProblems(listing);

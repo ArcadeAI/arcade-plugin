@@ -21,8 +21,125 @@ export const PLUGIN_DIR = "plugin";
 
 const inPlugin = (file) => `${PLUGIN_DIR}/${file}`;
 
-// One policy URL for both clients; plugin.json retains its other hand-written fields.
+// One policy URL for both clients. The other OpenAI directory fields below are
+// written into plugin/plugin.json from here too. Identity text (name, descriptions,
+// category, website, logo) stays in plugin/plugin.json.
 const privacyPolicyUrl = "https://www.arcade.dev/privacy-policy/";
+const openaiSupportUrl = "https://support.arcade.dev";
+const openaiTermsUrl = "https://www.arcade.dev/terms-of-service/";
+
+const OPENAI_CAPABILITIES = [
+  "Read and search email",
+  "Check calendar events",
+  "Find issues and pull requests",
+  "Read team chat",
+  "Draft messages for your confirmation",
+];
+
+const OPENAI_DEFAULT_PROMPTS = [
+  "What's on my calendar tomorrow?",
+  "Summarize my unread email from this week.",
+  "Which GitHub issues are assigned to me?",
+];
+
+// Tool names are the MCP forms of Arcade toolkit tools (dots become underscores).
+// demo_recording_url is a real review field and is required before MCP review,
+// but a ZIP may omit it. No recording URL is published here; omitting the field
+// leaves any value already saved in the dashboard.
+const OPENAI_REVIEW = {
+  test_cases: {
+    positive: [
+      {
+        description: "Summarize unread email in the connected Gmail account",
+        prompt: "Summarize my unread email from the last 7 days.",
+        tools_triggered: "Gmail_ListEmails",
+        expected_behavior: "Lists the seeded unread test emails (sender, subject, one-line summary each) from the reviewer Gmail account. No email is changed or marked read.",
+      },
+      {
+        description: "Read tomorrow's calendar",
+        prompt: "What's on my calendar tomorrow?",
+        tools_triggered: "GoogleCalendar_ListEvents",
+        expected_behavior: "Returns the seeded recurring test events for tomorrow with times and titles from the reviewer Google Calendar. Nothing is created or changed.",
+      },
+      {
+        description: "Find GitHub issues assigned to the user",
+        prompt: "Which open GitHub issues are assigned to me in arcade-review/sample-tracker?",
+        tools_triggered: "Github_ListIssues",
+        expected_behavior: "Lists the seeded open issues assigned to the reviewer GitHub account in the sample repo, with titles and links.",
+      },
+      {
+        description: "Read recent messages in a Slack channel",
+        prompt: "What did people say in #launch-plan on Slack this week?",
+        tools_triggered: "Slack_GetMessages",
+        expected_behavior: "Summarizes the seeded messages in #launch-plan in the review Slack workspace and names who said what. Nothing is posted.",
+      },
+      {
+        description: "Draft an email and stop for confirmation",
+        prompt: "Draft a reply to the 'Q4 venue options' email saying Thursday works, but don't send it.",
+        tools_triggered: "Gmail_ListEmails, Gmail_WriteDraftReplyEmail",
+        expected_behavior: "Shows the draft text and recipient, asks before saving, then saves it as a Gmail draft. The email is not sent.",
+      },
+    ],
+    negative: [
+      {
+        description: "General knowledge question that needs no connected app",
+        prompt: "What's the difference between TCP and UDP?",
+      },
+      {
+        description: "Request outside any connected app (payments)",
+        prompt: "Send $50 to my landlord on Venmo.",
+      },
+      {
+        description: "Irreversible bulk action without a confirmed target",
+        prompt: "Delete every email in my inbox.",
+      },
+    ],
+  },
+  commerce: false,
+  commerce_description: "Arcade does not sell products or process payments.",
+};
+
+// No version number: Release Please bumps VERSION without rewriting this note.
+const OPENAI_PUBLICATION = {
+  countries: ["US"],
+  release_notes: "Initial OpenAI directory release. Two skills (try-arcade, scale-arcade) and the Arcade MCP gateway at https://api.arcade.dev/mcp/arcade. No hooks, commands, or agents.",
+};
+
+const GENERATED_INTERFACE_KEYS = ["capabilities", "supportURL", "privacyPolicyURL", "termsOfServiceURL", "defaultPrompt"];
+
+/** Writes the OpenAI directory fields. Other interface keys in plugin.json are kept. */
+const applyOpenAiDirectory = (openai) => {
+  const {
+    displayName,
+    shortDescription,
+    longDescription,
+    developerName,
+    category,
+    websiteURL,
+    logo,
+    composerIcon,
+    ...rest
+  } = openai.interface;
+  for (const key of GENERATED_INTERFACE_KEYS) delete rest[key];
+  openai.interface = {
+    displayName,
+    shortDescription,
+    longDescription,
+    developerName,
+    category,
+    capabilities: OPENAI_CAPABILITIES,
+    websiteURL,
+    supportURL: openaiSupportUrl,
+    privacyPolicyURL: privacyPolicyUrl,
+    termsOfServiceURL: openaiTermsUrl,
+    defaultPrompt: OPENAI_DEFAULT_PROMPTS,
+    logo,
+    composerIcon,
+    ...rest,
+  };
+  openai.review = OPENAI_REVIEW;
+  openai.publication = OPENAI_PUBLICATION;
+};
 
 // Marketplace support contact; plugin author metadata still comes from plugin.json.
 export const ACCEPTED_LISTING_OWNER_EMAIL = "support@arcade.dev";
@@ -64,7 +181,7 @@ export const COPIED_FILES = {
  * entry here — buildFiles throws if one is missing.
  */
 export const FILE_SOURCES = {
-  // Only extensions.com.openai.interface.privacyPolicyURL is generated.
+  // extensions.com.openai listing URLs, capabilities, defaultPrompt, review, and publication.
   [PLUGIN_JSON]: ["dev/scripts/generate-manifests.mjs"],
   // plugin.json and mcp.json supply identity and the gateway URL; VERSION
   // supplies the version; hook-hosts.mjs supplies the hooks manifest path; the
@@ -117,7 +234,7 @@ export const requireSources = (path, fileSources) => {
 /** Returns the error message to throw when `path` is out of date on disk. */
 const outOfDateError = (path) => {
   if (path === PLUGIN_JSON) {
-    return `${path}: extensions.com.openai.interface.privacyPolicyURL is out of date. Run npm run generate. Edit privacyPolicyUrl in dev/scripts/generate-manifests.mjs instead.`;
+    return `${path}: generated OpenAI directory fields are out of date. Run npm run generate. Edit them in dev/scripts/generate-manifests.mjs instead.`;
   }
   if (path in FILES_WITH_GENERATED_RULES) {
     return `${path}: the rules block is out of date. Run npm run generate. If you edited the block by hand, make the change in ${ROUTING_SOURCE} instead.`;
@@ -318,9 +435,9 @@ const buildFiles = (root) => {
     ].join("\n"),
   );
 
-  // This field is generated; the rest of the portable manifest remains source.
-  // Add it after .gitattributes so the whole file is not marked generated.
-  openaiListing.privacyPolicyURL = privacyPolicyUrl;
+  // Directory fields are generated; the rest of the portable manifest remains source.
+  // Add this after .gitattributes so the whole file is not marked generated.
+  applyOpenAiDirectory(plugin.extensions["com.openai"]);
   files.set(PLUGIN_JSON, serialize(plugin));
 
   for (const [path, rules] of Object.entries(FILES_WITH_GENERATED_RULES)) {

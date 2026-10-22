@@ -217,7 +217,7 @@ const CORE_RULES = {
   PROMPT_REMINDER: [PROMPT_REMINDER, [/"arcade" MCP server/, /try-arcade/, /arcade-operator/, /arcade server cannot complete/]],
   CURSOR_RULE: [CURSOR_RULE, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, /plugin-arcade-arcade/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
   SESSION_CONTEXT: [SESSION_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /try-arcade/, /scale-arcade/, /arcade-operator/, /stop and ask the user to authenticate/, /needsAuth/, /Keep tool discovery/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
-  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /stop and ask the user to authenticate/, /needsAuth/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
+  SKILL_RULES: [SKILL_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /any namespace name/, /Arcade_SelectTools/, /Arcade_UseTool/, /stop and ask the user to authenticate/, /needsAuth/, ...FALLBACK_RULES, ...PARENT_FALLBACK_RULES]],
   OPERATOR_RULES: [OPERATOR_RULES, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /return needs_auth/, /return failed/, /needsAuth/, ...FALLBACK_RULES, ...DELEGATE_SCOPE]],
   SUBAGENT_CONTEXT: [SUBAGENT_CONTEXT, [/"arcade" MCP server/, /api\.arcade\.dev/, /Prefer arcade/, /try-arcade/, /return needs_auth/, /needsAuth/, /Keep tool discovery/, ...FALLBACK_RULES, ...DELEGATE_SCOPE]],
 };
