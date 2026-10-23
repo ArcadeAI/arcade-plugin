@@ -43,7 +43,11 @@ const OPENAI_DEFAULT_PROMPTS = [
   "Which GitHub issues are assigned to me?",
 ];
 
-// Tool names are the MCP forms of Arcade toolkit tools (dots become underscores).
+// Reviewers sign up for their own free Arcade account, so every case runs on
+// tools that need no app sign-in and no API key: the gateway's own
+// Arcade_ListApps, and the Math toolkit through Arcade_SelectTools then
+// Arcade_UseTool. tools_triggered names the gateway tools OpenAI's MCP scan
+// sees, then the Math tool Arcade_UseTool runs, in Toolkit.ToolName form.
 // demo_recording_url is a real review field and is required before MCP review,
 // but a ZIP may omit it. No recording URL is published here; omitting the field
 // leaves any value already saved in the dashboard.
@@ -51,48 +55,48 @@ const OPENAI_REVIEW = {
   test_cases: {
     positive: [
       {
-        description: "Summarize unread email in the connected Gmail account",
-        prompt: "Summarize my unread email from the last 7 days.",
-        tools_triggered: "Gmail_ListEmails",
-        expected_behavior: "Lists the seeded unread test emails (sender, subject, one-line summary each) from the reviewer Gmail account. No email is changed or marked read.",
+        description: "List the apps Arcade offers and which ones are connected",
+        prompt: "Use Arcade to list which apps I can use, and which are connected.",
+        tools_triggered: "Arcade_ListApps",
+        expected_behavior: "Lists the apps available through Arcade and whether each one is connected. A new account shows most apps as not connected. Nothing is connected, disconnected, or changed.",
       },
       {
-        description: "Read tomorrow's calendar",
-        prompt: "What's on my calendar tomorrow?",
-        tools_triggered: "GoogleCalendar_ListEvents",
-        expected_behavior: "Returns the seeded recurring test events for tomorrow with times and titles from the reviewer Google Calendar. Nothing is created or changed.",
+        description: "Average a list of amounts",
+        prompt: "Use Arcade to average my monthly software bills: $1,249.50, $389.99, $72.25 and $418.26.",
+        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.Avg)",
+        expected_behavior: "Answers $532.50.",
       },
       {
-        description: "Find GitHub issues assigned to the user",
-        prompt: "Which open GitHub issues are assigned to me in arcade-review/sample-tracker?",
-        tools_triggered: "Github_ListIssues",
-        expected_behavior: "Lists the seeded open issues assigned to the reviewer GitHub account in the sample repo, with titles and links.",
+        description: "Raise a number to a power for compound growth",
+        prompt: "Use Arcade to calculate 1.05 to the 10th power, for 10 years of 5% annual growth.",
+        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.Power)",
+        expected_behavior: "Answers about 1.6289 (1.62889462677744140625), meaning about 62.9% total growth over 10 years.",
       },
       {
-        description: "Read recent messages in a Slack channel",
-        prompt: "What did people say in #launch-plan on Slack this week?",
-        tools_triggered: "Slack_GetMessages",
-        expected_behavior: "Summarizes the seeded messages in #launch-plan in the review Slack workspace and names who said what. Nothing is posted.",
+        description: "Take a square root",
+        prompt: "Use Arcade to calculate the square root of 7,569.",
+        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.Sqrt)",
+        expected_behavior: "Answers 87.",
       },
       {
-        description: "Draft an email and stop for confirmation",
-        prompt: "Draft a reply to the 'Q4 venue options' email saying Thursday works, but don't send it.",
-        tools_triggered: "Gmail_ListEmails, Gmail_WriteDraftReplyEmail",
-        expected_behavior: "Shows the draft text and recipient, asks before saving, then saves it as a Gmail draft. The email is not sent.",
+        description: "Convert degrees to radians",
+        prompt: "Use Arcade to convert 90 degrees to radians.",
+        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.DegToRad)",
+        expected_behavior: "Answers about 1.5708 radians (1.5707963267948966, which is pi/2).",
       },
     ],
     negative: [
       {
-        description: "General knowledge question that needs no connected app",
-        prompt: "What's the difference between TCP and UDP?",
+        description: "General knowledge question that needs no tool",
+        prompt: "Use Arcade to explain the difference between TCP and UDP.",
       },
       {
-        description: "Request outside any connected app (payments)",
-        prompt: "Send $50 to my landlord on Venmo.",
+        description: "Payment request; Arcade connects no payment app and does not move money",
+        prompt: "Use Arcade to send $50 to my landlord on Venmo.",
       },
       {
-        description: "Irreversible bulk action without a confirmed target",
-        prompt: "Delete every email in my inbox.",
+        description: "Concept question with nothing to calculate",
+        prompt: "Use Arcade to explain what a derivative is in calculus.",
       },
     ],
   },

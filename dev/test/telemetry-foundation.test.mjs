@@ -163,11 +163,8 @@ test("runTelemetry opt-out matrix sends nothing and writes no files", async () =
     const cases = [
       ["ARCADE_PLUGIN_TELEMETRY=0", { ARCADE_PLUGIN_TELEMETRY: "0" }],
       ["ARCADE_PLUGIN_TELEMETRY=OFF", { ARCADE_PLUGIN_TELEMETRY: "OFF" }],
-      ["DO_NOT_TRACK=1", { DO_NOT_TRACK: "1" }],
-      ["FAKE_DISABLE_TELEMETRY=1", { FAKE_DISABLE_TELEMETRY: "1" }],
-      ["FAKE_DISABLE_TELEMETRY=0", { FAKE_DISABLE_TELEMETRY: "0" }],
-      ["FAKE_OFFLINE=true", { FAKE_OFFLINE: "true" }],
-      ["FAKE_OFFLINE=1", { FAKE_OFFLINE: "1" }],
+      ["ARCADE_PLUGIN_TELEMETRY=false", { ARCADE_PLUGIN_TELEMETRY: "false" }],
+      ["ARCADE_PLUGIN_TELEMETRY=no", { ARCADE_PLUGIN_TELEMETRY: "no" }],
       ["missing data dir", { ARCADE_TEST_PLUGIN_DATA: "" }],
       ["relative data dir", { ARCADE_TEST_PLUGIN_DATA: "relative/data" }],
     ];
@@ -245,9 +242,11 @@ test("runTelemetry survives malformed input and send failures", async () => {
 });
 
 test("isOptedOut respects case on ARCADE_PLUGIN_TELEMETRY", () => {
-  assert.equal(isOptedOut([], { ARCADE_PLUGIN_TELEMETRY: "OFF" }), true);
-  assert.equal(isOptedOut([], { ARCADE_PLUGIN_TELEMETRY: "off" }), true);
-  assert.equal(isOptedOut(fakeAdapter.optOutSwitches, { FAKE_OFFLINE: "FALSE" }), false);
+  assert.equal(isOptedOut({ ARCADE_PLUGIN_TELEMETRY: "OFF" }), true);
+  assert.equal(isOptedOut({ ARCADE_PLUGIN_TELEMETRY: "off" }), true);
+  assert.equal(isOptedOut({ ARCADE_PLUGIN_TELEMETRY: "1" }), false);
+  assert.equal(isOptedOut({ ARCADE_PLUGIN_TELEMETRY: "" }), false);
+  assert.equal(isOptedOut({}), false);
 });
 
 test("telemetry-send exits without reading the environment or contacting a host", async () => {

@@ -15,10 +15,6 @@ export const FAKE_OTHER_PREFIX = "mcp__fake_other__";
 const fakeAdapter = {
   host: "claude-code",
   dataVariable: "ARCADE_TEST_PLUGIN_DATA",
-  optOutSwitches: [
-    { name: "FAKE_DISABLE_TELEMETRY", anyValue: true },
-    { name: "FAKE_OFFLINE", anyValue: false },
-  ],
   requiresTurn: true,
   promptReminder: true,
   subagentSession: false,
