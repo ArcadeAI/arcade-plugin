@@ -61,12 +61,15 @@ test("the directory listing has the four MCP URLs and five positive review cases
   assert.deepEqual(openai.publication.countries, ["US"]);
   assert.doesNotMatch(openai.publication.release_notes, /\d+\.\d+\.\d+/);
   assert.deepEqual(openai.review.test_cases.positive.map((item) => item.tools_triggered), [
-    "Gmail_ListEmails",
-    "GoogleCalendar_ListEvents",
-    "Github_ListIssues",
-    "Slack_GetMessages",
-    "Gmail_ListEmails, Gmail_WriteDraftReplyEmail",
+    "Arcade_ListApps",
+    "Arcade_SelectTools, Arcade_UseTool (Math.Avg)",
+    "Arcade_SelectTools, Arcade_UseTool (Math.Power)",
+    "Arcade_SelectTools, Arcade_UseTool (Math.Sqrt)",
+    "Arcade_SelectTools, Arcade_UseTool (Math.DegToRad)",
   ]);
+  for (const item of [...openai.review.test_cases.positive, ...openai.review.test_cases.negative]) {
+    assert.match(item.prompt, /^Use Arcade to /, item.description);
+  }
 });
 
 const hasUnzip = !spawnSync("unzip", ["-v"]).error;
