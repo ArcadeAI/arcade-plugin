@@ -39,8 +39,7 @@ hooks and nothing is sent. When enabled, `plugin/hooks/telemetry-adapters/copilo
 records MCP tools as `<server>-<tool>`, operator stops with `subagent_session`,
 and session-scoped prompt state under `COPILOT_PLUGIN_DATA` (no `turn`, no
 `PreToolUse`, no built-in CLI/web events). See
-[telemetry.md](../telemetry.md) for opt-outs (`ARCADE_PLUGIN_TELEMETRY=0` and
-`COPILOT_OFFLINE`) and
+[telemetry.md](../telemetry.md) for the opt-out (`ARCADE_PLUGIN_TELEMETRY=0`) and
 [what CI exercises](../telemetry.md#what-ci-exercises).
 
 Shared `com.github.copilot/hooks/hooks.json` uses `runOnlyIfScriptExists` to

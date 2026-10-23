@@ -9,7 +9,6 @@ import { HOOKS, HOSTS, telemetryHookRows } from "../../plugin/hooks/hook-hosts.m
 import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../../plugin/hooks/hook-scope.mjs";
 import { ARCADE_USED_FILE } from "../../plugin/hooks/telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "../../plugin/hooks/telemetry-events.mjs";
-import { isOptedOut } from "../../plugin/hooks/telemetry-run.mjs";
 import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../../plugin/hooks/telemetry-adapters/copilot-cli.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import {
@@ -301,9 +300,7 @@ test("opt-out and missing data dir send nothing", async () => {
   });
   const cases = [
     ["ARCADE_PLUGIN_TELEMETRY=0", { ARCADE_PLUGIN_TELEMETRY: "0" }],
-    ["DO_NOT_TRACK=1", { DO_NOT_TRACK: "1" }],
-    ["COPILOT_OFFLINE=true", { COPILOT_OFFLINE: "true" }],
-    ["COPILOT_OFFLINE=1", { COPILOT_OFFLINE: "1" }],
+    ["ARCADE_PLUGIN_TELEMETRY=off", { ARCADE_PLUGIN_TELEMETRY: "off" }],
     ["no COPILOT_PLUGIN_DATA", { COPILOT_PLUGIN_DATA: "" }],
     ["relative COPILOT_PLUGIN_DATA", { COPILOT_PLUGIN_DATA: "relative/data" }],
   ];
@@ -313,7 +310,7 @@ test("opt-out and missing data dir send nothing", async () => {
     assert.equal(sent.length, 0, label);
     assert.deepEqual(readdirSync(dataDir), [], label);
   }
-  for (const extra of [{ COPILOT_OFFLINE: "false" }, { COPILOT_OFFLINE: "0" }, { DISABLE_TELEMETRY: "1" }]) {
+  for (const extra of [{ ARCADE_PLUGIN_TELEMETRY: "1" }, { ARCADE_PLUGIN_TELEMETRY: "on" }]) {
     const dataDir = tempDataDir();
     await captureTelemetry({
       adapter: copilotAdapter,
@@ -324,8 +321,6 @@ test("opt-out and missing data dir send nothing", async () => {
     const { sent } = await captureTelemetry({ adapter: copilotAdapter, input, dataDir, env: extra });
     assert.ok(sent.length > 0, JSON.stringify(extra));
   }
-  assert.equal(isOptedOut(copilotAdapter.optOutSwitches, { COPILOT_OFFLINE: "true" }), true);
-  assert.equal(isOptedOut(copilotAdapter.optOutSwitches, { COPILOT_OFFLINE: "false" }), false);
 });
 
 test("malformed hook input without a prompt sends nothing", async () => {

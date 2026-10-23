@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { HOOKS, HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
-import { TELEMETRY_ENABLED } from "../../plugin/hooks/telemetry-config.mjs";
+import claudeCodeAdapter from "../../plugin/hooks/telemetry-adapters/claude-code.mjs";
+import copilotAdapter from "../../plugin/hooks/telemetry-adapters/copilot-cli.mjs";
+import { OPT_OUT_ENV, TELEMETRY_ENABLED } from "../../plugin/hooks/telemetry-config.mjs";
+import { readOptOutEnv } from "../../plugin/hooks/telemetry-run.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import { pluginPath, readRepoFile } from "./helpers.mjs";
 
@@ -20,7 +23,7 @@ test("this build ships no telemetry key, sender, or copy of the environment", ()
   const hook = (file) => readRepoFile(`plugin/hooks/${file}`);
   assert.doesNotMatch(hook("telemetry-config.mjs"), /process\.env|phc_/);
   assert.doesNotMatch(hook("telemetry-send.mjs"), /process\.env|\bfetch\b|\bimport\b/);
-  assert.doesNotMatch(hook("telemetry-run.mjs"), /\.\.\.(?:process\.)?env\b/);
+  assert.doesNotMatch(hook("telemetry-run.mjs"), /\.\.\.(?:process\.)?env\b|child_process|\bspawn\(/);
   assert.doesNotMatch(hook("session-start.mjs"), /telemetry/i);
 });
 
@@ -53,4 +56,9 @@ test("flat manifests keep matchers and reject if and extra args", () => {
     () => buildHookManifest("cursor", [{ script: "a.mjs", event: "SessionStart", if: "Bash(gh *)" }]),
     /flat format does not support/,
   );
+});
+
+test("readOptOutEnv picks only the opt-out switch and each client's data-folder name", () => {
+  const names = [OPT_OUT_ENV, claudeCodeAdapter.dataVariable, copilotAdapter.dataVariable];
+  assert.deepEqual(Object.keys(readOptOutEnv()).sort(), names.sort());
 });
