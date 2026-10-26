@@ -95,6 +95,24 @@ test("Claude manifest displays Arcade without changing the install identifier", 
   assert.equal(manifest.name, "arcade");
 });
 
+test("OpenAI image variants and brandColor stay off the other client manifests", () => {
+  for (const file of [
+    "plugin/.cursor-plugin/plugin.json",
+    ".cursor-plugin/plugin.json",
+    "plugin/.claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    ".cursor-plugin/marketplace.json",
+  ]) {
+    const text = readRepoFile(file);
+    for (const field of ["logoDark", "composerIcon", "composerIconDark", "brandColor", "logo-dark.png", "composer-icon"]) {
+      assert.equal(text.includes(field), false, `${file} contains ${field}`);
+    }
+  }
+  const cursor = JSON.parse(readRepoFile("plugin/.cursor-plugin/plugin.json"));
+  assert.equal(cursor.logo, "assets/logo.png");
+  assert.deepEqual(Object.keys(cursor).includes("brandColor"), false);
+});
+
 test("listing contact and privacy metadata agree across clients", () => {
   const portable = JSON.parse(readRepoFile("plugin/plugin.json"));
   const claude = JSON.parse(readRepoFile("plugin/.claude-plugin/plugin.json"));

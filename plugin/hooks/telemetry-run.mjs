@@ -1,39 +1,35 @@
 // @ts-check
 /** Opt-out checks and the shared telemetry hook body. Never throws. */
 
-import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { scopeForInput } from "./hook-scope.mjs";
-import { ARCADE_USED_FILE, EVENT_ENV, OPT_OUT_ENV, TELEMETRY_ENABLED } from "./telemetry-config.mjs";
+import { ARCADE_USED_FILE, OPT_OUT_ENV, TELEMETRY_ENABLED } from "./telemetry-config.mjs";
 import { buildEvent, isArcadeCall } from "./telemetry-events.mjs";
 
 /** @typedef {import("./telemetry-adapter.mjs").TelemetryAdapter} TelemetryAdapter */
 
-const SENDER = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "telemetry-send.mjs",
-);
+/**
+ * The only place shipped plugin code reads the process environment. It picks
+ * the one opt-out switch and the client data-folder variables by name into a
+ * plain object, and is called only after the TELEMETRY_ENABLED check, so a
+ * build with telemetry off reads no environment at all.
+ * @returns {NodeJS.ProcessEnv}
+ */
+export const readOptOutEnv = () => ({
+  ARCADE_PLUGIN_TELEMETRY: process.env.ARCADE_PLUGIN_TELEMETRY,
+  CLAUDE_PLUGIN_DATA: process.env.CLAUDE_PLUGIN_DATA,
+  COPILOT_PLUGIN_DATA: process.env.COPILOT_PLUGIN_DATA,
+});
 
 const OFF_VALUES = ["0", "false", "off", "no"];
 
-const isSet = (/** @type {string} */ value) => value !== "" && !OFF_VALUES.includes(value.toLowerCase());
-
 /**
- * A switch with `anyValue` is on for any non-empty value, even "0" or "false",
- * because that is how Claude Code reads its own switches.
- * @param {{ name: string, anyValue: boolean }[]} optOutSwitches
- * @param {NodeJS.ProcessEnv} env
+ * ARCADE_PLUGIN_TELEMETRY set to 0, false, off, or no (any case) is the only opt-out.
+ * @param {NodeJS.ProcessEnv} [env] Defaults to readOptOutEnv().
  */
-export const isOptedOut = (optOutSwitches, env = process.env) => {
-  if (OFF_VALUES.includes((env[OPT_OUT_ENV] ?? "").toLowerCase())) return true;
-  if (isSet(env.DO_NOT_TRACK ?? "")) return true;
-  return optOutSwitches.some(({ name, anyValue }) => {
-    const value = env[name] ?? "";
-    return anyValue ? value !== "" : isSet(value);
-  });
-};
+export const isOptedOut = (env = readOptOutEnv()) =>
+  OFF_VALUES.includes((env[OPT_OUT_ENV] ?? "").toLowerCase());
 
 const readArcadeUsed = (/** @type {string} */ dir) => {
   try {
@@ -64,13 +60,14 @@ const markArcadeUsed = (/** @type {string} */ dir) => {
  */
 export const clearSessionScope = ({
   adapter,
-  env = process.env,
+  env: givenEnv,
   input = {},
   enabled = false,
 }) => {
   try {
     if (!enabled && !TELEMETRY_ENABLED) return;
-    if (isOptedOut(adapter.optOutSwitches, env)) return;
+    const env = givenEnv ?? readOptOutEnv();
+    if (isOptedOut(env)) return;
     const dir = env[adapter.dataVariable];
     if (!dir || !path.isAbsolute(dir)) return;
     scopeForInput(
@@ -82,26 +79,9 @@ export const clearSessionScope = ({
   }
 };
 
-const defaultSend = (/** @type {object} */ event, env = process.env) => {
-  // Claude Code kills hook processes when the session exits, so the network
-  // call runs in a detached child that can outlive this hook. The event goes
-  // in an environment variable, not an argument, because other users on the
-  // machine can read a process's arguments but not its environment. Pass only
-  // PATH, SystemRoot (Windows needs it for network calls), and the event. Do
-  // not copy the parent environment.
-  /** @type {Record<string, string>} */
-  const childEnv = { [EVENT_ENV]: JSON.stringify(event) };
-  if (env.PATH) childEnv.PATH = env.PATH;
-  if (env.SystemRoot) childEnv.SystemRoot = env.SystemRoot;
-  const child = spawn(process.execPath, [SENDER], {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-    env: childEnv,
-  });
-  child.on("error", () => {});
-  child.unref();
-};
+// No sender yet. The earlier detached child process is gone, so an enabled
+// build needs a sender that does not start a child process.
+const defaultSend = () => {};
 
 /**
  * @param {object} options
@@ -117,18 +97,19 @@ export const runTelemetry = async ({
   input,
   adapter,
   argv = process.argv,
-  env = process.env,
+  env: givenEnv,
   now = Date.now(),
   enabled = false,
-  send = (event) => defaultSend(event, env),
+  send = defaultSend,
 }) => {
   try {
     if (!enabled && !TELEMETRY_ENABLED) return;
+    const env = givenEnv ?? readOptOutEnv();
     // The client always sets this. Without an absolute data folder there is
     // nowhere to keep the arcade-used flag, so nothing is sent.
     const dir = env[adapter.dataVariable];
     if (!dir || !path.isAbsolute(dir)) return;
-    if (isOptedOut(adapter.optOutSwitches, env)) return;
+    if (isOptedOut(env)) return;
     const normalized = adapter.normalize(input ?? {});
     const { appWork } = scopeForInput(normalized, {
       host: adapter.host,

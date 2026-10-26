@@ -23,10 +23,6 @@ import { ROOT } from "./helpers.mjs";
 const TELEMETRY_ENV_BLOCKLIST = [
   "ARCADE_PLUGIN_TELEMETRY",
   "ARCADE_PLUGIN_TELEMETRY_HOST",
-  "DO_NOT_TRACK",
-  "DISABLE_TELEMETRY",
-  "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
-  "COPILOT_OFFLINE",
   "CLAUDE_PLUGIN_DATA",
   "COPILOT_PLUGIN_DATA",
   "PLUGIN_ROOT",
@@ -151,9 +147,6 @@ export const telemetryEnv = (adapter, dataDir, serverUrl, extra = {}) => ({
   [adapter.dataVariable]: dataDir,
   ARCADE_PLUGIN_TELEMETRY_HOST: serverUrl,
   ARCADE_PLUGIN_TELEMETRY: "",
-  DO_NOT_TRACK: "",
-  FAKE_DISABLE_TELEMETRY: "",
-  FAKE_OFFLINE: "",
   ...extra,
 });
 

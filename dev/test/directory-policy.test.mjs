@@ -55,7 +55,9 @@ const COMPONENT_FOLDERS = ["agents/", "commands/", "skills/"];
 // listing logo.
 const ALLOWED_MEDIA_PATH_FIELDS = [
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logo"] },
+  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logoDark"] },
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIcon"] },
+  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIconDark"] },
   { file: ".cursor-plugin/plugin.json", field: ["logo"] },
 ];
 
@@ -449,23 +451,85 @@ test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher 
   );
 });
 
+// The only process environment reads allowed in plugin scripts: the one
+// telemetry opt-out switch and the client data-folder variables, each read by
+// name inside readOptOutEnv in this one file.
+const ENV_READ_FILE = "hooks/telemetry-run.mjs";
+const ENV_READ_ALLOWLIST = [
+  "ARCADE_PLUGIN_TELEMETRY",
+  "CLAUDE_PLUGIN_DATA",
+  "COPILOT_PLUGIN_DATA",
+];
+const CHILD_PROCESS = /\bchild_process\b|\b(?:spawn|spawnSync|exec|execSync|execFile|execFileSync|fork)\(/;
+const OTHER_RUNTIME_ENV = /\bDeno\.env\b|\bBun\.env\b|\bimport\.meta\.env\b/;
+// Indirect ways to reach the environment object: process["env"], process?.env,
+// or destructuring `env` out of process.
+const INDIRECT_ENV = /\bprocess\s*(?:\?\.)?\s*\[|\bprocess\s*\?\.\s*env\b|\{[^}]*\benv\b[^}]*\}\s*=\s*(?:globalThis\.)?process\b/;
+
+/**
+ * Lists the lines of one plugin script that download code, start a child
+ * process, or read the process environment outside the allowlist.
+ * @param {string} file Path relative to plugin/.
+ * @param {string} text
+ */
+const scriptOffenders = (file, text) => {
+  const offenders = [];
+  text.split("\n").forEach((line, index) => {
+    const at = `${file}:${index + 1}`;
+    if (/\bfetch\(/.test(line)) offenders.push(`${at}: fetch(`);
+    const child = line.match(CHILD_PROCESS);
+    if (child) offenders.push(`${at}: ${child[0]}`);
+    const other = line.match(OTHER_RUNTIME_ENV);
+    if (other) offenders.push(`${at}: ${other[0]}`);
+    if (INDIRECT_ENV.test(line)) offenders.push(`${at}: indirect process.env access`);
+    for (const match of line.matchAll(/\bprocess\s*\.\s*env\b(?:\s*\.\s*([A-Za-z_$][\w$]*))?/g)) {
+      const name = match[1];
+      const allowed = file === ENV_READ_FILE && name !== undefined && ENV_READ_ALLOWLIST.includes(name);
+      if (!allowed) offenders.push(`${at}: ${match[0]}`);
+    }
+  });
+  return offenders;
+};
+
 // Scripts in the plugin directory. dev/ sits outside it.
-test("no script downloads code or gives a child process the whole environment", () => {
+test("no script downloads code, starts a child process, or reads the environment outside the opt-out allowlist", () => {
   const offenders = [];
   for (const file of REGULAR_FILES) {
     if (!/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
-    read(file)
-      .toString("utf8")
-      .split("\n")
-      .forEach((line, index) => {
-        if (/\bfetch\(/.test(line)) offenders.push(`${file}:${index + 1}: fetch(`);
-        if (/\.\.\.process\.env\b/.test(line)) offenders.push(`${file}:${index + 1}: ...process.env`);
-      });
+    offenders.push(...scriptOffenders(file, read(file).toString("utf8")));
   }
   assertNone(
     offenders,
-    "Keep network downloads out of plugin scripts, and pass child processes only the variables they need instead of ...process.env.",
+    `Keep network downloads and child processes out of plugin scripts. Read the process environment only by name, for ${ENV_READ_ALLOWLIST.join(", ")}, inside readOptOutEnv in ${ENV_READ_FILE}.`,
   );
+});
+
+test("the environment check catches disallowed reads and child processes", () => {
+  const disallowed = [
+    [ENV_READ_FILE, "const { spawn } = await import(\"node:child_process\");"],
+    [ENV_READ_FILE, "spawn(process.execPath, [SENDER]);"],
+    [ENV_READ_FILE, "fork(\"./send.mjs\");"],
+    [ENV_READ_FILE, "const env = process.env;"],
+    [ENV_READ_FILE, "const childEnv = { ...process.env };"],
+    [ENV_READ_FILE, "Object.keys(process.env);"],
+    [ENV_READ_FILE, "Object.entries(process.env).forEach(send);"],
+    [ENV_READ_FILE, "const token = process.env.GITHUB_TOKEN;"],
+    [ENV_READ_FILE, "const home = process.env[\"HOME\"];"],
+    [ENV_READ_FILE, "const value = process.env[name];"],
+    [ENV_READ_FILE, "const { env } = process;"],
+    [ENV_READ_FILE, "const path = process?.env?.PATH;"],
+    [ENV_READ_FILE, "Deno.env.get(\"HOME\");"],
+    [ENV_READ_FILE, "Bun.env.HOME;"],
+    [ENV_READ_FILE, "import.meta.env.MODE;"],
+    [ENV_READ_FILE, "const off = process.env.DO_NOT_TRACK;"],
+    ["hooks/session-start.mjs", "const off = process.env.ARCADE_PLUGIN_TELEMETRY;"],
+  ];
+  for (const [file, line] of disallowed) {
+    assert.notDeepEqual(scriptOffenders(file, line), [], `expected an offender for ${file}: ${line}`);
+  }
+  for (const name of ENV_READ_ALLOWLIST) {
+    assert.deepEqual(scriptOffenders(ENV_READ_FILE, `  ${name}: process.env.${name},`), []);
+  }
 });
 
 test("no text file names a bundled image or font path", () => {

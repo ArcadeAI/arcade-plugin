@@ -254,16 +254,12 @@ test("arcade-used is set only by a successful Arcade gateway call", async () => 
   assert.deepEqual([attempt.sent[0], arcade.sent[0]].map((e) => e.properties.arcade_used_before), [false, false]);
 });
 
-test("Claude opt-out switches send nothing and write no data dir files", async () => {
+test("Claude opt-out switch sends nothing and write no data dir files", async () => {
   const base = hookInput({ hook_event_name: "UserPromptSubmit", prompt: "Check my calendar" });
   const sessionStart = hookInput({ hook_event_name: "SessionStart", source: "startup" });
   const cases = [
-    ["DISABLE_TELEMETRY=1", { DISABLE_TELEMETRY: "1" }],
-    ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }],
-    ["DISABLE_TELEMETRY=0", { DISABLE_TELEMETRY: "0" }],
-    ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=false", { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "false" }],
     ["ARCADE_PLUGIN_TELEMETRY=0", { ARCADE_PLUGIN_TELEMETRY: "0" }],
-    ["DO_NOT_TRACK=1", { DO_NOT_TRACK: "1" }],
+    ["ARCADE_PLUGIN_TELEMETRY=Off", { ARCADE_PLUGIN_TELEMETRY: "Off" }],
     ["missing CLAUDE_PLUGIN_DATA", { CLAUDE_PLUGIN_DATA: "" }],
     ["relative CLAUDE_PLUGIN_DATA", { CLAUDE_PLUGIN_DATA: "relative/data" }],
   ];

@@ -85,11 +85,6 @@ const bashHookRows = (event) =>
 const claudeCodeAdapter = {
   host: "claude-code",
   dataVariable: "CLAUDE_PLUGIN_DATA",
-  // Claude Code reads these as set for any non-empty value, even "0" or "false".
-  optOutSwitches: [
-    { name: "DISABLE_TELEMETRY", anyValue: true },
-    { name: "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", anyValue: true },
-  ],
   requiresTurn: true,
   promptReminder: true,
   subagentSession: false,

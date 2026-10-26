@@ -73,9 +73,6 @@ const toolProperties = (toolName, toolInput) => {
 const copilotCliAdapter = {
   host: "copilot-cli",
   dataVariable: "COPILOT_PLUGIN_DATA",
-  // Copilot documents "true" and doesn't say which other values it
-  // accepts, so any value that isn't clearly off counts.
-  optOutSwitches: [{ name: "COPILOT_OFFLINE", anyValue: false }],
   requiresTurn: false,
   promptReminder: false,
   subagentSession: true,

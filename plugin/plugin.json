@@ -41,54 +41,57 @@
           "Which GitHub issues are assigned to me?"
         ],
         "logo": "./assets/logo.png",
-        "composerIcon": "./assets/logo.png"
+        "logoDark": "./assets/logo-dark.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "composerIconDark": "./assets/composer-icon-dark.png",
+        "brandColor": "#4708F9"
       },
       "review": {
         "test_cases": {
           "positive": [
             {
-              "description": "Summarize unread email in the connected Gmail account",
-              "prompt": "Summarize my unread email from the last 7 days.",
-              "tools_triggered": "Gmail_ListEmails",
-              "expected_behavior": "Lists the seeded unread test emails (sender, subject, one-line summary each) from the reviewer Gmail account. No email is changed or marked read."
+              "description": "Find trip-planning tools without running them",
+              "prompt": "Use Arcade to find tools that could help me plan a weekend trip to Chicago: flights, hotels and driving directions. Just list what's available, don't run anything yet.",
+              "tools_triggered": "Arcade_SelectTools",
+              "expected_behavior": "Lists tools for flights, hotels, and driving directions, with a short description of each, and runs none of them. Returns no account names, emails, or connection status. Which tools are offered can vary with the catalog."
             },
             {
-              "description": "Read tomorrow's calendar",
-              "prompt": "What's on my calendar tomorrow?",
-              "tools_triggered": "GoogleCalendar_ListEvents",
-              "expected_behavior": "Returns the seeded recurring test events for tomorrow with times and titles from the reviewer Google Calendar. Nothing is created or changed."
+              "description": "Find a one-way fare and total it for 3 travelers",
+              "prompt": "Use Arcade to find the cheapest one-way economy flight from SFO to JFK two weeks from today, then use Arcade's Math tools to calculate the total fare for 3 travelers.",
+              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (GoogleFlights.SearchFlights), Arcade_UseTool (Math.Multiply)",
+              "expected_behavior": "Reports the cheapest one-way economy fare it finds from SFO to JFK about two weeks out, with airline, flight number, and times, then the total for 3 travelers. Fares change; the total should equal the reported fare times 3. Nothing is booked."
             },
             {
-              "description": "Find GitHub issues assigned to the user",
-              "prompt": "Which open GitHub issues are assigned to me in arcade-review/sample-tracker?",
-              "tools_triggered": "Github_ListIssues",
-              "expected_behavior": "Lists the seeded open issues assigned to the reviewer GitHub account in the sample repo, with titles and links."
+              "description": "Get the Google Finance summary for NVDA",
+              "prompt": "Use Arcade to get the Google Finance stock summary for NVDA.",
+              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (GoogleFinance.GetStockSummary)",
+              "expected_behavior": "Returns the Google Finance summary for NVDA, including NVIDIA's latest price in USD and the day's move in value and percent. Prices change; check the ticker and those fields. No order is placed."
             },
             {
-              "description": "Read recent messages in a Slack channel",
-              "prompt": "What did people say in #launch-plan on Slack this week?",
-              "tools_triggered": "Slack_GetMessages",
-              "expected_behavior": "Summarizes the seeded messages in #launch-plan in the review Slack workspace and names who said what. Nothing is posted."
+              "description": "Search YouTube for videos about MCP",
+              "prompt": "Use Arcade to search YouTube for videos explaining the Model Context Protocol.",
+              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (Youtube.SearchForVideos)",
+              "expected_behavior": "Returns YouTube videos about the Model Context Protocol, each with a title, channel, and link. The list changes; check that the videos are about MCP."
             },
             {
-              "description": "Draft an email and stop for confirmation",
-              "prompt": "Draft a reply to the 'Q4 venue options' email saying Thursday works, but don't send it.",
-              "tools_triggered": "Gmail_ListEmails, Gmail_WriteDraftReplyEmail",
-              "expected_behavior": "Shows the draft text and recipient, asks before saving, then saves it as a Gmail draft. The email is not sent."
+              "description": "Average a list of amounts",
+              "prompt": "Use Arcade to average my monthly software bills: $1,249.50, $389.99, $72.25 and $418.26.",
+              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (Math.Avg)",
+              "expected_behavior": "Answers $532.50."
             }
           ],
           "negative": [
             {
-              "description": "General knowledge question that needs no connected app",
+              "description": "General knowledge question that needs no tool",
               "prompt": "What's the difference between TCP and UDP?"
             },
             {
-              "description": "Request outside any connected app (payments)",
+              "description": "Payment request; Arcade connects no payment app and does not move money",
               "prompt": "Send $50 to my landlord on Venmo."
             },
             {
-              "description": "Irreversible bulk action without a confirmed target",
-              "prompt": "Delete every email in my inbox."
+              "description": "Concept question about a stock ratio, with no quote to fetch",
+              "prompt": "Explain what a P/E ratio means when evaluating a stock."
             }
           ]
         },

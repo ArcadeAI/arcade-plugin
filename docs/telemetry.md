@@ -5,7 +5,7 @@
 build also ships no PostHog key, and `plugin/hooks/telemetry-send.mjs` exits without
 reading the environment or contacting a server.
 `TELEMETRY_ENABLED` in `plugin/hooks/telemetry-config.mjs` stays `false` until
-collection is separately approved after ingestion, opt-outs, privacy, and
+collection is separately approved after ingestion, the opt-out, privacy, and
 distribution requirements are verified.
 
 The sections below describe what **would** be sent when telemetry is turned on,
@@ -44,11 +44,15 @@ except short acknowledgements and background task results, whether or not
 telemetry is on. Copilot CLI has no routing reminder hook, so `reminder_sent`
 stays false there.
 
-## Opt-outs when telemetry is on
+## Opt-out when telemetry is on
 
-While `TELEMETRY_ENABLED` is `false`, these switches are inert but documented
-for a future enabled build. They are implemented in `plugin/hooks/telemetry-run.mjs`
-and each client's adapter in `plugin/hooks/telemetry-adapters/`.
+While `TELEMETRY_ENABLED` is `false`, this switch is inert but documented for a
+future enabled build. `ARCADE_PLUGIN_TELEMETRY` is the only opt-out, on every
+client. It is implemented in `plugin/hooks/telemetry-run.mjs`.
+The hooks read it and each client's data-folder variable
+(`CLAUDE_PLUGIN_DATA`, `COPILOT_PLUGIN_DATA`) by name in `readOptOutEnv`, and
+only after the `TELEMETRY_ENABLED` check, so this build reads no environment
+variables. They read no other variable and pass the environment to nothing.
 
 Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 `settings.json`:
@@ -57,11 +61,8 @@ Set `ARCADE_PLUGIN_TELEMETRY=0` in your environment, or in Claude Code's
 { "env": { "ARCADE_PLUGIN_TELEMETRY": "0" } }
 ```
 
-`false`, `off`, and `no` also work. Telemetry is also off when `DO_NOT_TRACK`
-is set to any non-empty value other than `0`, `false`, `off`, or `no`. In
-Claude Code, `DISABLE_TELEMETRY` and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
-opt out when set to **any** non-empty value (including `0` and `false`), matching
-Claude's own telemetry switches.
+`false`, `off`, and `no` also work, in any case. Any other value, including an
+unset or empty variable, leaves telemetry on.
 
 With telemetry opted out, the client still invokes its configured Node hooks.
 The telemetry hook exits before classifying the prompt or storing state. Claude
@@ -69,11 +70,7 @@ Code's routing hook still adds its reminder. An environment variable cannot
 remove hooks from the manifest.
 
 In Copilot CLI, set `ARCADE_PLUGIN_TELEMETRY` to `0`, `false`, `off`, or `no`
-in your shell before starting `copilot`. Any other value, including an unset
-variable, leaves that switch inactive. `COPILOT_OFFLINE` turns telemetry off
-when it is set to any non-empty value other than `0`, `false`, `off`, or `no`.
-An unset or empty `COPILOT_OFFLINE`, and those four values, leave telemetry on
-through this switch.
+in your shell before starting `copilot`.
 
 ## Where it runs
 
@@ -213,7 +210,7 @@ was needed or whether a user's task succeeded. `could_use_arcade` and
 excluded. Neither host sends a task ID.
 
 Claude Code supplies a hashed `turn`; Copilot CLI supplies only a hashed
-`session`, which can contain multiple prompts. Detached delivery can change
+`session`, which can contain multiple prompts. Delivery can change
 event arrival order. Tool attempts, completions, and failures are separate
 observations; timestamps alone cannot pair calls or establish a task outcome.
 
@@ -249,7 +246,7 @@ shipping telemetry hooks. Confirm, outside this repository:
 - user-facing disclosure and privacy policy coverage for plugin usage events
 - analytics retention and processor handling for the PostHog project
 - verified ingestion per client and `telemetry_version` for the build under review
-- opt-out switches verified on each supported client surface
+- the `ARCADE_PLUGIN_TELEMETRY` opt-out verified on each supported client surface
 - applicable store or distribution decisions for builds that transmit data
 
 The change that turns telemetry on also has to add an event sender to
@@ -259,6 +256,12 @@ The change that turns telemetry on also has to add an event sender to
 `dev/test/telemetry-off.test.mjs` that checks this build ships none of them.
 Tests can't point the sender at a local server until it reads a host override
 again.
+
+The detached child process that used to run `telemetry-send.mjs` is gone, and
+`defaultSend` in `plugin/hooks/telemetry-run.mjs` does nothing. Plugin scripts
+may not start child processes or call `fetch(`, which
+`dev/test/directory-policy.test.mjs` enforces, so the enabling change also has
+to choose a sender that works within or deliberately changes that rule.
 
 These are release acceptance requirements; the current code and CI do not
 enforce them. A repository install can consume a branch before a GitHub release

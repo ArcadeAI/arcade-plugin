@@ -40,13 +40,6 @@ import { TELEMETRY_HOSTS } from "./telemetry-contract.mjs";
  */
 
 /**
- * @typedef {{ name: string, anyValue: boolean }} OptOutSwitch
- *   A client's own off switch. `anyValue: true`: any non-empty value turns
- *   telemetry off. `anyValue: false`: any value except empty, 0, false, off,
- *   or no does.
- */
-
-/**
  * @typedef {Record<string, string>} ToolProperties
  *   Contract properties for an MCP tool event (`server`, `tool`, `service`), or
  *   for a built-in tool event (`tool`, `cli`, `service`).
@@ -56,7 +49,6 @@ import { TELEMETRY_HOSTS } from "./telemetry-contract.mjs";
  * @typedef {object} TelemetryAdapter
  * @property {typeof TELEMETRY_HOSTS[number]} host The `host` property on every event.
  * @property {string} dataVariable Environment variable naming the plugin's data folder.
- * @property {OptOutSwitch[]} optOutSwitches
  * @property {boolean} requiresTurn Whether tool events count as app work only
  *   with the same prompt ID as the prompt that opened scope. Without it, a
  *   tool event inherits its session's scope.
