@@ -24,10 +24,20 @@ const inPlugin = (file) => `${PLUGIN_DIR}/${file}`;
 
 // One policy URL for both clients. The other OpenAI directory fields below are
 // written into plugin/plugin.json from here too. Identity text (name, descriptions,
-// category, website, logo) stays in plugin/plugin.json.
+// category, website) stays in plugin/plugin.json. Listing images and brandColor
+// are written from the constants below. Cursor's manifest takes only `logo`
+// (without the "./" prefix). Claude has no logo field. Dark variants and
+// brandColor stay on the OpenAI listing; the other clients' schemas have no
+// fields for them.
 const privacyPolicyUrl = "https://www.arcade.dev/privacy-policy/";
 const openaiSupportUrl = "https://support.arcade.dev";
 const openaiTermsUrl = "https://www.arcade.dev/terms-of-service/";
+const OPENAI_LOGO = "./assets/logo.png";
+const OPENAI_LOGO_DARK = "./assets/logo-dark.png";
+const OPENAI_COMPOSER_ICON = "./assets/composer-icon.png";
+const OPENAI_COMPOSER_ICON_DARK = "./assets/composer-icon-dark.png";
+const OPENAI_BRAND_COLOR = "#4708F9";
+const OPENAI_IMAGE_KEYS = ["logo", "logoDark", "composerIcon", "composerIconDark", "brandColor", "brandColorDark"];
 
 const OPENAI_CAPABILITIES = [
   "Read and search email",
@@ -43,11 +53,13 @@ const OPENAI_DEFAULT_PROMPTS = [
   "Which GitHub issues are assigned to me?",
 ];
 
-// Reviewers sign up for their own free Arcade account, so every case runs on
-// tools that need no app sign-in and no API key: the gateway's own
-// Arcade_ListApps, and the Math toolkit through Arcade_SelectTools then
-// Arcade_UseTool. tools_triggered names the gateway tools OpenAI's MCP scan
-// sees, then the Math tool Arcade_UseTool runs, in Toolkit.ToolName form.
+// Reviewers sign up for their own free Arcade account. Positive prompts call
+// Arcade_SelectTools, then Arcade_UseTool for the toolkit tool named in
+// parentheses (Toolkit.ToolName). Flights, Finance, and YouTube need no user
+// OAuth; fares, prices, and video lists change, so expected_behavior checks
+// the shape of the result. The Math average is the one fixed number. Negative
+// prompts do not mention Arcade, so the app should not be called. Positive
+// descriptions stay within OpenAI's 4000-character limit.
 // demo_recording_url is a real review field and is required before MCP review,
 // but a ZIP may omit it. No recording URL is published here; omitting the field
 // leaves any value already saved in the dashboard.
@@ -55,10 +67,28 @@ const OPENAI_REVIEW = {
   test_cases: {
     positive: [
       {
-        description: "List the apps Arcade offers and which ones are connected",
-        prompt: "Use Arcade to list which apps I can use, and which are connected.",
-        tools_triggered: "Arcade_ListApps",
-        expected_behavior: "Lists the apps available through Arcade and whether each one is connected. A new account shows most apps as not connected. Nothing is connected, disconnected, or changed.",
+        description: "Find trip-planning tools without running them",
+        prompt: "Use Arcade to find tools that could help me plan a weekend trip to Chicago: flights, hotels and driving directions. Just list what's available, don't run anything yet.",
+        tools_triggered: "Arcade_SelectTools",
+        expected_behavior: "Lists tools for flights, hotels, and driving directions, with a short description of each, and runs none of them. Returns no account names, emails, or connection status. Which tools are offered can vary with the catalog.",
+      },
+      {
+        description: "Find a one-way fare and total it for 3 travelers",
+        prompt: "Use Arcade to find the cheapest one-way economy flight from SFO to JFK two weeks from today, then use Arcade's Math tools to calculate the total fare for 3 travelers.",
+        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (GoogleFlights.SearchFlights), Arcade_UseTool (Math.Multiply)",
+        expected_behavior: "Reports the cheapest one-way economy fare it finds from SFO to JFK about two weeks out, with airline, flight number, and times, then the total for 3 travelers. Fares change; the total should equal the reported fare times 3. Nothing is booked.",
+      },
+      {
+        description: "Get the Google Finance summary for NVDA",
+        prompt: "Use Arcade to get the Google Finance stock summary for NVDA.",
+        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (GoogleFinance.GetStockSummary)",
+        expected_behavior: "Returns the Google Finance summary for NVDA, including NVIDIA's latest price in USD and the day's move in value and percent. Prices change; check the ticker and those fields. No order is placed.",
+      },
+      {
+        description: "Search YouTube for videos about MCP",
+        prompt: "Use Arcade to search YouTube for videos explaining the Model Context Protocol.",
+        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Youtube.SearchForVideos)",
+        expected_behavior: "Returns YouTube videos about the Model Context Protocol, each with a title, channel, and link. The list changes; check that the videos are about MCP.",
       },
       {
         description: "Average a list of amounts",
@@ -66,37 +96,19 @@ const OPENAI_REVIEW = {
         tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.Avg)",
         expected_behavior: "Answers $532.50.",
       },
-      {
-        description: "Raise a number to a power for compound growth",
-        prompt: "Use Arcade to calculate 1.05 to the 10th power, for 10 years of 5% annual growth.",
-        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.Power)",
-        expected_behavior: "Answers about 1.6289 (1.62889462677744140625), meaning about 62.9% total growth over 10 years.",
-      },
-      {
-        description: "Take a square root",
-        prompt: "Use Arcade to calculate the square root of 7,569.",
-        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.Sqrt)",
-        expected_behavior: "Answers 87.",
-      },
-      {
-        description: "Convert degrees to radians",
-        prompt: "Use Arcade to convert 90 degrees to radians.",
-        tools_triggered: "Arcade_SelectTools, Arcade_UseTool (Math.DegToRad)",
-        expected_behavior: "Answers about 1.5708 radians (1.5707963267948966, which is pi/2).",
-      },
     ],
     negative: [
       {
         description: "General knowledge question that needs no tool",
-        prompt: "Use Arcade to explain the difference between TCP and UDP.",
+        prompt: "What's the difference between TCP and UDP?",
       },
       {
         description: "Payment request; Arcade connects no payment app and does not move money",
-        prompt: "Use Arcade to send $50 to my landlord on Venmo.",
+        prompt: "Send $50 to my landlord on Venmo.",
       },
       {
-        description: "Concept question with nothing to calculate",
-        prompt: "Use Arcade to explain what a derivative is in calculus.",
+        description: "Concept question about a stock ratio, with no quote to fetch",
+        prompt: "Explain what a P/E ratio means when evaluating a stock.",
       },
     ],
   },
@@ -121,11 +133,9 @@ const applyOpenAiDirectory = (openai) => {
     developerName,
     category,
     websiteURL,
-    logo,
-    composerIcon,
     ...rest
   } = openai.interface;
-  for (const key of GENERATED_INTERFACE_KEYS) delete rest[key];
+  for (const key of [...GENERATED_INTERFACE_KEYS, ...OPENAI_IMAGE_KEYS]) delete rest[key];
   openai.interface = {
     displayName,
     shortDescription,
@@ -138,8 +148,11 @@ const applyOpenAiDirectory = (openai) => {
     privacyPolicyURL: privacyPolicyUrl,
     termsOfServiceURL: openaiTermsUrl,
     defaultPrompt: OPENAI_DEFAULT_PROMPTS,
-    logo,
-    composerIcon,
+    logo: OPENAI_LOGO,
+    logoDark: OPENAI_LOGO_DARK,
+    composerIcon: OPENAI_COMPOSER_ICON,
+    composerIconDark: OPENAI_COMPOSER_ICON_DARK,
+    brandColor: OPENAI_BRAND_COLOR,
     ...rest,
   };
   openai.review = OPENAI_REVIEW;
@@ -186,7 +199,7 @@ export const COPIED_FILES = {
  * entry here — buildFiles throws if one is missing.
  */
 export const FILE_SOURCES = {
-  // extensions.com.openai listing URLs, capabilities, defaultPrompt, review, and publication.
+  // extensions.com.openai listing URLs, images, brandColor, capabilities, defaultPrompt, review, and publication.
   [PLUGIN_JSON]: ["dev/scripts/generate-manifests.mjs"],
   // plugin.json and mcp.json supply identity and the gateway URL; VERSION
   // supplies the version; hook-hosts.mjs supplies the hooks manifest path; the
@@ -347,18 +360,15 @@ const buildFiles = (root) => {
     throw new Error(`plugin.json version ${plugin.version} does not match VERSION ${version}`);
   }
   const { url } = readJson(root, MCP_JSON).mcpServers.arcade;
-  const { interface: openaiListing } = plugin.extensions["com.openai"];
   // The ChatGPT directory already lists a plugin named "Arcade" from another
   // company, so the OpenAI listing uses "Arcade.dev". The other clients keep
   // "Arcade".
   const displayName = "Arcade";
-  if (!openaiListing.logo) {
-    throw new Error("plugin.json extensions.com.openai.interface.logo is missing");
-  }
-  // Codex wants the logo path with a leading "./"; Cursor takes it without one.
-  // The Claude marketplace has no logo field. `logo` is relative to the plugin
-  // directory; the repo-root Cursor manifest prefixes it with plugin/.
-  const logo = openaiListing.logo.replace(/^\.\//, "");
+  // Codex and ChatGPT want the logo path with a leading "./" (OPENAI_LOGO).
+  // Cursor takes it without one. The Claude marketplace has no logo field.
+  // `logo` is relative to the plugin directory; the repo-root Cursor manifest
+  // prefixes it with plugin/. Dark icons are not copied onto Cursor or Claude.
+  const logo = OPENAI_LOGO.replace(/^\.\//, "");
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
   const owner = { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL };
