@@ -55,7 +55,9 @@ const COMPONENT_FOLDERS = ["agents/", "commands/", "skills/"];
 // listing logo.
 const ALLOWED_MEDIA_PATH_FIELDS = [
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logo"] },
+  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logoDark"] },
   { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIcon"] },
+  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIconDark"] },
   { file: ".cursor-plugin/plugin.json", field: ["logo"] },
 ];
 

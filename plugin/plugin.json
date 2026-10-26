@@ -41,54 +41,57 @@
           "Which GitHub issues are assigned to me?"
         ],
         "logo": "./assets/logo.png",
-        "composerIcon": "./assets/logo.png"
+        "logoDark": "./assets/logo-dark.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "composerIconDark": "./assets/composer-icon-dark.png",
+        "brandColor": "#4708F9"
       },
       "review": {
         "test_cases": {
           "positive": [
             {
-              "description": "List the apps Arcade offers and which ones are connected",
-              "prompt": "Use Arcade to list which apps I can use, and which are connected.",
-              "tools_triggered": "Arcade_ListApps",
-              "expected_behavior": "Lists the apps available through Arcade and whether each one is connected. A new account shows most apps as not connected. Nothing is connected, disconnected, or changed."
+              "description": "Find trip-planning tools without running them",
+              "prompt": "Use Arcade to find tools that could help me plan a weekend trip to Chicago: flights, hotels and driving directions. Just list what's available, don't run anything yet.",
+              "tools_triggered": "Arcade_SelectTools",
+              "expected_behavior": "Lists tools for flights, hotels, and driving directions, with a short description of each, and runs none of them. Returns no account names, emails, or connection status. Which tools are offered can vary with the catalog."
+            },
+            {
+              "description": "Find a one-way fare and total it for 3 travelers",
+              "prompt": "Use Arcade to find the cheapest one-way economy flight from SFO to JFK two weeks from today, then use Arcade's Math tools to calculate the total fare for 3 travelers.",
+              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (GoogleFlights.SearchFlights), Arcade_UseTool (Math.Multiply)",
+              "expected_behavior": "Reports the cheapest one-way economy fare it finds from SFO to JFK about two weeks out, with airline, flight number, and times, then the total for 3 travelers. Fares change; the total should equal the reported fare times 3. Nothing is booked."
+            },
+            {
+              "description": "Get the Google Finance summary for NVDA",
+              "prompt": "Use Arcade to get the Google Finance stock summary for NVDA.",
+              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (GoogleFinance.GetStockSummary)",
+              "expected_behavior": "Returns the Google Finance summary for NVDA, including NVIDIA's latest price in USD and the day's move in value and percent. Prices change; check the ticker and those fields. No order is placed."
+            },
+            {
+              "description": "Search YouTube for videos about MCP",
+              "prompt": "Use Arcade to search YouTube for videos explaining the Model Context Protocol.",
+              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (Youtube.SearchForVideos)",
+              "expected_behavior": "Returns YouTube videos about the Model Context Protocol, each with a title, channel, and link. The list changes; check that the videos are about MCP."
             },
             {
               "description": "Average a list of amounts",
               "prompt": "Use Arcade to average my monthly software bills: $1,249.50, $389.99, $72.25 and $418.26.",
               "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (Math.Avg)",
               "expected_behavior": "Answers $532.50."
-            },
-            {
-              "description": "Raise a number to a power for compound growth",
-              "prompt": "Use Arcade to calculate 1.05 to the 10th power, for 10 years of 5% annual growth.",
-              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (Math.Power)",
-              "expected_behavior": "Answers about 1.6289 (1.62889462677744140625), meaning about 62.9% total growth over 10 years."
-            },
-            {
-              "description": "Take a square root",
-              "prompt": "Use Arcade to calculate the square root of 7,569.",
-              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (Math.Sqrt)",
-              "expected_behavior": "Answers 87."
-            },
-            {
-              "description": "Convert degrees to radians",
-              "prompt": "Use Arcade to convert 90 degrees to radians.",
-              "tools_triggered": "Arcade_SelectTools, Arcade_UseTool (Math.DegToRad)",
-              "expected_behavior": "Answers about 1.5708 radians (1.5707963267948966, which is pi/2)."
             }
           ],
           "negative": [
             {
               "description": "General knowledge question that needs no tool",
-              "prompt": "Use Arcade to explain the difference between TCP and UDP."
+              "prompt": "What's the difference between TCP and UDP?"
             },
             {
               "description": "Payment request; Arcade connects no payment app and does not move money",
-              "prompt": "Use Arcade to send $50 to my landlord on Venmo."
+              "prompt": "Send $50 to my landlord on Venmo."
             },
             {
-              "description": "Concept question with nothing to calculate",
-              "prompt": "Use Arcade to explain what a derivative is in calculus."
+              "description": "Concept question about a stock ratio, with no quote to fetch",
+              "prompt": "Explain what a P/E ratio means when evaluating a stock."
             }
           ]
         },

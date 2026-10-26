@@ -45,6 +45,21 @@ export const MAX_DEFAULT_PROMPT_LENGTH = 128;
 
 const isMultiline = (value) => /[\r\n\u2028\u2029]/.test(value);
 
+// sRGB relative luminance. OpenAI requires brandColor contrast of at least 2:1
+// against white (https://developers.openai.com/plugins/deploy/submission).
+const linearChannel = (byte) => {
+  const s = byte / 255;
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+};
+
+const contrastAgainstWhite = (hex) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const luminance = 0.2126 * linearChannel((n >> 16) & 255)
+    + 0.7152 * linearChannel((n >> 8) & 255)
+    + 0.0722 * linearChannel(n & 255);
+  return 1.05 / (luminance + 0.05);
+};
+
 /** Returns every problem the portal would reject in the OpenAI listing. */
 export const listingProblems = (listing) => {
   const problems = [];
@@ -61,6 +76,18 @@ export const listingProblems = (listing) => {
     problems.push(`category must be one of: ${LISTING_CATEGORIES.join(", ")}`);
   }
   if (!listing.logo) problems.push("logo is required");
+  if (listing.brandColor !== undefined && !/^#[0-9A-F]{6}$/i.test(listing.brandColor)) {
+    problems.push("brandColor must be a #RRGGBB color");
+  } else if (typeof listing.brandColor === "string" && contrastAgainstWhite(listing.brandColor) < 2) {
+    problems.push("brandColor must have at least 2:1 contrast against white");
+  }
+  for (const key of ["logo", "logoDark", "composerIcon", "composerIconDark"]) {
+    const value = listing[key];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || !value.startsWith("./") || value.split("/").includes("..")) {
+      problems.push(`${key} must be a relative path starting with ./`);
+    }
+  }
   // A remote MCP submission ("With MCP") needs all four listing URLs; only a
   // skills-only upload can omit them. This ZIP always ships mcp.json.
   for (const key of LISTING_URLS) {
@@ -114,8 +141,11 @@ const listFiles = (root, dir) =>
 export const packageFiles = (root = ROOT) => {
   const pluginRoot = pluginRootOf(root);
   const plugin = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8"));
-  const { logo, composerIcon } = plugin.extensions["com.openai"].interface;
-  const images = [logo, composerIcon].filter(Boolean).map((path) => path.replace(/^\.\//, ""));
+  const listing = plugin.extensions["com.openai"].interface;
+  const images = ["logo", "logoDark", "composerIcon", "composerIconDark"]
+    .map((key) => listing[key])
+    .filter(Boolean)
+    .map((path) => path.replace(/^\.\//, ""));
   return [...new Set(["plugin.json", "mcp.json", "LICENSE", ...listFiles(pluginRoot, "skills"), ...images])];
 };
 

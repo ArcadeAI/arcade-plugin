@@ -203,7 +203,7 @@ Configure paths in `release-please-config.json`. The workflow lives at
 Each release also gets `arcade-chatgpt-{VERSION}.zip`, the package to upload
 in OpenAI's plugin portal for the ChatGPT and Codex directory. It holds the
 portable plugin only (`plugin.json` at the ZIP root, `mcp.json`, `skills/`,
-the logo, and `LICENSE`), with no hooks or other clients' folders. Build it
+the listing images, and `LICENSE`), with no hooks or other clients' folders. Build it
 locally with `npm run package:chatgpt` in `dev/` (writes `dist/` at the repo
 root); the build fails if the `extensions.com.openai.interface` listing breaks
 the portal's limits, such as the 30-character display name and subtitle

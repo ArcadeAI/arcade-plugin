@@ -20,12 +20,13 @@ test("plugin.json and mcp.json match the vendored Agent Plugins 1.0 schemas", ()
   }
   const openaiListing = plugin.extensions?.["com.openai"]?.interface;
   assert.ok(openaiListing?.displayName, "plugin.json: Codex displayName");
-  for (const key of ["logo", "composerIcon"]) {
+  for (const key of ["logo", "logoDark", "composerIcon", "composerIconDark"]) {
     const file = openaiListing?.[key];
     assert.ok(file && existsSync(path.join(ROOT, "plugin", file)), `plugin.json: Codex ${key} must point at a committed file`);
     // Codex's own plugins all write these paths with a leading "./".
     assert.match(file, /^\.\//, `plugin.json: Codex ${key} must start with ./`);
   }
+  assert.match(openaiListing.brandColor, /^#[0-9A-F]{6}$/i);
 });
 
 test("hand-written files name the gateway from mcp.json", () => {
