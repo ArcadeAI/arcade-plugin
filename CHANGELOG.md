@@ -4,6 +4,13 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1](https://github.com/ArcadeAI/arcade-plugin/compare/v0.9.0...v0.9.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **assets:** make logo fully opaque ([#54](https://github.com/ArcadeAI/arcade-plugin/issues/54)) ([842c970](https://github.com/ArcadeAI/arcade-plugin/commit/842c97051897cdb5ad72316ee242b74e99170483))
+
 ## [0.9.0](https://github.com/ArcadeAI/arcade-plugin/compare/v0.8.1...v0.9.0) (2026-10-22)
 
 
