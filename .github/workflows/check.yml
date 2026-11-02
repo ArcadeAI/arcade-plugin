@@ -60,17 +60,39 @@ jobs:
       - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
 
+      # Release Please PRs only bump versions and the changelog, and Bugbot
+      # sometimes never starts on them, which would block the release. Skip it
+      # only while every commit is a GitHub-verified commit by the app that
+      # release-please.yml uses; a pushed commit from anyone else restores it.
       - name: Require Cursor Bugbot on pull requests
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RELEASE_BOT: arcade-plugin-bot[bot]
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           sha="${HEAD_SHA}"
           repo="${REPO}"
+
+          if [ "${PR_AUTHOR}" = "${RELEASE_BOT}" ] && [ "${HEAD_REPO}" = "${repo}" ] && [[ "${HEAD_REF}" == release-please--* ]]; then
+            other_commits="$(
+              gh api "repos/${repo}/pulls/${PR_NUMBER}/commits" --paginate |
+                jq -s --arg bot "${RELEASE_BOT}" '[.[][] | select(.author.login != $bot or .commit.verification.verified != true)] | length'
+            )"
+            if [ "${other_commits}" = "0" ]; then
+              echo "Release Please pull request with only ${RELEASE_BOT} commits; Cursor Bugbot not required"
+              exit 0
+            fi
+            echo "Release Please pull request has ${other_commits} commit(s) not made by ${RELEASE_BOT}; requiring Cursor Bugbot"
+          fi
+
           deadline=$(( $(date +%s) + 900 ))
 
           while [ "$(date +%s)" -lt "$deadline" ]; do
