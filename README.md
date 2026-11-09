@@ -44,6 +44,7 @@ client — the full breakdown is in the [support matrix](docs/support-matrix.md)
 | **Codex / ChatGPT** | [![Install in Codex](https://img.shields.io/badge/Codex_·_ChatGPT-install-000000?logo=openai&logoColor=white)](docs/install/codex.md) | [codex.md](docs/install/codex.md) |
 | **OpenCode** | [![Install in OpenCode](https://img.shields.io/badge/OpenCode-install-333333?logo=iterm2&logoColor=white)](docs/install/opencode.md) | [opencode.md](docs/install/opencode.md) |
 | **Grok Bot** | [![Install in Grok Bot](https://img.shields.io/badge/Grok_Bot-install-111111)](docs/install/grok-bot.md) | [grok-bot.md](docs/install/grok-bot.md) |
+| **Hermes Agent** | [![Install in Hermes Agent](https://img.shields.io/badge/Hermes_Agent-install-5b3cc4)](docs/install/hermes.md) | [hermes.md](docs/install/hermes.md) |
 | **Any MCP client** | `https://api.arcade.dev/mcp/arcade` | [agent-plugins.md](docs/install/agent-plugins.md) |
 
 Cursor and VS Code one-click badges add the gateway only. The linked guide
