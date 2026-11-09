@@ -37,26 +37,40 @@ tools and no hooks: the tools come from the gateway, not from Python code.
 
 To update, pull the clone and copy `plugin/` again.
 
-## Gateway only
-
-To skip the skills, add the gateway as an MCP server:
-
-```bash
-hermes mcp add arcade --url https://api.arcade.dev/mcp/arcade
-```
-
 ## OAuth
 
-Sign-in happens in the browser the first time Hermes connects to the gateway.
-If it does not open, run:
+Hermes signs in only to servers marked `auth: oauth`, and a plugin's
+`mcp.json` cannot set that. The plugin's `arcade` server loads with its URL
+alone, and `hermes mcp login arcade` reports `Server 'arcade' not found in
+config`.
+
+Add the gateway to your own config under the same name. Your entry replaces
+the plugin's, and the skills still load:
 
 ```bash
+hermes mcp add arcade --url https://api.arcade.dev/mcp/arcade --auth oauth
 hermes mcp login arcade
 ```
 
-Sign-in through this plugin's server is not verified here. An Arcade
-gateway's OAuth flow has completed in Hermes 0.20.0 when added with
-`hermes mcp add`.
+Sign-in happens in the browser. Hermes then lists the gateway's tools and
+asks whether to enable them.
+
+If `mcp add` says `MCP SDK auth module not available`, or the connection
+fails with `mcp.client.streamable_http is not available`, the MCP SDK is
+missing from the dependency environment this Hermes home runs from.
+Installing a plugin builds that environment from Hermes's base packages, and
+the SDK is the optional `mcp` extra. Add it with:
+
+```bash
+hermes pm install --extra mcp
+```
+
+That command also checks Hermes's tool set first, and stops if ffmpeg,
+node, npm or ripgrep are missing from your PATH.
+
+## Gateway only
+
+To skip the skills, run only the two commands above.
 
 ## First steps
 
