@@ -68,6 +68,30 @@ hermes pm install --extra mcp
 That command also checks Hermes's tool set first, and stops if ffmpeg,
 node, npm or ripgrep are missing from your PATH.
 
+## If sign-in times out
+
+The browser sign-in has to finish within about five minutes. After that the
+callback page shows 404 and `mcp add` asks whether to save the entry anyway.
+If you save it, Hermes writes it with `enabled: false`, so the gateway's tools
+never load. Turn it back on and sign in again:
+
+```bash
+hermes config set mcp_servers.arcade.enabled true
+hermes mcp login arcade
+```
+
+## After you update the plugin
+
+Hermes's gateway process (`hermes gateway run`, which also serves the TUI's
+turns) loads plugins once and keeps them until it stops. Copy the new
+`plugin/` in, then restart it so the next turn uses the new version:
+
+```bash
+hermes gateway stop
+```
+
+The next `hermes` session starts it again.
+
 ## Gateway only
 
 To skip the skills, run only the two commands above.
