@@ -92,6 +92,27 @@ hermes gateway stop
 
 The next `hermes` session starts it again.
 
+## Running more than one agent
+
+Each Hermes home signs in to one gateway, and a gateway exposes only the tools
+enabled on it. Give each agent, or each group of agents doing one job, its own
+gateway with the tools that job needs. A call to a tool that is not on the
+gateway fails with "tool not found, it is not enabled for this gateway".
+
+To give each agent its own identity in the apps it uses, sign each one in as
+its own Arcade user. On Arcade's default OAuth apps this fails with
+`user_mismatch`, because those apps always check the signed-in Arcade user.
+Use your own OAuth apps and a custom user verifier for per-agent identities.
+One shared user works on the default apps.
+
+## Approvals
+
+Gateway calls reach Hermes as `mcp__arcade__Arcade_UseTool`, so Hermes's own
+approval card can gate them. A plugin's `pre_tool_call` hook can return an
+approval for calls that change something (sending, merging, paying). Set a
+`rule_key` per action, not per tool, so that "always allow" on one action does
+not cover every call that goes through `Arcade_UseTool`.
+
 ## Gateway only
 
 To skip the skills, run only the two commands above.
