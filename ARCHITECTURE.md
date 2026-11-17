@@ -2,7 +2,7 @@
 
 A portable Agent Plugin (`plugin/plugin.json`, `plugin/mcp.json`, `plugin/skills/`) plus the files
 each client needs at its own path. The shipped plugin is the `plugin/` directory.
-Marketplace files stay at the repository root and point at that directory.
+Client marketplaces stay at the repository root.
 Cursor's local loader also reads `.cursor-plugin/plugin.json` and
 `.cursor-plugin/hooks.json` at the repository root; those paths point into
 `plugin/` and do not change `.cursor-plugin/marketplace.json` (source `plugin`).
@@ -11,6 +11,16 @@ from a few sources by `npm run generate`; `npm run verify` fails if one was
 edited by hand. Both run from `dev/`, which holds the dev tooling so that
 installing the plugin doesn't install its packages. The package ships no
 credentials.
+
+Claude installs use the generated `clients/claude/` folder. Its marketplace
+points there. The folder contains Markdown components, a README, a license,
+and a JSON manifest with inline MCP configuration. No hooks, scripts, or
+telemetry are copied. Submit this folder to the Claude directory; see
+[submission checks](docs/claude-directory.md).
+
+Codex uses `.agents/plugins/marketplace.json` to install `plugin/`, retaining
+its listing metadata and icons. Copilot installs `plugin/` directly to
+include its hooks and operator.
 
 | Source (edit these) | Holds |
 | --- | --- |
@@ -24,9 +34,9 @@ credentials.
 `dev/scripts/generate-manifests.mjs` writes every generated file; the generated
 `.gitattributes` lists them (GitHub collapses them in diffs).
 
-- The operator lives at `plugin/agents/arcade-operator.agent.md`, the only place both
-  Claude Code and Cowork accept. Copilot CLI and VS Code only read
-  `com.github.copilot/agents/`, so the generator copies it there.
+- The operator source is `plugin/agents/arcade-operator.agent.md`. Claude
+  loads its copy in `clients/claude/agents/`. Copilot CLI and VS Code read
+  the copy in `plugin/com.github.copilot/agents/`.
 - Each hook command passes `--host <name>`; the script prints the output
   format that client reads.
 - Codex doesn't run plugin hooks for Agent Plugins packages yet; see

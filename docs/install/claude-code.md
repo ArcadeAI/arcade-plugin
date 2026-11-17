@@ -11,27 +11,20 @@ claude plugin install arcade@arcade
 
 Then in Claude Code run **`/reload-plugins`**.
 
-**Cross-client CLI:**
-
-```bash
-npx plugins add ArcadeAI/arcade-plugin --target claude-code
-```
-
 Verify with `claude plugin list` or **`/plugin`**, then **`/reload-plugins`**
 if the session was already open.
 
-`claude plugin marketplace add ArcadeAI/arcade-plugin` reads
-`.claude-plugin/marketplace.json` at the repository root. The Arcade entry's
-source is `./plugin`, which Claude Code resolves from that root and installs.
-In this repository the plugin directory is `plugin/`. Claude Code reads
-`.claude-plugin/plugin.json` there for the gateway and
-`.claude-plugin/hooks.json`. Skills, `arcade-operator`, and commands load from
-the default `skills/`, `agents/`, and `commands/` folders. The manifest has no
-`agents` field on purpose: Cowork rejects the `.md` paths the CLI needs.
+The marketplace installs `clients/claude/`. Its `.claude-plugin/plugin.json`
+declares the gateway. Skills, `arcade-operator`, and commands load from the
+folder's default `skills/`, `agents/`, and `commands/` paths.
 
-The same folder works in Claude Cowork / Claude Code desktop once the plugin
-is enabled there. In Claude Desktop Chat, add this GitHub repo as a
-marketplace instead — see [claude-desktop.md](claude-desktop.md).
+Claude installs contain no hooks, executable scripts, or telemetry. The
+`try-arcade` skill supplies routing and authorization instructions. Invoke
+`/try-arcade` when Claude does not select it automatically.
+
+The same folder works in Claude Cowork and Claude Code desktop. In Claude
+Desktop Chat, add this GitHub repository as a marketplace — see
+[claude-desktop.md](claude-desktop.md).
 
 ## Multiple Arcade MCP servers
 
@@ -40,17 +33,6 @@ If your host has other Arcade MCP connectors too, Claude may pick the wrong one
 (same tool names, different gateway). In `/mcp`, confirm **`arcade`** is
 connected and prefer disabling other Arcade connectors while testing this
 plugin.
-
-## Telemetry
-
-Telemetry is **off** in this build (`TELEMETRY_ENABLED` is `false`): no usage
-events are sent and generated manifests include no telemetry hooks. When
-telemetry is enabled, the adapter in `plugin/hooks/telemetry-adapters/claude-code.mjs`
-classifies prompts, records `PreToolUse` on the plugin and claude.ai Arcade
-prefixes, and stores scope under `CLAUDE_PLUGIN_DATA`. Opt out with
-`ARCADE_PLUGIN_TELEMETRY=0`. See
-[telemetry.md](../telemetry.md) and
-[what CI exercises](../telemetry.md#what-ci-exercises).
 
 ## First steps
 

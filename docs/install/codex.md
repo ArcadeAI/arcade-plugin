@@ -27,7 +27,9 @@ codex plugin marketplace add ArcadeAI/arcade-plugin
 codex plugin add arcade@arcade
 ```
 
-This uses Codex's own marketplace support and the repo's marketplace manifest.
+This uses Codex's own marketplace support and `.agents/plugins/marketplace.json`,
+which installs the portable package in `plugin/`, including its
+listing metadata and icons.
 
 **Cross-client CLI.** `npx plugins add` alone caches the plugin and enables it
 in `config.toml`, but `codex plugin list` shows it as not installed and no MCP
@@ -44,11 +46,6 @@ From a local checkout, point at the `plugin` directory:
 npx plugins add /path/to/arcade-plugin/plugin --target codex
 codex plugin add arcade@plugins-cli
 ```
-
-`codex plugin marketplace add` of this repository uses
-`.claude-plugin/marketplace.json`. Codex reads that Claude marketplace. The
-Arcade entry's source is `./plugin`, and `codex plugin add arcade@arcade`
-installs that directory.
 
 ## Verify
 

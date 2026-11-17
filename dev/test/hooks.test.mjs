@@ -53,6 +53,7 @@ const assertPrintsContext = (hostName, event, result, label) => {
 
 test("every command in every generated hooks.json runs and prints what its client reads", () => {
   for (const [hostName, { manifest, rootVariable }] of Object.entries(HOSTS)) {
+    if (!manifest) continue;
     for (const [event, entries] of Object.entries(JSON.parse(readRepoFile(pluginPath(manifest))).hooks)) {
       for (const { command } of entries.flatMap((entry) => entry.hooks ?? [entry])) {
         // Telemetry prints nothing; the telemetry tests run its commands.
@@ -168,7 +169,7 @@ test("hooks exit 0 and print nothing without a known --host", () => {
 // client. Each entry names its source.
 const EXPECTED_EVENTS = {
   // code.claude.com/docs/en/hooks: SessionStart, UserPromptSubmit, SubagentStart all support additionalContext
-  "claude-code": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
+  "claude-code": [],
   // cursor.com/docs/hooks.md: sessionStart adds additional_context; beforeSubmitPrompt and subagentStart can't add context.
   // The CLI doesn't load the plugin's always-apply rule, so the session hook is the only way it gets the full rules.
   cursor: ["sessionStart"],
@@ -180,13 +181,13 @@ const EXPECTED_EVENTS = {
 test("each client runs exactly the hooks it can use", () => {
   assert.deepEqual(Object.keys(EXPECTED_EVENTS).sort(), Object.keys(HOSTS).sort());
   for (const [hostName, { manifest }] of Object.entries(HOSTS)) {
-    const events = Object.keys(JSON.parse(readRepoFile(pluginPath(manifest))).hooks);
+    const events = manifest ? Object.keys(JSON.parse(readRepoFile(pluginPath(manifest))).hooks) : [];
     assert.deepEqual(events.sort(), [...EXPECTED_EVENTS[hostName]].sort(), hostName);
   }
 });
 
 // Each client gets its routing rules from one of these texts, and some get
-// only one: Cowork's main conversation gets only the per-prompt reminder and the skill, and
+// only one: Cowork's main conversation gets the skill, and
 // the Cursor IDE gets only the rule and the skill. Keep the core rules in each.
 const DELEGATE_SCOPE = [
   /Use Arcade gateways for delegated work/,

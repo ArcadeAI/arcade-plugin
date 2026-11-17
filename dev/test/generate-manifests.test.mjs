@@ -14,16 +14,27 @@ import { makeFixture, readRepoFile, ROOT } from "./helpers.mjs";
 
 // A second copy of FILE_SOURCES on purpose, so a change to a file's sources must change this test too.
 const EXPECTED_SOURCES = {
+  "clients/claude/README.md": ["docs/claude-plugin-readme.md"],
+  "clients/claude/LICENSE": ["LICENSE"],
+  ".agents/plugins/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
+  "clients/claude/skills/scale-arcade/SKILL.md": ["plugin/skills/scale-arcade/SKILL.md"],
+  "clients/claude/skills/scale-arcade/references/arcade-docs.md": ["plugin/skills/scale-arcade/references/arcade-docs.md"],
+  "clients/claude/skills/try-arcade/SKILL.md": ["plugin/skills/try-arcade/SKILL.md", "plugin/hooks/routing-guidance.mjs"],
+  "clients/claude/skills/try-arcade/references/arcade-docs.md": ["plugin/skills/try-arcade/references/arcade-docs.md"],
+  "clients/claude/agents/arcade-operator.agent.md": ["plugin/agents/arcade-operator.agent.md", "plugin/hooks/routing-guidance.mjs"],
+  "clients/claude/commands/arcade-apps.md": ["plugin/commands/arcade-apps.md"],
+  "clients/claude/commands/arcade-connect.md": ["plugin/commands/arcade-connect.md"],
+  "clients/claude/commands/arcade-status.md": ["plugin/commands/arcade-status.md"],
+
   "plugin/plugin.json": ["dev/scripts/generate-manifests.mjs"],
   "plugin/.cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "plugin/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "clients/claude/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "dev/scripts/generate-manifests.mjs"],
   ".claude-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
   "plugin/clients/cursor/rules/arcade.mdc": ["plugin/hooks/routing-guidance.mjs", "dev/scripts/generate-manifests.mjs"],
   ".gitattributes": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "plugin/.claude-plugin/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   "plugin/clients/cursor/hooks/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   "plugin/com.github.copilot/hooks/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   "plugin/skills/scale-arcade/references/arcade-docs.md": ["plugin/skills/try-arcade/references/arcade-docs.md"],
@@ -145,7 +156,7 @@ test("changing the canonical privacy URL updates both client fields", async () =
     const changedGenerator = await import(pathToFileURL(join(root, "dev/scripts/generate-manifests.mjs")));
     changedGenerator.generateManifests({ root });
     const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
-    assert.equal(read("plugin/.claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
+    assert.equal(read("clients/claude/.claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
     const openai = read("plugin/plugin.json").extensions["com.openai"];
     assert.equal(openai.interface.privacyPolicyURL, "https://example.com/new-policy/");
     assert.equal(openai.interface.supportURL, "https://support.arcade.dev");

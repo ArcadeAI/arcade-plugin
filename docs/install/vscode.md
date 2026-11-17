@@ -5,24 +5,15 @@
 The plugin directory in this repository is `plugin/`. VS Code loads
 `plugin.json` there as an Agent Plugin.
 
-**Chat: Install Plugin From Source.** Open the Command Palette, run **Chat:
-Install Plugin From Source**, and paste `https://github.com/ArcadeAI/arcade-plugin`.
-VS Code clones the repository and reads `.claude-plugin/marketplace.json`
-before it looks for a manifest at the repository root. The marketplace entry
-source is `./plugin`, which VS Code resolves to the `plugin` directory and
-installs.
-
 **GitHub Copilot CLI**, which VS Code can discover afterwards:
 
 ```bash
-copilot plugin marketplace add ArcadeAI/arcade-plugin
-copilot plugin install arcade@arcade
+copilot plugin install ArcadeAI/arcade-plugin:plugin
 ```
 
-Copilot CLI reads that same `.claude-plugin/marketplace.json`. A source of
-`./plugin` and a source of `plugin` are the same directory: the plugin root
-relative to the repository root
-([marketplace source](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace)).
+This installs the full `plugin/` directory, including the Copilot operator
+and routing hooks. The repository's Claude marketplace installs the
+Claude-only package; use the Copilot command or local path for VS Code.
 
 **Local checkout.** Add the absolute path of the `plugin` directory to
 `chat.pluginLocations`:

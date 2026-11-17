@@ -13,6 +13,7 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateClaudeDirectory } from "./claude-directory-policy.mjs";
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "bun.lock", "bun.lockb"];
@@ -69,13 +70,13 @@ function verifyInstall(repo, copy, config) {
   if (!existsSync(join(installed, ".claude-plugin", "plugin.json"))) {
     throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed without .claude-plugin/plugin.json`);
   }
-  // Marketplace source is ./plugin. The installed root is that directory:
+  // Marketplace source is ./clients/claude. The installed root is that directory:
   // skills live there, and repository-root files such as AGENTS.md do not.
   if (!existsSync(join(installed, "skills", "try-arcade", "SKILL.md"))) {
-    throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed without skills/try-arcade, so source ./plugin was not the install root`);
+    throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed without skills/try-arcade, so source ./clients/claude was not the install root`);
   }
   if (existsSync(join(installed, "AGENTS.md")) || existsSync(join(installed, "dev"))) {
-    throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed the repository root; source ./plugin should install the plugin directory`);
+    throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed the repository root; source ./clients/claude should install the plugin directory`);
   }
   if (existsSync(join(installed, "node_modules"))) {
     throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed with node_modules, so Claude Code ran a package install`);
@@ -86,7 +87,14 @@ function verifyInstall(repo, copy, config) {
   if (lockfile && existsSync(join(installed, "package.json"))) {
     throw new Error(`${plugin}@${marketplace.name} ${versions[0]} installed with package.json and ${lockfile} at its root, so Claude Code tries a package install`);
   }
-  return `${plugin}@${marketplace.name} ${versions[0]} installed from ${repo} with no node_modules`;
+  const problems = validateClaudeDirectory(installed);
+  if (problems.length) throw new Error(`installed plugin violates directory restrictions:\n${problems.join("\n")}`);
+  for (const file of ["skills/try-arcade/SKILL.md", "skills/scale-arcade/SKILL.md", "agents/arcade-operator.agent.md", "commands/arcade-status.md"]) {
+    if (!existsSync(join(installed, file))) throw new Error(`installed plugin is missing ${file}`);
+  }
+  const manifest = JSON.parse(readFileSync(join(installed, ".claude-plugin/plugin.json"), "utf8"));
+  if (manifest.mcpServers?.arcade?.url !== "https://api.arcade.dev/mcp/arcade") throw new Error("installed plugin is missing the Arcade gateway");
+  return `${plugin}@${marketplace.name} ${versions[0]} installed from ${marketplace.plugins[0].source}; skills, agent, commands, and MCP present; no hooks, scripts, telemetry, or node_modules`;
 }
 
 const repo = resolve(process.argv[2] ?? DEFAULT_ROOT);

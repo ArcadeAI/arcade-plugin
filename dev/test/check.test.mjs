@@ -68,5 +68,5 @@ test("install docs name the repo and link every client page", () => {
 // default agents/ folder is the only layout both accept.
 test("the operator sits at the default agents/ path and no manifest overrides it for Claude", () => {
   assert.ok(existsSync(path.join(ROOT, "plugin", "agents/arcade-operator.agent.md")));
-  assert.equal(JSON.parse(readRepoFile("plugin/.claude-plugin/plugin.json")).agents, undefined);
+  assert.equal(JSON.parse(readRepoFile("clients/claude/.claude-plugin/plugin.json")).agents, undefined);
 });

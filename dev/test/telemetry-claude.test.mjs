@@ -288,8 +288,8 @@ test("enabled Claude manifest wiring matches hooks.enabled.json", async () => {
   assert.deepEqual(built, expected);
 });
 
-test("checked-in Claude manifest has no telemetry rows", () => {
-  assert.equal(readRepoFile(pluginPath(HOSTS["claude-code"].manifest)).includes("telemetry.mjs"), false);
+test("Claude ships no hook manifest", () => {
+  assert.equal(HOSTS["claude-code"].manifest, null);
 });
 
 test("PreToolUse and PostToolUse nest MCP, web, and per-CLI Bash telemetry groups", () => {

@@ -75,7 +75,7 @@ test("Claude marketplace keeps its listing identity and support contact", () => 
   assert.deepEqual(marketplace.owner, { ...author, email: "support@arcade.dev" });
   const [listed] = marketplace.plugins;
   assert.equal(listed.name, "arcade");
-  assert.equal(listed.source, "./plugin");
+  assert.equal(listed.source, "./clients/claude");
   assert.equal(listed.repository, "https://github.com/ArcadeAI/arcade-plugin");
   assert.deepEqual(listed.author, author);
   assert.equal(listed.displayName, "Arcade");
@@ -90,7 +90,7 @@ test("Cursor marketplace points at the plugin directory", () => {
 });
 
 test("Claude manifest displays Arcade without changing the install identifier", () => {
-  const manifest = JSON.parse(readRepoFile("plugin/.claude-plugin/plugin.json"));
+  const manifest = JSON.parse(readRepoFile("clients/claude/.claude-plugin/plugin.json"));
   assert.equal(manifest.displayName, "Arcade");
   assert.equal(manifest.name, "arcade");
 });
@@ -99,7 +99,7 @@ test("OpenAI image variants and brandColor stay off the other client manifests",
   for (const file of [
     "plugin/.cursor-plugin/plugin.json",
     ".cursor-plugin/plugin.json",
-    "plugin/.claude-plugin/plugin.json",
+    "clients/claude/.claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
     ".cursor-plugin/marketplace.json",
   ]) {
@@ -115,7 +115,7 @@ test("OpenAI image variants and brandColor stay off the other client manifests",
 
 test("listing contact and privacy metadata agree across clients", () => {
   const portable = JSON.parse(readRepoFile("plugin/plugin.json"));
-  const claude = JSON.parse(readRepoFile("plugin/.claude-plugin/plugin.json"));
+  const claude = JSON.parse(readRepoFile("clients/claude/.claude-plugin/plugin.json"));
   const cursor = JSON.parse(readRepoFile("plugin/.cursor-plugin/plugin.json"));
   const marketplace = JSON.parse(readRepoFile(".claude-plugin/marketplace.json"));
   assert.equal(marketplace.owner.email, "support@arcade.dev");

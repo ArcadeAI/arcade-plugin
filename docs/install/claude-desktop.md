@@ -25,9 +25,9 @@ claude plugin install arcade@arcade
 
 Then run **`/reload-plugins`** if Claude Code was already open.
 
-Chat gets tools and skills. Cowork and Code also get the operator,
-commands, and hooks. There is no documented `claude://` link that adds a
-marketplace; the steps above are the install.
+Chat gets tools and skills. Cowork and Code also get the operator and
+commands. The Claude package has no hooks or client telemetry. There is no
+documented `claude://` link that adds a marketplace; the steps above are the install.
 
 ## Tools only
 

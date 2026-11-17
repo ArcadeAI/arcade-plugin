@@ -30,6 +30,7 @@ test("this build ships no telemetry key, sender, or copy of the environment", ()
 test("no generated hooks.json runs the telemetry hook while telemetry is off", () => {
   assert.equal(HOOKS.some((hook) => hook.script === "telemetry.mjs"), false);
   for (const { manifest } of Object.values(HOSTS)) {
+    if (!manifest) continue;
     assert.equal(readRepoFile(pluginPath(manifest)).includes("telemetry.mjs"), false, manifest);
   }
 });

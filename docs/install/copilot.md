@@ -3,22 +3,16 @@
 ## Full plugin
 
 ```bash
-copilot plugin marketplace add ArcadeAI/arcade-plugin
-copilot plugin install arcade@arcade
+copilot plugin install ArcadeAI/arcade-plugin:plugin
 ```
 
-The cross-client CLI works too; it runs Copilot's own `copilot plugin`
-commands for you:
-
-```bash
-npx plugins add ArcadeAI/arcade-plugin --target github-copilot
-```
+Install from `plugin/` to include Copilot's hooks and operator.
+The Claude marketplace installs the Claude-only folder. If you installed
+through that marketplace, run `copilot plugin uninstall arcade`, then use
+the repository install above.
 
 Restart or `/restart` your Copilot session after install.
 
-`copilot plugin marketplace add ArcadeAI/arcade-plugin` reads
-`.claude-plugin/marketplace.json`. The Arcade entry's source is `./plugin`
-(the same directory as `plugin`). Copilot CLI installs that directory.
 The plugin directory in this repository is `plugin/`. Copilot CLI reads the
 portable Agent Plugins components there (`plugin.json`,
 `skills/`, and `mcp.json`) and its custom agent from
