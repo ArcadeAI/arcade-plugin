@@ -1,0 +1,959 @@
+{
+  "date": "2026-11-17",
+  "scope": "Sanitized native Claude eval transcript evidence for the description-only candidate. Only tool calls, hook outcomes, fixture-response text, and trace hashes are retained. No hidden reasoning, authentication, user configuration, request IDs, or host paths are included.",
+  "groups": {
+    "main_mcp_and_cli": [
+      {
+        "case": "auth-block",
+        "prompt": "Use Arcade to summarize my unread email from this morning.",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "sign in|connect|authenticat",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "e6dfc2e6f0ca0d2fe0263772572d6a5242db69f4049b4a220cb8bb19178e44d5",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "List unread Gmail emails received today between midnight and noon (read-only)",
+                "Get the connected Gmail account identity (who am I)"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Gmail.SearchEmails",
+              "query_id": "fixture-query",
+              "inputs": {
+                "query": "is:unread after:2026/11/17 before:2026/11/18 in:inbox"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "I've started a background task that's pulling your unread email from this morning through Arcade. I don't have any results yet. I'll summarize them once it finishes. If it needs you to sign in to an app, I'll pass along the link.",
+          "Arcade couldn't read your email because Gmail isn't connected yet. Nothing was read, sent, archived, or marked as read.\n\nTo connect Gmail, sign in here: https://example.invalid/connect/gmail\n\nTell me once you've signed in and I'll retry the summary of this morning's unread email."
+        ]
+      },
+      {
+        "case": "auth-block",
+        "prompt": "Use Arcade to summarize my unread email from this morning.",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "sign in|connect|authenticat",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "2449548bc938885f3aa5b008d076bdb13fefe87692ce1bf310999a522434ed08",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "List unread Gmail emails received today since midnight until noon",
+                "Get the authenticated Gmail user's profile / who am I"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Gmail.SearchEmails",
+              "query_id": "fixture-query",
+              "inputs": {
+                "query": "is:unread after:2026/11/17 before:2026/11/18"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "I've started the email lookup in the background. It's only reading your Gmail, so nothing gets sent, archived, or marked read. I'll pass along the summary once it finishes.",
+          "Gmail isn't connected to Arcade yet, so I couldn't read your email. Nothing was sent, archived, or marked as read.\n\nPlease connect Gmail here: https://example.invalid/connect/gmail\n\nTell me once you've signed in and I'll retry the search for this morning's unread messages."
+        ]
+      },
+      {
+        "case": "calendar",
+        "prompt": "What's on my calendar tomorrow?",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "Design review",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "aeac38a86dfe522cf4619d1abfcbd12685b9c4fa5a9a0a672b90eeb2fffb77f5",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__list_calendar_events",
+            "scope": "main",
+            "input": {
+              "date_from": "2026-11-18",
+              "date_to": "2026-11-18"
+            }
+          }
+        ],
+        "responses": [
+          "Tomorrow (Wednesday, Nov 18) you have one event: **Design review** at 10:00. The calendar didn't return an end time or any other details."
+        ]
+      },
+      {
+        "case": "calendar",
+        "prompt": "What's on my calendar tomorrow?",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "Design review",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "e7fdcae33907738bbb5a3a2201dbbf69c722f4ecf1d69c4b6e353ec9489d33e7",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__list_calendar_events",
+            "scope": "main",
+            "input": {
+              "date_from": "2026-11-18",
+              "date_to": "2026-11-18"
+            }
+          }
+        ],
+        "responses": [
+          "Tomorrow (Wednesday, Nov 18) you have one event: a **Design review** at 10:00. The calendar didn't return an end time or any other details."
+        ]
+      },
+      {
+        "case": "email",
+        "prompt": "Summarize my unread email from this morning.",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "budget",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "aabcdb90c77394767be97716b33225367c6099944e9a54072d08a9bc83703747",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__search_gmail",
+            "scope": "main",
+            "input": {
+              "query": "is:unread after:2026/11/17"
+            }
+          }
+        ],
+        "responses": [
+          "You have one unread email from this morning:\n\n- **Budget approved**: the equipment budget is approved.\n\nThe search result had no sender or timestamp, so I can't tell you who sent it or when it arrived."
+        ]
+      },
+      {
+        "case": "email",
+        "prompt": "Summarize my unread email from this morning.",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "budget",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "eb2684babbc2226d76de2eb547d05d56f53accb3d3280464328d4c5c38fdcfcb",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "Search Gmail for unread emails received today between midnight and noon, and read their sender, subject and content"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Gmail.SearchEmails",
+              "query_id": "fixture-query",
+              "inputs": {
+                "query": "is:unread after:2026/11/17 before:2026/11/18",
+                "max_results": 50
+              }
+            }
+          }
+        ],
+        "responses": [
+          "I've started a background agent to pull your unread Gmail from this morning. It's still running, so I don't have a summary yet. I'll pass it along when the agent finishes.",
+          "You have one unread email dated today:\n\n- **Subject:** \"Budget approved\"\n- **Gist:** The equipment budget is approved.\n- **Urgency:** It reads as an FYI. A reply is optional.\n\nThere are two gaps. The search tool returned no sender and no timestamp. It also filters by date only, so I couldn't confirm the email arrived this morning rather than this afternoon. Nothing was sent, archived, or marked as read."
+        ]
+      },
+      {
+        "case": "explicit-arcade",
+        "prompt": "Use Arcade to list the open issues assigned to me in acme/demo on GitHub.",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "ed8e63b9ef455416166e84d4639c2fe8f6879aba956295cbfa392775a7e7b56d",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "List open GitHub issues in repository acme/demo assigned to the authenticated user"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Github.ListIssues",
+              "query_id": "fixture-query",
+              "inputs": {
+                "owner": "acme",
+                "repo": "demo",
+                "state": "open",
+                "assignee": "@me"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17: \"Fix login timeout\"**\n\nThe tool didn't return labels or a URL for it. The link is probably https://github.com/acme/demo/issues/17, but I inferred that from the repo and issue number and haven't confirmed it.\n\nSource: GitHub, through Arcade."
+        ]
+      },
+      {
+        "case": "explicit-arcade",
+        "prompt": "Use Arcade to list the open issues assigned to me in acme/demo on GitHub.",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "5906c53e74790b7205590357afcaa0baa4a947d6bde37c01bba0f45536172f28",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "List open GitHub issues assigned to the authenticated user in repository acme/demo"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Github.ListIssues",
+              "query_id": "fixture-query",
+              "inputs": {
+                "owner": "acme",
+                "repo": "demo",
+                "state": "open",
+                "assignee": "@me"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17: Fix login timeout**\n\nThe tool didn't return a URL, labels or an updated date. The issue should be at https://github.com/acme/demo/issues/17 if GitHub's usual URL pattern holds, but I haven't confirmed that. I didn't change anything. If you want the missing details, I can rerun the query with a tool that returns full issue data."
+        ]
+      },
+      {
+        "case": "explicit-cli",
+        "prompt": "Use the gh CLI to list the open issues assigned to me in acme/demo. Please use gh directly for this.",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "81d4df23b0229f4bcc1f9864f60a4188c7f72891dabadbb2d3a31f8491c3dc7d",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Bash",
+            "scope": "main",
+            "command": "gh issue list --repo acme/demo --assignee @me --state open"
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17**: Fix login timeout"
+        ]
+      },
+      {
+        "case": "explicit-cli",
+        "prompt": "Use the gh CLI to list the open issues assigned to me in acme/demo. Please use gh directly for this.",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "589d391c4683f33f86e3f23edebfed559d9f0ee109dd373790b4ee2d1fa5be91",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Bash",
+            "scope": "main",
+            "command": "gh issue list --repo acme/demo --assignee @me --state open"
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17**: Fix login timeout"
+        ]
+      },
+      {
+        "case": "github",
+        "prompt": "List the open GitHub issues assigned to me in acme/demo.",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "1dd758ab946a2ab18bdc33523e08dc2bf6f59208356a9d2a328dd2c8215c20ca",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__list_github_issues",
+            "scope": "main",
+            "input": {
+              "repository": "acme/demo",
+              "assignee": "@me",
+              "state": "open"
+            }
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17**: Fix login timeout"
+        ]
+      },
+      {
+        "case": "github",
+        "prompt": "List the open GitHub issues assigned to me in acme/demo.",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "acb7c94b5431028e220fd9415083025611c8f08bf2f8b047bcb5833773959177",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__list_github_issues",
+            "scope": "main",
+            "input": {
+              "repository": "acme/demo",
+              "assignee": "@me",
+              "state": "open"
+            }
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17**: Fix login timeout\n\nI passed `@me` as the assignee filter because I don't know your GitHub username. The result shows the assignee as \"me\", so I'm assuming the filter resolved to you."
+        ]
+      },
+      {
+        "case": "no-app",
+        "prompt": "Explain the difference between TCP and UDP in two sentences.",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "TCP",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "74a4666f8d0bf6eee9f08387f93019e6d1d2c8683abbb052860b286c8c61e933",
+        "hookEvents": [],
+        "toolCalls": [],
+        "responses": [
+          "TCP is a connection-oriented protocol that establishes a session first, then guarantees reliable, ordered delivery through acknowledgments and retransmission, which adds overhead. UDP is connectionless and sends packets without checking that they arrive or in what order, making it faster and lighter, which suits uses like streaming, gaming, and DNS where speed matters more than perfect delivery."
+        ]
+      },
+      {
+        "case": "no-app",
+        "prompt": "Explain the difference between TCP and UDP in two sentences.",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "TCP",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "8fbce46dfc3e395af3dcc9dce10978279970414a6ca163b6375ffcc1cb203413",
+        "hookEvents": [],
+        "toolCalls": [],
+        "responses": [
+          "TCP is a connection-oriented protocol that establishes a session via a handshake and guarantees reliable, ordered delivery of data through acknowledgments and retransmissions. UDP is connectionless and sends packets without confirmation, ordering, or retransmission, which makes it faster and lighter but unreliable, so it suits real-time uses like video streaming, gaming, and DNS."
+        ]
+      },
+      {
+        "case": "slack",
+        "prompt": "What did people say in the #incidents Slack channel today?",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "resolved",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "d163040ba1c3c236e3e19f04ec7de0dfcfd3311b3972db2df36d2f4a4dca5c0d",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "Read messages from the #incidents Slack channel today including thread replies"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Slack.SearchMessages",
+              "query_id": "fixture-query",
+              "inputs": {
+                "query": "in:#incidents on:2026-11-17",
+                "channel": "incidents"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "I've started a background agent to read today's messages in #incidents. It hasn't reported back yet, so I don't have anything to tell you about the channel. I'll summarize it when the agent finishes.",
+          "Today (2026-11-17), the search found only one message in #incidents:\n\n> \"The login incident was resolved at 09:15.\"\n\nThe result didn't include an author, a timestamp, or any thread replies. I can't say who posted it, and I can't rule out other discussion in threads that the search didn't return. I didn't post or change anything.\n\nIf you want to check for more, tell me a keyword or a person and I'll search for that."
+        ]
+      },
+      {
+        "case": "slack",
+        "prompt": "What did people say in the #incidents Slack channel today?",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "resolved",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "453f331597d48f8ca6668a23aad1bdc8d63a9b1660fcea06b975580df15d6ab2",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__search_slack",
+            "scope": "main",
+            "input": {
+              "query": "in:#incidents on:2026-11-17"
+            }
+          }
+        ],
+        "responses": [
+          "Today's #incidents channel has one message: \"The login incident was resolved at 09:15.\"\n\nThe search returned nothing else. It also gave no author or timestamp for that message, so I can't tell you who posted it."
+        ]
+      }
+    ],
+    "main_cli_only": [
+      {
+        "case": "github",
+        "prompt": "List the open GitHub issues assigned to me in acme/demo.",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "d993ae7d32418c663c457fbf01e5e1fea449bf3050302af0a15d1d93d14dcca0",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "Get the authenticated GitHub user (who am I)",
+                "List open issues assigned to the authenticated user in repository acme/demo, with labels and updated date"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Github.ListIssues",
+              "query_id": "fixture-query",
+              "inputs": {
+                "owner": "acme",
+                "repo": "demo",
+                "state": "open",
+                "assignee": "@me"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17: Fix login timeout**\n\nThe GitHub tool returned only the number, title, and state. I don't have the URL, labels, or last-updated date. It also showed the assignee only as \"me\", so I can't tell you which GitHub account Arcade is signed in as. The results are for whichever account the Arcade GitHub connection uses.\n\nI can look up #17 directly to try to get the missing details."
+        ]
+      },
+      {
+        "case": "github",
+        "prompt": "List the open GitHub issues assigned to me in acme/demo.",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "2ef2699b90389586cb7a434c43542b420149d9f421e82aa2dbc554ad614f1fcc",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "Get the authenticated GitHub user (who am I)",
+                "List open issues in repository acme/demo assigned to the authenticated user"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Github.ListIssues",
+              "query_id": "fixture-query",
+              "inputs": {
+                "owner": "acme",
+                "repo": "demo",
+                "state": "open",
+                "assignee": "@me"
+              }
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "Get the profile of the currently authenticated GitHub user",
+                "Get details of issue 17 in acme/demo including labels, URL, updated date"
+              ]
+            }
+          }
+        ],
+        "responses": [
+          "acme/demo has one open issue assigned to you:\n\n- **#17: Fix login timeout** (open)\n\nThe result is incomplete:\n- **Missing fields:** The tool returned no labels, last-updated date, or URL. The issue would normally be at https://github.com/acme/demo/issues/17, but I couldn't confirm that link.\n- **Account not confirmed:** I filtered by \"assigned to me\", so the result is for whichever GitHub account is connected to Arcade. I couldn't confirm which account that is.\n\nI can check which GitHub account is connected through Arcade. I can also look for another way to fetch the issue details."
+        ]
+      },
+      {
+        "case": "github",
+        "prompt": "List the open GitHub issues assigned to me in acme/demo.",
+        "arm": "no-hooks",
+        "repetition": 3,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "login timeout",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "ccc2bf8388f8b3f4b274eac7a5ee8d386d06be0e1b5af1e29fc5177e6421e29e",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "List open GitHub issues assigned to the authenticated user in repository acme/demo, with labels, URL, updated date"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Github.ListIssues",
+              "query_id": "fixture-query",
+              "inputs": {
+                "owner": "acme",
+                "repo": "demo",
+                "state": "open",
+                "assignee": "@me"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "You have one open issue assigned to you in acme/demo:\n\n- **#17: Fix login timeout**\n\nThe tool didn't return labels, a URL, or a last-updated date, so I've left those out. The link is probably https://github.com/acme/demo/issues/17, but I haven't confirmed it. I can fetch #17 directly to get the missing details if you'd like."
+        ]
+      }
+    ],
+    "pilot": [
+      {
+        "case": "calendar",
+        "prompt": "What's on my calendar tomorrow?",
+        "arm": "hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "Design review",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "cc770d77a855672e7a6354e582d1a04984aeb20384c839b9b0563c5d36f16ba9",
+        "hookEvents": [
+          {
+            "event": "SessionStart",
+            "exitCode": 0,
+            "outcome": "success"
+          }
+        ],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "List calendar events for 2026-11-18 in the user's local timezone, including times, title, location/meeting link, attendees, and which calendar/account"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Calendar.ListEvents",
+              "query_id": "fixture-query",
+              "inputs": {
+                "start_date": "2026-11-18",
+                "end_date": "2026-11-18"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "I've started checking your calendar for tomorrow (Nov 18). The results haven't come back yet, so I'll share them once they do.",
+          "You have one event tomorrow (Nov 18): **Design review at 10:00**.\n\nThe calendar tool returned only the title and start time. I don't have an end time, location or meeting link, attendees, or timezone. It also didn't say which calendar or account it checked, so I can't confirm this is your full schedule. If you want, I can run it again to try to get those details."
+        ]
+      },
+      {
+        "case": "calendar",
+        "prompt": "What's on my calendar tomorrow?",
+        "arm": "hooks",
+        "repetition": 2,
+        "valid": false,
+        "error": "Session hook state does not match the arm",
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "Design review",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "ecea828d1396b42c8e658633456dd706a20ed005dd9868c5dc52c8b885e91612",
+        "hookEvents": [
+          {
+            "event": "SessionStart",
+            "exitCode": 1,
+            "outcome": "cancelled"
+          }
+        ],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__list_calendar_events",
+            "scope": "main",
+            "input": {
+              "date_from": "2026-11-18",
+              "date_to": "2026-11-18"
+            }
+          }
+        ],
+        "responses": [
+          "Tomorrow (Wednesday, Nov 18) you have one event: a **Design review** at 10:00. The calendar didn't return an end time or any other details."
+        ]
+      },
+      {
+        "case": "calendar",
+        "prompt": "What's on my calendar tomorrow?",
+        "arm": "no-hooks",
+        "repetition": 1,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "Design review",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "fb67b5cc3b91055e3731be793b3e211e694bdcf499b4f5a234f50ddc5ab254b3",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "ToolSearch",
+            "scope": "main"
+          },
+          {
+            "name": "mcp__plugin_arcade_direct__list_calendar_events",
+            "scope": "main",
+            "input": {
+              "date_from": "2026-11-18",
+              "date_to": "2026-11-18"
+            }
+          }
+        ],
+        "responses": [
+          "Tomorrow (Wednesday, Nov 18) you have one event: a **Design review** at 10:00."
+        ]
+      },
+      {
+        "case": "calendar",
+        "prompt": "What's on my calendar tomorrow?",
+        "arm": "no-hooks",
+        "repetition": 2,
+        "valid": true,
+        "error": null,
+        "model": "claude-sonnet-5-5",
+        "expectedPattern": "Design review",
+        "fixtureMatch": true,
+        "nativeTraceSha256": "649332ce9a05232d27ac7015f413f2a0ff463b8f94e262ba406cd19a5f173894",
+        "hookEvents": [],
+        "toolCalls": [
+          {
+            "name": "Skill",
+            "scope": "main",
+            "skill": "arcade:try-arcade"
+          },
+          {
+            "name": "Agent",
+            "scope": "main",
+            "subagentType": "arcade:arcade-operator"
+          },
+          {
+            "name": "ToolSearch",
+            "scope": "subagent"
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_SelectTools",
+            "scope": "subagent",
+            "input": {
+              "tasks": [
+                "List calendar events for 2026-11-18",
+                "Get the calendar account identity (who am I)"
+              ]
+            }
+          },
+          {
+            "name": "mcp__plugin_arcade_arcade__Arcade_UseTool",
+            "scope": "subagent",
+            "input": {
+              "tool_name": "Calendar.ListEvents",
+              "query_id": "fixture-query",
+              "inputs": {
+                "start_date": "2026-11-18",
+                "end_date": "2026-11-18"
+              }
+            }
+          }
+        ],
+        "responses": [
+          "You have one event tomorrow (Wednesday, Nov 18):\n\n- **10:00, Design review**\n\nThe calendar tool didn't return a timezone, end time, attendees, or location. It also didn't say which calendar account it read from, so I can't tell you that. I only read the calendar and changed nothing."
+        ]
+      }
+    ]
+  }
+}
