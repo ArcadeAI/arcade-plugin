@@ -21,7 +21,7 @@ Measured source commits:
   and installation. Codex has its own marketplace; Copilot and VS Code use
   `plugin/` to retain their operator and hooks.
 - `35f6f29`: adds the native Sonnet routing eval harness and saved baseline.
-- Current candidate: changes only the `try-arcade` description in
+- `fae8bc5`: changes only the `try-arcade` description in
   `plugin/skills/try-arcade/SKILL.md` and its generated Claude copy. It asks
   Claude to load the skill before choosing a competing tool, except when
   the user explicitly requests that alternative. No hooks were added.
@@ -56,6 +56,16 @@ reliable routing when direct MCP tools are available. Six of eight requests
 still bypass Arcade. Real-app success and long conversations are untested.
 
 ## Exact validation and reproduction
+
+For a fresh checkout, use Node 22.23.2 and install the dev dependencies.
+Download Cursor's validator using the same command as
+`.github/workflows/check.yml`; verification checks its hash before running it.
+
+```sh
+cd dev
+npm ci
+curl -fsSL --create-dirs -o .cache/validate-template.mjs https://raw.githubusercontent.com/cursor/plugin-template/bf795ee9a28e6d8b2e013beb9ac47fdd6d573fb7/scripts/validate-template.mjs
+```
 
 Measured: these commands passed locally with Node 22.23.2:
 
@@ -106,6 +116,8 @@ authentication, user configuration, request IDs, and host paths.
 
 These local files are ignored by Git and cannot be fetched from GitHub:
 
+- `dev/node_modules/` and `dev/.cache/validate-template.mjs`: recreate them
+  with the setup commands above.
 - `dev/.cache/routing-evals/discovery-description-full/`: main native report,
   aggregate result, summary, and copied raw traces.
 - `dev/.cache/routing-evals/discovery-description-cli/`: CLI-only equivalents.
