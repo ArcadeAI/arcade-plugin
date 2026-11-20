@@ -450,8 +450,16 @@ const buildFiles = (root) => {
         ...identity,
         displayName,
         privacyPolicyUrl,
+        userConfig: {
+          gateway_url: {
+            type: "string",
+            title: "Arcade gateway URL",
+            description: "The HTTPS MCP endpoint for your Arcade gateway.",
+            default: url,
+          },
+        },
         // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
-        mcpServers: { arcade: { type: "http", url } },
+        mcpServers: { arcade: { type: "http", url: "${user_config.gateway_url}" } },
       }),
     ],
     [

@@ -14,6 +14,13 @@ const PACKAGE_SOURCE = [
   /\b(?:npm|pnpm|yarn|bun|pip)\s+config\s+set\b.*\b(?:registry|index-url|proxy)\b/i,
 ];
 
+/** Resolve a user-configured URL to the default checked for directory submission. */
+export function defaultMcpUrl(manifest, url) {
+  if (typeof url !== "string") return undefined;
+  const key = url.match(/^\$\{user_config\.([A-Za-z_][A-Za-z0-9_]*)\}$/)?.[1];
+  return key ? manifest.userConfig?.[key]?.default : url;
+}
+
 /** Restrictions in the directory rejection for an unverified organization. */
 export function restrictedFileProblems(file, bytes) {
   const problems = [];
@@ -66,7 +73,8 @@ export function validateClaudeDirectory(root) {
   if (typeof manifest.mcpServers !== "object" || !manifest.mcpServers || Array.isArray(manifest.mcpServers)) {
     problems.push("plugin.json: declare remote MCP servers inline");
   } else for (const [name, server] of Object.entries(manifest.mcpServers)) {
-    if (server?.type !== "http" || !/^https:\/\//.test(server.url) || server.command !== undefined) problems.push(`plugin.json: ${name} must be a remote HTTPS MCP server`);
+    const url = defaultMcpUrl(manifest, server?.url);
+    if (server?.type !== "http" || typeof url !== "string" || !/^https:\/\//.test(url) || server.command !== undefined) problems.push(`plugin.json: ${name} must be a remote HTTPS MCP server with an HTTPS default`);
   }
   return problems;
 }

@@ -13,7 +13,7 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateClaudeDirectory } from "./claude-directory-policy.mjs";
+import { defaultMcpUrl, validateClaudeDirectory } from "./claude-directory-policy.mjs";
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "bun.lock", "bun.lockb"];
@@ -93,7 +93,8 @@ function verifyInstall(repo, copy, config) {
     if (!existsSync(join(installed, file))) throw new Error(`installed plugin is missing ${file}`);
   }
   const manifest = JSON.parse(readFileSync(join(installed, ".claude-plugin/plugin.json"), "utf8"));
-  if (manifest.mcpServers?.arcade?.url !== "https://api.arcade.dev/mcp/arcade") throw new Error("installed plugin is missing the Arcade gateway");
+  const expectedUrl = JSON.parse(readFileSync(join(repo, "plugin/mcp.json"), "utf8")).mcpServers.arcade.url;
+  if (defaultMcpUrl(manifest, manifest.mcpServers?.arcade?.url) !== expectedUrl) throw new Error("installed plugin is missing the default Arcade gateway");
   return `${plugin}@${marketplace.name} ${versions[0]} installed from ${marketplace.plugins[0].source}; skills, agent, commands, and MCP present; no hooks, scripts, telemetry, or node_modules`;
 }
 

@@ -53,6 +53,26 @@ test("committed generated files are current (run npm run generate if not)", () =
   generateManifests({ check: true });
 });
 
+test("Claude offers a gateway setting whose default follows the portable endpoint", () => {
+  const root = makeFixture();
+  try {
+    const endpoint = "https://example.com/team/mcp";
+    const mcpPath = join(root, "plugin/mcp.json");
+    const mcp = JSON.parse(readFileSync(mcpPath, "utf8"));
+    mcp.mcpServers.arcade.url = endpoint;
+    writeFileSync(mcpPath, JSON.stringify(mcp));
+    generateManifests({ root });
+    const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
+    const claude = read("clients/claude/.claude-plugin/plugin.json");
+    assert.equal(claude.userConfig.gateway_url.default, endpoint);
+    assert.equal(claude.mcpServers.arcade.url, "${user_config.gateway_url}");
+    assert.equal(read("plugin/.cursor-plugin/plugin.json").mcpServers.arcade.url, endpoint);
+    assert.equal(read("plugin/mcp.json").mcpServers.arcade.url, endpoint);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("check mode fails with a source-naming error when a generated file is hand-edited", () => {
   const root = makeFixture();
   try {
