@@ -39,6 +39,7 @@ export function prepareRoutingEval(outDir, { caseName, competition = "both" } = 
     const plugin = join(outDir, arm);
     cpSync(join(ROOT, "clients/claude"), plugin, { recursive: true });
     const manifest = JSON.parse(readFileSync(join(plugin, ".claude-plugin/plugin.json"), "utf8"));
+    manifest.mcpServers.arcade.url = "https://example.invalid/arcade";
     if (competition === "both") manifest.mcpServers.direct = { type: "http", url: "https://example.invalid/direct" };
     if (arm === "hooks") {
       cpSync(join(ROOT, "plugin/hooks"), join(plugin, "hooks"), { recursive: true });
@@ -63,7 +64,13 @@ export function prepareRoutingEval(outDir, { caseName, competition = "both" } = 
       if (competition === "both") for (const item of DIRECT_TOOLS) write(join(dir, `mocks/direct/${item.name}.md`), `${JSON.stringify(entry.answer)}\n`);
       grader(dir, "answer", { type: "regex", pattern: entry.pattern, flags: "i" });
       grader(dir, "arcade-selected", { type: "tool_used", tool: "mcp__plugin_arcade_arcade__Arcade_SelectTools", min: ["arcade", "auth"].includes(entry.route) ? 1 : 0, ...(["cli", "none"].includes(entry.route) ? { max: 0 } : {}) });
-      grader(dir, "arcade-executed", { type: "tool_used", tool: "mcp__plugin_arcade_arcade__Arcade_UseTool", min: ["arcade", "auth"].includes(entry.route) ? 1 : 0, ...(["cli", "none"].includes(entry.route) ? { max: 0 } : {}) });
+      const executionLimit = { auth: 1, cli: 0, none: 0 }[entry.route];
+      grader(dir, "arcade-executed", {
+        type: "tool_used",
+        tool: "mcp__plugin_arcade_arcade__Arcade_UseTool",
+        min: ["arcade", "auth"].includes(entry.route) ? 1 : 0,
+        ...(executionLimit !== undefined ? { max: executionLimit } : {}),
+      });
       grader(dir, "skill-used", { type: "tool_used", tool: "Skill", min: 0 });
       grader(dir, "cli-used", { type: "tool_used", tool: "Bash", input_match: "gh\\s+(issue|api)", min: entry.route === "cli" ? 1 : 0, ...(entry.route !== "cli" ? { max: 0 } : {}) });
       for (const item of DIRECT_TOOLS) grader(dir, `no-${item.name}`, { type: "tool_used", tool: `mcp__plugin_arcade_direct__${item.name}`, min: 0, max: 0 });
@@ -121,15 +128,20 @@ export function summarizeRoutingEval(outDir) {
         const traceText = readFileSync(tracePath, "utf8");
         const trace = traceText.trim().split("\n").map((line) => JSON.parse(line));
         const init = trace.find((event) => event.type === "system" && event.subtype === "init");
-        const hook = trace.find((event) => {
-          if (event.type !== "system" || event.subtype !== "hook_response" || event.hook_event !== "SessionStart" || event.exit_code !== 0) return false;
+        const hookResponses = trace.filter((event) => event.type === "system" && event.subtype === "hook_response");
+        const hook = hookResponses.find((event) => {
+          if (event.hook_event !== "SessionStart" || event.exit_code !== 0) return false;
           try {
             return JSON.parse(event.stdout ?? event.output ?? "{}").hookSpecificOutput?.additionalContext === (setup.sessionContext ?? SESSION_CONTEXT);
           } catch { return false; }
         });
         row.model = init?.model;
         row.sessionHookObserved = Boolean(hook);
-        if ((arm === "hooks") !== row.sessionHookObserved) { row.valid = false; row.error = "Session hook state does not match the arm"; }
+        const hookStateMatches = arm === "hooks" ? row.sessionHookObserved : hookResponses.length === 0;
+        if (!hookStateMatches) {
+          row.valid = false;
+          row.error = "Hook state does not match the arm";
+        }
         write(retained, traceText);
         rows.push(row);
       }

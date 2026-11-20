@@ -1,0 +1,140 @@
+name: Claude routing eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Open pull request from a branch in this repository
+        required: true
+        type: string
+      commit:
+        description: Full 40-character SHA of the reviewed pull request head
+        required: true
+        type: string
+      suite:
+        description: Routing cases to run
+        required: true
+        type: choice
+        default: mcp-and-cli
+        options:
+          - mcp-and-cli
+          - github-cli
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  eval:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    environment: routing-evals-claude
+    steps:
+      - name: Check the reviewed commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          REVIEWED_SHA: ${{ inputs.commit }}
+        shell: bash
+        run: |
+          if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ || ! "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Enter a pull request number and the full lowercase commit SHA."
+            exit 1
+          fi
+          if ! gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg repo "$GITHUB_REPOSITORY" --arg sha "$REVIEWED_SHA" \
+              '.state == "open" and .head.repo.full_name == $repo and .head.sha == $sha' > /dev/null; then
+            echo "::error::The PR must be open and its current head must match this repository and SHA."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+
+      - name: Install the Claude Code sandbox dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y bubblewrap socat
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: dev/package.json
+
+      - name: Install dev dependencies
+        working-directory: dev
+        run: npm ci
+
+      - name: Run the routing eval
+        working-directory: dev
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REVIEWED_SHA: ${{ inputs.commit }}
+          SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$ANTHROPIC_API_KEY" ]]; then
+            echo "::error::Add ANTHROPIC_API_KEY to the routing-evals-claude environment."
+            exit 1
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$REVIEWED_SHA" ]]; then
+            echo "::error::The checkout does not match the reviewed commit."
+            exit 1
+          fi
+
+          case "$SUITE" in
+            mcp-and-cli) args=(--competition both --runs 2); runs=2 ;;
+            github-cli) args=(--case github --competition cli --runs 3); runs=3 ;;
+            *) echo "::error::Unknown eval suite."; exit 1 ;;
+          esac
+
+          raw="$RUNNER_TEMP/claude-routing"
+          output="$RUNNER_TEMP/claude-routing-artifact"
+          mkdir -p "$output"
+          status=0
+          model=claude-sonnet-5-5
+          npm run eval:routing -- --model "$model" --out "$raw" "${args[@]}" > "$RUNNER_TEMP/claude-routing.log" 2>&1 || status=$?
+
+          if [[ -s "$raw/runner.json" ]]; then
+            cp "$raw/runner.json" "$output/runner.json"
+          fi
+          if [[ ! -s "$raw/summary.json" ]]; then
+            echo "::error::The runner did not produce a summary (exit $status)."
+            exit 1
+          fi
+
+          # Provider error text and transcripts can contain request details.
+          jq 'del(.arms[].rows[].error, .arms[].rows[].trace)' \
+            "$raw/summary.json" > "$output/summary.json"
+
+          if ! jq -e --arg sha "$REVIEWED_SHA" --arg model "$model" --argjson runs "$runs" \
+            --slurpfile setup "$raw/setup.json" --slurpfile runner "$raw/runner.json" '
+              ($setup[0].cases | length * $runs) as $expected |
+              $expected > 0 and .sourceCommit == $sha and
+              (.arms | keys) == ["hooks", "no-hooks"] and
+              all(.arms[];
+                .partial == false and .errors == 0 and .total == $expected and
+                all(.rows[]; .model == $model and .valid == true)
+              ) and
+              $runner[0].model == $model and $runner[0].runs == $runs and
+              ($runner[0].results | map(.arm) | sort) == ["hooks", "no-hooks"] and
+              all($runner[0].results[]; .signal == null and (.code == 0 or .code == 1))
+            ' "$output/summary.json" > /dev/null || [[ "$status" != 0 && "$status" != 1 ]]; then
+            echo "::error::The eval was incomplete or had invalid runs. See the summary artifact."
+            exit 1
+          fi
+
+          if [[ "$status" == 1 ]]; then
+            echo "::warning::The eval completed with grader misses. See the summary artifact."
+          fi
+
+      - name: Upload routing results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: claude-routing-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/claude-routing-artifact/*.json
+          if-no-files-found: ignore
+          retention-days: 14

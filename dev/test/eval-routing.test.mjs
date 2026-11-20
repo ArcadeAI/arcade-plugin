@@ -8,17 +8,19 @@ import { prepareRoutingEval, summarizeRoutingEval, summarizeRun } from "../scrip
 test("the eval changes hooks while keeping instructions and mock tools identical", () => {
   const root = mkdtempSync(join(tmpdir(), "routing-eval-"));
   try {
-    prepareRoutingEval(root, { caseName: "calendar" });
+    prepareRoutingEval(root);
     const read = (arm, path) => readFileSync(join(root, arm, path), "utf8");
     const old = JSON.parse(read("hooks", ".claude-plugin/plugin.json"));
     const current = JSON.parse(read("no-hooks", ".claude-plugin/plugin.json"));
     assert.equal(old.hooks, "./hooks/eval-hooks.json");
     delete old.hooks;
     assert.deepEqual(old, current);
+    assert.equal(current.mcpServers.arcade.url, "https://example.invalid/arcade");
     for (const path of ["skills/try-arcade/SKILL.md", "agents/arcade-operator.agent.md", "evals/calendar/prompt.md", "evals/mocks/direct/_tools.json"]) {
       assert.equal(read("hooks", path), read("no-hooks", path));
     }
     assert.deepEqual(Object.keys(JSON.parse(read("hooks", "hooks/eval-hooks.json")).hooks), ["SessionStart", "UserPromptSubmit", "SubagentStart"]);
+    assert.match(read("no-hooks", "evals/auth-block/graders/arcade-executed.md"), /^max: 1$/m);
     assert.throws(() => prepareRoutingEval(root), /fresh output directory/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
@@ -40,6 +42,13 @@ test("summaries retain failed runs and can reuse copied traces after native clea
     events[1].stdout = "";
     write("traces/hooks/calendar-2.jsonl", events.map((entry) => JSON.stringify(entry)).join("\n"));
     assert.equal(summarizeRoutingEval(root).arms.hooks.errors, 2);
+
+    write("setup.json", { sourceCommit: "test", arms: ["no-hooks"], cases: [{ name: "calendar", route: "arcade" }] });
+    write("results/no-hooks/aggregate-result.json", { cases: [{ name: "calendar", arms: { with: [valid] } }] });
+    write("native.jsonl", JSON.stringify(events[0]));
+    assert.equal(summarizeRoutingEval(root).arms["no-hooks"].errors, 0);
+    write("traces/no-hooks/calendar-1.jsonl", events.map((entry) => JSON.stringify(entry)).join("\n"));
+    assert.equal(summarizeRoutingEval(root).arms["no-hooks"].errors, 1);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
