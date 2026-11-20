@@ -4,6 +4,7 @@
 // https://claude.com/docs/plugins/pre-submission-checklist
 
 import assert from "node:assert/strict";
+import { defaultMcpUrl } from "../scripts/claude-directory-policy.mjs";
 import { execFileSync } from "node:child_process";
 import { lstatSync, readFileSync } from "node:fs";
 import { dirname, join, posix, resolve } from "node:path";
@@ -305,7 +306,7 @@ test("remote MCP servers use http, sse, or ws over https or wss", () => {
     for (const [name, server] of Object.entries(servers)) {
       if ("command" in server) continue;
       if (!REMOTE_MCP_TYPES.includes(server.type)) offenders.push(`${file}: server ${name} has type ${JSON.stringify(server.type)}`);
-      const url = String(server.url ?? "");
+      const url = String(defaultMcpUrl(readJson(PLUGIN_MANIFEST), server.url) ?? "");
       if (!url.startsWith("https://") && !url.startsWith("wss://")) offenders.push(`${file}: server ${name} has url ${JSON.stringify(server.url)}`);
     }
   }

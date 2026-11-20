@@ -5,6 +5,12 @@ check your calendar, summarize email, find an issue, or draft a Slack reply.
 Arcade finds the tools and runs them through its hosted MCP gateway at
 https://api.arcade.dev/mcp/arcade.
 
+In Claude Code, set **Arcade gateway URL** in `/config` to use your own
+Arcade gateway. Keep the default to use https://api.arcade.dev/mcp/arcade.
+The endpoint must expose `Arcade_SelectTools` and `Arcade_UseTool`.
+A custom gateway's connection or authentication failure does not switch it
+back to the default URL.
+
 Install Arcade from Claude Directory. For the direct Claude Code build with
 routing hooks, install from the GitHub marketplace.
 

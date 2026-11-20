@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
-import { validateClaudeDirectory } from "./claude-directory-policy.mjs";
+import { defaultMcpUrl, validateClaudeDirectory } from "./claude-directory-policy.mjs";
 import { buildHookManifest, CLAUDE_PLUGIN_DIR, PLUGIN_DIR } from "./generate-manifests.mjs";
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -75,7 +75,8 @@ function verifyInstall(copy, config, marketplace) {
     if (!existsSync(join(installed, file))) throw new Error(`installed plugin is missing ${file}`);
   }
   const manifest = JSON.parse(readFileSync(join(installed, ".claude-plugin/plugin.json"), "utf8"));
-  if (manifest.mcpServers?.arcade?.url !== "https://api.arcade.dev/mcp/arcade") throw new Error("installed plugin is missing the Arcade gateway");
+  const expectedUrl = JSON.parse(readFileSync(join(copy, PLUGIN_DIR, "mcp.json"), "utf8")).mcpServers.arcade.url;
+  if (defaultMcpUrl(manifest, manifest.mcpServers?.arcade?.url) !== expectedUrl) throw new Error("installed plugin is missing the default Arcade gateway");
   return { installed, manifest };
 }
 

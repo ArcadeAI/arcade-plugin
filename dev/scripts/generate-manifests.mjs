@@ -385,9 +385,17 @@ const buildFiles = (root) => {
     ...identity,
     displayName,
     privacyPolicyUrl,
+    userConfig: {
+      gateway_url: {
+        type: "string",
+        title: "Arcade gateway URL",
+        description: "The HTTPS MCP endpoint for your Arcade gateway.",
+        default: url,
+      },
+    },
   };
   // Claude uses "http" for the "streamable-http" transport in mcp.json.
-  const claudeMcpServers = { arcade: { type: "http", url } };
+  const claudeMcpServers = { arcade: { type: "http", url: "${user_config.gateway_url}" } };
 
   // Cursor's manifest schema allows only `name` and `email` in `author`.
   // Keywords, description, and version come from the same identity as the
