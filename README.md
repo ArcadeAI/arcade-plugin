@@ -56,13 +56,18 @@ claude plugin marketplace add ArcadeAI/arcade-plugin
 claude plugin install arcade@arcade
 ```
 
-Copilot installs the full package directly from the repository:
+The GitHub marketplace includes Claude routing hooks. Claude Directory installs
+use the [hook-free bundle](docs/claude-directory.md).
+
+For Claude Code and GitHub Copilot CLI, you can also use the cross-client CLI:
 
 ```bash
-copilot plugin install ArcadeAI/arcade-plugin:plugin
+npx plugins add ArcadeAI/arcade-plugin
 ```
 
-The marketplace name is `arcade`. If you already
+It does not finish Cursor, VS Code, or Codex by itself. Use the linked guides
+for those; the [install guide](docs/install/README.md#about-npx-plugins-add)
+explains the CLI's limits. The marketplace name is `arcade`. If you already
 installed an `arcade` marketplace from another repository, do not add this
 one too: Claude treats them as the same marketplace and the second install
 replaces the first. Use one install source per client to avoid duplicates.
@@ -88,8 +93,8 @@ See [OpenAI's plugin installation guide](https://help.openai.com/en/articles/200
 |---|:--:|:--:|:--:|:--:|:--:|:--:|
 | **Cursor IDE / Cloud Agents** | ✅ | ✅ | ✅ | ✅ | ✅ | — |
 | **Cursor CLI** | ✅ | ✅ | ✅ | ✅ | — | ✅ |
-| **Claude Code** | ✅ | ✅ | ✅ | ✅ | — | — |
-| **Claude Cowork** | ✅ | ✅ | ✅ | ✅ | — | — |
+| **Claude Code** | ✅ | ✅ | ✅ | ✅ | — | ✅ |
+| **Claude Cowork** | ✅ | ✅ | ✅ | ✅ | — | partial |
 | **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅ |
 | **VS Code (Copilot sessions)** | ✅ | ✅ | ✅ | — | — | ✅ |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | — |
@@ -142,16 +147,14 @@ anything is sent, created, or deleted.
 
 ## Plugin usage events (off in this build)
 
-The repository retains development telemetry adapters, but **`TELEMETRY_ENABLED`
+Claude Code and Copilot CLI include telemetry adapters, but **`TELEMETRY_ENABLED`
 is `false`**: this package sends no usage events and generates no telemetry
 hooks in client manifests. [docs/telemetry.md](docs/telemetry.md) describes
 the event contract, what would be stored locally when enabled, the opt-out, and
 the separate approval required before collection can be enabled. The Arcade MCP
 gateway remains the canonical source for request and tool-call telemetry.
-Direct Claude installs from this GitHub marketplace include routing hooks.
-The Claude Directory bundle in `clients/claude/` contains no hooks, scripts,
-or telemetry code. See [Claude directory submission](docs/claude-directory.md)
-for the release source and [telemetry](docs/telemetry.md) for CI coverage.
+Adapter behavior is covered by in-process tests;
+see [docs/telemetry.md](docs/telemetry.md) for what CI does and does not exercise.
 
 ## Develop
 
@@ -177,9 +180,8 @@ downloads it.
 - the tests: hand-written file checks, a stale-generated-file check,
   every hook command in every client's manifest, and the Claude plugin
   directory's documented rules (`dev/test/directory-policy.test.mjs`)
-- `claude plugin validate` and real Claude Code installs of both bundles in
-  temporary configurations. The check verifies the direct install's hooks,
-  the directory install's file restrictions, and the absence of package installs
+- `claude plugin validate`, then a real Claude Code install into a temporary
+  config that fails if Claude Code ran a package install
   (`dev/scripts/verify-claude-install.mjs`)
 - Cursor's plugin validator (`dev/scripts/verify-cursor.mjs` checks the
   downloaded copy's hash, then runs it)

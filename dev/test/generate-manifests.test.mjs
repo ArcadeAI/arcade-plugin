@@ -16,7 +16,6 @@ import { makeFixture, readRepoFile, ROOT } from "./helpers.mjs";
 const EXPECTED_SOURCES = {
   "clients/claude/README.md": ["docs/claude-plugin-readme.md"],
   "clients/claude/LICENSE": ["LICENSE"],
-  ".agents/plugins/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
   "clients/claude/skills/scale-arcade/SKILL.md": ["plugin/skills/scale-arcade/SKILL.md"],
   "clients/claude/skills/scale-arcade/references/arcade-docs.md": ["plugin/skills/scale-arcade/references/arcade-docs.md"],
   "clients/claude/skills/try-arcade/SKILL.md": ["plugin/skills/try-arcade/SKILL.md", "plugin/hooks/routing-guidance.mjs"],
@@ -158,7 +157,9 @@ test("changing the canonical privacy URL updates both client fields", async () =
     const changedGenerator = await import(pathToFileURL(join(root, "dev/scripts/generate-manifests.mjs")));
     changedGenerator.generateManifests({ root });
     const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
-    assert.equal(read("clients/claude/.claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
+    for (const folder of ["plugin", "clients/claude"]) {
+      assert.equal(read(`${folder}/.claude-plugin/plugin.json`).privacyPolicyUrl, "https://example.com/new-policy/");
+    }
     const openai = read("plugin/plugin.json").extensions["com.openai"];
     assert.equal(openai.interface.privacyPolicyURL, "https://example.com/new-policy/");
     assert.equal(openai.interface.supportURL, "https://support.arcade.dev");

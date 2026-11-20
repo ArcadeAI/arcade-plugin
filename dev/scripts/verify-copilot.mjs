@@ -1,5 +1,8 @@
-// Installs the full plugin into a throwaway Copilot home and checks its
-// MCP servers, skills, routing hooks, and operator files.
+// Installs this repo into a throwaway Copilot CLI home the way the public docs
+// do (`plugin marketplace add` of the repository, then `plugin install`) and
+// checks that Copilot loads every MCP server in mcp.json and every skill in
+// skills/. The marketplace source is ./plugin; the installed directory must be
+// that plugin root.
 //
 // Copilot CLI has no plugin validate command. `copilot plugin install` fails
 // on a broken plugin.json but not on a broken mcp.json or skill, so this
@@ -14,6 +17,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const pluginRoot = join(root, "plugin");
 const pluginName = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8")).name;
+const marketplaceName = JSON.parse(readFileSync(join(root, ".claude-plugin/marketplace.json"), "utf8")).name;
 const servers = JSON.parse(readFileSync(join(pluginRoot, "mcp.json"), "utf8")).mcpServers;
 const skills = readdirSync(join(pluginRoot, "skills")).filter((name) => existsSync(join(pluginRoot, "skills", name, "SKILL.md")));
 
@@ -60,12 +64,25 @@ function installedPluginDirs(dir, found = []) {
 }
 
 try {
-  copilotText("plugin", "install", pluginRoot);
+  // Public install: marketplace add of the repo, then arcade@arcade.
+  // .claude-plugin/marketplace.json source is ./plugin. A local marketplace
+  // is loaded live from that directory, so the install output names it.
+  // A copied install has the plugin directory under COPILOT_HOME instead.
+  copilotText("plugin", "marketplace", "add", root);
+  const catalog = copilotJson("plugin", "marketplace", "browse", marketplaceName, "--json");
+  const entries = Array.isArray(catalog) ? catalog : catalog.plugins ?? catalog.marketplace?.plugins ?? [];
+  if (!entries.some((entry) => entry.name === pluginName)) {
+    problems.push(`marketplace ${marketplaceName} has no ${pluginName} entry`);
+  }
+  const installOutput = copilotText("plugin", "install", `${pluginName}@${marketplaceName}`);
   const installedDirs = installedPluginDirs(work);
-  if (installedDirs.length === 0) problems.push("installed Copilot plugin directory was not found");
+  const liveFromPlugin = installOutput.includes(pluginRoot);
+  if (!liveFromPlugin && installedDirs.length === 0) {
+    problems.push(`install did not resolve source ./plugin to ${pluginRoot}:\n${installOutput}`);
+  }
   for (const dir of installedDirs) {
-    for (const file of ["com.github.copilot/hooks/hooks.json", "com.github.copilot/agents/arcade-operator.agent.md"]) {
-      if (!existsSync(join(dir, file))) problems.push(`installed Copilot plugin is missing ${file}`);
+    if (existsSync(join(dir, "AGENTS.md")) || existsSync(join(dir, "dev"))) {
+      problems.push(`${dir} is the repository root; source ./plugin should install the plugin directory`);
     }
   }
 

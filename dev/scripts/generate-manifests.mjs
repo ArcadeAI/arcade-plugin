@@ -2,7 +2,7 @@
 // Writes every client-specific file from the sources listed in
 // ARCHITECTURE.md. `--check` fails instead of writing if anything is stale.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -227,7 +227,6 @@ export const FILE_SOURCES = {
   [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the marketplace description and support email. There is no version field.
   ".claude-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
-  ".agents/plugins/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
   // Cursor's multi-plugin manifest. The plugin directory is "plugin".
   ".cursor-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
   // The script writes the frontmatter and the header comment.
@@ -238,7 +237,7 @@ export const FILE_SOURCES = {
   // the version, entry type, nesting, and command template. With telemetry
   // enabled, the adapter that hook-hosts.mjs names supplies telemetry entries.
   ...Object.fromEntries(
-    Object.values(HOSTS).filter((h) => h.manifest).map((h) => [inPlugin(h.manifest), [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"]]),
+    Object.values(HOSTS).map((h) => [inPlugin(h.manifest), [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"]]),
   ),
   ...Object.fromEntries(Object.entries(COPIED_FILES).map(([copy, source]) => [copy,
     FILES_WITH_GENERATED_RULES[source] ? [source, ROUTING_SOURCE] : [source]])),
@@ -386,9 +385,9 @@ const buildFiles = (root) => {
     ...identity,
     displayName,
     privacyPolicyUrl,
-    // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
-    mcpServers: { arcade: { type: "http", url } },
   };
+  // Claude uses "http" for the "streamable-http" transport in mcp.json.
+  const claudeMcpServers = { arcade: { type: "http", url } };
 
   // Cursor's manifest schema allows only `name` and `email` in `author`.
   // Keywords, description, and version come from the same identity as the
@@ -410,19 +409,6 @@ const buildFiles = (root) => {
   });
 
   const files = new Map([
-    [
-      ".agents/plugins/marketplace.json",
-      serialize({
-        name,
-        interface: { displayName },
-        plugins: [{
-          name,
-          source: { source: "local", path: `./${PLUGIN_DIR}` },
-          policy: { installation: "AVAILABLE", authentication: "ON_INSTALL" },
-          category: plugin.extensions["com.openai"].interface.category,
-        }],
-      }),
-    ],
     [
       inPlugin(".cursor-plugin/plugin.json"),
       serialize(cursorPluginManifest({
@@ -457,14 +443,16 @@ const buildFiles = (root) => {
       serialize({
         ...claudeManifest,
         hooks: `./${HOSTS["claude-code"].manifest}`,
+        mcpServers: claudeMcpServers,
       }),
     ],
-    [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, serialize(claudeManifest)],
+    [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, serialize({ ...claudeManifest, mcpServers: claudeMcpServers })],
     [
       ".claude-plugin/marketplace.json",
       serialize({
         $schema: "https://json.schemastore.org/claude-code-marketplace.json",
         name,
+        // Marketplace listing text. Codex also installs from this marketplace.
         description: "Install Arcade in Claude Desktop, Cowork, Claude Code, and Codex.",
         owner,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
@@ -498,7 +486,6 @@ const buildFiles = (root) => {
   ]);
 
   for (const [hostName, host] of Object.entries(HOSTS)) {
-    if (!host.manifest) continue;
     files.set(inPlugin(host.manifest), serialize(buildHookManifest(hostName)));
   }
 
@@ -540,15 +527,14 @@ const buildFiles = (root) => {
 
 export const generateManifests = ({ check = false, root = ROOT } = {}) => {
   const files = buildFiles(root);
-  // A path in the committed .gitattributes that is no longer generated is a
-  // leftover from a removed source and should be deleted.
-  const committed = existsSync(join(root, ".gitattributes"))
-    ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
-    : [];
-  for (const path of committed) {
-    if (!files.has(path)) {
-      if (check) throw new Error(`${path} is no longer generated — delete it`);
-      rmSync(join(root, path), { force: true });
+  if (check) {
+    // A path in the committed .gitattributes that is no longer generated is a
+    // leftover from a removed source and should be deleted.
+    const committed = existsSync(join(root, ".gitattributes"))
+      ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
+      : [];
+    for (const path of committed) {
+      if (!files.has(path)) throw new Error(`${path} is no longer generated — delete it`);
     }
   }
   for (const [path, content] of files) {

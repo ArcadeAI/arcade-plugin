@@ -15,7 +15,7 @@ below have alternatives and verification steps.
 | **Claude Code** | `claude plugin marketplace add ArcadeAI/arcade-plugin`, then `claude plugin install arcade@arcade` | [claude-code.md](claude-code.md) |
 | **Claude Desktop** | Add `ArcadeAI/arcade-plugin` as a plugin marketplace | [claude-desktop.md](claude-desktop.md) |
 | **VS Code** | [![Install in VS Code](https://img.shields.io/badge/VS_Code-one--click-0098FF?logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=arcade&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fapi.arcade.dev%2Fmcp%2Farcade%22%7D) | [vscode.md](vscode.md) |
-| **GitHub Copilot CLI** | `copilot plugin install ArcadeAI/arcade-plugin:plugin` | [copilot.md](copilot.md) |
+| **GitHub Copilot CLI** | `copilot plugin marketplace add ArcadeAI/arcade-plugin`, then `copilot plugin install arcade@arcade` | [copilot.md](copilot.md) |
 | **Codex / ChatGPT** | `codex plugin marketplace add ArcadeAI/arcade-plugin`, then `codex plugin add arcade@arcade` | [codex.md](codex.md) |
 | **OpenCode** | Gateway URL only — [opencode.md](opencode.md) | [opencode.md](opencode.md) |
 | **Grok Bot** | Skills and the MCP connector | [grok-bot.md](grok-bot.md) |
@@ -30,9 +30,11 @@ the operator. For the full plugin:
   `~/.cursor/plugins/local/arcade` also works. Teams/Enterprise import the
   repository; `.cursor-plugin/marketplace.json` source is `plugin`.
   See [cursor.md](cursor.md).
-- **VS Code:** install with `copilot plugin install ArcadeAI/arcade-plugin:plugin`,
-  or add the checkout's `plugin/` directory to `chat.pluginLocations`.
-  See [vscode.md](vscode.md).
+- **VS Code:** **Chat: Install Plugin From Source** with
+  `https://github.com/ArcadeAI/arcade-plugin` reads
+  `.claude-plugin/marketplace.json` and installs source `./plugin`. The Copilot
+  marketplace commands do the same. A local `chat.pluginLocations` entry uses
+  the checkout's `plugin/` directory. See [vscode.md](vscode.md).
 
 After install, reload your agent or start a new session. No API keys: the
 first task that touches an app returns a browser sign-in link.
@@ -45,8 +47,8 @@ into each. Today it only finishes the job for some of them:
 
 | Client | What `npx plugins add` does |
 |---|---|
-| Claude Code | Use the native marketplace commands above to install the Claude-only folder. |
-| GitHub Copilot CLI | Use the direct repository command above to include Copilot hooks and the operator. |
+| Claude Code | Installs and enables the plugin. Works. |
+| GitHub Copilot CLI | Runs `copilot plugin marketplace add` and `copilot plugin install`. |
 | Codex | Copies the plugin and enables it in `config.toml`, but `codex plugin list` shows it as not installed until you run `codex plugin add arcade@plugins-cli`. |
 | Cursor (macOS, Linux) | Writes into Claude Code's plugin folder (`~/.claude/plugins`), not Cursor's. With **Include third-party Plugins, Skills, and other configs** off, Cursor doesn't load it at all; with it on, Cursor gets the Claude Code manifest instead of the Cursor adapter. |
 | VS Code | Adds a `chat.pluginLocations` entry pointing at a copy under `~/.cache/plugins/`, and does not turn on `chat.plugins.enabled`. |
@@ -54,12 +56,11 @@ into each. Today it only finishes the job for some of them:
 It also skips any client whose command-line tool (`cursor`, `code`, …) isn't on
 your `PATH`.
 
-For developing this repo, install a local checkout with Claude's marketplace
-commands, or preview what the cross-client CLI discovers:
+For developing this repo, install a local checkout into Claude Code, or preview
+what the CLI would install:
 
 ```bash
-claude plugin marketplace add /path/to/arcade-plugin
-claude plugin install arcade@arcade
+npx plugins add /path/to/arcade-plugin --target claude-code
 npx plugins discover ArcadeAI/arcade-plugin
 ```
 

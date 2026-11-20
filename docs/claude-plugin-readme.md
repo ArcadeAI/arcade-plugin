@@ -5,7 +5,8 @@ check your calendar, summarize email, find an issue, or draft a Slack reply.
 Arcade finds the tools and runs them through its hosted MCP gateway at
 https://api.arcade.dev/mcp/arcade.
 
-Install Arcade from the Claude plugin directory, or run this in Claude Code:
+Install Arcade from Claude Directory. For the direct Claude Code build with
+routing hooks, install from the GitHub marketplace.
 
 ```text
 /plugin install arcade --marketplace ArcadeAI/arcade-plugin
