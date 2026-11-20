@@ -8,10 +8,6 @@ reading the environment or contacting a server.
 collection is separately approved after ingestion, the opt-out, privacy, and
 distribution requirements are verified.
 
-The Claude package at `clients/claude/` contains no hooks or telemetry code.
-Its routing instructions live in skills and the operator. Claude adapter
-behavior below is a development contract, not installed functionality.
-
 The sections below describe what **would** be sent when telemetry is turned on,
 its privacy and opt-out controls, and the approval required before enabling it.
 Nothing here implies that this package currently transmits data.
@@ -43,8 +39,9 @@ event with `could_use_arcade: false` and no service hints. Keyword matching can
 misclassify prompts; the labeled evaluation measures that limitation separately.
 
 Session starts send no usage event. Only the Arcade operator's stop reports
-send subagent events. The development Claude routing hook adds its reminder on prompts
-except short acknowledgements and background task results, when exercised in tests. It is excluded from the Claude package. Copilot CLI has no routing reminder hook, so `reminder_sent`
+send subagent events. Claude Code adds its routing reminder on every prompt
+except short acknowledgements and background task results, whether or not
+telemetry is on. Copilot CLI has no routing reminder hook, so `reminder_sent`
 stays false there.
 
 ## Opt-out when telemetry is on

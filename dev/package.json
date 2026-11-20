@@ -6,7 +6,7 @@
     "generate": "node scripts/generate-manifests.mjs",
     "package:chatgpt": "node scripts/package-chatgpt.mjs",
     "test": "node --test test/*.test.mjs",
-    "verify:claude": "claude plugin validate ../.claude-plugin/marketplace.json --strict && node scripts/claude-directory-policy.mjs && claude plugin validate ../clients/claude --strict && claude plugin validate ../clients/claude/.claude-plugin/plugin.json --strict && node scripts/verify-claude-install.mjs",
+    "verify:claude": "claude plugin validate ../.claude-plugin/marketplace.json --strict && claude plugin validate ../plugin --strict && node scripts/claude-directory-policy.mjs && claude plugin validate ../clients/claude --strict && claude plugin validate ../clients/claude/.claude-plugin/plugin.json --strict && node scripts/verify-claude-install.mjs",
     "verify:cursor": "node scripts/verify-cursor.mjs",
     "verify:codex": "node scripts/verify-codex.mjs",
     "verify:copilot": "node scripts/verify-copilot.mjs",
