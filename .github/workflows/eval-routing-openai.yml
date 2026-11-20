@@ -1,0 +1,92 @@
+name: Codex routing eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Open pull request from a branch in this repository
+        required: true
+        type: string
+      commit:
+        description: Full 40-character SHA of the reviewed pull request head
+        required: true
+        type: string
+      model:
+        description: Codex model
+        default: gpt-6-sol
+        type: string
+      runs:
+        description: Repetitions per case and condition
+        default: "1"
+        type: choice
+        options: ["1", "2"]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  eval:
+    if: github.ref == 'refs/heads/main'
+    environment: routing-evals-openai
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check the reviewed commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          REVIEWED_SHA: ${{ inputs.commit }}
+        shell: bash
+        run: |
+          if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ || ! "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Enter a pull request number and the full lowercase commit SHA."
+            exit 1
+          fi
+          if ! gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg repo "$GITHUB_REPOSITORY" --arg sha "$REVIEWED_SHA" \
+              '.state == "open" and .head.repo.full_name == $repo and .head.sha == $sha' > /dev/null; then
+            echo "::error::The PR must be open and its current head must match this repository and SHA."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+
+      - name: Verify checkout
+        shell: bash
+        env:
+          EVAL_COMMIT: ${{ inputs.commit }}
+        run: test "$(git rev-parse HEAD)" = "$EVAL_COMMIT"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: dev/package.json
+
+      - name: Install pinned CLI
+        working-directory: dev
+        run: npm ci --ignore-scripts
+
+      - name: Run Codex with synthetic MCP responses
+        env:
+          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EVAL_MODEL: ${{ inputs.model }}
+          EVAL_RUNS: ${{ inputs.runs }}
+        run: |
+          if [[ -z "$CODEX_API_KEY" ]]; then
+            echo "::error::Add OPENAI_API_KEY to the routing-evals-openai environment."
+            exit 1
+          fi
+          node dev/scripts/eval-routing-codex.mjs \
+            --model "$EVAL_MODEL" --runs "$EVAL_RUNS" \
+            --out "$RUNNER_TEMP/codex-routing-eval.json"
+
+      - name: Upload eval summary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codex-routing-eval
+          path: ${{ runner.temp }}/codex-routing-eval.json
+          if-no-files-found: ignore
