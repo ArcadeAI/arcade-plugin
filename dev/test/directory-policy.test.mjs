@@ -10,13 +10,12 @@ import { dirname, join, posix, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const PLUGIN_DIR = "plugin";
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const ROOT = join(REPO, "clients/claude");
 
 const KIB = 1024;
 const MIB = 1024 * KIB;
 const PLUGIN_MANIFEST = ".claude-plugin/plugin.json";
-const ROOT_VARIABLE = "${CLAUDE_PLUGIN_ROOT}";
 
 const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "bun.lock", "bun.lockb"];
 const SYSTEM_FILE_NAMES = [".ds_store", "thumbs.db", "desktop.ini", "__macosx"];
@@ -26,11 +25,6 @@ const REWRITING_ATTRIBUTES = ["export-ignore", "export-subst", "filter", "ident"
 const NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/;
 const PRINTABLE_ASCII = /^[\x20-\x7e]+$/;
 const REMOTE_MCP_TYPES = ["http", "sse", "ws"];
-const LAUNCHER = /\b(?:npx|bunx|uvx)\b|\b(?:pnpm|yarn)\s+dlx\b|\bpipx\s+run\b|\buv\s+run\b/;
-const PACKAGE_INSTALL = /\bnpm\s+(?:install|ci|i)\b|\b(?:pnpm|yarn|bun)\s+(?:install|add)\b|\bpip3?\s+install\b|\buv\s+pip\s+install\b/;
-const RELATIVE_IMPORT = /(?:\bfrom|\bimport\s*\(?)\s*["'](\.{1,2}\/[^"']+)["']/g;
-const ROOT_PATH = /\$\{CLAUDE_PLUGIN_ROOT\}\/([\w./-]+)/g;
-
 const MEDIA_SIGNATURES = {
   png: (bytes) => startsWith(bytes, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   jpg: (bytes) => startsWith(bytes, 0, [0xff, 0xd8, 0xff]),
@@ -50,42 +44,31 @@ const INLINE_CODE = /`[^`]*`/g;
 // README and changelog, only paths in backticks or code blocks count.
 const COMPONENT_FOLDERS = ["agents/", "commands/", "skills/"];
 
-// The portal holds a version for a reviewer when a manifest names a bundled
-// image. These fields stay because Codex, ChatGPT, and Cursor show them as the
-// listing logo.
-const ALLOWED_MEDIA_PATH_FIELDS = [
-  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logo"] },
-  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "logoDark"] },
-  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIcon"] },
-  { file: "plugin.json", field: ["extensions", "com.openai", "interface", "composerIconDark"] },
-  { file: ".cursor-plugin/plugin.json", field: ["logo"] },
-];
-
 function git(args) {
   return execFileSync("git", args, { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * MIB });
 }
 
 function statOf(file) {
-  return lstatSync(join(ROOT, PLUGIN_DIR, file), { throwIfNoEntry: false });
+  return lstatSync(join(ROOT, file), { throwIfNoEntry: false });
 }
 
 function listFiles() {
-  const prefix = `${PLUGIN_DIR}/`;
   const listed = git(["ls-files", "--cached", "--others", "--exclude-standard", "-z"])
     .split("\0")
     .filter(Boolean)
     // git lists an untracked nested repository as "name/".
-    .map((file) => file.replace(/\/$/, ""))
-    .filter((file) => file.startsWith(prefix))
-    .map((file) => file.slice(prefix.length));
+    .map((file) => file.replace(/\/$/, ""));
   return [...new Set(listed)].filter((file) => statOf(file));
 }
 
 const FILES = listFiles();
 const REGULAR_FILES = FILES.filter((file) => statOf(file).isFile());
+const REPO_FILES = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], {
+  cwd: REPO, encoding: "utf8",
+}).split("\0").filter((file) => file && lstatSync(join(REPO, file), { throwIfNoEntry: false }));
 
 function read(file) {
-  return readFileSync(join(ROOT, PLUGIN_DIR, file));
+  return readFileSync(join(ROOT, file));
 }
 
 function readJson(file) {
@@ -141,81 +124,6 @@ function fileNameProblems(files) {
   return problems;
 }
 
-/** Splits a hook command into words, removing the quotes around each. */
-function commandWords(command) {
-  return (command.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((word) => word.replace(/^["']|["']$/g, ""));
-}
-
-function hookCommandProblems(command) {
-  const problems = [];
-  const withoutRoot = command.replaceAll(ROOT_VARIABLE, "");
-  if (withoutRoot.includes("$") || withoutRoot.includes("`")) {
-    problems.push(`uses a variable or command substitution other than ${ROOT_VARIABLE}`);
-  }
-  if (/[*?]/.test(withoutRoot)) problems.push("uses a wildcard");
-  for (const word of commandWords(command)) {
-    if (["-c", "-e", "--eval"].includes(word)) problems.push(`runs an inline program (${word})`);
-    if (word.includes("/") && !word.startsWith(`${ROOT_VARIABLE}/`)) {
-      problems.push(`path ${word} does not start with ${ROOT_VARIABLE}/`);
-    }
-  }
-  const launcher = command.match(LAUNCHER);
-  if (launcher) problems.push(`uses the package launcher "${launcher[0]}"`);
-  const install = command.match(PACKAGE_INSTALL);
-  if (install) problems.push(`runs the package install "${install[0]}"`);
-  return problems;
-}
-
-function claudeHookFiles() {
-  const declared = readJson(PLUGIN_MANIFEST).hooks;
-  if (declared !== undefined && typeof declared !== "string" && !Array.isArray(declared)) {
-    assert.fail(`${PLUGIN_MANIFEST} declares hooks inline; this test only reads hooks from files.`);
-  }
-  const files = (Array.isArray(declared) ? declared : [declared]).filter(Boolean).map((file) => posix.normalize(file));
-  // Claude Code also loads hooks/hooks.json without it being declared.
-  if (FILES.includes("hooks/hooks.json") && !files.includes("hooks/hooks.json")) files.push("hooks/hooks.json");
-  return files;
-}
-
-function hookCommands(hookFile) {
-  const commands = [];
-  for (const groups of Object.values(readJson(hookFile).hooks ?? {})) {
-    for (const group of groups) {
-      for (const hook of group.hooks ?? []) {
-        if (hook.type === "command") commands.push(hook.command);
-      }
-    }
-  }
-  return commands;
-}
-
-/** Files a hook command runs, plus every file those reach by relative import or ${CLAUDE_PLUGIN_ROOT} path. */
-function filesRunBy(commands) {
-  const queue = [];
-  for (const command of commands) {
-    for (const word of commandWords(command)) {
-      if (word.startsWith(`${ROOT_VARIABLE}/`)) queue.push(posix.normalize(word.slice(ROOT_VARIABLE.length + 1)));
-    }
-  }
-  // A hook script can import a file by a computed name, which can't be
-  // followed, so every file in the folder of a script a hook runs is read too.
-  for (const entry of [...queue]) {
-    const folder = `${posix.dirname(entry)}/`;
-    queue.push(...REGULAR_FILES.filter((file) => file.startsWith(folder)));
-  }
-  const found = new Set();
-  while (queue.length > 0) {
-    const file = queue.shift();
-    if (found.has(file)) continue;
-    found.add(file);
-    if (!REGULAR_FILES.includes(file)) continue;
-    const text = read(file).toString("utf8");
-    for (const match of text.matchAll(RELATIVE_IMPORT)) queue.push(posix.join(posix.dirname(file), match[1]));
-    for (const match of text.matchAll(ROOT_PATH)) queue.push(posix.normalize(match[1]));
-  }
-  return [...found];
-}
-
 function isProseMarkdown(file) {
   return file.endsWith(".md") && !COMPONENT_FOLDERS.some((folder) => file.startsWith(folder));
 }
@@ -238,16 +146,6 @@ function mediaPathMentions(file, text) {
     }
   });
   return mentions;
-}
-
-function allowedMediaPaths(file) {
-  const values = [];
-  for (const allowed of ALLOWED_MEDIA_PATH_FIELDS.filter((entry) => entry.file === file)) {
-    let value = readJson(file);
-    for (const key of allowed.field) value = value?.[key];
-    if (typeof value === "string") values.push(value);
-  }
-  return values;
 }
 
 function proseWordCount(markdown) {
@@ -300,14 +198,11 @@ test("no macOS or Windows system files", () => {
 
 test("no symbolic links or submodules", () => {
   const offenders = new Map();
-  const prefix = `${PLUGIN_DIR}/`;
   for (const entry of git(["ls-files", "-s", "-z"]).split("\0").filter(Boolean)) {
     const [info, file] = entry.split("\t");
-    if (!file.startsWith(prefix)) continue;
-    const relative = file.slice(prefix.length);
     const mode = info.split(" ")[0];
-    if (mode === "120000") offenders.set(relative, `${relative} (symbolic link)`);
-    if (mode === "160000") offenders.set(relative, `${relative} (submodule)`);
+    if (mode === "120000") offenders.set(file, `${file} (symbolic link)`);
+    if (mode === "160000") offenders.set(file, `${file} (submodule)`);
   }
   for (const file of FILES) {
     const stat = statOf(file);
@@ -319,15 +214,15 @@ test("no symbolic links or submodules", () => {
 
 test("file and folder names are valid on Windows and macOS", () => {
   assertNone(
-    fileNameProblems(FILES),
+    fileNameProblems(REPO_FILES),
     "Rule: no colon, no trailing dot or space, no Windows device name, and no two names that differ only by case (validation stops).",
   );
 });
 
 test("no .gitattributes sets export-ignore, export-subst, or filter", () => {
   const offenders = [];
-  for (const file of REGULAR_FILES.filter((name) => posix.basename(name) === ".gitattributes")) {
-    read(file)
+  for (const file of REPO_FILES.filter((name) => posix.basename(name) === ".gitattributes")) {
+    readFileSync(join(REPO, file))
       .toString("utf8")
       .split("\n")
       .forEach((line, index) => {
@@ -417,43 +312,21 @@ test("remote MCP servers use http, sse, or ws over https or wss", () => {
   assertNone(offenders, "Rule: each remote MCP server needs type http, sse, or ws and an https:// or wss:// url (blocks).");
 });
 
-test("hook commands use ${CLAUDE_PLUGIN_ROOT} paths and run no package launcher or install", () => {
+test("no text file names a bundled image or font path", () => {
   const offenders = [];
-  const commands = [];
-  for (const hookFile of claudeHookFiles()) {
-    if (!REGULAR_FILES.includes(hookFile)) {
-      offenders.push(`${hookFile}: hooks file named by ${PLUGIN_MANIFEST} is missing`);
-      continue;
+  for (const file of REGULAR_FILES) {
+    const bytes = read(file);
+    if (isBinary(bytes)) continue;
+    for (const { line, path } of mediaPathMentions(file, bytes.toString("utf8"))) {
+      offenders.push(`${file}:${line}: ${path}`);
     }
-    for (const command of hookCommands(hookFile)) {
-      commands.push(command);
-      for (const problem of hookCommandProblems(command)) offenders.push(`${hookFile}: "${command}" ${problem}`);
-    }
-  }
-  for (const file of filesRunBy(commands)) {
-    if (!REGULAR_FILES.includes(file)) {
-      offenders.push(`${file}: run by a hook but not in the plugin`);
-      continue;
-    }
-    read(file)
-      .toString("utf8")
-      .split("\n")
-      .forEach((line, index) => {
-        const launcher = line.match(LAUNCHER);
-        if (launcher) offenders.push(`${file}:${index + 1}: package launcher "${launcher[0]}"`);
-        const install = line.match(PACKAGE_INSTALL);
-        if (install) offenders.push(`${file}:${index + 1}: package install "${install[0]}"`);
-      });
   }
   assertNone(
     offenders,
-    `Rule: write each hook path in full from ${ROOT_VARIABLE}, and keep package launchers (npx, bunx, pnpm dlx, yarn dlx, uvx, pipx run, uv run) and package installs (npm install, npm ci, pip install, and the like) out of hook commands and the scripts they run.`,
+    "Rule: don't name a bundled image or font path in commands, hooks, scripts, manifests, backticks, or code blocks; Markdown image syntax in a README is fine (held for a reviewer).",
   );
 });
 
-// The only process environment reads allowed in plugin scripts: the one
-// telemetry opt-out switch and the client data-folder variables, each read by
-// name inside readOptOutEnv in this one file.
 const ENV_READ_FILE = "hooks/telemetry-run.mjs";
 const ENV_READ_ALLOWLIST = [
   "ARCADE_PLUGIN_TELEMETRY",
@@ -494,9 +367,9 @@ const scriptOffenders = (file, text) => {
 // Scripts in the plugin directory. dev/ sits outside it.
 test("no script downloads code, starts a child process, or reads the environment outside the opt-out allowlist", () => {
   const offenders = [];
-  for (const file of REGULAR_FILES) {
+  for (const file of REPO_FILES.filter((path) => path.startsWith("plugin/")).map((path) => path.slice("plugin/".length))) {
     if (!/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
-    offenders.push(...scriptOffenders(file, read(file).toString("utf8")));
+    offenders.push(...scriptOffenders(file, readFileSync(join(REPO, "plugin", file), "utf8")));
   }
   assertNone(
     offenders,
@@ -530,25 +403,4 @@ test("the environment check catches disallowed reads and child processes", () =>
   for (const name of ENV_READ_ALLOWLIST) {
     assert.deepEqual(scriptOffenders(ENV_READ_FILE, `  ${name}: process.env.${name},`), []);
   }
-});
-
-test("no text file names a bundled image or font path", () => {
-  const offenders = [];
-  for (const file of REGULAR_FILES) {
-    const bytes = read(file);
-    if (isBinary(bytes)) continue;
-    const allowed = allowedMediaPaths(file);
-    for (const { line, path } of mediaPathMentions(file, bytes.toString("utf8"))) {
-      const index = allowed.indexOf(path);
-      if (index >= 0) {
-        allowed.splice(index, 1);
-      } else {
-        offenders.push(`${file}:${line}: ${path}`);
-      }
-    }
-  }
-  assertNone(
-    offenders,
-    "Rule: don't name a bundled image or font path in commands, hooks, scripts, manifests, backticks, or code blocks; Markdown image syntax in a README is fine (held for a reviewer).",
-  );
 });

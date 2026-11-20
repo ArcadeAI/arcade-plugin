@@ -2,7 +2,7 @@
 // Writes every client-specific file from the sources listed in
 // ARCHITECTURE.md. `--check` fails instead of writing if anything is stale.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -19,6 +19,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 // manifest (for a local clone), and .gitattributes stay at the repo root and
 // point at this directory.
 export const PLUGIN_DIR = "plugin";
+export const CLAUDE_PLUGIN_DIR = "clients/claude";
+
+const componentFiles = (dir) => readdirSync(join(ROOT, dir), { withFileTypes: true })
+  .filter((entry) => !entry.name.startsWith("."))
+  .sort((a, b) => a.name.localeCompare(b.name))
+  .flatMap((entry) => entry.isDirectory() ? componentFiles(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`]);
 
 const inPlugin = (file) => `${PLUGIN_DIR}/${file}`;
 
@@ -190,6 +196,10 @@ export const COPIED_FILES = {
   [inPlugin("com.github.copilot/agents/arcade-operator.agent.md")]: OPERATOR,
   // The repository LICENSE stays at the root; the plugin directory has its own copy.
   [inPlugin("LICENSE")]: "LICENSE",
+  [`${CLAUDE_PLUGIN_DIR}/README.md`]: "docs/claude-plugin-readme.md",
+  [`${CLAUDE_PLUGIN_DIR}/LICENSE`]: "LICENSE",
+  ...Object.fromEntries(["skills", "agents", "commands"].flatMap((dir) => componentFiles(inPlugin(dir)))
+    .map((source) => [`${CLAUDE_PLUGIN_DIR}/${source.slice(PLUGIN_DIR.length + 1)}`, source])),
 };
 
 /**
@@ -214,6 +224,7 @@ export const FILE_SOURCES = {
   ".cursor-plugin/hooks.json": [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the mcpServers transport type.
   [inPlugin(".claude-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
+  [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the marketplace description and support email. There is no version field.
   ".claude-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
   // Cursor's multi-plugin manifest. The plugin directory is "plugin".
@@ -228,10 +239,8 @@ export const FILE_SOURCES = {
   ...Object.fromEntries(
     Object.values(HOSTS).map((h) => [inPlugin(h.manifest), [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"]]),
   ),
-  [inPlugin("skills/scale-arcade/references/arcade-docs.md")]: [inPlugin("skills/try-arcade/references/arcade-docs.md")],
-  // A copy of the operator with its rules block filled in.
-  [inPlugin("com.github.copilot/agents/arcade-operator.agent.md")]: [OPERATOR, ROUTING_SOURCE],
-  [inPlugin("LICENSE")]: ["LICENSE"],
+  ...Object.fromEntries(Object.entries(COPIED_FILES).map(([copy, source]) => [copy,
+    FILES_WITH_GENERATED_RULES[source] ? [source, ROUTING_SOURCE] : [source]])),
   [OPERATOR]: [ROUTING_SOURCE],
   [inPlugin("skills/try-arcade/SKILL.md")]: [ROUTING_SOURCE],
   [TELEMETRY_DOC]: [TELEMETRY_SOURCE],
@@ -372,6 +381,13 @@ const buildFiles = (root) => {
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
   const owner = { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL };
+  const claudeManifest = {
+    ...identity,
+    displayName,
+    privacyPolicyUrl,
+  };
+  // Claude uses "http" for the "streamable-http" transport in mcp.json.
+  const claudeMcpServers = { arcade: { type: "http", url } };
 
   // Cursor's manifest schema allows only `name` and `email` in `author`.
   // Keywords, description, and version come from the same identity as the
@@ -425,14 +441,12 @@ const buildFiles = (root) => {
     [
       inPlugin(".claude-plugin/plugin.json"),
       serialize({
-        ...identity,
-        displayName,
-        privacyPolicyUrl,
+        ...claudeManifest,
         hooks: `./${HOSTS["claude-code"].manifest}`,
-        // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
-        mcpServers: { arcade: { type: "http", url } },
+        mcpServers: claudeMcpServers,
       }),
     ],
+    [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, serialize({ ...claudeManifest, mcpServers: claudeMcpServers })],
     [
       ".claude-plugin/marketplace.json",
       serialize({
@@ -477,7 +491,7 @@ const buildFiles = (root) => {
 
   for (const [copy, source] of Object.entries(COPIED_FILES)) {
     const rules = FILES_WITH_GENERATED_RULES[source];
-    files.set(copy, rules ? fillRulesBlock(readText(root, source), rules, source) : readText(root, source));
+    files.set(copy, files.get(source) ?? (rules ? fillRulesBlock(readText(root, source), rules, source) : readText(root, source)));
   }
 
   // GitHub collapses linguist-generated files in pull request diffs.
@@ -513,14 +527,13 @@ const buildFiles = (root) => {
 
 export const generateManifests = ({ check = false, root = ROOT } = {}) => {
   const files = buildFiles(root);
-  if (check) {
-    // A path in the committed .gitattributes that is no longer generated is a
-    // leftover from a removed source and should be deleted.
-    const committed = existsSync(join(root, ".gitattributes"))
-      ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
-      : [];
-    for (const path of committed) {
-      if (!files.has(path)) throw new Error(`${path} is no longer generated — delete it`);
+  // An output can outlive its source. Check before rewriting the file list.
+  const listed = existsSync(join(root, ".gitattributes"))
+    ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
+    : [];
+  for (const path of listed) {
+    if (!files.has(path) && (check || existsSync(join(root, path)))) {
+      throw new Error(`${path} is no longer generated. Delete it and run npm run generate.`);
     }
   }
   for (const [path, content] of files) {
