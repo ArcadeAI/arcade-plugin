@@ -11,10 +11,9 @@ every fully generated file. `plugin/skills/try-arcade/SKILL.md`,
 except for a marked generated block (the event tables in docs/telemetry.md
 come from `plugin/hooks/telemetry-contract.mjs`; never edit inside those markers).
 
-- Claude directory: submit `clients/claude/`, not `plugin/` or the repository
-  root. Its files are generated from the shared sources and
-  `docs/claude-plugin-readme.md`. Keep it free of hooks, scripts, package
-  configuration, and telemetry. See `docs/claude-directory.md`.
+- Claude Directory: generate `clients/claude/` from the shared sources. Keep
+  the bundle free of hooks, scripts, package configuration, and telemetry. See
+  `docs/claude-directory.md` for the listing paths.
 
 - Routing rules: edit `plugin/hooks/routing-guidance.mjs`, never the rules text in
   the Cursor rule, arcade-operator, or try-arcade.

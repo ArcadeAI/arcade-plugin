@@ -6,13 +6,12 @@
     "generate": "node scripts/generate-manifests.mjs",
     "package:chatgpt": "node scripts/package-chatgpt.mjs",
     "test": "node --test test/*.test.mjs",
-    "verify:claude": "claude plugin validate ../.claude-plugin/marketplace.json --strict && node scripts/claude-directory-policy.mjs && claude plugin validate ../clients/claude --strict && claude plugin validate ../clients/claude/.claude-plugin/plugin.json --strict && node scripts/verify-claude-install.mjs",
+    "verify:claude": "claude plugin validate ../.claude-plugin/marketplace.json --strict && claude plugin validate ../plugin --strict && node scripts/claude-directory-policy.mjs && claude plugin validate ../clients/claude --strict && claude plugin validate ../clients/claude/.claude-plugin/plugin.json --strict && node scripts/verify-claude-install.mjs",
     "verify:cursor": "node scripts/verify-cursor.mjs",
     "verify:codex": "node scripts/verify-codex.mjs",
     "verify:copilot": "node scripts/verify-copilot.mjs",
     "verify": "npm run typecheck && npm test && npm run verify:claude && npm run verify:cursor && npm run verify:codex && npm run verify:copilot",
-    "typecheck": "tsc -p tsconfig.json",
-    "eval:routing": "node scripts/eval-routing.mjs"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.304",

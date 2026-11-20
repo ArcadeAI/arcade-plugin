@@ -2,7 +2,7 @@
 // Writes every client-specific file from the sources listed in
 // ARCHITECTURE.md. `--check` fails instead of writing if anything is stale.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -223,10 +223,10 @@ export const FILE_SOURCES = {
   // paths under plugin/hooks so ${CURSOR_PLUGIN_ROOT} is the repository root.
   ".cursor-plugin/hooks.json": [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the mcpServers transport type.
+  [inPlugin(".claude-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the marketplace description and support email. There is no version field.
   ".claude-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
-  ".agents/plugins/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
   // Cursor's multi-plugin manifest. The plugin directory is "plugin".
   ".cursor-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
   // The script writes the frontmatter and the header comment.
@@ -237,7 +237,7 @@ export const FILE_SOURCES = {
   // the version, entry type, nesting, and command template. With telemetry
   // enabled, the adapter that hook-hosts.mjs names supplies telemetry entries.
   ...Object.fromEntries(
-    Object.values(HOSTS).filter((h) => h.manifest).map((h) => [inPlugin(h.manifest), [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"]]),
+    Object.values(HOSTS).map((h) => [inPlugin(h.manifest), [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"]]),
   ),
   ...Object.fromEntries(Object.entries(COPIED_FILES).map(([copy, source]) => [copy,
     FILES_WITH_GENERATED_RULES[source] ? [source, ROUTING_SOURCE] : [source]])),
@@ -381,6 +381,21 @@ const buildFiles = (root) => {
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
   const owner = { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL };
+  const claudeManifest = {
+    ...identity,
+    displayName,
+    privacyPolicyUrl,
+    userConfig: {
+      gateway_url: {
+        type: "string",
+        title: "Arcade gateway URL",
+        description: "The HTTPS MCP endpoint for your Arcade gateway.",
+        default: url,
+      },
+    },
+  };
+  // Claude uses "http" for the "streamable-http" transport in mcp.json.
+  const claudeMcpServers = { arcade: { type: "http", url: "${user_config.gateway_url}" } };
 
   // Cursor's manifest schema allows only `name` and `email` in `author`.
   // Keywords, description, and version come from the same identity as the
@@ -402,19 +417,6 @@ const buildFiles = (root) => {
   });
 
   const files = new Map([
-    [
-      ".agents/plugins/marketplace.json",
-      serialize({
-        name,
-        interface: { displayName },
-        plugins: [{
-          name,
-          source: { source: "local", path: `./${PLUGIN_DIR}` },
-          policy: { installation: "AVAILABLE", authentication: "ON_INSTALL" },
-          category: plugin.extensions["com.openai"].interface.category,
-        }],
-      }),
-    ],
     [
       inPlugin(".cursor-plugin/plugin.json"),
       serialize(cursorPluginManifest({
@@ -445,23 +447,14 @@ const buildFiles = (root) => {
       serialize(buildHookManifest("cursor", HOOKS, { hooksDir: `${PLUGIN_DIR}/hooks` })),
     ],
     [
-      `${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`,
+      inPlugin(".claude-plugin/plugin.json"),
       serialize({
-        ...identity,
-        displayName,
-        privacyPolicyUrl,
-        userConfig: {
-          gateway_url: {
-            type: "string",
-            title: "Arcade gateway URL",
-            description: "The HTTPS MCP endpoint for your Arcade gateway.",
-            default: url,
-          },
-        },
-        // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
-        mcpServers: { arcade: { type: "http", url: "${user_config.gateway_url}" } },
+        ...claudeManifest,
+        hooks: `./${HOSTS["claude-code"].manifest}`,
+        mcpServers: claudeMcpServers,
       }),
     ],
+    [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, serialize({ ...claudeManifest, mcpServers: claudeMcpServers })],
     [
       ".claude-plugin/marketplace.json",
       serialize({
@@ -472,7 +465,7 @@ const buildFiles = (root) => {
         owner,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
-          { name, displayName, source: `./${CLAUDE_PLUGIN_DIR}`, description, author, homepage, repository, license, keywords },
+          { name, displayName, source: `./${PLUGIN_DIR}`, description, author, homepage, repository, license, keywords },
         ],
       }),
     ],
@@ -501,7 +494,6 @@ const buildFiles = (root) => {
   ]);
 
   for (const [hostName, host] of Object.entries(HOSTS)) {
-    if (!host.manifest) continue;
     files.set(inPlugin(host.manifest), serialize(buildHookManifest(hostName)));
   }
 
@@ -543,15 +535,13 @@ const buildFiles = (root) => {
 
 export const generateManifests = ({ check = false, root = ROOT } = {}) => {
   const files = buildFiles(root);
-  // A path in the committed .gitattributes that is no longer generated is a
-  // leftover from a removed source and should be deleted.
-  const committed = existsSync(join(root, ".gitattributes"))
+  // An output can outlive its source. Check before rewriting the file list.
+  const listed = existsSync(join(root, ".gitattributes"))
     ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
     : [];
-  for (const path of committed) {
-    if (!files.has(path)) {
-      if (check) throw new Error(`${path} is no longer generated — delete it`);
-      rmSync(join(root, path), { force: true });
+  for (const path of listed) {
+    if (!files.has(path) && (check || existsSync(join(root, path)))) {
+      throw new Error(`${path} is no longer generated. Delete it and run npm run generate.`);
     }
   }
   for (const [path, content] of files) {

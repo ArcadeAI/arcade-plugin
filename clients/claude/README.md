@@ -11,7 +11,8 @@ The endpoint must expose `Arcade_SelectTools` and `Arcade_UseTool`.
 A custom gateway's connection or authentication failure does not switch it
 back to the default URL.
 
-Install Arcade from the Claude plugin directory, or run this in Claude Code:
+Install Arcade from Claude Directory. For the direct Claude Code build with
+routing hooks, install from the GitHub marketplace.
 
 ```text
 /plugin install arcade --marketplace ArcadeAI/arcade-plugin

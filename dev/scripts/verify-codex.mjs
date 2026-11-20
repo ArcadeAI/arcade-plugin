@@ -13,9 +13,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const pluginRoot = join(root, "plugin");
-const plugin = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8"));
-const pluginName = plugin.name;
-const marketplaceName = JSON.parse(readFileSync(join(root, ".agents/plugins/marketplace.json"), "utf8")).name;
+const pluginName = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8")).name;
+const marketplaceName = JSON.parse(readFileSync(join(root, ".claude-plugin/marketplace.json"), "utf8")).name;
 const servers = JSON.parse(readFileSync(join(pluginRoot, "mcp.json"), "utf8")).mcpServers;
 const skills = readdirSync(join(pluginRoot, "skills")).filter((name) => existsSync(join(pluginRoot, "skills", name, "SKILL.md")));
 
@@ -48,12 +47,7 @@ function codex(...args) {
 const problems = [];
 try {
   codex("plugin", "marketplace", "add", root);
-  const added = JSON.parse(codex("plugin", "add", `${pluginName}@${marketplaceName}`, "--json"));
-  const installed = JSON.parse(readFileSync(join(added.installedPath, "plugin.json"), "utf8"));
-  if (JSON.stringify(installed.extensions) !== JSON.stringify(plugin.extensions)) problems.push("installed plugin is missing its OpenAI listing metadata");
-  for (const key of ["logo", "composerIcon"]) {
-    if (!existsSync(join(added.installedPath, plugin.extensions["com.openai"].interface[key]))) problems.push(`installed plugin is missing its ${key}`);
-  }
+  codex("plugin", "add", `${pluginName}@${marketplaceName}`);
 
   function installedPluginDirs(dir, found = []) {
     let entries = [];

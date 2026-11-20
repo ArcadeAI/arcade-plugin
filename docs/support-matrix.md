@@ -10,8 +10,8 @@ browser. The rows differ in how much of this plugin the client can load.
 |---|:--:|:--:|:--:|:--:|:--:|:--:|---|
 | **Cursor IDE / Cloud Agents** | ✅ | ✅ | ✅ | ✅¹ | ✅ | —² | [guide](install/cursor.md) |
 | **Cursor CLI** | ✅ | ✅ | ✅ | ✅ | — | ✅³ | [guide](install/cursor.md) |
-| **Claude Code (CLI and desktop Code tab)** | ✅ | ✅ | ✅ | ✅ | — | — | [guide](install/claude-code.md) |
-| **Claude Cowork** | ✅ | ✅ | ✅ | ✅ | — | —⁴ | [guide](install/claude-code.md) |
+| **Claude Code (CLI and desktop Code tab)** | ✅ | ✅ | ✅ | ✅ | — | ✅ | [guide](install/claude-code.md) |
+| **Claude Cowork** | ✅ | ✅ | ✅ | ✅ | — | partial⁴ | [guide](install/claude-code.md) |
 | **GitHub Copilot CLI** | ✅ | ✅ | ✅ | — | — | ✅⁵ | [guide](install/copilot.md) |
 | **VS Code (Copilot sessions)** | ✅ | ✅ | ✅ | — | — | ✅⁶ | [guide](install/vscode.md) |
 | **Codex / ChatGPT local runtime** | ✅ | ✅ | — | — | — | —⁷ | [guide](install/codex.md) |
@@ -24,13 +24,13 @@ Hooks add the routing rules at session start, to each prompt, and to
 subagents. In the Hooks column, ✅ means the session-start hook runs, so the
 full rules reach the main conversation. Partial means some hooks run but the
 session-start text doesn't reach the main conversation. The files are
+`.claude-plugin/hooks.json` (Claude Code),
 `clients/cursor/hooks/hooks.json` (Cursor CLI), and
 `com.github.copilot/hooks/hooks.json` (Copilot CLI and VS Code Copilot sessions).
 
 Telemetry adapters are separate from routing. **`TELEMETRY_ENABLED` is false**
 in this build, so manifests include no telemetry hooks and nothing is sent.
-Adapters are retained for development and are excluded from the Claude
-package. Development wiring comes from `plugin/hooks/hook-hosts.mjs`:
+When enabled, wiring comes from `plugin/hooks/hook-hosts.mjs`:
 
 | Client adapter | Telemetry events (when enabled) |
 | --- | --- |
@@ -47,8 +47,9 @@ always-apply rule carries the full session rules. Cloud Agents run repo, team,
 and enterprise hooks only; they get the rule and the skill.
 ³ Session hook only. The CLI runs the session hook (full rules) but doesn't
 load the always-apply rule.
-⁴ Claude Code and Cowork use routing instructions in `try-arcade`. Their
-package contains no hooks, scripts, or client telemetry.
+⁴ Cowork runs the prompt and subagent hooks but doesn't add the session-start
+text, so its main conversation gets the short reminder and the skill, not the
+full rules.
 ⁵ Copilot CLI drops the output of **routing** prompt hooks from config files,
 so the main conversation gets session and subagent hooks only. Telemetry still
 hooks `UserPromptSubmit` when enabled; `reminder_sent` is always `false` there.
@@ -76,21 +77,20 @@ thin out.
 
 Files a client needs at its own path are generated from shared sources (see
 [ARCHITECTURE.md](../ARCHITECTURE.md)). In this repository those files live
-under `plugin/`. Claude uses generated copies in `clients/claude/`.
-Paths in the table are relative to `plugin/`, except for Claude, marketplace,
-and local-clone paths.
+under `plugin/`. The marketplace files stay at the repository root and point
+at that directory. Paths in the table are relative to the plugin directory,
+except the marketplace and local-clone rows.
 
 | Piece | File | Read by |
 |---|---|---|
-| Skills | `skills/` (Claude: `clients/claude/skills/`) | every client with skills |
+| Skills | `skills/` | every client with skills |
 | MCP server | `mcp.json` | VS Code, Copilot CLI, Codex |
-| MCP server | inline in `.cursor-plugin/plugin.json` / `clients/claude/.claude-plugin/plugin.json` | Cursor / Claude Code |
-| Operator | `agents/arcade-operator.agent.md` (Claude: `clients/claude/agents/arcade-operator.agent.md`) | Cursor, Claude Code, Cowork |
+| MCP server | inline in `.cursor-plugin/plugin.json` / `.claude-plugin/plugin.json` | Cursor / Claude Code |
+| Operator | `agents/arcade-operator.agent.md` | Cursor, Claude Code, Cowork |
 | Operator (generated copy) | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code |
-| Commands | `commands/arcade-*.md` (Claude: `clients/claude/commands/`) | Cursor, Claude Code, Cowork |
+| Commands | `commands/arcade-*.md` | Cursor, Claude Code, Cowork |
 | Rule | `clients/cursor/rules/arcade.mdc` | Cursor IDE / Cloud Agents |
-| Marketplace | `.claude-plugin/marketplace.json` (source `./clients/claude`) | Claude Desktop, Cowork, Claude Code |
-| Marketplace | `.agents/plugins/marketplace.json` (source `./plugin`) | Codex |
+| Marketplace | `.claude-plugin/marketplace.json` (source `./plugin`) | Claude Desktop, Cowork, Claude Code, Codex, Copilot CLI, VS Code Install Plugin From Source |
 | Marketplace | `.cursor-plugin/marketplace.json` (source `plugin`) | Cursor team marketplace import |
 | Local clone | `.cursor-plugin/plugin.json` and `.cursor-plugin/hooks.json` at the repo root, pointing into `plugin/` | Cursor local loader |
 | Codex listing | `plugin.json` → `extensions.com.openai.interface` | Codex |
