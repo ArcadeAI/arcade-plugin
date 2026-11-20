@@ -527,14 +527,13 @@ const buildFiles = (root) => {
 
 export const generateManifests = ({ check = false, root = ROOT } = {}) => {
   const files = buildFiles(root);
-  if (check) {
-    // A path in the committed .gitattributes that is no longer generated is a
-    // leftover from a removed source and should be deleted.
-    const committed = existsSync(join(root, ".gitattributes"))
-      ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
-      : [];
-    for (const path of committed) {
-      if (!files.has(path)) throw new Error(`${path} is no longer generated — delete it`);
+  // An output can outlive its source. Check before rewriting the file list.
+  const listed = existsSync(join(root, ".gitattributes"))
+    ? readText(root, ".gitattributes").match(/^\S+(?= linguist-generated)/gm) ?? []
+    : [];
+  for (const path of listed) {
+    if (!files.has(path) && (check || existsSync(join(root, path)))) {
+      throw new Error(`${path} is no longer generated. Delete it and run npm run generate.`);
     }
   }
   for (const [path, content] of files) {

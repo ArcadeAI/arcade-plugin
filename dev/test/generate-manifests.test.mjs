@@ -94,17 +94,23 @@ test("check mode fails with a source-naming error when a generated file is hand-
       );
     }
 
-    // Stale .gitattributes entry: a path that was once generated but no longer
-    // is, left in the committed .gitattributes. Different error path from above.
     generateManifests({ root });
-    writeFileSync(
-      join(root, ".gitattributes"),
-      `${readFileSync(join(root, ".gitattributes"), "utf8")}old/file.json linguist-generated=true\n`,
-    );
-    assert.throws(
-      () => generateManifests({ check: true, root }),
-      /old\/file\.json is no longer generated/,
-    );
+    const stalePath = "clients/claude/commands/old.md";
+    const attributesPath = join(root, ".gitattributes");
+    const cleanAttributes = readFileSync(attributesPath, "utf8");
+    const staleAttributes = `${cleanAttributes}${stalePath} linguist-generated=true\n`;
+    writeFileSync(join(root, stalePath), "Old command");
+    writeFileSync(attributesPath, staleAttributes);
+    for (const check of [true, false]) {
+      assert.throws(() => generateManifests({ check, root }), {
+        message: `${stalePath} is no longer generated. Delete it and run npm run generate.`,
+      });
+      assert.equal(readFileSync(attributesPath, "utf8"), staleAttributes);
+    }
+    rmSync(join(root, stalePath));
+    generateManifests({ root });
+    assert.equal(readFileSync(attributesPath, "utf8"), cleanAttributes);
+    generateManifests({ check: true, root });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
