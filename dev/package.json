@@ -11,7 +11,8 @@
     "verify:codex": "node scripts/verify-codex.mjs",
     "verify:copilot": "node scripts/verify-copilot.mjs",
     "verify": "npm run typecheck && npm test && npm run verify:claude && npm run verify:cursor && npm run verify:codex && npm run verify:copilot",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "eval:routing": "node scripts/eval-routing.mjs"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "2.1.304",
