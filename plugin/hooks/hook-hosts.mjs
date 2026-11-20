@@ -16,8 +16,7 @@ export const HOOK_TIMEOUT_SEC = 5;
  */
 export const HOSTS = {
   "claude-code": {
-    // The Claude directory accepts hooks only from verified organizations.
-    manifest: null,
+    manifest: ".claude-plugin/hooks.json",
     format: "nested",
     rootVariable: "CLAUDE_PLUGIN_ROOT",
     telemetry: "claude-code",

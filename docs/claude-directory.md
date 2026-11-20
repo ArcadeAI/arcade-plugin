@@ -1,9 +1,10 @@
 # Submit to the Claude directory
 
-Use repository `ArcadeAI/arcade-plugin` and plugin path **`clients/claude`**
-in the directory portal. Submit that folder, which contains its own
-`.claude-plugin/plugin.json`. The repository root holds marketplaces and development tools. `plugin/`
-serves the other clients; it is not the Claude submission.
+`clients/claude/` is the generated Claude Directory bundle. For the existing
+listing, copy the bundle's contents to the root of `arcadeai-labs/omnimcp`.
+For a new listing from `ArcadeAI/arcade-plugin`, select `clients/claude` as
+the plugin path. The directory locks the repository and folder after submission.
+The GitHub marketplace installs `plugin/` with routing hooks.
 
 The Claude package contains the remote Arcade MCP connection, both skills,
 the operator, Markdown commands, a README, and a license. It contains no
@@ -13,17 +14,15 @@ telemetry. Routing instructions live in the skills and operator.
 ## Check and resubmit
 
 1. From `dev/`, run `npm run generate` and `npm run verify`.
-2. Commit and push the changes to the branch the directory follows.
-3. In the existing submission, set the plugin path to `clients/claude` and
-   select **Re-validate**. The previous report describes the previous commit.
-4. Check that the report names the new commit and has no blocking findings,
-   then submit for review.
+2. Put the generated bundle at the listing's source on the release branch or tag.
+3. In the directory portal, check for the new commit. Confirm that the report
+   names the release commit and has no blocking findings before requesting review.
 
 `verify:claude` checks the unverified-organization file restrictions, runs
 `claude plugin validate` on the folder, its manifest, and the marketplace,
-then installs through the marketplace into a temporary Claude config. It
-checks the installed files for the same restrictions and verifies the MCP
-configuration, skills, operator, and command files.
+then installs both bundles in temporary Claude configs. It verifies that the
+direct install has routing hooks, the directory install meets the file restrictions,
+and both include the MCP configuration, skills, operator, and commands.
 
 Tests reject forbidden file types, shebangs, invalid UTF-8, NUL bytes,
 package-source settings, nested plugins, local Claude skills, undeclared

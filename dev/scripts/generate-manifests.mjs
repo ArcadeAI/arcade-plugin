@@ -223,6 +223,7 @@ export const FILE_SOURCES = {
   // paths under plugin/hooks so ${CURSOR_PLUGIN_ROOT} is the repository root.
   ".cursor-plugin/hooks.json": [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the mcpServers transport type.
+  [inPlugin(".claude-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the marketplace description and support email. There is no version field.
   ".claude-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
@@ -381,6 +382,13 @@ const buildFiles = (root) => {
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
   const owner = { ...author, email: ACCEPTED_LISTING_OWNER_EMAIL };
+  const claudeManifest = {
+    ...identity,
+    displayName,
+    privacyPolicyUrl,
+    // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
+    mcpServers: { arcade: { type: "http", url } },
+  };
 
   // Cursor's manifest schema allows only `name` and `email` in `author`.
   // Keywords, description, and version come from the same identity as the
@@ -445,26 +453,23 @@ const buildFiles = (root) => {
       serialize(buildHookManifest("cursor", HOOKS, { hooksDir: `${PLUGIN_DIR}/hooks` })),
     ],
     [
-      `${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`,
+      inPlugin(".claude-plugin/plugin.json"),
       serialize({
-        ...identity,
-        displayName,
-        privacyPolicyUrl,
-        // Claude Code needs "http"; the Agent Plugins mcp.json says "streamable-http".
-        mcpServers: { arcade: { type: "http", url } },
+        ...claudeManifest,
+        hooks: `./${HOSTS["claude-code"].manifest}`,
       }),
     ],
+    [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, serialize(claudeManifest)],
     [
       ".claude-plugin/marketplace.json",
       serialize({
         $schema: "https://json.schemastore.org/claude-code-marketplace.json",
         name,
-        // Marketplace listing text. Codex also installs from this marketplace.
         description: "Install Arcade in Claude Desktop, Cowork, Claude Code, and Codex.",
         owner,
         // No version here: Claude Code takes it from .claude-plugin/plugin.json.
         plugins: [
-          { name, displayName, source: `./${CLAUDE_PLUGIN_DIR}`, description, author, homepage, repository, license, keywords },
+          { name, displayName, source: `./${PLUGIN_DIR}`, description, author, homepage, repository, license, keywords },
         ],
       }),
     ],

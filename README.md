@@ -148,10 +148,10 @@ hooks in client manifests. [docs/telemetry.md](docs/telemetry.md) describes
 the event contract, what would be stored locally when enabled, the opt-out, and
 the separate approval required before collection can be enabled. The Arcade MCP
 gateway remains the canonical source for request and tool-call telemetry.
-Claude installs use `clients/claude/`, which contains no hooks, scripts, or
-telemetry code. [Claude directory submission](docs/claude-directory.md) covers
-the folder to submit and its checks. Adapter behavior is covered by in-process tests;
-see [docs/telemetry.md](docs/telemetry.md) for what CI does and does not exercise.
+Direct Claude installs from this GitHub marketplace include routing hooks.
+The Claude Directory bundle in `clients/claude/` contains no hooks, scripts,
+or telemetry code. See [Claude directory submission](docs/claude-directory.md)
+for the release source and [telemetry](docs/telemetry.md) for CI coverage.
 
 ## Develop
 
@@ -177,8 +177,9 @@ downloads it.
 - the tests: hand-written file checks, a stale-generated-file check,
   every hook command in every client's manifest, and the Claude plugin
   directory's documented rules (`dev/test/directory-policy.test.mjs`)
-- `claude plugin validate`, then a real Claude Code install into a temporary
-  config that fails if Claude Code ran a package install
+- `claude plugin validate` and real Claude Code installs of both bundles in
+  temporary configurations. The check verifies the direct install's hooks,
+  the directory install's file restrictions, and the absence of package installs
   (`dev/scripts/verify-claude-install.mjs`)
 - Cursor's plugin validator (`dev/scripts/verify-cursor.mjs` checks the
   downloaded copy's hash, then runs it)

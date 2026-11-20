@@ -14,17 +14,13 @@ Then in Claude Code run **`/reload-plugins`**.
 Verify with `claude plugin list` or **`/plugin`**, then **`/reload-plugins`**
 if the session was already open.
 
-The marketplace installs `clients/claude/`. Its `.claude-plugin/plugin.json`
-declares the gateway. Skills, `arcade-operator`, and commands load from the
-folder's default `skills/`, `agents/`, and `commands/` paths.
+The GitHub marketplace installs `plugin/` with the gateway, skills, operator,
+commands, and routing hooks for session start, prompt submit, and subagent start.
 
-Claude installs contain no hooks, executable scripts, or telemetry. The
-`try-arcade` skill supplies routing and authorization instructions. Invoke
-`/try-arcade` when Claude does not select it automatically.
+Claude Directory installs use a separate bundle without hooks. Invoke
+`/try-arcade` when Claude does not select the skill automatically.
 
-The same folder works in Claude Cowork and Claude Code desktop. In Claude
-Desktop Chat, add this GitHub repository as a marketplace — see
-[claude-desktop.md](claude-desktop.md).
+For the desktop marketplace install, see [Claude Desktop](claude-desktop.md).
 
 ## Multiple Arcade MCP servers
 

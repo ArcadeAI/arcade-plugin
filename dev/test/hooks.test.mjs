@@ -169,7 +169,7 @@ test("hooks exit 0 and print nothing without a known --host", () => {
 // client. Each entry names its source.
 const EXPECTED_EVENTS = {
   // code.claude.com/docs/en/hooks: SessionStart, UserPromptSubmit, SubagentStart all support additionalContext
-  "claude-code": [],
+  "claude-code": ["SessionStart", "UserPromptSubmit", "SubagentStart"],
   // cursor.com/docs/hooks.md: sessionStart adds additional_context; beforeSubmitPrompt and subagentStart can't add context.
   // The CLI doesn't load the plugin's always-apply rule, so the session hook is the only way it gets the full rules.
   cursor: ["sessionStart"],

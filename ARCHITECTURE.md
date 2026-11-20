@@ -12,11 +12,11 @@ edited by hand. Both run from `dev/`, which holds the dev tooling so that
 installing the plugin doesn't install its packages. The package ships no
 credentials.
 
-Claude installs use the generated `clients/claude/` folder. Its marketplace
-points there. The folder contains Markdown components, a README, a license,
-and a JSON manifest with inline MCP configuration. No hooks, scripts, or
-telemetry are copied. Submit this folder to the Claude directory; see
-[submission checks](docs/claude-directory.md).
+The GitHub marketplace installs `plugin/` with the Claude routing hooks.
+The generated Claude Directory bundle in `clients/claude/` contains Markdown
+components, a README, a license, and a manifest with inline MCP configuration.
+It contains no hooks, scripts, or telemetry. Both Claude manifests use the
+same identity, version, and gateway. See the [submission checks](docs/claude-directory.md).
 
 Codex uses `.agents/plugins/marketplace.json` to install `plugin/`, retaining
 its listing metadata and icons. Copilot installs `plugin/` directly to
@@ -34,8 +34,8 @@ include its hooks and operator.
 `dev/scripts/generate-manifests.mjs` writes every generated file; the generated
 `.gitattributes` lists them (GitHub collapses them in diffs).
 
-- The operator source is `plugin/agents/arcade-operator.agent.md`. Claude
-  loads its copy in `clients/claude/agents/`. Copilot CLI and VS Code read
+- The operator source is `plugin/agents/arcade-operator.agent.md`. The Claude
+  Directory bundle includes a copy in `clients/claude/agents/`. Copilot CLI and VS Code read
   the copy in `plugin/com.github.copilot/agents/`.
 - Each hook command passes `--host <name>`; the script prints the output
   format that client reads.
