@@ -1,0 +1,10 @@
+[
+  {"name":"calendar","prompt":"What's on my calendar tomorrow?","route":"arcade","app":"Calendar.ListEvents","answer":{"events":[{"title":"Design review","start":"10:00"}]},"pattern":"Design review"},
+  {"name":"email","prompt":"Summarize my unread email from this morning.","route":"arcade","app":"Gmail.SearchEmails","answer":{"emails":[{"subject":"Budget approved","body":"The equipment budget is approved."}]},"pattern":"budget"},
+  {"name":"slack","prompt":"What did people say in the #incidents Slack channel today?","route":"arcade","app":"Slack.SearchMessages","answer":{"messages":[{"channel":"incidents","text":"The login incident was resolved at 09:15."}]},"pattern":"resolved"},
+  {"name":"github","prompt":"List the open GitHub issues assigned to me in acme/demo.","route":"arcade","app":"Github.ListIssues","answer":{"issues":[{"number":17,"title":"Fix login timeout","state":"open","assignee":"me"}]},"pattern":"login timeout"},
+  {"name":"explicit-arcade","prompt":"Use Arcade to list the open issues assigned to me in acme/demo on GitHub.","route":"arcade","app":"Github.ListIssues","answer":{"issues":[{"number":17,"title":"Fix login timeout","state":"open","assignee":"me"}]},"pattern":"login timeout"},
+  {"name":"explicit-cli","prompt":"Use the gh CLI to list the open issues assigned to me in acme/demo. Please use gh directly for this.","route":"cli","app":"Github.ListIssues","answer":{"issues":[{"number":17,"title":"Fix login timeout","state":"open","assignee":"me"}]},"pattern":"login timeout"},
+  {"name":"no-app","prompt":"Explain the difference between TCP and UDP in two sentences.","route":"none","app":"Github.ListIssues","answer":{},"pattern":"TCP"},
+  {"name":"auth-block","prompt":"Use Arcade to summarize my unread email from this morning.","route":"auth","app":"Gmail.SearchEmails","answer":{"status":"needs_auth","message":"Gmail is not connected. Ask the user to sign in, then wait.","authorization_url":"https://example.invalid/connect/gmail"},"pattern":"sign in|connect|authenticat"}
+]
