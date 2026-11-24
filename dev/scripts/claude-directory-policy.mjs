@@ -72,7 +72,7 @@ export function validateClaudeDirectory(root) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const root = resolve(process.argv[2] ?? "../clients/claude");
+  const root = resolve(process.argv[2] ?? "../plugin");
   const problems = validateClaudeDirectory(root);
   if (problems.length) {
     console.error(problems.join("\n"));

@@ -4,7 +4,7 @@
     "sessionStart": [
       {
         "type": "command",
-        "command": "node \"${CURSOR_PLUGIN_ROOT}/plugin/hooks/session-start.mjs\" --host cursor",
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/clients/direct/hooks/session-start.mjs\" --host cursor",
         "timeout": 5
       }
     ]

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
-import { HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
-import { shouldRemind } from "../../plugin/hooks/prompt-filters.mjs";
+import { HOSTS } from "../../clients/direct/hooks/hook-hosts.mjs";
+import { shouldRemind } from "../../clients/direct/hooks/prompt-filters.mjs";
 import {
   CURSOR_RULE,
   OPERATOR_RULES,
@@ -10,7 +10,7 @@ import {
   SESSION_CONTEXT,
   SKILL_RULES,
   SUBAGENT_CONTEXT,
-} from "../../plugin/hooks/routing-guidance.mjs";
+} from "../../clients/direct/hooks/routing-guidance.mjs";
 import {
   PLUGIN_ROOT,
   pluginPath,
@@ -229,10 +229,10 @@ const BANS_OTHER_TOOLS = /gh or curl|don't move any part|explicitly chooses|MCP 
 
 test("every routing text keeps the core routing rules", () => {
   const shippedRules = {
-    "plugin/clients/cursor/rules/arcade.mdc": CORE_RULES.CURSOR_RULE[1],
-    "plugin/skills/try-arcade/SKILL.md": CORE_RULES.SKILL_RULES[1],
-    "plugin/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
-    "plugin/com.github.copilot/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+    "clients/direct/clients/cursor/rules/arcade.mdc": CORE_RULES.CURSOR_RULE[1],
+    "clients/direct/skills/try-arcade/SKILL.md": CORE_RULES.SKILL_RULES[1],
+    "clients/direct/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
+    "clients/direct/com.github.copilot/agents/arcade-operator.agent.md": CORE_RULES.OPERATOR_RULES[1],
   };
   const texts = {
     ...CORE_RULES,

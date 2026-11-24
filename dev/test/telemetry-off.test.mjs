@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { HOOKS, HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
-import claudeCodeAdapter from "../../plugin/hooks/telemetry-adapters/claude-code.mjs";
-import copilotAdapter from "../../plugin/hooks/telemetry-adapters/copilot-cli.mjs";
-import { OPT_OUT_ENV, TELEMETRY_ENABLED } from "../../plugin/hooks/telemetry-config.mjs";
-import { readOptOutEnv } from "../../plugin/hooks/telemetry-run.mjs";
+import { HOOKS, HOSTS } from "../../clients/direct/hooks/hook-hosts.mjs";
+import claudeCodeAdapter from "../../clients/direct/hooks/telemetry-adapters/claude-code.mjs";
+import copilotAdapter from "../../clients/direct/hooks/telemetry-adapters/copilot-cli.mjs";
+import { OPT_OUT_ENV, TELEMETRY_ENABLED } from "../../clients/direct/hooks/telemetry-config.mjs";
+import { readOptOutEnv } from "../../clients/direct/hooks/telemetry-run.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import { pluginPath, readRepoFile } from "./helpers.mjs";
 
@@ -20,7 +20,7 @@ test("telemetry is off in this build", () => {
 // parent environment. docs/telemetry.md lists what turning telemetry on has to
 // add. Change this test only with that approval.
 test("this build ships no telemetry key, sender, or copy of the environment", () => {
-  const hook = (file) => readRepoFile(`plugin/hooks/${file}`);
+  const hook = (file) => readRepoFile(`clients/direct/hooks/${file}`);
   assert.doesNotMatch(hook("telemetry-config.mjs"), /process\.env|phc_/);
   assert.doesNotMatch(hook("telemetry-send.mjs"), /process\.env|\bfetch\b|\bimport\b/);
   assert.doesNotMatch(hook("telemetry-run.mjs"), /\.\.\.(?:process\.)?env\b|child_process|\bspawn\(/);

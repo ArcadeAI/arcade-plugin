@@ -22,8 +22,8 @@ if the session was already open.
 
 `claude plugin marketplace add ArcadeAI/arcade-plugin` reads
 `.claude-plugin/marketplace.json` at the repository root. The Arcade entry's
-source is `./plugin`, which Claude Code resolves from that root and installs.
-In this repository the plugin directory is `plugin/`. Claude Code reads
+source is `./clients/direct`, which Claude Code resolves from that root and installs.
+In this repository the plugin directory is `clients/direct/`. Claude Code reads
 `.claude-plugin/plugin.json` there for the gateway and
 `.claude-plugin/hooks.json`. Skills, `arcade-operator`, and commands load from
 the default `skills/`, `agents/`, and `commands/` folders. The manifest has no
@@ -45,7 +45,7 @@ plugin.
 
 Telemetry is **off** in this build (`TELEMETRY_ENABLED` is `false`): no usage
 events are sent and generated manifests include no telemetry hooks. When
-telemetry is enabled, the adapter in `plugin/hooks/telemetry-adapters/claude-code.mjs`
+telemetry is enabled, the adapter in `clients/direct/hooks/telemetry-adapters/claude-code.mjs`
 classifies prompts, records `PreToolUse` on the plugin and claude.ai Arcade
 prefixes, and stores scope under `CLAUDE_PLUGIN_DATA`. Opt out with
 `ARCADE_PLUGIN_TELEMETRY=0`. See

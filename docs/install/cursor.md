@@ -5,9 +5,9 @@
 Arcade isn't in Cursor's public marketplace yet, so the install depends on your
 Cursor plan.
 
-The plugin directory in this repository is `plugin/`. Cursor's marketplace
+The plugin directory in this repository is `clients/direct/`. Cursor's marketplace
 manifest (`.cursor-plugin/marketplace.json` at the repository root) points at
-that directory. The logo file is `plugin/assets/logo.png`.
+that directory. The logo file is `clients/direct/assets/logo.png`.
 
 ### Individual plans
 
@@ -17,8 +17,8 @@ looks for `.cursor-plugin/plugin.json`, then `.claude-plugin/plugin.json`, then
 ([Test plugins locally](https://cursor.com/docs/plugins)).
 
 Clone this repository into that folder. The root `.cursor-plugin/plugin.json`
-points skills, agents, commands, rules, and the logo into `plugin/`.
-`.cursor-plugin/hooks.json` runs the session hook from `plugin/hooks/`.
+points skills, agents, commands, rules, and the logo into `clients/direct/`.
+`.cursor-plugin/hooks.json` runs the session hook from `clients/direct/hooks/`.
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
@@ -29,9 +29,9 @@ Reload Cursor (**Developer: Reload Window**), then open **Customize** and
 confirm 2 skills, the `arcade-operator` agent, the `arcade` rule, and the
 `arcade` MCP server. To update later, run `git pull` in that clone and reload.
 
-Copying only `plugin/` into `~/.cursor/plugins/local/arcade` also works. That
-copy loads `plugin/.cursor-plugin/plugin.json`. Team **Import from Repo** reads
-`.cursor-plugin/marketplace.json`, whose source is `plugin`.
+Copying only `clients/direct/` into `~/.cursor/plugins/local/arcade` also works. That
+copy loads `clients/direct/.cursor-plugin/plugin.json`. Team **Import from Repo** reads
+`.cursor-plugin/marketplace.json`, whose source is `clients/direct`.
 
 Do not symlink to a folder outside `~/.cursor/plugins/local/` — Cursor ignores
 external symlink targets.
@@ -48,7 +48,7 @@ Imports** (off by default on Enterprise). When it's off, Cursor ignores
 2. Each person opens **Customize**, finds **Arcade**, and selects **Install**.
 
 **Import from Repo** reads `.cursor-plugin/marketplace.json` at the repository
-root. Its source is `plugin`, so Cursor loads `plugin/.cursor-plugin/plugin.json`
+root. Its source is `clients/direct`, so Cursor loads `clients/direct/.cursor-plugin/plugin.json`
 ([how resolution works](https://cursor.com/docs/reference/plugins)). That
 installs `skills/`, the operator, and the gateway, the same components as the
 local copy above, including the pieces beyond the portable Agent Plugins core.

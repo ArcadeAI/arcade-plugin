@@ -41,7 +41,7 @@ if (hash !== VALIDATOR_SHA256) {
 }
 
 // The validator reads .cursor-plugin/marketplace.json and the plugin directory
-// it names. This repo's marketplace source is "plugin". It does not read the
+// it names. This repo's marketplace source is "clients/direct". It does not read the
 // repo-root .cursor-plugin/plugin.json, which is only for Cursor's local loader.
 let status = 1;
 const work = mkdtempSync(join(tmpdir(), "arcade-cursor-validate-"));

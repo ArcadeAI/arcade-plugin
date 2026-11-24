@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const pluginRoot = join(root, "plugin");
+const pluginRoot = join(root, "clients/direct");
 const pluginName = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8")).name;
 const marketplaceName = JSON.parse(readFileSync(join(root, ".claude-plugin/marketplace.json"), "utf8")).name;
 const servers = JSON.parse(readFileSync(join(pluginRoot, "mcp.json"), "utf8")).mcpServers;
@@ -66,7 +66,7 @@ try {
   if (installedDirs.length === 0) problems.push("installed plugin directory with skills/try-arcade was not found");
   for (const dir of installedDirs) {
     if (existsSync(join(dir, "AGENTS.md")) || existsSync(join(dir, "dev"))) {
-      problems.push(`${dir} is the repository root; source ./plugin should install the plugin directory`);
+      problems.push(`${dir} is the repository root; source ./clients/direct should install the plugin directory`);
     }
   }
 

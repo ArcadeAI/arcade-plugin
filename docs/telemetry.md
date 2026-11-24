@@ -2,9 +2,9 @@
 
 **Telemetry is off in this build.** The plugin sends no usage events, and
 `npm run generate` writes no telemetry hooks into any client manifest. This
-build also ships no PostHog key, and `plugin/hooks/telemetry-send.mjs` exits without
+build also ships no PostHog key, and `clients/direct/hooks/telemetry-send.mjs` exits without
 reading the environment or contacting a server.
-`TELEMETRY_ENABLED` in `plugin/hooks/telemetry-config.mjs` stays `false` until
+`TELEMETRY_ENABLED` in `clients/direct/hooks/telemetry-config.mjs` stays `false` until
 collection is separately approved after ingestion, the opt-out, privacy, and
 distribution requirements are verified.
 
@@ -48,7 +48,7 @@ stays false there.
 
 While `TELEMETRY_ENABLED` is `false`, this switch is inert but documented for a
 future enabled build. `ARCADE_PLUGIN_TELEMETRY` is the only opt-out, on every
-client. It is implemented in `plugin/hooks/telemetry-run.mjs`.
+client. It is implemented in `clients/direct/hooks/telemetry-run.mjs`.
 The hooks read it and each client's data-folder variable
 (`CLAUDE_PLUGIN_DATA`, `COPILOT_PLUGIN_DATA`) by name in `readOptOutEnv`, and
 only after the `TELEMETRY_ENABLED` check, so this build reads no environment
@@ -75,8 +75,8 @@ in your shell before starting `copilot`.
 ## Where it runs
 
 The Claude Code and Copilot CLI adapters are the only ones wired for telemetry
-in `plugin/hooks/hook-hosts.mjs` (`plugin/hooks/telemetry-adapters/claude-code.mjs` and
-`plugin/hooks/telemetry-adapters/copilot-cli.mjs`). Claude maps MCP tools under
+in `clients/direct/hooks/hook-hosts.mjs` (`clients/direct/hooks/telemetry-adapters/claude-code.mjs` and
+`clients/direct/hooks/telemetry-adapters/copilot-cli.mjs`). Claude maps MCP tools under
 `mcp__plugin_<plugin>_<mcpServer>__` (this plugin's gateway) and
 `mcp__claude_ai_arcade__` (the claude.ai Arcade connection). Attempt events
 (`PreToolUse`) are emitted only for those two prefixes. Copilot maps MCP tools
@@ -166,7 +166,7 @@ Service categories: `email`, `calendar`, `chat`, `issues`, `docs`, `meetings`, `
 <!-- END generated telemetry tables -->
 
 `could_use_arcade` is a local keyword guess (in
-`plugin/hooks/telemetry-classify.mjs`) at whether the prompt is a task Arcade could
+`clients/direct/hooks/telemetry-classify.mjs`) at whether the prompt is a task Arcade could
 do: email, calendar, chat, and the other categories above.
 
 `failure_kind`, `auth_needed`, and `cli` are values from fixed lists, picked
@@ -250,15 +250,15 @@ shipping telemetry hooks. Confirm, outside this repository:
 - applicable store or distribution decisions for builds that transmit data
 
 The change that turns telemetry on also has to add an event sender to
-`plugin/hooks/telemetry-send.mjs`, a PostHog project key to
-`plugin/hooks/telemetry-config.mjs`, and a call to `clearSessionScope` in
-`plugin/hooks/session-start.mjs`, and update the test in
+`clients/direct/hooks/telemetry-send.mjs`, a PostHog project key to
+`clients/direct/hooks/telemetry-config.mjs`, and a call to `clearSessionScope` in
+`clients/direct/hooks/session-start.mjs`, and update the test in
 `dev/test/telemetry-off.test.mjs` that checks this build ships none of them.
 Tests can't point the sender at a local server until it reads a host override
 again.
 
 The detached child process that used to run `telemetry-send.mjs` is gone, and
-`defaultSend` in `plugin/hooks/telemetry-run.mjs` does nothing. Plugin scripts
+`defaultSend` in `clients/direct/hooks/telemetry-run.mjs` does nothing. Plugin scripts
 may not start child processes or call `fetch(`, which
 `dev/test/directory-policy.test.mjs` enforces, so the enabling change also has
 to choose a sender that works within or deliberately changes that rule.

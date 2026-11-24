@@ -1,7 +1,7 @@
 // Installs this repo into a throwaway Copilot CLI home the way the public docs
 // do (`plugin marketplace add` of the repository, then `plugin install`) and
 // checks that Copilot loads every MCP server in mcp.json and every skill in
-// skills/. The marketplace source is ./plugin; the installed directory must be
+// skills/. The marketplace source is ./clients/direct; the installed directory must be
 // that plugin root.
 //
 // Copilot CLI has no plugin validate command. `copilot plugin install` fails
@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const pluginRoot = join(root, "plugin");
+const pluginRoot = join(root, "clients/direct");
 const pluginName = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8")).name;
 const marketplaceName = JSON.parse(readFileSync(join(root, ".claude-plugin/marketplace.json"), "utf8")).name;
 const servers = JSON.parse(readFileSync(join(pluginRoot, "mcp.json"), "utf8")).mcpServers;
@@ -65,7 +65,7 @@ function installedPluginDirs(dir, found = []) {
 
 try {
   // Public install: marketplace add of the repo, then arcade@arcade.
-  // .claude-plugin/marketplace.json source is ./plugin. A local marketplace
+  // .claude-plugin/marketplace.json source is ./clients/direct. A local marketplace
   // is loaded live from that directory, so the install output names it.
   // A copied install has the plugin directory under COPILOT_HOME instead.
   copilotText("plugin", "marketplace", "add", root);
@@ -78,11 +78,11 @@ try {
   const installedDirs = installedPluginDirs(work);
   const liveFromPlugin = installOutput.includes(pluginRoot);
   if (!liveFromPlugin && installedDirs.length === 0) {
-    problems.push(`install did not resolve source ./plugin to ${pluginRoot}:\n${installOutput}`);
+    problems.push(`install did not resolve source ./clients/direct to ${pluginRoot}:\n${installOutput}`);
   }
   for (const dir of installedDirs) {
     if (existsSync(join(dir, "AGENTS.md")) || existsSync(join(dir, "dev"))) {
-      problems.push(`${dir} is the repository root; source ./plugin should install the plugin directory`);
+      problems.push(`${dir} is the repository root; source ./clients/direct should install the plugin directory`);
     }
   }
 

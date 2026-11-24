@@ -15,13 +15,13 @@ Checked with Hermes 0.23.0 and plugin 0.9.2.
 ## Install
 
 `hermes plugins install ArcadeAI/arcade-plugin` does not work yet. It clones
-the repository root, but the package lives in `plugin/`, so Hermes finds no
-manifest. It still prints "Installed". Copy `plugin/` into Hermes's plugins
+the repository root, but the package lives in `clients/direct/`, so Hermes finds no
+manifest. It still prints "Installed". Copy `clients/direct/` into Hermes's plugins
 directory instead:
 
 ```bash
 git clone https://github.com/ArcadeAI/arcade-plugin.git
-cp -R arcade-plugin/plugin "${HERMES_HOME:-$HOME/.hermes}/plugins/arcade"
+cp -R arcade-plugin/clients/direct "${HERMES_HOME:-$HOME/.hermes}/plugins/arcade"
 hermes plugins enable arcade
 ```
 
@@ -35,7 +35,7 @@ hermes plugins doctor "${HERMES_HOME:-$HOME/.hermes}/plugins/arcade" --ci
 The list shows `arcade` 0.9.2 as enabled. The doctor passes and reports no
 tools and no hooks: the tools come from the gateway, not from Python code.
 
-To update, pull the clone and copy `plugin/` again.
+To update, pull the clone and copy `clients/direct/` again.
 
 ## OAuth
 
@@ -84,7 +84,7 @@ hermes mcp login arcade
 
 Hermes's gateway process (`hermes gateway run`, which also serves the TUI's
 turns) loads plugins once and keeps them until it stops. Copy the new
-`plugin/` in, then restart it so the next turn uses the new version:
+`clients/direct/` in, then restart it so the next turn uses the new version:
 
 ```bash
 hermes gateway stop

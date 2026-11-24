@@ -10,7 +10,7 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
+import { HOSTS } from "../../clients/direct/hooks/hook-hosts.mjs";
 import { validateClaudeDirectory } from "./claude-directory-policy.mjs";
 import { buildHookManifest, CLAUDE_PLUGIN_DIR, PLUGIN_DIR } from "./generate-manifests.mjs";
 

@@ -4,17 +4,17 @@
     ".": {
       "release-type": "simple",
       "bump-minor-pre-major": true,
-      "version-file": "plugin/VERSION",
+      "version-file": "clients/direct/VERSION",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
           "type": "json",
-          "path": "plugin/plugin.json",
+          "path": "clients/direct/plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": "plugin/.cursor-plugin/plugin.json",
+          "path": "clients/direct/.cursor-plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
@@ -24,12 +24,12 @@
         },
         {
           "type": "json",
-          "path": "plugin/.claude-plugin/plugin.json",
+          "path": "clients/direct/.claude-plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": "clients/claude/.claude-plugin/plugin.json",
+          "path": "plugin/.claude-plugin/plugin.json",
           "jsonpath": "$.version"
         }
       ]

@@ -1,30 +1,35 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/arcade-wordmark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="assets/arcade-wordmark-light.svg">
-    <img alt="Arcade" src="assets/arcade-wordmark-light.svg" width="340">
-  </picture>
-</p>
-
 # Arcade
 
-Let any agent use Arcade. Ask for what you want and the right tool runs
-across every app you have connected. Sign-in happens in the browser. This
-plugin does not ask for an API key.
+Use your connected apps from Claude. Ask for an outcome in plain English:
+check your calendar, summarize email, find an issue, or draft a Slack reply.
+Arcade finds the tools and runs them through its hosted MCP gateway at
+https://api.arcade.dev/mcp/arcade.
 
-The gateway is `https://api.arcade.dev/mcp/arcade`. The skills are
-`try-arcade` and `scale-arcade`. Clients that load agents also get
-`arcade-operator`. Cursor, Claude Code, and Cowork load the commands
-`/arcade-status`, `/arcade-connect`, and `/arcade-apps`.
-
-In Claude Code:
+Install Arcade from Claude Directory. For the direct Claude Code build with
+routing hooks, install from the GitHub marketplace.
 
 ```text
 /plugin install arcade --marketplace ArcadeAI/arcade-plugin
 ```
 
-Install steps for each client are in the repository:
-<https://github.com/ArcadeAI/arcade-plugin/blob/main/docs/install/README.md>.
-Product docs: <https://docs.arcade.dev/en/get-started/agent-plugin>.
+Sign in with Arcade in your browser when prompted. Connect each app in the browser
+when the task needs it. An Arcade account and the relevant app permissions
+are required.
 
-This directory is licensed under the MIT License. See [LICENSE](LICENSE).
+Claude loads the `try-arcade` and `scale-arcade` skills, the `arcade-operator`
+agent where supported, and the `arcade-status`, `arcade-connect`, and
+`arcade-apps` commands. Skills contain the routing and authorization
+instructions. This plugin contains no hooks, executable scripts, local
+dependencies, or client telemetry.
+
+Requests and tool inputs go to Arcade's gateway and the apps you connect.
+Claude asks for confirmation before changes outside the conversation. The
+gateway's data handling is covered by Arcade's
+[privacy policy](https://www.arcade.dev/privacy-policy/) and
+[terms of service](https://www.arcade.dev/terms-of-service/).
+
+Try “What's on my calendar tomorrow?” or invoke `/try-arcade`.
+If Arcade needs sign-in, follow the browser link and confirm when finished.
+If the gateway is unavailable, check the Arcade connection in Claude's MCP
+settings. For help, see the [documentation](https://docs.arcade.dev/) or
+contact [support@arcade.dev](mailto:support@arcade.dev).

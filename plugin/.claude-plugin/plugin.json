@@ -16,7 +16,6 @@
   "version": "0.9.3",
   "displayName": "Arcade",
   "privacyPolicyUrl": "https://www.arcade.dev/privacy-policy/",
-  "hooks": "./.claude-plugin/hooks.json",
   "mcpServers": {
     "arcade": {
       "type": "http",

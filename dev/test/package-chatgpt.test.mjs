@@ -12,7 +12,7 @@ import { inflateSync } from "node:zlib";
 import { archiveProblems, listingProblems, packageChatGPT } from "../scripts/package-chatgpt.mjs";
 import { readRepoFile, ROOT } from "./helpers.mjs";
 
-const plugin = JSON.parse(readRepoFile("plugin/plugin.json"));
+const plugin = JSON.parse(readRepoFile("clients/direct/plugin.json"));
 const listingImages = ["logo", "logoDark", "composerIcon", "composerIconDark"].map((key) =>
   plugin.extensions["com.openai"].interface[key].replace(/^\.\//, ""),
 );
@@ -139,7 +139,7 @@ test("the ZIP has plugin.json at its root and only the portable plugin", { skip:
     }
     for (const image of listingImages) {
       const bytes = readFileSync(path.join(out, image));
-      assert.deepEqual(bytes, readFileSync(path.join(ROOT, "plugin", image)));
+      assert.deepEqual(bytes, readFileSync(path.join(ROOT, "clients/direct", image)));
       assertOpaqueSquarePng(bytes, image, image.startsWith("assets/composer-icon") ? 256 : 512);
     }
   } finally {
