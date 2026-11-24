@@ -31,7 +31,7 @@ session-start text doesn't reach the main conversation. The files are
 
 Telemetry adapters are separate from routing. **`TELEMETRY_ENABLED` is false**
 in this build, so manifests include no telemetry hooks and nothing is sent.
-When enabled, wiring comes from `plugin/hooks/hook-hosts.mjs`:
+When enabled, wiring comes from `clients/direct/hooks/hook-hosts.mjs`:
 
 | Client adapter | Telemetry events (when enabled) |
 | --- | --- |
@@ -78,7 +78,7 @@ thin out.
 
 Files a client needs at its own path are generated from shared sources (see
 [ARCHITECTURE.md](../ARCHITECTURE.md)). In this repository those files live
-under `plugin/`. The marketplace files stay at the repository root and point
+under `clients/direct/`. The marketplace files stay at the repository root and point
 at that directory. Paths in the table are relative to the plugin directory,
 except the marketplace and local-clone rows.
 
@@ -91,9 +91,9 @@ except the marketplace and local-clone rows.
 | Operator (generated copy) | `com.github.copilot/agents/arcade-operator.agent.md` | Copilot CLI, VS Code |
 | Commands | `commands/arcade-*.md` | Cursor, Claude Code, Cowork |
 | Rule | `clients/cursor/rules/arcade.mdc` | Cursor IDE / Cloud Agents |
-| Marketplace | `.claude-plugin/marketplace.json` (source `./plugin`) | Claude Desktop, Cowork, Claude Code, Codex, Copilot CLI, VS Code Install Plugin From Source |
-| Marketplace | `.cursor-plugin/marketplace.json` (source `plugin`) | Cursor team marketplace import |
-| Local clone | `.cursor-plugin/plugin.json` and `.cursor-plugin/hooks.json` at the repo root, pointing into `plugin/` | Cursor local loader |
+| Marketplace | `.claude-plugin/marketplace.json` (source `./clients/direct`) | Claude Desktop, Cowork, Claude Code, Codex, Copilot CLI, VS Code Install Plugin From Source |
+| Marketplace | `.cursor-plugin/marketplace.json` (source `clients/direct`) | Cursor team marketplace import |
+| Local clone | `.cursor-plugin/plugin.json` and `.cursor-plugin/hooks.json` at the repo root, pointing into `clients/direct/` | Cursor local loader |
 | Codex listing | `plugin.json` → `extensions.com.openai.interface` | Codex |
 
 Claude Desktop installs this repo as a plugin marketplace (see

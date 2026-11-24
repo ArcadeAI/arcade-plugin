@@ -2,7 +2,7 @@
 // Builds the ZIP to upload in OpenAI's plugin portal (ChatGPT and Codex
 // directory): dist/arcade-chatgpt-<version>.zip.
 //
-// The archive holds only the portable Agent Plugin from plugin/, with
+// The archive holds only the portable Agent Plugin from clients/direct/, with
 // plugin.json at the ZIP root: plugin.json, mcp.json, skills/, the listing
 // images, and LICENSE.
 // OpenAI reads the listing from extensions.com.openai in plugin.json. The other
@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { zipSync } from "fflate";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const PLUGIN_DIR = "plugin";
+const PLUGIN_DIR = "clients/direct";
 const pluginRootOf = (root) => join(root, PLUGIN_DIR);
 
 // Final directory submission rules from OpenAI's "Plugin submission errors"
@@ -137,7 +137,7 @@ const listFiles = (root, dir) =>
       return entry.isDirectory() ? listFiles(root, path) : [path];
     });
 
-/** The paths inside the ZIP. They are relative to plugin/ and to the ZIP root. */
+/** The paths inside the ZIP. They are relative to clients/direct/ and to the ZIP root. */
 export const packageFiles = (root = ROOT) => {
   const pluginRoot = pluginRootOf(root);
   const plugin = JSON.parse(readFileSync(join(pluginRoot, "plugin.json"), "utf8"));

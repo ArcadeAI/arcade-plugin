@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { classifyAppWork, MAX_SCOPE_FILES, SCOPE_DIRECTORY, SCOPE_TTL_MS, scopeForInput } from "../../plugin/hooks/hook-scope.mjs";
-import { buildEvent } from "../../plugin/hooks/telemetry-events.mjs";
+import { classifyAppWork, MAX_SCOPE_FILES, SCOPE_DIRECTORY, SCOPE_TTL_MS, scopeForInput } from "../../clients/direct/hooks/hook-scope.mjs";
+import { buildEvent } from "../../clients/direct/hooks/telemetry-events.mjs";
 import fakeAdapter, { FAKE_ARCADE_PREFIX } from "./fixtures/telemetry-fake-adapter.mjs";
 
 const root = mkdtempSync(path.join(os.tmpdir(), "arcade-scope-"));

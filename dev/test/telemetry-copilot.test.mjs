@@ -5,11 +5,11 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { HOOKS, HOSTS, telemetryHookRows } from "../../plugin/hooks/hook-hosts.mjs";
-import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../../plugin/hooks/hook-scope.mjs";
-import { ARCADE_USED_FILE } from "../../plugin/hooks/telemetry-config.mjs";
-import { buildEvent, isArcadeCall } from "../../plugin/hooks/telemetry-events.mjs";
-import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../../plugin/hooks/telemetry-adapters/copilot-cli.mjs";
+import { HOOKS, HOSTS, telemetryHookRows } from "../../clients/direct/hooks/hook-hosts.mjs";
+import { SCOPE_DIRECTORY, SCOPE_TTL_MS } from "../../clients/direct/hooks/hook-scope.mjs";
+import { ARCADE_USED_FILE } from "../../clients/direct/hooks/telemetry-config.mjs";
+import { buildEvent, isArcadeCall } from "../../clients/direct/hooks/telemetry-events.mjs";
+import copilotAdapter, { COPILOT_ARCADE_SERVER } from "../../clients/direct/hooks/telemetry-adapters/copilot-cli.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import {
   PLUGIN_ROOT,
@@ -466,6 +466,6 @@ test("telemetry.mjs with --host copilot exits quietly while disabled", () => {
 });
 
 test("arcade server prefix matches mcp.json", () => {
-  const [server] = Object.keys(JSON.parse(readRepoFile("plugin/mcp.json")).mcpServers);
+  const [server] = Object.keys(JSON.parse(readRepoFile("clients/direct/mcp.json")).mcpServers);
   assert.equal(COPILOT_ARCADE_SERVER, server);
 });

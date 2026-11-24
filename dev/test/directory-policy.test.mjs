@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const ROOT = join(REPO, "clients/claude");
+const ROOT = join(REPO, "plugin");
 
 const KIB = 1024;
 const MIB = 1024 * KIB;
@@ -342,7 +342,7 @@ const INDIRECT_ENV = /\bprocess\s*(?:\?\.)?\s*\[|\bprocess\s*\?\.\s*env\b|\{[^}]
 /**
  * Lists the lines of one plugin script that download code, start a child
  * process, or read the process environment outside the allowlist.
- * @param {string} file Path relative to plugin/.
+ * @param {string} file Path relative to clients/direct/.
  * @param {string} text
  */
 const scriptOffenders = (file, text) => {
@@ -367,9 +367,9 @@ const scriptOffenders = (file, text) => {
 // Scripts in the plugin directory. dev/ sits outside it.
 test("no script downloads code, starts a child process, or reads the environment outside the opt-out allowlist", () => {
   const offenders = [];
-  for (const file of REPO_FILES.filter((path) => path.startsWith("plugin/")).map((path) => path.slice("plugin/".length))) {
+  for (const file of REPO_FILES.filter((path) => path.startsWith("clients/direct/")).map((path) => path.slice("clients/direct/".length))) {
     if (!/\.(?:mjs|cjs|js|ts|sh)$/.test(file)) continue;
-    offenders.push(...scriptOffenders(file, readFileSync(join(REPO, "plugin", file), "utf8")));
+    offenders.push(...scriptOffenders(file, readFileSync(join(REPO, "clients/direct", file), "utf8")));
   }
   assertNone(
     offenders,

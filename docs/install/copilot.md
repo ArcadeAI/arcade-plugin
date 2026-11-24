@@ -17,9 +17,9 @@ npx plugins add ArcadeAI/arcade-plugin --target github-copilot
 Restart or `/restart` your Copilot session after install.
 
 `copilot plugin marketplace add ArcadeAI/arcade-plugin` reads
-`.claude-plugin/marketplace.json`. The Arcade entry's source is `./plugin`
+`.claude-plugin/marketplace.json`. The Arcade entry's source is `./clients/direct`
 (the same directory as `plugin`). Copilot CLI installs that directory.
-The plugin directory in this repository is `plugin/`. Copilot CLI reads the
+The plugin directory in this repository is `clients/direct/`. Copilot CLI reads the
 portable Agent Plugins components there (`plugin.json`,
 `skills/`, and `mcp.json`) and its custom agent from
 `com.github.copilot/agents/arcade-operator.agent.md`. You get 2 skills, the
@@ -35,7 +35,7 @@ and validation limits.
 ## Telemetry
 
 Telemetry is **off** in this build: generated manifests include no telemetry
-hooks and nothing is sent. When enabled, `plugin/hooks/telemetry-adapters/copilot-cli.mjs`
+hooks and nothing is sent. When enabled, `clients/direct/hooks/telemetry-adapters/copilot-cli.mjs`
 records MCP tools as `<server>-<tool>`, operator stops with `subagent_session`,
 and session-scoped prompt state under `COPILOT_PLUGIN_DATA` (no `turn`, no
 `PreToolUse`, no built-in CLI/web events). See

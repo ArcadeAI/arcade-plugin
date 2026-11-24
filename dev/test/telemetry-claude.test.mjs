@@ -3,14 +3,14 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { BASH_CLIS } from "../../plugin/hooks/telemetry-contract.mjs";
-import { HOOKS, HOSTS, telemetryHookRows } from "../../plugin/hooks/hook-hosts.mjs";
-import { SCOPE_TTL_MS } from "../../plugin/hooks/hook-scope.mjs";
-import { buildEvent, isArcadeCall } from "../../plugin/hooks/telemetry-events.mjs";
+import { BASH_CLIS } from "../../clients/direct/hooks/telemetry-contract.mjs";
+import { HOOKS, HOSTS, telemetryHookRows } from "../../clients/direct/hooks/hook-hosts.mjs";
+import { SCOPE_TTL_MS } from "../../clients/direct/hooks/hook-scope.mjs";
+import { buildEvent, isArcadeCall } from "../../clients/direct/hooks/telemetry-events.mjs";
 import adapter, {
   ARCADE_TOOL_PREFIX,
   CLAUDE_AI_ARCADE_TOOL_PREFIX,
-} from "../../plugin/hooks/telemetry-adapters/claude-code.mjs";
+} from "../../clients/direct/hooks/telemetry-adapters/claude-code.mjs";
 import { buildHookManifest } from "../scripts/generate-manifests.mjs";
 import { pluginPath, readRepoFile, ROOT } from "./helpers.mjs";
 import { eventCases } from "./fixtures/telemetry/claude-code/event-cases.mjs";
@@ -47,8 +47,8 @@ const seedAppWork = async (dataDir, promptId = PROMPT_ID, now) => {
 };
 
 test("Arcade tool prefixes match plugin.json and mcp.json", () => {
-  const plugin = JSON.parse(readRepoFile("plugin/plugin.json"));
-  const [server] = Object.keys(JSON.parse(readRepoFile("plugin/mcp.json")).mcpServers);
+  const plugin = JSON.parse(readRepoFile("clients/direct/plugin.json"));
+  const [server] = Object.keys(JSON.parse(readRepoFile("clients/direct/mcp.json")).mcpServers);
   assert.equal(ARCADE_TOOL_PREFIX, `mcp__plugin_${plugin.name}_${server}__`);
   assert.equal(CLAUDE_AI_ARCADE_TOOL_PREFIX, "mcp__claude_ai_arcade__");
 });
@@ -357,7 +357,7 @@ test("invalid telemetry inputs are ignored without affecting hooks", async () =>
     assert.equal(result.status, 0, stdin);
     assert.equal(result.stdout, "");
   }
-  const routing = spawnSync(process.execPath, [path.join(ROOT, "plugin", "hooks", "session-start.mjs"), "--host", "claude-code"], {
+  const routing = spawnSync(process.execPath, [path.join(ROOT, "clients/direct", "hooks", "session-start.mjs"), "--host", "claude-code"], {
     input: "not-json",
     encoding: "utf8",
   });

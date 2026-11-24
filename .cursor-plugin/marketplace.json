@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "arcade",
-      "source": "plugin"
+      "source": "clients/direct"
     }
   ]
 }

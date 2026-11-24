@@ -19,7 +19,7 @@ below have alternatives and verification steps.
 | **Codex / ChatGPT** | `codex plugin marketplace add ArcadeAI/arcade-plugin`, then `codex plugin add arcade@arcade` | [codex.md](codex.md) |
 | **OpenCode** | Gateway URL only — [opencode.md](opencode.md) | [opencode.md](opencode.md) |
 | **Grok Bot** | Skills and the MCP connector | [grok-bot.md](grok-bot.md) |
-| **Hermes Agent** | Copy `plugin/` into `~/.hermes/plugins/arcade`, then `hermes plugins enable arcade` | [hermes.md](hermes.md) |
+| **Hermes Agent** | Copy `clients/direct/` into `~/.hermes/plugins/arcade`, then `hermes plugins enable arcade` | [hermes.md](hermes.md) |
 | **Any MCP client** | `https://api.arcade.dev/mcp/arcade` | [agent-plugins.md](agent-plugins.md) |
 
 Cursor and VS Code one-click badges add the gateway only, without skills or
@@ -27,15 +27,15 @@ the operator. For the full plugin:
 
 - **Cursor:** individual plans clone the repository into
   `~/.cursor/plugins/local/arcade-plugin`. The root `.cursor-plugin/plugin.json`
-  points into `plugin/`. Copying only `plugin/` into
+  points into `clients/direct/`. Copying only `clients/direct/` into
   `~/.cursor/plugins/local/arcade` also works. Teams/Enterprise import the
-  repository; `.cursor-plugin/marketplace.json` source is `plugin`.
+  repository; `.cursor-plugin/marketplace.json` source is `clients/direct`.
   See [cursor.md](cursor.md).
 - **VS Code:** **Chat: Install Plugin From Source** with
   `https://github.com/ArcadeAI/arcade-plugin` reads
-  `.claude-plugin/marketplace.json` and installs source `./plugin`. The Copilot
+  `.claude-plugin/marketplace.json` and installs source `./clients/direct`. The Copilot
   marketplace commands do the same. A local `chat.pluginLocations` entry uses
-  the checkout's `plugin/` directory. See [vscode.md](vscode.md).
+  the checkout's `clients/direct/` directory. See [vscode.md](vscode.md).
 
 After install, reload your agent or start a new session. No API keys: the
 first task that touches an app returns a browser sign-in link.

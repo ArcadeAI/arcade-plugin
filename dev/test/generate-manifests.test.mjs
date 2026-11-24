@@ -14,36 +14,36 @@ import { makeFixture, readRepoFile, ROOT } from "./helpers.mjs";
 
 // A second copy of FILE_SOURCES on purpose, so a change to a file's sources must change this test too.
 const EXPECTED_SOURCES = {
-  "clients/claude/README.md": ["docs/claude-plugin-readme.md"],
-  "clients/claude/LICENSE": ["LICENSE"],
-  "clients/claude/skills/scale-arcade/SKILL.md": ["plugin/skills/scale-arcade/SKILL.md"],
-  "clients/claude/skills/scale-arcade/references/arcade-docs.md": ["plugin/skills/scale-arcade/references/arcade-docs.md"],
-  "clients/claude/skills/try-arcade/SKILL.md": ["plugin/skills/try-arcade/SKILL.md", "plugin/hooks/routing-guidance.mjs"],
-  "clients/claude/skills/try-arcade/references/arcade-docs.md": ["plugin/skills/try-arcade/references/arcade-docs.md"],
-  "clients/claude/agents/arcade-operator.agent.md": ["plugin/agents/arcade-operator.agent.md", "plugin/hooks/routing-guidance.mjs"],
-  "clients/claude/commands/arcade-apps.md": ["plugin/commands/arcade-apps.md"],
-  "clients/claude/commands/arcade-connect.md": ["plugin/commands/arcade-connect.md"],
-  "clients/claude/commands/arcade-status.md": ["plugin/commands/arcade-status.md"],
-
-  "plugin/plugin.json": ["dev/scripts/generate-manifests.mjs"],
-  "plugin/.cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  ".cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "dev/scripts/generate-manifests.mjs"],
-  ".cursor-plugin/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "plugin/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "clients/claude/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "dev/scripts/generate-manifests.mjs"],
-  ".claude-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
-  ".cursor-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
-  "plugin/clients/cursor/rules/arcade.mdc": ["plugin/hooks/routing-guidance.mjs", "dev/scripts/generate-manifests.mjs"],
-  ".gitattributes": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "plugin/.claude-plugin/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "plugin/clients/cursor/hooks/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "plugin/com.github.copilot/hooks/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
-  "plugin/skills/scale-arcade/references/arcade-docs.md": ["plugin/skills/try-arcade/references/arcade-docs.md"],
-  "plugin/com.github.copilot/agents/arcade-operator.agent.md": ["plugin/agents/arcade-operator.agent.md", "plugin/hooks/routing-guidance.mjs"],
+  "plugin/README.md": ["docs/claude-plugin-readme.md"],
   "plugin/LICENSE": ["LICENSE"],
-  "plugin/agents/arcade-operator.agent.md": ["plugin/hooks/routing-guidance.mjs"],
-  "plugin/skills/try-arcade/SKILL.md": ["plugin/hooks/routing-guidance.mjs"],
-  "docs/telemetry.md": ["plugin/hooks/telemetry-contract.mjs"],
+  "plugin/skills/scale-arcade/SKILL.md": ["clients/direct/skills/scale-arcade/SKILL.md"],
+  "plugin/skills/scale-arcade/references/arcade-docs.md": ["clients/direct/skills/scale-arcade/references/arcade-docs.md"],
+  "plugin/skills/try-arcade/SKILL.md": ["clients/direct/skills/try-arcade/SKILL.md", "clients/direct/hooks/routing-guidance.mjs"],
+  "plugin/skills/try-arcade/references/arcade-docs.md": ["clients/direct/skills/try-arcade/references/arcade-docs.md"],
+  "plugin/agents/arcade-operator.agent.md": ["clients/direct/agents/arcade-operator.agent.md", "clients/direct/hooks/routing-guidance.mjs"],
+  "plugin/commands/arcade-apps.md": ["clients/direct/commands/arcade-apps.md"],
+  "plugin/commands/arcade-connect.md": ["clients/direct/commands/arcade-connect.md"],
+  "plugin/commands/arcade-status.md": ["clients/direct/commands/arcade-status.md"],
+
+  "clients/direct/plugin.json": ["dev/scripts/generate-manifests.mjs"],
+  "clients/direct/.cursor-plugin/plugin.json": ["clients/direct/plugin.json", "clients/direct/mcp.json", "clients/direct/VERSION", "clients/direct/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  ".cursor-plugin/plugin.json": ["clients/direct/plugin.json", "clients/direct/mcp.json", "clients/direct/VERSION", "dev/scripts/generate-manifests.mjs"],
+  ".cursor-plugin/hooks.json": ["clients/direct/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "clients/direct/.claude-plugin/plugin.json": ["clients/direct/plugin.json", "clients/direct/mcp.json", "clients/direct/VERSION", "clients/direct/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "plugin/.claude-plugin/plugin.json": ["clients/direct/plugin.json", "clients/direct/mcp.json", "clients/direct/VERSION", "dev/scripts/generate-manifests.mjs"],
+  ".claude-plugin/marketplace.json": ["clients/direct/plugin.json", "dev/scripts/generate-manifests.mjs"],
+  ".cursor-plugin/marketplace.json": ["clients/direct/plugin.json", "dev/scripts/generate-manifests.mjs"],
+  "clients/direct/clients/cursor/rules/arcade.mdc": ["clients/direct/hooks/routing-guidance.mjs", "dev/scripts/generate-manifests.mjs"],
+  ".gitattributes": ["clients/direct/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "clients/direct/.claude-plugin/hooks.json": ["clients/direct/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "clients/direct/clients/cursor/hooks/hooks.json": ["clients/direct/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "clients/direct/com.github.copilot/hooks/hooks.json": ["clients/direct/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "clients/direct/skills/scale-arcade/references/arcade-docs.md": ["clients/direct/skills/try-arcade/references/arcade-docs.md"],
+  "clients/direct/com.github.copilot/agents/arcade-operator.agent.md": ["clients/direct/agents/arcade-operator.agent.md", "clients/direct/hooks/routing-guidance.mjs"],
+  "clients/direct/LICENSE": ["LICENSE"],
+  "clients/direct/agents/arcade-operator.agent.md": ["clients/direct/hooks/routing-guidance.mjs"],
+  "clients/direct/skills/try-arcade/SKILL.md": ["clients/direct/hooks/routing-guidance.mjs"],
+  "docs/telemetry.md": ["clients/direct/hooks/telemetry-contract.mjs"],
 };
 
 test("FILE_SOURCES lists the expected sources for every generated path", () => {
@@ -71,7 +71,7 @@ test("check mode fails with a source-naming error when a generated file is hand-
       } else if (FILES_WITH_GENERATED_TABLES.includes(path)) {
         // Only the tables are generated, so the edit has to be inside them.
         writeFileSync(fullPath, readFileSync(fullPath, "utf8").replace("Service categories:", "Service kinds:"));
-      } else if (path === "plugin/plugin.json") {
+      } else if (path === "clients/direct/plugin.json") {
         const plugin = JSON.parse(readFileSync(fullPath, "utf8"));
         plugin.extensions["com.openai"].interface.privacyPolicyURL = "https://example.com/stale";
         writeFileSync(fullPath, `${JSON.stringify(plugin, null, 2)}\n`);
@@ -95,7 +95,7 @@ test("check mode fails with a source-naming error when a generated file is hand-
     }
 
     generateManifests({ root });
-    const stalePath = "clients/claude/commands/old.md";
+    const stalePath = "plugin/commands/old.md";
     const attributesPath = join(root, ".gitattributes");
     const cleanAttributes = readFileSync(attributesPath, "utf8");
     const staleAttributes = `${cleanAttributes}${stalePath} linguist-generated=true\n`;
@@ -152,7 +152,7 @@ test("a release-please version bump leaves generated files in sync", { skip: rel
 test("changing the canonical privacy URL updates both client fields", async () => {
   const root = makeFixture();
   try {
-    cpSync(join(ROOT, "plugin/hooks"), join(root, "plugin/hooks"), { recursive: true });
+    cpSync(join(ROOT, "clients/direct/hooks"), join(root, "clients/direct/hooks"), { recursive: true });
     mkdirSync(join(root, "dev/scripts"), { recursive: true });
     cpSync(join(ROOT, "dev/scripts/telemetry-docs.mjs"), join(root, "dev/scripts/telemetry-docs.mjs"));
     const generator = readRepoFile("dev/scripts/generate-manifests.mjs").replace(
@@ -163,10 +163,10 @@ test("changing the canonical privacy URL updates both client fields", async () =
     const changedGenerator = await import(pathToFileURL(join(root, "dev/scripts/generate-manifests.mjs")));
     changedGenerator.generateManifests({ root });
     const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
-    for (const folder of ["plugin", "clients/claude"]) {
+    for (const folder of ["clients/direct", "plugin"]) {
       assert.equal(read(`${folder}/.claude-plugin/plugin.json`).privacyPolicyUrl, "https://example.com/new-policy/");
     }
-    const openai = read("plugin/plugin.json").extensions["com.openai"];
+    const openai = read("clients/direct/plugin.json").extensions["com.openai"];
     assert.equal(openai.interface.privacyPolicyURL, "https://example.com/new-policy/");
     assert.equal(openai.interface.supportURL, "https://support.arcade.dev");
     assert.equal(openai.interface.termsOfServiceURL, "https://www.arcade.dev/terms-of-service/");

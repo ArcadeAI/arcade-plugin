@@ -38,16 +38,16 @@ npx plugins add ArcadeAI/arcade-plugin --target codex
 codex plugin add arcade@plugins-cli
 ```
 
-From a local checkout, point at the `plugin` directory:
+From a local checkout, point at the `clients/direct` directory:
 
 ```bash
-npx plugins add /path/to/arcade-plugin/plugin --target codex
+npx plugins add /path/to/arcade-plugin/clients/direct --target codex
 codex plugin add arcade@plugins-cli
 ```
 
 `codex plugin marketplace add` of this repository uses
 `.claude-plugin/marketplace.json`. Codex reads that Claude marketplace. The
-Arcade entry's source is `./plugin`, and `codex plugin add arcade@arcade`
+Arcade entry's source is `./clients/direct`, and `codex plugin add arcade@arcade`
 installs that directory.
 
 ## Verify

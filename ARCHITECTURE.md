@@ -1,34 +1,35 @@
 # Architecture
 
-A portable Agent Plugin (`plugin/plugin.json`, `plugin/mcp.json`, `plugin/skills/`) plus the files
-each client needs at its own path. The shipped plugin is the `plugin/` directory.
-Marketplace files stay at the repository root and point at that directory.
+A portable Agent Plugin in `clients/direct/` supplies the shared sources and
+direct installs. The generated `plugin/` bundle is the Claude Directory
+submission. Marketplace files stay at the repository root and point at
+`clients/direct/`.
 Cursor's local loader also reads `.cursor-plugin/plugin.json` and
 `.cursor-plugin/hooks.json` at the repository root; those paths point into
-`plugin/` and do not change `.cursor-plugin/marketplace.json` (source `plugin`).
+`clients/direct/` and do not change `.cursor-plugin/marketplace.json` (source `clients/direct`).
 Every client-specific file is generated
 from a few sources by `npm run generate`; `npm run verify` fails if one was
 edited by hand. Both run from `dev/`, which holds the dev tooling so that
 installing the plugin doesn't install its packages. The package ships no
 credentials.
 
-The Claude Directory bundle in `clients/claude/` uses the same manifest sources
-and copies the Markdown components from `plugin/`. The GitHub marketplace
-installs `plugin/` with routing hooks. See [Claude Directory](docs/claude-directory.md).
+The Claude Directory bundle in `plugin/` uses the same manifest sources
+and copies the Markdown components from `clients/direct/`. The GitHub marketplace
+installs `clients/direct/` with routing hooks. See [Claude Directory](docs/claude-directory.md).
 
 | Source (edit these) | Holds |
 | --- | --- |
-| `plugin/plugin.json`, `plugin/mcp.json`, `plugin/VERSION` | identity, gateway URL, version, Codex listing metadata |
-| `plugin/hooks/routing-guidance.mjs` | the routing rules, as sentences |
-| `plugin/hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
-| `plugin/hooks/telemetry-contract.mjs` | the telemetry event contract; also generates the event tables in docs/telemetry.md |
-| `plugin/agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
-| `plugin/skills/` | the skills, outside the generated rules block in try-arcade |
+| `clients/direct/plugin.json`, `clients/direct/mcp.json`, `clients/direct/VERSION` | identity, gateway URL, version, Codex listing metadata |
+| `clients/direct/hooks/routing-guidance.mjs` | the routing rules, as sentences |
+| `clients/direct/hooks/hook-hosts.mjs` | which hook script runs on which event in which client |
+| `clients/direct/hooks/telemetry-contract.mjs` | the telemetry event contract; also generates the event tables in docs/telemetry.md |
+| `clients/direct/agents/arcade-operator.agent.md` | the operator, outside its generated rules block |
+| `clients/direct/skills/` | the skills, outside the generated rules block in try-arcade |
 
 `dev/scripts/generate-manifests.mjs` writes every generated file; the generated
 `.gitattributes` lists them (GitHub collapses them in diffs).
 
-- The operator lives at `plugin/agents/arcade-operator.agent.md`, the only place both
+- The operator lives at `clients/direct/agents/arcade-operator.agent.md`, the only place both
   Claude Code and Cowork accept. Copilot CLI and VS Code only read
   `com.github.copilot/agents/`, so the generator copies it there.
 - Each hook command passes `--host <name>`; the script prints the output
@@ -36,7 +37,7 @@ installs `plugin/` with routing hooks. See [Claude Directory](docs/claude-direct
 - Codex doesn't run plugin hooks for Agent Plugins packages yet; see
   [docs/install/codex.md](docs/install/codex.md).
 
-Release Please bumps `plugin/VERSION`, `plugin/plugin.json`, and the version fields in the
+Release Please bumps `clients/direct/VERSION`, `clients/direct/plugin.json`, and the version fields in the
 generated manifests; a test replays that bump and checks nothing goes stale.
 
 ## Execution model
@@ -99,7 +100,7 @@ The Arcade MCP server is the canonical place to record request, authentication,
 tool-discovery, tool-call, and completion outcomes. This package does not ask a
 model to self-report tokens, turns, or success.
 
-Optional client hooks in `plugin/hooks/telemetry-adapters/` can send supplemental,
+Optional client hooks in `clients/direct/hooks/telemetry-adapters/` can send supplemental,
 scoped usage events when `TELEMETRY_ENABLED` is `true` and the user has not
 opted out. **This build keeps `TELEMETRY_ENABLED` false**, so no telemetry
 hooks are generated and nothing is sent. See [docs/telemetry.md](docs/telemetry.md)

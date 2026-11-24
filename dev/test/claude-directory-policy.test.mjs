@@ -4,10 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { restrictedFileProblems, validateClaudeDirectory } from "../scripts/claude-directory-policy.mjs";
+import { CLAUDE_PLUGIN_DIR } from "../scripts/generate-manifests.mjs";
 import { ROOT } from "./helpers.mjs";
 
-test("the submitted Claude folder meets every unverified-organization restriction", () => {
-  assert.deepEqual(validateClaudeDirectory(join(ROOT, "clients/claude")), []);
+test("the fixed Claude Directory submission path meets the unverified-organization restrictions", () => {
+  assert.equal(CLAUDE_PLUGIN_DIR, "plugin");
+  assert.deepEqual(validateClaudeDirectory(join(ROOT, "plugin")), []);
 });
 
 test("restricted files fail even when they are not declared in the manifest", () => {

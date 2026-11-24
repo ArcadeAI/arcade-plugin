@@ -1,17 +1,17 @@
 // @ts-check
 /** Test-only telemetry adapter; not loaded by production hook-hosts.mjs. */
 
-import { serviceForToolName } from "../../../plugin/hooks/telemetry-classify.mjs";
+import { serviceForToolName } from "../../../clients/direct/hooks/telemetry-classify.mjs";
 import {
   arcadeToolProperties,
   builtinToolProperties,
   otherServerProperties,
-} from "../../../plugin/hooks/telemetry-events.mjs";
+} from "../../../clients/direct/hooks/telemetry-events.mjs";
 
 export const FAKE_ARCADE_PREFIX = "mcp__fake_arcade__";
 export const FAKE_OTHER_PREFIX = "mcp__fake_other__";
 
-/** @type {import("../../../plugin/hooks/telemetry-adapter.mjs").TelemetryAdapter} */
+/** @type {import("../../../clients/direct/hooks/telemetry-adapter.mjs").TelemetryAdapter} */
 const fakeAdapter = {
   host: "claude-code",
   dataVariable: "ARCADE_TEST_PLUGIN_DATA",

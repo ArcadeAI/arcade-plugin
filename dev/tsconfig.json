@@ -10,5 +10,5 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["../plugin/hooks/*.mjs", "../plugin/hooks/telemetry-adapters/*.mjs", "scripts/*.mjs"]
+  "include": ["../clients/direct/hooks/*.mjs", "../clients/direct/hooks/telemetry-adapters/*.mjs", "scripts/*.mjs"]
 }

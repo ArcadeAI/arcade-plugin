@@ -9,8 +9,8 @@ import {
   CURSOR_RULE,
   OPERATOR_RULES,
   SKILL_RULES,
-} from "../../plugin/hooks/routing-guidance.mjs";
-import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../../plugin/hooks/hook-hosts.mjs";
+} from "../../clients/direct/hooks/routing-guidance.mjs";
+import { HOOK_TIMEOUT_SEC, HOOKS, HOSTS } from "../../clients/direct/hooks/hook-hosts.mjs";
 import { fillTelemetryTables, TELEMETRY_DOC } from "./telemetry-docs.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -18,8 +18,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 // Shipped plugin files live here. Marketplace catalogs, the repo-root Cursor
 // manifest (for a local clone), and .gitattributes stay at the repo root and
 // point at this directory.
-export const PLUGIN_DIR = "plugin";
-export const CLAUDE_PLUGIN_DIR = "clients/claude";
+export const PLUGIN_DIR = "clients/direct";
+export const CLAUDE_PLUGIN_DIR = "plugin";
 
 const componentFiles = (dir) => readdirSync(join(ROOT, dir), { withFileTypes: true })
   .filter((entry) => !entry.name.startsWith("."))
@@ -29,8 +29,8 @@ const componentFiles = (dir) => readdirSync(join(ROOT, dir), { withFileTypes: tr
 const inPlugin = (file) => `${PLUGIN_DIR}/${file}`;
 
 // One policy URL for both clients. The other OpenAI directory fields below are
-// written into plugin/plugin.json from here too. Identity text (name, descriptions,
-// category, website) stays in plugin/plugin.json. Listing images and brandColor
+// written into clients/direct/plugin.json from here too. Identity text (name, descriptions,
+// category, website) stays in clients/direct/plugin.json. Listing images and brandColor
 // are written from the constants below. Cursor's manifest takes only `logo`
 // (without the "./" prefix). Claude has no logo field. Dark variants and
 // brandColor stay on the OpenAI listing; the other clients' schemas have no
@@ -216,18 +216,18 @@ export const FILE_SOURCES = {
   // script writes the fixed skills/agents/commands/rules paths.
   [inPlugin(".cursor-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // Same identity as the plugin-directory Cursor manifest. Paths are prefixed
-  // with plugin/ because Cursor's local loader treats a clone of this repo as
+  // with clients/direct/ because Cursor's local loader treats a clone of this repo as
   // the plugin root. The hooks field names the repo-root hooks file below.
   ".cursor-plugin/plugin.json": [PLUGIN_JSON, MCP_JSON, VERSION_FILE, "dev/scripts/generate-manifests.mjs"],
   // Same Cursor hook table as clients/cursor/hooks/hooks.json, with script
-  // paths under plugin/hooks so ${CURSOR_PLUGIN_ROOT} is the repository root.
+  // paths under clients/direct/hooks so ${CURSOR_PLUGIN_ROOT} is the repository root.
   ".cursor-plugin/hooks.json": [HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the mcpServers transport type.
   [inPlugin(".claude-plugin/plugin.json")]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, HOOK_HOSTS_SOURCE, "dev/scripts/generate-manifests.mjs"],
   [`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`]: [PLUGIN_JSON, MCP_JSON, VERSION_FILE, "dev/scripts/generate-manifests.mjs"],
   // The script writes the marketplace description and support email. There is no version field.
   ".claude-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
-  // Cursor's multi-plugin manifest. The plugin directory is "plugin".
+  // Cursor's multi-plugin manifest. The plugin directory is "clients/direct".
   ".cursor-plugin/marketplace.json": [PLUGIN_JSON, "dev/scripts/generate-manifests.mjs"],
   // The script writes the frontmatter and the header comment.
   [inPlugin(`${CURSOR_RULE_DIR}/arcade.mdc`)]: [ROUTING_SOURCE, "dev/scripts/generate-manifests.mjs"],
@@ -303,8 +303,8 @@ const fillRulesBlock = (text, rules, path) => {
 
 /**
  * The command fields of one hook entry. `hooksDir` is the directory of hook
- * scripts relative to the client's plugin root (`hooks` inside `plugin/`,
- * `plugin/hooks` when that root is the repository). With
+ * scripts relative to the client's plugin root (`hooks` inside `clients/direct/`,
+ * `clients/direct/hooks` when that root is the repository). With
  * `runOnlyIfScriptExists`, the command runs the script only if the file is
  * there, so a client that leaves the root variable unset or pointing at a
  * missing script gets exit 0 and no output. `powershell` is intended for
@@ -376,7 +376,7 @@ const buildFiles = (root) => {
   // Codex and ChatGPT want the logo path with a leading "./" (OPENAI_LOGO).
   // Cursor takes it without one. The Claude marketplace has no logo field.
   // `logo` is relative to the plugin directory; the repo-root Cursor manifest
-  // prefixes it with plugin/. Dark icons are not copied onto Cursor or Claude.
+  // prefixes it with clients/direct/. Dark icons are not copied onto Cursor or Claude.
   const logo = OPENAI_LOGO.replace(/^\.\//, "");
   const { name, description, author, homepage, license, keywords, repository } = plugin;
   const identity = { name, description, author, homepage, license, keywords, version };
@@ -421,7 +421,7 @@ const buildFiles = (root) => {
       })),
     ],
     // Local loader: .cursor-plugin/plugin.json at the folder Cursor was given.
-    // A git clone of this repo is that folder, so paths point into plugin/.
+    // A git clone of this repo is that folder, so paths point into clients/direct/.
     // Marketplace installs still use .cursor-plugin/marketplace.json.
     [
       ".cursor-plugin/plugin.json",

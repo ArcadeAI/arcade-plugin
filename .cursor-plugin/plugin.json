@@ -14,12 +14,12 @@
   ],
   "version": "0.9.3",
   "displayName": "Arcade",
-  "logo": "plugin/assets/logo.png",
+  "logo": "clients/direct/assets/logo.png",
   "repository": "https://github.com/ArcadeAI/arcade-plugin",
-  "skills": "plugin/skills",
-  "agents": "plugin/agents",
-  "commands": "plugin/commands",
-  "rules": "plugin/clients/cursor/rules",
+  "skills": "clients/direct/skills",
+  "agents": "clients/direct/agents",
+  "commands": "clients/direct/commands",
+  "rules": "clients/direct/clients/cursor/rules",
   "hooks": ".cursor-plugin/hooks.json",
   "mcpServers": {
     "arcade": {

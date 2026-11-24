@@ -6,27 +6,27 @@ Client-specific files are generated. Edit the source, then in `dev/` run
 `npm run generate` and `npm run verify` (it fails if a generated file was
 edited by hand).
 [ARCHITECTURE.md](ARCHITECTURE.md) lists the sources; `.gitattributes` lists
-every fully generated file. `plugin/skills/try-arcade/SKILL.md`,
-`plugin/agents/arcade-operator.agent.md`, and `docs/telemetry.md` are hand-written
+every fully generated file. `clients/direct/skills/try-arcade/SKILL.md`,
+`clients/direct/agents/arcade-operator.agent.md`, and `docs/telemetry.md` are hand-written
 except for a marked generated block (the event tables in docs/telemetry.md
-come from `plugin/hooks/telemetry-contract.mjs`; never edit inside those markers).
+come from `clients/direct/hooks/telemetry-contract.mjs`; never edit inside those markers).
 
-- Claude Directory: generate `clients/claude/` from the shared sources. Keep
+- Claude Directory: generate `plugin/` from the shared sources. Keep
   the bundle free of hooks, scripts, package configuration, and telemetry. See
   `docs/claude-directory.md` for the listing paths.
 
-- Routing rules: edit `plugin/hooks/routing-guidance.mjs`, never the rules text in
+- Routing rules: edit `clients/direct/hooks/routing-guidance.mjs`, never the rules text in
   the Cursor rule, arcade-operator, or try-arcade.
-- Hooks: add a hook or a client in `plugin/hooks/hook-hosts.mjs`, never in a
+- Hooks: add a hook or a client in `clients/direct/hooks/hook-hosts.mjs`, never in a
   `hooks.json`. A new client also needs its expected output in
   `dev/test/hooks.test.mjs`.
-- Telemetry: `plugin/hooks/telemetry-contract.mjs` defines every event, property,
+- Telemetry: `clients/direct/hooks/telemetry-contract.mjs` defines every event, property,
   and allowed value; change them there only. Client-specific hook input mapping
-  lives only in `plugin/hooks/telemetry-adapters/<host>.mjs`. Wire a client through
-  `HOSTS.telemetry` in `plugin/hooks/hook-hosts.mjs` (generated manifests follow
+  lives only in `clients/direct/hooks/telemetry-adapters/<host>.mjs`. Wire a client through
+  `HOSTS.telemetry` in `clients/direct/hooks/hook-hosts.mjs` (generated manifests follow
   that source). `telemetry.mjs` prints nothing; only `telemetry-send.mjs` may
   touch the network (a test enforces both). `TELEMETRY_ENABLED` in
-  `plugin/hooks/telemetry-config.mjs` stays `false` without separate approval; while
+  `clients/direct/hooks/telemetry-config.mjs` stays `false` without separate approval; while
   false, `npm run generate` writes no telemetry hooks. `docs/telemetry.md`
   documents the event contract, privacy, opt-outs, and approval before enabling.
   `dev/scripts/telemetry-docs.mjs` generates its event tables from the contract;
