@@ -4,6 +4,13 @@ All notable changes to Arcade are documented here.
 This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3](https://github.com/ArcadeAI/arcade-plugin/compare/v0.9.2...v0.9.3) (2026-11-24)
+
+
+### Bug Fixes
+
+* meet Claude directory restrictions for unverified publishers ([#62](https://github.com/ArcadeAI/arcade-plugin/issues/62)) ([c9523fb](https://github.com/ArcadeAI/arcade-plugin/commit/c9523fb564a5a528793a0abf07c11fb0c42bf696))
+
 ## [0.9.2](https://github.com/ArcadeAI/arcade-plugin/compare/v0.9.1...v0.9.2) (2026-10-28)
 
 
