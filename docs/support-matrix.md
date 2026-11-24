@@ -18,6 +18,7 @@ browser. The rows differ in how much of this plugin the client can load.
 | **OpenCode** | ✅ | — | — | — | — | — | [guide](install/opencode.md) |
 | **Claude Desktop** | ✅ | ✅ | — | — | — | — | [guide](install/claude-desktop.md) |
 | **Grok Bot**⁸ | ✅ | ✅ | — | — | — | — | [guide](install/grok-bot.md) |
+| **Hermes Agent** | ✅ | ✅ | — | — | — | — | [guide](install/hermes.md) |
 | **Any MCP client** | ✅ | — | — | — | — | — | [guide](install/agent-plugins.md) |
 
 Hooks add the routing rules at session start, to each prompt, and to
