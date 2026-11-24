@@ -10,6 +10,25 @@ test("the submitted Claude folder meets every unverified-organization restrictio
   assert.deepEqual(validateClaudeDirectory(join(ROOT, "clients/claude")), []);
 });
 
+test("configurable remote servers need an HTTPS default for directory submission", () => {
+  const root = mkdtempSync(join(tmpdir(), "claude-policy-"));
+  try {
+    mkdirSync(join(root, ".claude-plugin"));
+    for (const value of ["https://example.com/mcp", "http://example.com/mcp", undefined, 42]) {
+      writeFileSync(join(root, ".claude-plugin/plugin.json"), JSON.stringify({
+        name: "example",
+        userConfig: { gateway_url: { type: "string", default: value } },
+        mcpServers: { arcade: { type: "http", url: "${user_config.gateway_url}" } },
+      }));
+      const problems = validateClaudeDirectory(root);
+      if (value === "https://example.com/mcp") assert.deepEqual(problems, []);
+      else assert.ok(problems.some((problem) => problem.includes("HTTPS default")), String(value));
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("restricted files fail even when they are not declared in the manifest", () => {
   for (const file of [
     "scripts/start.sh", "helper.mjs", "icon.svg", "font.woff", "archive.zip",

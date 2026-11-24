@@ -16,10 +16,18 @@
   "version": "0.9.3",
   "displayName": "Arcade",
   "privacyPolicyUrl": "https://www.arcade.dev/privacy-policy/",
+  "userConfig": {
+    "gateway_url": {
+      "type": "string",
+      "title": "Arcade gateway URL",
+      "description": "The HTTPS MCP endpoint for your Arcade gateway.",
+      "default": "https://api.arcade.dev/mcp/arcade"
+    }
+  },
   "mcpServers": {
     "arcade": {
       "type": "http",
-      "url": "https://api.arcade.dev/mcp/arcade"
+      "url": "${user_config.gateway_url}"
     }
   }
 }
