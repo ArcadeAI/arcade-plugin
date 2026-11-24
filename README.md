@@ -56,6 +56,9 @@ claude plugin marketplace add ArcadeAI/arcade-plugin
 claude plugin install arcade@arcade
 ```
 
+The GitHub marketplace includes Claude routing hooks. Claude Directory installs
+use the [hook-free bundle](docs/claude-directory.md).
+
 For Claude Code and GitHub Copilot CLI, you can also use the cross-client CLI:
 
 ```bash

@@ -12,6 +12,10 @@ edited by hand. Both run from `dev/`, which holds the dev tooling so that
 installing the plugin doesn't install its packages. The package ships no
 credentials.
 
+The Claude Directory bundle in `clients/claude/` uses the same manifest sources
+and copies the Markdown components from `plugin/`. The GitHub marketplace
+installs `plugin/` with routing hooks. See [Claude Directory](docs/claude-directory.md).
+
 | Source (edit these) | Holds |
 | --- | --- |
 | `plugin/plugin.json`, `plugin/mcp.json`, `plugin/VERSION` | identity, gateway URL, version, Codex listing metadata |

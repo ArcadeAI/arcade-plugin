@@ -26,6 +26,11 @@
           "type": "json",
           "path": "plugin/.claude-plugin/plugin.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "clients/claude/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
         }
       ]
     }

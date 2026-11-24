@@ -14,11 +14,23 @@ import { makeFixture, readRepoFile, ROOT } from "./helpers.mjs";
 
 // A second copy of FILE_SOURCES on purpose, so a change to a file's sources must change this test too.
 const EXPECTED_SOURCES = {
+  "clients/claude/README.md": ["docs/claude-plugin-readme.md"],
+  "clients/claude/LICENSE": ["LICENSE"],
+  "clients/claude/skills/scale-arcade/SKILL.md": ["plugin/skills/scale-arcade/SKILL.md"],
+  "clients/claude/skills/scale-arcade/references/arcade-docs.md": ["plugin/skills/scale-arcade/references/arcade-docs.md"],
+  "clients/claude/skills/try-arcade/SKILL.md": ["plugin/skills/try-arcade/SKILL.md", "plugin/hooks/routing-guidance.mjs"],
+  "clients/claude/skills/try-arcade/references/arcade-docs.md": ["plugin/skills/try-arcade/references/arcade-docs.md"],
+  "clients/claude/agents/arcade-operator.agent.md": ["plugin/agents/arcade-operator.agent.md", "plugin/hooks/routing-guidance.mjs"],
+  "clients/claude/commands/arcade-apps.md": ["plugin/commands/arcade-apps.md"],
+  "clients/claude/commands/arcade-connect.md": ["plugin/commands/arcade-connect.md"],
+  "clients/claude/commands/arcade-status.md": ["plugin/commands/arcade-status.md"],
+
   "plugin/plugin.json": ["dev/scripts/generate-manifests.mjs"],
   "plugin/.cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/hooks.json": ["plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
   "plugin/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "plugin/hooks/hook-hosts.mjs", "dev/scripts/generate-manifests.mjs"],
+  "clients/claude/.claude-plugin/plugin.json": ["plugin/plugin.json", "plugin/mcp.json", "plugin/VERSION", "dev/scripts/generate-manifests.mjs"],
   ".claude-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
   ".cursor-plugin/marketplace.json": ["plugin/plugin.json", "dev/scripts/generate-manifests.mjs"],
   "plugin/clients/cursor/rules/arcade.mdc": ["plugin/hooks/routing-guidance.mjs", "dev/scripts/generate-manifests.mjs"],
@@ -82,17 +94,23 @@ test("check mode fails with a source-naming error when a generated file is hand-
       );
     }
 
-    // Stale .gitattributes entry: a path that was once generated but no longer
-    // is, left in the committed .gitattributes. Different error path from above.
     generateManifests({ root });
-    writeFileSync(
-      join(root, ".gitattributes"),
-      `${readFileSync(join(root, ".gitattributes"), "utf8")}old/file.json linguist-generated=true\n`,
-    );
-    assert.throws(
-      () => generateManifests({ check: true, root }),
-      /old\/file\.json is no longer generated/,
-    );
+    const stalePath = "clients/claude/commands/old.md";
+    const attributesPath = join(root, ".gitattributes");
+    const cleanAttributes = readFileSync(attributesPath, "utf8");
+    const staleAttributes = `${cleanAttributes}${stalePath} linguist-generated=true\n`;
+    writeFileSync(join(root, stalePath), "Old command");
+    writeFileSync(attributesPath, staleAttributes);
+    for (const check of [true, false]) {
+      assert.throws(() => generateManifests({ check, root }), {
+        message: `${stalePath} is no longer generated. Delete it and run npm run generate.`,
+      });
+      assert.equal(readFileSync(attributesPath, "utf8"), staleAttributes);
+    }
+    rmSync(join(root, stalePath));
+    generateManifests({ root });
+    assert.equal(readFileSync(attributesPath, "utf8"), cleanAttributes);
+    generateManifests({ check: true, root });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -145,7 +163,9 @@ test("changing the canonical privacy URL updates both client fields", async () =
     const changedGenerator = await import(pathToFileURL(join(root, "dev/scripts/generate-manifests.mjs")));
     changedGenerator.generateManifests({ root });
     const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
-    assert.equal(read("plugin/.claude-plugin/plugin.json").privacyPolicyUrl, "https://example.com/new-policy/");
+    for (const folder of ["plugin", "clients/claude"]) {
+      assert.equal(read(`${folder}/.claude-plugin/plugin.json`).privacyPolicyUrl, "https://example.com/new-policy/");
+    }
     const openai = read("plugin/plugin.json").extensions["com.openai"];
     assert.equal(openai.interface.privacyPolicyURL, "https://example.com/new-policy/");
     assert.equal(openai.interface.supportURL, "https://support.arcade.dev");
